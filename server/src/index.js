@@ -10,10 +10,9 @@ require("./db");
 const { requireAuth } = require("./middleware/auth");
 const { rbacMiddleware } = require("./middleware/rbac");
 
-const app = express();
-const PORT = process.env.PORT || 3001;
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
-
+app.listen(process.env.PORT || 10000, () => {
+  console.log("Server running...");
+});
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
   cors({
