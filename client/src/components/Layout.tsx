@@ -1,0 +1,54 @@
+import { useEffect, useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useAppSettings } from "../context/AppSettingsContext";
+import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
+import { Sidebar } from "./Sidebar";
+import { Topbar } from "./Topbar";
+
+export function Layout() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { user, logout } = useAuth();
+  const { settings, refreshSettings, refreshUsers } = useAppSettings();
+  useMadrasaBranding();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", settings.theme === "dark" ? "dark" : "light");
+  }, [settings.theme]);
+
+  useEffect(() => {
+    if (user) {
+      refreshSettings();
+      refreshUsers();
+    }
+  }, [user?.id, refreshSettings, refreshUsers]);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
+  if (!user) return null;
+
+  return (
+    <div
+      className="app-shell"
+      style={{
+        display: "flex",
+        height: "100vh",
+        background: "var(--bg)",
+        fontFamily: "'Noto Sans Bengali', 'Noto Sans', sans-serif",
+        overflow: "hidden",
+      }}
+    >
+      <Sidebar open={sidebarOpen} user={user} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        <Topbar onToggleSidebar={() => setSidebarOpen((o) => !o)} onLogout={handleLogout} />
+        <main className="main-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}

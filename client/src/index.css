@@ -1,0 +1,142 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root,
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --muted: #64748b;
+  --slate-l: #f1f5f9;
+  --row-alt: #fafbfc;
+}
+
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --border: #334155;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --slate-l: #334155;
+  --row-alt: #273549;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+.table-wrap {
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 12px !important;
+  }
+
+  .charts-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sidebar {
+    position: fixed;
+    z-index: 50;
+    height: 100%;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .topbar {
+    padding: 10px 12px !important;
+  }
+
+  /* Make tables scrollable on mobile */
+  table {
+    font-size: 12px !important;
+  }
+
+  th, td {
+    padding: 8px 10px !important;
+  }
+
+  /* Make modals full-screen on mobile */
+  .modal-backdrop {
+    padding: 0 !important;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Adjust form grids for mobile */
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Adjust button sizes */
+  button {
+    font-size: 13px !important;
+    padding: 8px 12px !important;
+  }
+
+  /* Adjust input sizes */
+  input, select, textarea {
+    font-size: 14px !important;
+    padding: 10px !important;
+  }
+
+  /* Make attendance stats grid responsive */
+  .attendance-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .sidebar-toggle {
+    display: inline-flex;
+  }
+}
+
+@media print {
+  .modal-backdrop {
+    position: static !important;
+    background: none !important;
+  }
+
+  .modal-actions {
+    display: none !important;
+  }
+}
