@@ -5,28 +5,44 @@ const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 
+const app = express(); // ✅ FIX 1
+
 require("./db");
 
 const { requireAuth } = require("./middleware/auth");
 const { rbacMiddleware } = require("./middleware/rbac");
 
-app.listen(process.env.PORT || 10000, () => {
-  console.log("Server running...");
-});
+const PORT = process.env.PORT || 10000; // ✅ FIX 2
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN;
+
+// middlewares
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+
 app.use(
   cors({
     origin: CLIENT_ORIGIN,
     credentials: true,
   })
 );
+
 app.use(cookieParser());
 app.use(express.json({ limit: "2mb" }));
 
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, message: { error: "Too many attempts" } });
-const apiLimiter = rateLimit({ windowMs: 1 * 60 * 1000, max: 200 });
+// rate limit
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  message: { error: "Too many attempts" },
+});
 
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 200,
+});
+
+// routes
 app.use("/api/auth", authLimiter, require("./routes/auth"));
+
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 app.use("/api", apiLimiter, requireAuth, rbacMiddleware);
@@ -43,6 +59,7 @@ app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/reports", require("./routes/reports"));
 app.use("/api/backup", require("./routes/backup"));
 
+// server start (ONLY ONCE)
 app.listen(PORT, () => {
-  console.log(`Madrasah ERP API running on http://localhost:${PORT}`);
+  console.log(`Madrasah ERP API running on port ${PORT}`);
 });
