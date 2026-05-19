@@ -16,13 +16,13 @@
 }
 
 [data-theme="dark"] {
-  --bg: #0f172a;
-  --card: #1e293b;
-  --border: #334155;
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --slate-l: #334155;
-  --row-alt: #273549;
+  --bg: #111827;
+  --card: #1f2937;
+  --border: #3b4758;
+  --text: #f8fafc;
+  --muted: #cbd5e1;
+  --slate-l: #2d3748;
+  --row-alt: #263244;
 }
 
 html,
@@ -38,6 +38,11 @@ body,
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
+}
+
+[data-theme="dark"] body {
+  color-scheme: dark;
 }
 
 button,
@@ -45,6 +50,50 @@ input,
 select,
 textarea {
   font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.9;
+}
+
+table {
+  color: var(--text);
+}
+
+th,
+td {
+  vertical-align: middle;
+}
+
+a {
+  color: var(--link, #0ea5e9);
+}
+
+.recharts-text,
+.recharts-cartesian-axis-tick-value {
+  fill: var(--muted);
+}
+
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line,
+.recharts-cartesian-grid line {
+  stroke: var(--border);
+}
+
+.recharts-default-tooltip {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
 }
 
 .table-wrap {
@@ -56,8 +105,27 @@ textarea {
 }
 
 @media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .app-shell {
+    display: block !important;
+    height: 100dvh !important;
+    overflow: hidden;
+  }
+
   .main-content {
     padding: 12px !important;
+    padding-bottom: 24px !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
   }
 
   .charts-row {
@@ -67,8 +135,19 @@ textarea {
   .sidebar {
     position: fixed;
     z-index: 50;
-    height: 100%;
+    inset: 0 auto 0 0;
+    height: 100dvh;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .sidebar-closed {
+    transform: translateX(-105%);
+    width: min(82vw, 280px) !important;
+  }
+
+  .sidebar-open {
+    transform: translateX(0);
+    width: min(82vw, 280px) !important;
   }
 
   .hide-mobile {
@@ -79,7 +158,12 @@ textarea {
     padding: 10px 12px !important;
   }
 
-  /* Make tables scrollable on mobile */
+  .table-wrap {
+    border-radius: 10px !important;
+    margin-left: -2px;
+    margin-right: -2px;
+  }
+
   table {
     font-size: 12px !important;
   }
@@ -88,9 +172,9 @@ textarea {
     padding: 8px 10px !important;
   }
 
-  /* Make modals full-screen on mobile */
   .modal-backdrop {
     padding: 0 !important;
+    align-items: stretch !important;
   }
 
   .modal-content {
@@ -99,28 +183,33 @@ textarea {
     height: 100% !important;
     border-radius: 0 !important;
     margin: 0 !important;
+    overflow-y: auto !important;
   }
 
-  /* Adjust form grids for mobile */
   .form-grid {
     grid-template-columns: 1fr !important;
   }
 
-  /* Adjust button sizes */
   button {
     font-size: 13px !important;
     padding: 8px 12px !important;
+    min-height: 36px;
   }
 
-  /* Adjust input sizes */
   input, select, textarea {
     font-size: 14px !important;
     padding: 10px !important;
+    min-height: 38px;
   }
 
-  /* Make attendance stats grid responsive */
   .attendance-stats-grid {
     grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 

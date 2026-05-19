@@ -12,15 +12,14 @@ export function Attendance() {
   const [dept, setDept] = useState<string>("হিফজ");
   const [att, setAtt] = useState<Student[]>([]);
   const [saved, setSaved] = useState(false);
-  const [date, setDate] = useState("");
-  const today = new Date().toLocaleDateString("bn-BD");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
   const load = useCallback(() => {
-    api.getAttendance({ dept }).then((res) => {
+    api.getAttendance({ dept, date }).then((res) => {
       setAtt(res.students);
       setDate(res.date);
     });
-  }, [dept]);
+  }, [dept, date]);
 
   useEffect(() => {
     load();
@@ -41,6 +40,7 @@ export function Attendance() {
         att.map((s) => ({ studentId: s.id, status: s.att || "উপস্থিত" })),
         date
       );
+      load();
     } catch {
       /* mock mode */
     }
@@ -55,7 +55,10 @@ export function Attendance() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
         <div>
           <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text }}>{t.attendance.title}</h2>
-          <p style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{t.attendance.date}: {today}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: C.muted }}>{t.attendance.date}:</span>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 13, color: C.text, background: C.card }} />
+          </div>
         </div>
         <button type="button" onClick={handleSave} style={{ background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>
           {saved ? t.common.saved : t.common.save}

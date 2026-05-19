@@ -32,7 +32,7 @@ export function Sidebar({ open, user }: SidebarProps) {
 
   return (
     <aside
-      className="sidebar"
+      className={`sidebar ${open ? "sidebar-open" : "sidebar-closed"}`}
       style={{
         width: open ? 230 : 60,
         background: C.slateD,

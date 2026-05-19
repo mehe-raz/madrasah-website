@@ -12,7 +12,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[] | ["*"]> = {
   "Super Admin": ["*"],
   Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
-  Teacher: ["dashboard", "students", "attendance", "hifz"],
+  Teacher: ["attendance", "hifz"],
   "Hostel Manager": ["dashboard", "students", "attendance"],
 };
 
@@ -28,4 +28,19 @@ export function canManageUsers(role: string): boolean {
 
 export function canBackup(role: string): boolean {
   return role === "Super Admin";
+}
+
+export function firstAllowedPath(role: string): string {
+  const fallbackOrder: { permission: Permission; path: string }[] = [
+    { permission: "dashboard", path: "/" },
+    { permission: "attendance", path: "/attendance" },
+    { permission: "hifz", path: "/hifz" },
+    { permission: "students", path: "/students" },
+    { permission: "income", path: "/income" },
+    { permission: "expenses", path: "/expenses" },
+    { permission: "reports", path: "/reports" },
+    { permission: "settings", path: "/settings" },
+  ];
+
+  return fallbackOrder.find((item) => canAccess(role, item.permission))?.path || "/login";
 }

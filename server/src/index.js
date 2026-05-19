@@ -4,23 +4,25 @@ const cors = require("cors");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
+const path = require("path");
 
-const app = express(); // ✅ FIX 1
+const app = express();
 
 require("./db");
 
 const { requireAuth } = require("./middleware/auth");
 const { rbacMiddleware } = require("./middleware/rbac");
 
-const PORT = process.env.PORT || 10000; // ✅ FIX 2
+const PORT = process.env.PORT || 10000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN;
+const clientDist = path.join(__dirname, "..", "..", "client", "dist");
 
-// middlewares
+app.set("trust proxy", 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 app.use(
   cors({
-    origin: CLIENT_ORIGIN,
+    origin: CLIENT_ORIGIN ? CLIENT_ORIGIN.split(",").map((origin) => origin.trim()) : true,
     credentials: true,
   })
 );
@@ -28,10 +30,9 @@ app.use(
 app.use(cookieParser());
 app.use(express.json({ limit: "2mb" }));
 
-// rate limit
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 100,
   message: { error: "Too many attempts" },
 });
 
@@ -40,7 +41,6 @@ const apiLimiter = rateLimit({
   max: 200,
 });
 
-// routes
 app.use("/api/auth", authLimiter, require("./routes/auth"));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -56,10 +56,17 @@ app.use("/api/hifz", require("./routes/hifz"));
 app.use("/api/settings", require("./routes/settings"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/dashboard", require("./routes/dashboard"));
+app.use("/api/delete-requests", require("./routes/deleteRequests"));
 app.use("/api/reports", require("./routes/reports"));
 app.use("/api/backup", require("./routes/backup"));
 
-// server start (ONLY ONCE)
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(clientDist));
+  app.get(/.*/, (_req, res) => {
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`Madrasah ERP API running on port ${PORT}`);
 });

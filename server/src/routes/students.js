@@ -5,6 +5,22 @@ const PDFDocument = require("pdfkit");
 
 const router = express.Router();
 
+function getSettings() {
+  const rows = db.prepare("SELECT key, value FROM settings").all();
+  return rows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
+}
+
+function logoBuffer(logo) {
+  if (!logo || !String(logo).startsWith("data:image/")) return null;
+  const base64 = String(logo).split(",")[1];
+  if (!base64) return null;
+  try {
+    return Buffer.from(base64, "base64");
+  } catch {
+    return null;
+  }
+}
+
 router.get("/classes/list", (_req, res) => {
   const rows = db.prepare("SELECT DISTINCT class FROM students WHERE class != '' ORDER BY class").all();
   res.json(rows.map((r) => r.class));
@@ -151,6 +167,8 @@ router.get("/:id/pdf", async (req, res) => {
 
   try {
     console.log("Starting PDF generation for student:", student.id);
+    const settings = getSettings();
+    const logo = logoBuffer(settings.logo);
     
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     const chunks = [];
@@ -163,6 +181,15 @@ router.get("/:id/pdf", async (req, res) => {
       res.setHeader('Content-Disposition', `attachment; filename="student-${student.id}-${student.name.replace(/\s+/g, '-')}.pdf"`);
       res.send(pdfBuffer);
     });
+
+    if (logo) {
+      try {
+        doc.image(logo, 257, 42, { fit: [80, 80] });
+        doc.moveDown(5);
+      } catch {
+        doc.moveDown();
+      }
+    }
     
     // Header
     doc.fontSize(24).fillColor('#333').text('মাদ্রাসা ছাত্র প্রোফাইল', { align: 'center' });

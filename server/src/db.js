@@ -18,6 +18,10 @@ function migrate() {
     db.exec(`ALTER TABLE users ADD COLUMN passwordHash TEXT`);
     db.exec(`ALTER TABLE users ADD COLUMN isProtected INTEGER DEFAULT 0`);
   }
+  const deleteRequestCols = db.prepare("PRAGMA table_info(delete_requests)").all().map((c) => c.name);
+  if (deleteRequestCols.length && !deleteRequestCols.includes("payload")) {
+    db.exec(`ALTER TABLE delete_requests ADD COLUMN payload TEXT DEFAULT ''`);
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS password_resets (
@@ -39,6 +43,22 @@ function migrate() {
       studentId INTEGER,
       status TEXT DEFAULT 'Completed',
       FOREIGN KEY (studentId) REFERENCES students(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS delete_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entityType TEXT NOT NULL,
+      entityId INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      amount INTEGER DEFAULT 0,
+      requestedBy INTEGER,
+      requestedByName TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      createdAt TEXT NOT NULL,
+      resolvedAt TEXT,
+      resolvedBy INTEGER,
+      payload TEXT DEFAULT '',
+      UNIQUE(entityType, entityId, status)
     );
   `);
 }

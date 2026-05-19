@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { getIncomeCategories, setIncomeCategories } = require("../lib/incomeCategories");
+const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests");
 
 const router = express.Router();
 
@@ -136,6 +137,20 @@ router.patch("/:id", (req, res) => {
 
 router.delete("/:id", (req, res) => {
   const id = Number(req.params.id);
+  const existing = db.prepare("SELECT * FROM income WHERE id = ?").get(id);
+  if (!existing) return res.status(404).json({ error: "Not found" });
+
+  if (!isApprovalRole(req.user?.role)) {
+    const request = createDeleteRequest({
+      entityType: "income",
+      entityId: id,
+      label: `${existing.receipt} - ${existing.category}`,
+      amount: existing.amount,
+      user: req.user,
+    });
+    return res.status(202).json({ ok: true, pendingApproval: true, request });
+  }
+
   const result = db.prepare("DELETE FROM income WHERE id = ?").run(id);
   if (result.changes === 0) return res.status(404).json({ error: "Not found" });
   res.json({ ok: true });

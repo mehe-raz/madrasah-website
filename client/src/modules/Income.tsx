@@ -131,7 +131,10 @@ export function Income() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this income entry?")) return;
-    await api.deleteIncome(id);
+    const res = await api.deleteIncome(id);
+    if (res.pendingApproval) {
+      alert("Delete request sent for Admin approval.");
+    }
     load();
   };
 

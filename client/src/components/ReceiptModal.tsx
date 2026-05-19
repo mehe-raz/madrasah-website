@@ -32,8 +32,10 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
     return `<!DOCTYPE html><html><head><title>Receipt ${payment.receipt}</title>
       <style>body{font-family:Arial,sans-serif;padding:24px;max-width:400px;margin:0 auto}
       h1{font-size:18px;text-align:center} table{width:100%;border-collapse:collapse}
+      .logo{display:block;max-height:64px;max-width:90px;margin:0 auto 10px}
       .footer{text-align:center;font-size:11px;color:#64748b;margin-top:16px}</style></head>
       <body>
+      ${settings.logo ? `<img class="logo" src="${settings.logo}" alt="">` : ""}
       <h1>${settings.name}</h1>
       <p style="text-align:center;font-size:12px;color:#64748b">${settings.address}<br>${settings.phone}</p>
       <h2 style="text-align:center;font-size:14px;color:#0d9488">Fee Receipt</h2>

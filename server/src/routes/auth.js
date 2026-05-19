@@ -7,6 +7,12 @@ const nodemailer = require("nodemailer");
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  secure: process.env.NODE_ENV === "production",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
 
 function publicUser(row) {
   return { id: row.id, name: row.name, email: row.email, role: row.role };
@@ -22,6 +28,9 @@ router.post("/register", async (req, res) => {
   }
 
   const withPassword = db.prepare("SELECT COUNT(*) as c FROM users WHERE passwordHash IS NOT NULL").get().c;
+  if (withPassword > 0) {
+    return res.status(403).json({ error: "Public registration is closed. Ask an admin to create users." });
+  }
   const role = withPassword === 0 ? "Super Admin" : "User";
 
   const hash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -33,7 +42,7 @@ router.post("/register", async (req, res) => {
       .run(name.trim(), email.trim().toLowerCase(), hash, role);
     const user = db.prepare("SELECT id, name, email, role FROM users WHERE id = ?").get(result.lastInsertRowid);
     const token = signToken(user);
-    res.cookie("token", token, { httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie("token", token, cookieOptions);
     res.status(201).json({ user, token });
   } catch (e) {
     if (e.message.includes("UNIQUE")) return res.status(409).json({ error: "Email already registered" });
@@ -52,12 +61,12 @@ router.post("/login", async (req, res) => {
   if (!ok) return res.status(401).json({ error: "Invalid email or password" });
   const user = publicUser(row);
   const token = signToken(user);
-  res.cookie("token", token, { httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.cookie("token", token, cookieOptions);
   res.json({ user, token });
 });
 
 router.post("/logout", (_req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", cookieOptions);
   res.json({ ok: true });
 });
 
@@ -96,13 +105,6 @@ router.post("/forgot-password", async (req, res) => {
 
   // Send email with reset link
   try {
-    console.log("Email config check:", {
-      host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT,
-      user: process.env.EMAIL_USER,
-      hasPass: !!process.env.EMAIL_PASS,
-    });
-
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || "smtp.gmail.com",
       port: process.env.EMAIL_PORT || 587,
@@ -113,12 +115,9 @@ router.post("/forgot-password", async (req, res) => {
       },
     });
 
-    // Verify transporter configuration
     await transporter.verify();
-    console.log("Email transporter verified successfully");
 
     const resetUrl = `${process.env.CLIENT_ORIGIN || "http://localhost:5173"}/reset-password?token=${token}`;
-    console.log("Sending email to:", email.trim().toLowerCase());
     
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
@@ -133,7 +132,7 @@ router.post("/forgot-password", async (req, res) => {
         <p>If you didn't request this, please ignore this email.</p>
       `,
     });
-    console.log("Email sent successfully:", info.messageId);
+    console.log("Password reset email sent:", info.messageId);
   } catch (emailError) {
     console.error("Email sending failed:", emailError);
     // Still return success to prevent email enumeration

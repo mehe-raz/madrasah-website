@@ -2,12 +2,13 @@ const ROLE_PERMISSIONS = {
   "Super Admin": ["*"],
   Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
-  Teacher: ["dashboard", "students", "attendance", "hifz"],
+  Teacher: ["attendance", "hifz"],
   "Hostel Manager": ["dashboard", "students", "attendance"],
 };
 
 const ROUTE_PERMISSION = {
   "/api/dashboard": "dashboard",
+  "/api/delete-requests": "dashboard",
   "/api/students": "students",
   "/api/attendance": "attendance",
   "/api/payments": "income",

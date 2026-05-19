@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { defaultReportRange, ReportDateFilter, type ReportRange } from "../components/ReportDateFilter";
-import { exportReport, type ReportKind } from "../lib/exportReports";
+import type { ReportKind } from "../lib/exportReports";
 import { C } from "../theme/colors";
 
 const reports: { title: string; kind: ReportKind; icon: string; desc: string; color: string }[] = [
@@ -22,6 +22,7 @@ export function Reports() {
     setLoading(key);
     setError(null);
     try {
+      const { exportReport } = await import("../lib/exportReports");
       await exportReport(kind, format, { from: range.from, to: range.to });
     } catch {
       setError("রিপোর্ট ডাউনলোড করা যায়নি। সার্ভার চালু আছে কিনা দেখুন।");
@@ -34,6 +35,7 @@ export function Reports() {
     setLoading("all-pdf");
     setError(null);
     try {
+      const { exportReport } = await import("../lib/exportReports");
       for (const r of reports) {
         if (["income", "expenses", "attendance"].includes(r.kind)) {
           await exportReport(r.kind, "pdf", { from: range.from, to: range.to });
@@ -49,7 +51,7 @@ export function Reports() {
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 8 }}>রিপোর্ট ও এক্সপোর্ট</h2>
-      <p style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>মাস বা তারিখ সিলেক্ট করে PDF/Excel ডাউনলোড করুন।</p>
+      <p style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>মাস বা তারিখ সিলেক্ট করে PDF/CSV ডাউনলোড করুন।</p>
 
       <ReportDateFilter value={range} onChange={setRange} />
 
@@ -77,7 +79,7 @@ export function Reports() {
                 {loading === `${r.kind}-pdf` ? "…" : "📄 PDF"}
               </button>
               <button type="button" disabled={loading !== null} onClick={() => handleExport(r.kind, "excel")} style={{ flex: 1, background: C.slateL, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
-                {loading === `${r.kind}-excel` ? "…" : "📊 Excel"}
+                {loading === `${r.kind}-excel` ? "…" : "CSV"}
               </button>
             </div>
           </div>

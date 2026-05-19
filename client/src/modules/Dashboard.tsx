@@ -19,25 +19,57 @@ import { C } from "../theme/colors";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import type { DashboardData } from "../types";
+import { useAuth } from "../context/AuthContext";
+import type { DashboardData, DeleteRequest } from "../types";
 import { MOCK_DASHBOARD } from "../data/mockData";
 
 const logIcon = (icon: string) =>
   icon === "add" ? "➕" : icon === "payment" ? "💳" : icon === "attendance" ? "📋" : "📉";
 
 export function Dashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState<DashboardData>(MOCK_DASHBOARD);
+  const [deleteRequests, setDeleteRequests] = useState<DeleteRequest[]>([]);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const canApproveDeletes = user?.role === "Super Admin" || user?.role === "Admin";
+  const requestTypeLabel = (type: DeleteRequest["entityType"]) =>
+    type === "income" ? "Income" : type === "expense" ? "Expense" : type === "user-update" ? "User update" : "User delete";
 
   useEffect(() => {
     api.getDashboard().then(setData).catch(() => {});
-  }, []);
+    if (canApproveDeletes) api.getDeleteRequests().then(setDeleteRequests).catch(() => setDeleteRequests([]));
+  }, [canApproveDeletes]);
+
+  const resolveDelete = async (id: number, action: "approve" | "reject") => {
+    if (action === "approve") await api.approveDeleteRequest(id);
+    else await api.rejectDeleteRequest(id);
+    setDeleteRequests((prev) => prev.filter((r) => r.id !== id));
+    api.getDashboard().then(setData).catch(() => {});
+  };
 
   const { stats } = data;
 
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>ড্যাশবোর্ড</h2>
+
+      {canApproveDeletes && deleteRequests.length > 0 && (
+        <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 18, marginBottom: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Delete approval requests</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {deleteRequests.map((r) => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.slateL, borderRadius: 8, flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{requestTypeLabel(r.entityType)}: {r.label}</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>Requested by {r.requestedByName || "Accountant"} · {fmt(r.amount)}</div>
+                </div>
+                <button type="button" onClick={() => resolveDelete(r.id, "approve")} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 7, padding: "7px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>Approve</button>
+                <button type="button" onClick={() => resolveDelete(r.id, "reject")} style={{ background: C.slate, color: "#fff", border: "none", borderRadius: 7, padding: "7px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>Reject</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 }}>
         <StatCard label="মোট ছাত্র" value={String(stats.total)} icon="👨‍🎓" color={C.teal} sub={`${stats.residential} আবাসিক`} />

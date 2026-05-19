@@ -65,7 +65,11 @@ export function Expenses() {
 
   const handleDelete = async (id: number) => {
     try {
-      await api.deleteExpense(id);
+      const res = await api.deleteExpense(id);
+      if (res.pendingApproval) {
+        alert("Delete request sent for Admin approval.");
+        return;
+      }
     } catch {
       /* mock */
     }

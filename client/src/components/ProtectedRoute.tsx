@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { canAccess, type Permission } from "../lib/permissions";
+import { canAccess, firstAllowedPath, type Permission } from "../lib/permissions";
 import { C } from "../theme/colors";
 
 const PATH_PERMISSION: Record<string, Permission> = {
@@ -32,7 +32,7 @@ export function ProtectedRoute() {
 
   const perm = PATH_PERMISSION[location.pathname];
   if (perm && !canAccess(user.role, perm)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={firstAllowedPath(user.role)} replace />;
   }
 
   return <Outlet />;

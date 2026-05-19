@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const db = require("../db");
+const { createDeleteRequest } = require("../lib/deleteRequests");
 
 const router = express.Router();
 const ROLES = ["Super Admin", "Admin", "Accountant", "Teacher", "Hostel Manager"];
@@ -53,16 +54,43 @@ router.patch("/:id", async (req, res) => {
   const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
   if (!existing) return res.status(404).json({ error: "User not found" });
 
+  const protectedChangeNeedsApproval =
+    !!existing.isProtected &&
+    (req.user?.role === "Super Admin" || req.user?.role === "Admin") &&
+    (req.user?.id === existing.id || req.body.email !== undefined || req.body.role !== undefined || req.body.password);
+
   if (existing.isProtected) {
-    if (req.user?.id !== existing.id && req.user?.role !== "Super Admin") {
+    if (req.user?.role !== "Super Admin" && req.user?.role !== "Admin") {
       return res.status(403).json({ error: "Cannot modify protected Super Admin" });
     }
-    if (req.body.role && req.body.role !== "Super Admin") {
+    if (req.user?.role !== "Super Admin" && req.body.role && req.body.role !== "Super Admin") {
+      return res.status(403).json({ error: "Only Super Admin can change Super Admin role" });
+    }
+    if (req.user?.id === existing.id && req.body.role && req.body.role !== "Super Admin") {
       return res.status(403).json({ error: "Super Admin role cannot be changed" });
     }
   }
 
   const { name, role, email, password } = req.body;
+  if (protectedChangeNeedsApproval) {
+    const payload = {};
+    if (name !== undefined) payload.name = String(name).trim();
+    if (email !== undefined) payload.email = String(email).trim().toLowerCase();
+    if (role !== undefined) payload.role = role;
+    if (password) {
+      if (password.length < 8) return res.status(400).json({ error: "Password min 8 characters" });
+      payload.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    }
+    const request = createDeleteRequest({
+      entityType: "user-update",
+      entityId: id,
+      label: `Update ${existing.role}: ${existing.name}`,
+      user: req.user,
+      payload,
+    });
+    return res.status(202).json({ ok: true, pendingApproval: true, request });
+  }
+
   if (name !== undefined) db.prepare("UPDATE users SET name = ? WHERE id = ?").run(String(name).trim(), id);
   if (email !== undefined) {
     try {
@@ -78,11 +106,16 @@ router.patch("/:id", async (req, res) => {
       return res.status(403).json({ error: "Only Super Admin can assign Super Admin" });
     }
     if (existing.isProtected && role !== "Super Admin") {
-      return res.status(403).json({ error: "Super Admin role cannot be changed" });
+      if (req.user?.role !== "Super Admin") {
+        return res.status(403).json({ error: "Only Super Admin can change Super Admin role" });
+      }
+      if (req.user?.id === existing.id) {
+        return res.status(403).json({ error: "Super Admin role cannot be changed" });
+      }
     }
     db.prepare("UPDATE users SET role = ?, isProtected = ? WHERE id = ?").run(
       role,
-      role === "Super Admin" ? 1 : existing.isProtected,
+      role === "Super Admin" ? 1 : 0,
       id
     );
   }
@@ -99,11 +132,20 @@ router.delete("/:id", (req, res) => {
   const id = Number(req.params.id);
   const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
   if (!existing) return res.status(404).json({ error: "User not found" });
-  if (existing.isProtected) {
-    return res.status(403).json({ error: "Super Admin cannot be removed" });
-  }
   if (req.user?.id === id) {
     return res.status(403).json({ error: "Cannot delete your own account" });
+  }
+  if (existing.isProtected && req.user?.role === "Super Admin") {
+    const request = createDeleteRequest({
+      entityType: "user-delete",
+      entityId: id,
+      label: `Delete ${existing.role}: ${existing.name}`,
+      user: req.user,
+    });
+    return res.status(202).json({ ok: true, pendingApproval: true, request });
+  }
+  if (existing.isProtected && req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Super Admin cannot be removed" });
   }
   const result = db.prepare("DELETE FROM users WHERE id = ?").run(id);
   if (result.changes === 0) return res.status(404).json({ error: "User not found" });

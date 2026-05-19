@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { canBackup, canManageUsers } from "../lib/permissions";
 import { C } from "../theme/colors";
-import { USER_ROLES, type Settings as SettingsType, type User } from "../types";
+import { USER_ROLES, type BackupConfig, type Settings as SettingsType, type User } from "../types";
 
 function Field({
   label,
@@ -46,6 +46,7 @@ export function Settings() {
   const [saved, setSaved] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", role: "Teacher", email: "", password: "" });
   const [editDraft, setEditDraft] = useState<User | null>(null);
+  const [backupConfig, setBackupConfig] = useState<BackupConfig | null>(null);
   const [msg, setMsg] = useState("");
   const isMobile = useMediaQuery("(max-width: 768px)");
   const manageUsers = authUser ? canManageUsers(authUser.role) : false;
@@ -55,6 +56,10 @@ export function Settings() {
     setSettings({ ...settings, [k]: v });
     setSaved(false);
   };
+
+  useEffect(() => {
+    if (allowBackup) api.getBackupConfig().then(setBackupConfig).catch(() => {});
+  }, [allowBackup]);
 
   const handleSave = async () => {
     await saveSettings(settings);
@@ -83,6 +88,27 @@ export function Settings() {
     }
   };
 
+  const saveBackupConfig = async () => {
+    if (!backupConfig) return;
+    try {
+      const savedConfig = await api.saveBackupConfig(backupConfig);
+      setBackupConfig(savedConfig);
+      setMsg("Backup settings saved");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Backup settings failed");
+    }
+  };
+
+  const runBackupNow = async () => {
+    try {
+      const result = await api.runBackupNow();
+      setBackupConfig(result.config);
+      setMsg("Backup created");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Backup failed");
+    }
+  };
+
   const handleAddUser = async () => {
     if (!manageUsers || !userForm.name.trim() || !userForm.email || !userForm.password) return;
     try {
@@ -106,21 +132,30 @@ export function Settings() {
       if ((editDraft as User & { newPassword?: string }).newPassword) {
         body.password = (editDraft as User & { newPassword?: string }).newPassword;
       }
-      await api.updateUser(editDraft.id, body);
+      const result = await api.updateUser(editDraft.id, body);
       await refreshUsers();
       setEditDraft(null);
-      setMsg("User updated");
+      setMsg("pendingApproval" in result && result.pendingApproval ? "Permission request sent for approval" : "User updated");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
     }
   };
 
+  const canEditUser = () => manageUsers;
+
+  const canDeleteUser = (u: User) => {
+    if (!manageUsers || authUser?.id === u.id) return false;
+    if (u.isProtected && authUser?.role !== "Super Admin") return false;
+    return true;
+  };
+
   const handleDeleteUser = async (u: User) => {
-    if (!manageUsers || u.isProtected) return;
+    if (!canDeleteUser(u)) return;
     if (!confirm("Delete this user?")) return;
     try {
-      await api.deleteUser(u.id);
+      const result = await api.deleteUser(u.id);
       await refreshUsers();
+      setMsg(result.pendingApproval ? "Permission request sent for approval" : "User deleted");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Cannot delete");
     }
@@ -159,6 +194,35 @@ export function Settings() {
               <button type="button" onClick={handleBackup} style={{ background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 600, cursor: "pointer" }}>
                 {t.settings.downloadBackup}
               </button>
+              {backupConfig && (
+                <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.text }}>
+                    <input type="checkbox" checked={backupConfig.enabled} onChange={(e) => setBackupConfig({ ...backupConfig, enabled: e.target.checked })} />
+                    Automatic backup
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
+                    <Field label="Backup interval (hours)" value={String(backupConfig.intervalHours)} onChange={(v) => setBackupConfig({ ...backupConfig, intervalHours: Number(v) || 24 })} type="number" />
+                    <Field label="Keep local copies" value={String(backupConfig.keepLocalCopies)} onChange={(v) => setBackupConfig({ ...backupConfig, keepLocalCopies: Number(v) || 14 })} type="number" />
+                  </div>
+                  {[0, 1, 2].map((i) => (
+                    <Field
+                      key={i}
+                      label={`Google Drive synced folder ${i + 1}`}
+                      value={backupConfig.destinations[i] || ""}
+                      onChange={(v) => {
+                        const destinations = [...backupConfig.destinations];
+                        destinations[i] = v;
+                        setBackupConfig({ ...backupConfig, destinations });
+                      }}
+                    />
+                  ))}
+                  {backupConfig.lastRunAt && <p style={{ fontSize: 12, color: C.muted }}>Last auto backup: {new Date(backupConfig.lastRunAt).toLocaleString()}</p>}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button type="button" onClick={saveBackupConfig} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Save backup settings</button>
+                    <button type="button" onClick={runBackupNow} style={{ background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Run backup now</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -220,7 +284,7 @@ export function Settings() {
                         <>
                           <input value={draft.name} onChange={(e) => setEditDraft({ ...draft, name: e.target.value })} style={{ ...inputSmall, flex: 1, minWidth: 90 }} />
                           <input value={draft.email || ""} onChange={(e) => setEditDraft({ ...draft, email: e.target.value })} style={{ ...inputSmall, flex: 1, minWidth: 90 }} />
-                          <select value={draft.role} disabled={u.isProtected} onChange={(e) => setEditDraft({ ...draft, role: e.target.value })} style={inputSmall}>
+                          <select value={draft.role} disabled={!!u.isProtected && (authUser?.role !== "Super Admin" || authUser?.id === u.id)} onChange={(e) => setEditDraft({ ...draft, role: e.target.value })} style={inputSmall}>
                             {USER_ROLES.filter((r) => authUser?.role === "Super Admin" || r !== "Super Admin").map((r) => (
                               <option key={r} value={r}>{r}</option>
                             ))}
@@ -235,8 +299,10 @@ export function Settings() {
                             <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{u.name}{u.isProtected ? " 🔒" : ""}</div>
                             <div style={{ fontSize: 11, color: C.muted }}>{u.role} · {u.email || "—"}</div>
                           </div>
-                          <button type="button" onClick={() => setEditDraft({ ...u })} style={{ background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>✏️</button>
-                          {!u.isProtected && (
+                          {canEditUser() && (
+                            <button type="button" onClick={() => setEditDraft({ ...u })} style={{ background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>✏️</button>
+                          )}
+                          {canDeleteUser(u) && (
                             <button type="button" onClick={() => handleDeleteUser(u)} style={{ background: C.roseL, color: C.rose, border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>{t.common.delete}</button>
                           )}
                         </>

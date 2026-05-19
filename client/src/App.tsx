@@ -1,40 +1,48 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
-import { Attendance } from "./modules/Attendance";
-import { Dashboard } from "./modules/Dashboard";
-import { Expenses } from "./modules/Expenses";
-import { HifzTracking } from "./modules/HifzTracking";
-import { Income } from "./modules/Income";
-import { Reports } from "./modules/Reports";
-import { Settings } from "./modules/Settings";
-import { Students } from "./modules/Students";
-import { Login } from "./pages/Login";
-import { ResetPassword } from "./pages/ResetPassword";
+
+const Attendance = lazy(() => import("./modules/Attendance").then((m) => ({ default: m.Attendance })));
+const Dashboard = lazy(() => import("./modules/Dashboard").then((m) => ({ default: m.Dashboard })));
+const Expenses = lazy(() => import("./modules/Expenses").then((m) => ({ default: m.Expenses })));
+const HifzTracking = lazy(() => import("./modules/HifzTracking").then((m) => ({ default: m.HifzTracking })));
+const Income = lazy(() => import("./modules/Income").then((m) => ({ default: m.Income })));
+const Reports = lazy(() => import("./modules/Reports").then((m) => ({ default: m.Reports })));
+const Settings = lazy(() => import("./modules/Settings").then((m) => ({ default: m.Settings })));
+const Students = lazy(() => import("./modules/Students").then((m) => ({ default: m.Students })));
+const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })));
+const ResetPassword = lazy(() => import("./pages/ResetPassword").then((m) => ({ default: m.ResetPassword })));
+
+function PageFallback() {
+  return <div style={{ minHeight: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)" }}>Loading...</div>;
+}
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="students" element={<Students />} />
-              <Route path="attendance" element={<Attendance />} />
-              <Route path="income" element={<Income />} />
-              <Route path="fees" element={<Navigate to="/income" replace />} />
-              <Route path="expenses" element={<Expenses />} />
-              <Route path="hifz" element={<HifzTracking />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+        <Suspense fallback={<PageFallback />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="students" element={<Students />} />
+                <Route path="attendance" element={<Attendance />} />
+                <Route path="income" element={<Income />} />
+                <Route path="fees" element={<Navigate to="/income" replace />} />
+                <Route path="expenses" element={<Expenses />} />
+                <Route path="hifz" element={<HifzTracking />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   );

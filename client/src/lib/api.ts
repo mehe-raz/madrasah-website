@@ -1,7 +1,9 @@
 import type {
   AttendanceResponse,
   AuthUser,
+  BackupConfig,
   DashboardData,
+  DeleteRequest,
   Expense,
   IncomeEntry,
   Payment,
@@ -170,7 +172,7 @@ export const api = {
     request<IncomeEntry>(`/income/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 
   deleteIncome: (id: number) =>
-    request<{ ok: boolean }>(`/income/${id}`, { method: "DELETE" }),
+    request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/income/${id}`, { method: "DELETE" }),
 
   getExpenses: (params?: { from?: string; to?: string }) => {
     const qs = new URLSearchParams();
@@ -189,7 +191,15 @@ export const api = {
     request<Expense>("/expenses", { method: "POST", body: JSON.stringify(body) }),
 
   deleteExpense: (id: number) =>
-    request<{ ok: boolean }>(`/expenses/${id}`, { method: "DELETE" }),
+    request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/expenses/${id}`, { method: "DELETE" }),
+
+  getDeleteRequests: () => request<DeleteRequest[]>("/delete-requests"),
+
+  approveDeleteRequest: (id: number) =>
+    request<{ ok: boolean; deleted: boolean }>(`/delete-requests/${id}/approve`, { method: "POST" }),
+
+  rejectDeleteRequest: (id: number) =>
+    request<{ ok: boolean }>(`/delete-requests/${id}/reject`, { method: "POST" }),
 
   getHifzStudents: () => request<Student[]>("/hifz"),
 
@@ -216,10 +226,10 @@ export const api = {
     request<User>("/users", { method: "POST", body: JSON.stringify(body) }),
 
   updateUser: (id: number, body: { name?: string; role?: string; email?: string; password?: string }) =>
-    request<User>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    request<User | { ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 
   deleteUser: (id: number) =>
-    request<{ ok: boolean }>(`/users/${id}`, { method: "DELETE" }),
+    request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/users/${id}`, { method: "DELETE" }),
 
   downloadBackup: async () => {
     const token = getToken();
@@ -236,4 +246,11 @@ export const api = {
     a.click();
     URL.revokeObjectURL(url);
   },
+
+  getBackupConfig: () => request<BackupConfig>("/backup/config"),
+
+  saveBackupConfig: (body: BackupConfig) =>
+    request<BackupConfig>("/backup/config", { method: "PUT", body: JSON.stringify(body) }),
+
+  runBackupNow: () => request<{ filename: string; localPath: string; config: BackupConfig }>("/backup/run", { method: "POST" }),
 };

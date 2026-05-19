@@ -14,6 +14,7 @@ const emptyNew = {
   dept: "হিফজ",
   type: "আবাসিক",
   phone: "",
+  blood: "O+",
   fee: 1500,
   due: 0,
 };
@@ -23,7 +24,7 @@ export function Students() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("সব");
   const [selected, setSelected] = useState<Student | null>(null);
-  const [editForm, setEditForm] = useState({ phone: "", fee: 0, due: 0 });
+  const [editForm, setEditForm] = useState({ phone: "", blood: "O+", fee: 0, due: 0 });
   const [saving, setSaving] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [newStudent, setNewStudent] = useState(emptyNew);
@@ -51,15 +52,11 @@ export function Students() {
 
   useEffect(() => {
     if (selected) {
-      setEditForm({ phone: selected.phone || "", fee: selected.fee, due: selected.due });
       api.getStudentAttendance(selected.id, { month: attMonth }).then((r) => setAttSummary(r.summary));
       // Get total attendance summary from student profile
       api.getStudent(selected.id).then((student) => {
         setTotalAttSummary(student.attendanceSummary || null);
       });
-    } else {
-      setAttSummary(null);
-      setTotalAttSummary(null);
     }
   }, [selected, attMonth]);
 
@@ -78,6 +75,11 @@ export function Students() {
         s.roll.includes(search))
   );
 
+  const openStudent = (s: Student) => {
+    setEditForm({ phone: s.phone || "", blood: s.blood || "O+", fee: s.fee, due: s.due });
+    setSelected(s);
+  };
+
   const handleAdd = async () => {
     if (!newStudent.name) return;
     const payload = {
@@ -86,6 +88,7 @@ export function Students() {
       dept: newStudent.dept,
       type: newStudent.type,
       phone: newStudent.phone,
+      blood: newStudent.blood,
       fee: Number(newStudent.fee) || 1500,
       due: Number(newStudent.due) || 0,
     };
@@ -115,6 +118,7 @@ export function Students() {
     setSaving(true);
     const payload = {
       phone: editForm.phone,
+      blood: editForm.blood,
       fee: Number(editForm.fee) || 0,
       due: Number(editForm.due) || 0,
     };
@@ -146,13 +150,37 @@ export function Students() {
     }
   };
 
-  const handlePdfExport = async () => {
+  const handlePrintStudent = () => {
     if (!selected) return;
-    try {
-      await api.downloadStudentPdf(selected.id, selected.name);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "PDF তৈরি করতে ব্যর্থ হয়েছে");
-    }
+    const w = window.open("", "_blank", "width=520,height=720");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>Student ${selected.roll}</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:24px;max-width:520px;margin:0 auto;color:#111}
+        h1{text-align:center;font-size:20px;margin:0 0 4px}
+        h2{text-align:center;font-size:14px;font-weight:400;margin:0 0 18px;color:#555}
+        table{width:100%;border-collapse:collapse;margin-top:12px}
+        td{border-bottom:1px solid #ddd;padding:8px 4px;font-size:13px}
+        td:first-child{color:#555;width:42%}
+        .footer{text-align:center;margin-top:22px;font-size:12px;color:#666}
+      </style></head><body>
+      <h1>${selected.name}</h1>
+      <h2>Student profile receipt</h2>
+      <table>
+        <tr><td>Roll</td><td>${selected.roll}</td></tr>
+        <tr><td>Class</td><td>${selected.class || ""}</td></tr>
+        <tr><td>Department</td><td>${selected.dept}</td></tr>
+        <tr><td>Type</td><td>${selected.type}</td></tr>
+        <tr><td>Phone</td><td>${editForm.phone || selected.phone || ""}</td></tr>
+        <tr><td>Blood Group</td><td>${editForm.blood || selected.blood || ""}</td></tr>
+        <tr><td>Monthly Fee</td><td>${fmt(Number(editForm.fee) || selected.fee)}</td></tr>
+        <tr><td>Previous/Current Due</td><td>${fmt(Number(editForm.due) || selected.due)}</td></tr>
+        <tr><td>Status</td><td>${selected.status}</td></tr>
+      </table>
+      <p class="footer">Printed: ${new Date().toLocaleString()}</p>
+      <script>window.onload=function(){window.print();}</script>
+      </body></html>`);
+    w.document.close();
   };
 
   return (
@@ -204,6 +232,14 @@ export function Students() {
                 />
               </div>
             ))}
+            <div>
+              <label style={{ fontSize: 12, color: C.emeraldD, display: "block", marginBottom: 4 }}>রক্তের গ্রুপ</label>
+              <select value={newStudent.blood} onChange={(e) => setNewStudent({ ...newStudent, blood: e.target.value })} style={{ width: "100%", border: `1px solid ${C.emerald}60`, borderRadius: 6, padding: "7px 10px", fontSize: 13, boxSizing: "border-box" }}>
+                {["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
             {([["বিভাগ", "dept", ["হিফজ", "কিতাব", "নাজেরা", "নূরানী"]], ["ধরন", "type", ["আবাসিক", "অনাবাসিক"]]] as const).map(([lbl, k, opts]) => (
               <div key={k}>
                 <label style={{ fontSize: 12, color: C.emeraldD, display: "block", marginBottom: 4 }}>{lbl}</label>
@@ -246,7 +282,7 @@ export function Students() {
                 <td style={{ padding: "10px 14px" }}><span style={{ color: s.due > 0 ? C.rose : C.emerald, fontWeight: 600 }}>{fmt(s.due)}</span></td>
                 <td style={{ padding: "10px 14px" }}><Badge label={s.status} color={s.status === "সক্রিয়" ? C.emerald : C.rose} /></td>
                 <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
-                  <button type="button" onClick={() => setSelected(s)} style={{ background: C.sky + "18", color: C.sky, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, marginRight: 4 }}>দেখুন</button>
+                  <button type="button" onClick={() => openStudent(s)} style={{ background: C.sky + "18", color: C.sky, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, marginRight: 4 }}>দেখুন</button>
                   <button type="button" onClick={() => toggleStatus(s)} style={{ background: s.status === "সক্রিয়" ? C.roseL : C.emeraldL, color: s.status === "সক্রিয়" ? C.rose : C.emerald, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                     {s.status === "সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়"}
                   </button>
@@ -277,6 +313,11 @@ export function Students() {
                 </div>
               ))}
             </div>
+            <div style={{ marginTop: 14, padding: 12, background: C.slateL, borderRadius: 8, fontSize: 12, color: C.muted }}>
+              <div>বর্তমান ফোন: <strong style={{ color: C.text }}>{selected.phone || "—"}</strong></div>
+              <div>ভর্তির সময় ধার্য মাসিক বেতন: <strong style={{ color: C.text }}>{fmt(selected.fee)}</strong></div>
+              <div>বর্তমান/পূর্বের বকেয়া: <strong style={{ color: selected.due > 0 ? C.rose : C.emerald }}>{fmt(selected.due)}</strong></div>
+            </div>
             <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>ফোন</label>
@@ -286,6 +327,18 @@ export function Students() {
                   placeholder="01XXXXXXXXX"
                   style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }}
                 />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>রক্তের গ্রুপ</label>
+                <select
+                  value={editForm.blood}
+                  onChange={(e) => setEditForm({ ...editForm, blood: e.target.value })}
+                  style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }}
+                >
+                  {["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>মাসিক বেতন (৳)</label>
@@ -353,10 +406,10 @@ export function Students() {
               </button>
               <button
                 type="button"
-                onClick={handlePdfExport}
+                onClick={handlePrintStudent}
                 style={{ minWidth: "80px", background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}
               >
-                📄 PDF
+                Print
               </button>
               {user?.role === "Super Admin" && (
                 <button

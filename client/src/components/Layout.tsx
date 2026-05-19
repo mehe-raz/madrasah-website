@@ -7,7 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 export function Layout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => !window.matchMedia("(max-width: 768px)").matches);
   const { user, logout } = useAuth();
   const { settings, refreshSettings, refreshUsers } = useAppSettings();
   useMadrasaBranding();
@@ -22,7 +22,7 @@ export function Layout() {
       refreshSettings();
       refreshUsers();
     }
-  }, [user?.id, refreshSettings, refreshUsers]);
+  }, [user, refreshSettings, refreshUsers]);
 
   const handleLogout = async () => {
     await logout();

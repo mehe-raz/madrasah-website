@@ -55,6 +55,25 @@ export interface Expense {
   note: string;
 }
 
+export interface DeleteRequest {
+  id: number;
+  entityType: "income" | "expense" | "user-update" | "user-delete";
+  entityId: number;
+  label: string;
+  amount: number;
+  requestedByName: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface BackupConfig {
+  enabled: boolean;
+  intervalHours: number;
+  keepLocalCopies: number;
+  destinations: string[];
+  lastRunAt?: string;
+}
+
 export interface Settings {
   name: string;
   address: string;
@@ -65,6 +84,7 @@ export interface Settings {
   lang: string;
   theme: string;
   logo?: string;
+  backupConfig?: string;
 }
 
 export interface AuthUser {
