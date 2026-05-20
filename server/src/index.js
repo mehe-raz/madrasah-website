@@ -16,13 +16,31 @@ const { rbacMiddleware } = require("./middleware/rbac");
 const PORT = process.env.PORT || 10000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN;
 const clientDist = path.join(__dirname, "..", "..", "client", "dist");
+const allowedOrigins = (CLIENT_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const parsed = new URL(origin);
+    return parsed.hostname.endsWith(".vercel.app");
+  } catch {
+    return false;
+  }
+}
 
 app.set("trust proxy", 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 app.use(
   cors({
-    origin: CLIENT_ORIGIN ? CLIENT_ORIGIN.split(",").map((origin) => origin.trim()) : true,
+    origin(origin, callback) {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error("CORS blocked for this origin"));
+    },
     credentials: true,
   })
 );
