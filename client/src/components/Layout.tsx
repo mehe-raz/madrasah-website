@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
@@ -12,6 +12,9 @@ export function Layout() {
   const { settings, refreshSettings, refreshUsers } = useAppSettings();
   useMadrasaBranding();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", settings.theme === "dark" ? "dark" : "light");
@@ -23,6 +26,12 @@ export function Layout() {
       refreshUsers();
     }
   }, [user, refreshSettings, refreshUsers]);
+
+  useEffect(() => {
+    if (isMobile()) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -42,7 +51,13 @@ export function Layout() {
         overflow: "hidden",
       }}
     >
-      <Sidebar open={sidebarOpen} user={user} />
+      <Sidebar
+        open={sidebarOpen}
+        user={user}
+        onNavigate={() => {
+          if (isMobile()) setSidebarOpen(false);
+        }}
+      />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         <Topbar onToggleSidebar={() => setSidebarOpen((o) => !o)} onLogout={handleLogout} />
         <main className="main-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>

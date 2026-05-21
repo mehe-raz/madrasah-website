@@ -19,9 +19,10 @@ const NAV_IDS: { id: string; path: string; icon: string; key: Permission }[] = [
 interface SidebarProps {
   open: boolean;
   user: { name: string; role: string };
+  onNavigate?: () => void;
 }
 
-export function Sidebar({ open, user }: SidebarProps) {
+export function Sidebar({ open, user, onNavigate }: SidebarProps) {
   const { t } = useLanguage();
   const { settings } = useAppSettings();
   const { name: madrasaName } = useMadrasaBranding();
@@ -71,6 +72,7 @@ export function Sidebar({ open, user }: SidebarProps) {
             key={n.id}
             to={n.path}
             end={n.path === "/"}
+            onClick={onNavigate}
             title={t.nav[n.key as keyof typeof t.nav] || n.id}
             style={({ isActive }) => ({
               width: "100%",
