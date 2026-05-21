@@ -114,13 +114,16 @@ a {
 
   .app-shell {
     display: block !important;
-    height: 100dvh !important;
-    overflow: hidden;
+    min-height: 100dvh !important;
+    height: auto !important;
+    overflow: auto !important;
   }
 
   .main-content {
     padding: 12px !important;
     padding-bottom: 24px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   .stats-grid {

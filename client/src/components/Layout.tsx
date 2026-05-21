@@ -7,6 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 export function Layout() {
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
   const [sidebarOpen, setSidebarOpen] = useState(() => !window.matchMedia("(max-width: 768px)").matches);
   const { user, logout } = useAuth();
   const { settings, refreshSettings, refreshUsers } = useAppSettings();
@@ -14,7 +15,13 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(media.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", settings.theme === "dark" ? "dark" : "light");
@@ -28,10 +35,10 @@ export function Layout() {
   }, [user, refreshSettings, refreshUsers]);
 
   useEffect(() => {
-    if (isMobile()) {
+    if (isMobile) {
       setSidebarOpen(false);
     }
-  }, [location.pathname]);
+  }, [location.pathname, isMobile]);
 
   const handleLogout = async () => {
     await logout();
@@ -48,14 +55,14 @@ export function Layout() {
         height: "100vh",
         background: "var(--bg)",
         fontFamily: "'Noto Sans Bengali', 'Noto Sans', sans-serif",
-        overflow: "hidden",
+        overflow: isMobile ? "auto" : "hidden",
       }}
     >
       <Sidebar
         open={sidebarOpen}
         user={user}
         onNavigate={() => {
-          if (isMobile()) setSidebarOpen(false);
+          if (isMobile) setSidebarOpen(false);
         }}
       />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
