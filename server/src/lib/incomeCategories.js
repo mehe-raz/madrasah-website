@@ -27,6 +27,7 @@ function getIncomeCategories() {
 
 function setIncomeCategories(categories) {
   const clean = categories.map((c) => String(c).trim()).filter(Boolean);
+  if (!clean.includes("Student Fee")) clean.unshift("Student Fee");
   if (!clean.length) throw new Error("At least one category required");
   db.prepare(
     "INSERT INTO settings (key, value) VALUES ('incomeCategories', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"

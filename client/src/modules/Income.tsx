@@ -18,6 +18,8 @@ export function Income() {
   const [filterCat, setFilterCat] = useState("All");
   const [showReceipt, setShowReceipt] = useState<Payment | null>(null);
   const [editRow, setEditRow] = useState<IncomeEntry | null>(null);
+  const [msg, setMsg] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     category: "Donation",
@@ -43,7 +45,9 @@ export function Income() {
     api.getIncomeCategories().then((c) => {
       setCategories(c);
       setCatEdit(c);
-      if (c.length && !form.category) setForm((f) => ({ ...f, category: c.find((x) => x !== "Student Fee") || c[0] }));
+      if (c.length) {
+        setForm((f) => (c.includes(f.category) ? f : { ...f, category: c.find((x) => x !== "Student Fee") || c[0] }));
+      }
     });
     api.getStudents({ status: "সক্রিয়" }).then((s) => {
       setStudents(s);
@@ -58,9 +62,15 @@ export function Income() {
   const classList = [...new Set(students.map((s) => s.class).filter(Boolean))];
 
   const saveCategories = async () => {
-    const saved = await api.saveIncomeCategories(catEdit);
-    setCategories(saved);
-    setCatEdit(saved);
+    try {
+      const saved = await api.saveIncomeCategories(catEdit);
+      setCategories(saved);
+      setCatEdit(saved);
+      setMsg("Categories saved");
+      if (!saved.includes(form.category)) setForm((f) => ({ ...f, category: saved.find((x) => x !== "Student Fee") || saved[0] }));
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Category save failed");
+    }
   };
 
   useEffect(() => {
@@ -78,54 +88,78 @@ export function Income() {
 
   const handleAdd = async () => {
     const amount = Number(form.amount);
-    if (!amount) return;
-    const entry = await api.createIncome({
-      category: form.category,
-      amount,
-      note: form.note,
-      method: form.method,
-      date: form.date,
-    });
-    setShowReceipt({
-      id: entry.id,
-      student: entry.note || entry.category,
-      roll: "-",
-      category: entry.category,
-      amount: entry.amount,
-      date: entry.date,
-      receipt: entry.receipt,
-      method: entry.method,
-      status: entry.status,
-    });
-    setForm({ category: "Donation", amount: "", note: "", method: "Cash", date: new Date().toISOString().slice(0, 10) });
-    setTab("list");
-    load();
+    if (!amount) {
+      setMsg("Amount required");
+      return;
+    }
+    setSaving(true);
+    setMsg("");
+    try {
+      const entry = await api.createIncome({
+        category: form.category,
+        amount,
+        note: form.note,
+        method: form.method,
+        date: form.date,
+      });
+      setShowReceipt({
+        id: entry.id,
+        student: entry.note || entry.category,
+        roll: "-",
+        category: entry.category,
+        amount: entry.amount,
+        date: entry.date,
+        receipt: entry.receipt,
+        method: entry.method,
+        status: entry.status,
+      });
+      setForm({ category: categories.find((x) => x !== "Student Fee") || "Donation", amount: "", note: "", method: "Cash", date: new Date().toISOString().slice(0, 10) });
+      setTab("list");
+      setMsg("Income saved. Receipt is ready.");
+      load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Income save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleStudentFee = async () => {
     const amount = Number(studentForm.amount);
     const student = students.find((s) => s.id === studentForm.studentId);
-    if (!student || !amount) return;
-    const entry = await api.createIncome({
-      category: "Student Fee",
-      amount,
-      method: studentForm.method,
-      studentId: student.id,
-      note: `Fee from ${student.name}`,
-    });
-    setShowReceipt({
-      id: entry.id,
-      student: student.name,
-      roll: student.roll,
-      amount,
-      date: entry.date,
-      receipt: entry.receipt,
-      method: studentForm.method,
-      status: "Completed",
-      category: "Student Fee",
-    });
-    setStudentForm({ ...studentForm, amount: "" });
-    load();
+    if (!student || !amount) {
+      setMsg("Student and amount required");
+      return;
+    }
+    setSaving(true);
+    setMsg("");
+    try {
+      const entry = await api.createIncome({
+        category: "Student Fee",
+        amount,
+        method: studentForm.method,
+        studentId: student.id,
+        note: `Fee from ${student.name}`,
+      });
+      setShowReceipt({
+        id: entry.id,
+        student: student.name,
+        roll: student.roll,
+        amount,
+        date: entry.date,
+        receipt: entry.receipt,
+        method: studentForm.method,
+        status: "Completed",
+        category: "Student Fee",
+      });
+      setStudentForm({ ...studentForm, amount: "" });
+      setMsg("Student fee saved. Receipt is ready.");
+      load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Student fee save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUpdate = async () => {
@@ -166,6 +200,7 @@ export function Income() {
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.income.title}</h2>
+      {msg && <p style={{ color: msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("invalid") ? C.rose : C.teal, fontSize: 13, marginTop: -8, marginBottom: 12 }}>{msg}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
         <StatCard label={t.income.total} value={fmt(totalIncome)} icon="💰" color={C.emerald} />
@@ -252,7 +287,7 @@ export function Income() {
             <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} style={fieldStyle}>
               {METHODS.map((m) => <option key={m}>{m}</option>)}
             </select>
-            <button type="button" onClick={handleAdd} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: "pointer" }}>{t.common.save}</button>
+            <button type="button" disabled={saving} onClick={handleAdd} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: saving ? 0.75 : 1 }}>{saving ? "Saving..." : t.common.save}</button>
           </div>
         </div>
       )}
@@ -297,8 +332,8 @@ export function Income() {
               </button>
             ))}
           </div>
-          <button type="button" onClick={handleStudentFee} style={{ width: "100%", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: "pointer" }}>
-            Collect &amp; Create Receipt
+          <button type="button" disabled={saving} onClick={handleStudentFee} style={{ width: "100%", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: saving ? 0.75 : 1 }}>
+            {saving ? "Saving..." : "Collect & Create Receipt"}
           </button>
         </div>
       )}
