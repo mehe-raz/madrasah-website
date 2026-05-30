@@ -10,17 +10,16 @@ router.get("/", (_req, res) => {
 router.post("/", (req, res) => {
   const { studentId, amount, method } = req.body;
   const student = db.prepare("SELECT * FROM students WHERE id = ?").get(studentId);
-  if (!student) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
+  if (!student) return res.status(404).json({ error: "Student not found" });
 
   const payAmount = Number(amount);
-  if (!payAmount || payAmount <= 0) return res.status(400).json({ error: "অবৈধ পরিমাণ" });
+  if (!payAmount || payAmount <= 0) return res.status(400).json({ error: "Invalid amount" });
 
   const maxId = db.prepare("SELECT MAX(id) as m FROM payments").get().m || 0;
-  const receipt = `RCP-2025-${String(maxId + 1).padStart(3, "0")}`;
-  const date = new Date().toLocaleDateString("bn-BD");
-  const newDue = Math.max(0, student.due - payAmount);
-  const status = newDue === 0 && payAmount >= student.fee ? "সম্পন্ন" : payAmount >= student.due ? "সম্পন্ন" : "আংশিক";
-
+  const receipt = `RCP-${new Date().getFullYear()}-${String(maxId + 1).padStart(3, "0")}`;
+  const date = new Date().toISOString().slice(0, 10);
+  const newDue = Math.max(0, Number(student.due || 0) - payAmount);
+  const status = newDue === 0 || payAmount >= Number(student.due || 0) ? "Completed" : "Partial";
   const payment = {
     studentId,
     student: student.name,
@@ -28,20 +27,28 @@ router.post("/", (req, res) => {
     amount: payAmount,
     date,
     receipt,
-    method: method || "নগদ",
+    method: method || "Cash",
     status,
   };
 
-  const result = db
-    .prepare(
-      `INSERT INTO payments (studentId, student, roll, amount, date, receipt, method, status)
-       VALUES (@studentId, @student, @roll, @amount, @date, @receipt, @method, @status)`
-    )
-    .run(payment);
+  const tx = db.transaction(() => {
+    const result = db
+      .prepare(
+        `INSERT INTO payments (studentId, student, roll, amount, date, receipt, method, status)
+         VALUES (@studentId, @student, @roll, @amount, @date, @receipt, @method, @status)`
+      )
+      .run(payment);
 
-  db.prepare("UPDATE students SET due = ? WHERE id = ?").run(newDue, studentId);
+    db.prepare(
+      `INSERT INTO income (category, amount, date, note, method, receipt, studentId, status)
+       VALUES ('Student Fee', ?, ?, ?, ?, ?, ?, 'Completed')`
+    ).run(payAmount, date, `Fee from ${student.name}`, payment.method, receipt, studentId);
 
-  res.status(201).json({ id: result.lastInsertRowid, ...payment });
+    db.prepare("UPDATE students SET due = ? WHERE id = ?").run(newDue, studentId);
+    return result.lastInsertRowid;
+  });
+
+  res.status(201).json({ id: tx(), ...payment });
 });
 
 module.exports = router;

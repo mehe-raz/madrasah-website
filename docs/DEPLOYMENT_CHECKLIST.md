@@ -37,3 +37,5 @@
 
 - Do not commit `.env`, `server/data`, `.db`, or backup files.
 - Use the Settings backup screen to configure local or Google Drive synced backup folders.
+- Render Free instances do not provide permanent local database storage. For production data, use a persistent disk and set `DATA_DIR` to that disk path, or restore from a downloaded `.db` backup after a reset.
+- Super Admins can restore a downloaded backup from Settings -> Backup -> Restore backup database.

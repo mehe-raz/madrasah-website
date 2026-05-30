@@ -253,4 +253,22 @@ export const api = {
     request<BackupConfig>("/backup/config", { method: "PUT", body: JSON.stringify(body) }),
 
   runBackupNow: () => request<{ filename: string; localPath: string; config: BackupConfig }>("/backup/run", { method: "POST" }),
+
+  restoreBackup: async (file: File) => {
+    const token = getToken();
+    const res = await fetch(`${API}/backup/restore`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...(token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: await file.arrayBuffer(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return (await res.json()) as { ok: boolean; message: string };
+  },
 };

@@ -26,6 +26,8 @@ export interface Payment {
   studentId?: number;
   student: string;
   roll: string;
+  category?: string;
+  description?: string;
   amount: number;
   date: string;
   receipt: string;

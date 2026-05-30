@@ -1,10 +1,12 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const Database = require("better-sqlite3");
 const db = require("../db");
 
 const router = express.Router();
-const dbPath = path.join(__dirname, "..", "..", "data", "madrasah.db");
+const dataDir = process.env.DATA_DIR || path.join(__dirname, "..", "data");
+const dbPath = path.join(dataDir, "madrasah.db");
 const backupDir = path.join(__dirname, "..", "..", "backups");
 const CONFIG_KEY = "backupConfig";
 
@@ -93,6 +95,44 @@ router.post("/run", async (_req, res) => {
     res.json(await createBackup());
   } catch (e) {
     res.status(500).json({ error: e.message || "Backup failed" });
+  }
+});
+
+router.post("/restore", express.raw({ type: "application/octet-stream", limit: "100mb" }), async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can restore backup" });
+  }
+  if (!req.body?.length) return res.status(400).json({ error: "Backup file required" });
+
+  ensureDir(dataDir);
+  ensureDir(backupDir);
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const tempPath = path.join(backupDir, `restore-upload-${stamp}.db`);
+  const currentBackupPath = path.join(backupDir, `before-restore-${stamp}.db`);
+
+  try {
+    fs.writeFileSync(tempPath, req.body);
+    const uploaded = new Database(tempPath, { readonly: true });
+    const tables = uploaded.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((r) => r.name);
+    uploaded.close();
+    if (!tables.includes("users") || !tables.includes("students") || !tables.includes("settings")) {
+      fs.unlinkSync(tempPath);
+      return res.status(400).json({ error: "Invalid madrasah backup file" });
+    }
+
+    if (fs.existsSync(dbPath)) await db.backup(currentBackupPath);
+    db.pragma("wal_checkpoint(TRUNCATE)");
+    db.close();
+    fs.copyFileSync(tempPath, dbPath);
+    [dbPath + "-wal", dbPath + "-shm"].forEach((file) => {
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    });
+    fs.unlinkSync(tempPath);
+    res.json({ ok: true, message: "Backup restored. Server restarting." });
+    setTimeout(() => process.exit(0), 300);
+  } catch (e) {
+    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+    res.status(500).json({ error: e.message || "Restore failed" });
   }
 });
 

@@ -6,9 +6,14 @@ const { createDeleteRequest } = require("../lib/deleteRequests");
 const router = express.Router();
 const ROLES = ["Super Admin", "Admin", "Accountant", "Teacher", "Hostel Manager"];
 const SALT_ROUNDS = 12;
+const APPROVAL_ROLES = ["Super Admin", "Admin"];
 
 function publicUser(row) {
   return { id: row.id, name: row.name, email: row.email || "", role: row.role, isProtected: !!row.isProtected };
+}
+
+function isApprovalRole(role) {
+  return APPROVAL_ROLES.includes(role);
 }
 
 router.get("/", (_req, res) => {
@@ -54,16 +59,19 @@ router.patch("/:id", async (req, res) => {
   const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
   if (!existing) return res.status(404).json({ error: "User not found" });
 
-  const protectedChangeNeedsApproval =
-    !!existing.isProtected &&
-    (req.user?.role === "Super Admin" || req.user?.role === "Admin") &&
-    (req.user?.id === existing.id || req.body.email !== undefined || req.body.role !== undefined || req.body.password);
+  const privilegedTarget = isApprovalRole(existing.role);
+  const privilegedChangeNeedsApproval =
+    privilegedTarget &&
+    isApprovalRole(req.user?.role) &&
+    (req.user?.id === existing.id ||
+      req.body.name !== undefined ||
+      req.body.email !== undefined ||
+      req.body.role !== undefined ||
+      req.body.password);
 
-  if (existing.isProtected) {
-    if (req.user?.role !== "Super Admin" && req.user?.role !== "Admin") {
-      return res.status(403).json({ error: "Cannot modify protected Super Admin" });
-    }
-    if (req.user?.role !== "Super Admin" && req.body.role && req.body.role !== "Super Admin") {
+  if (privilegedTarget) {
+    if (!isApprovalRole(req.user?.role)) return res.status(403).json({ error: "Cannot modify Admin or Super Admin" });
+    if (existing.role === "Super Admin" && req.user?.role !== "Super Admin" && req.body.role && req.body.role !== "Super Admin") {
       return res.status(403).json({ error: "Only Super Admin can change Super Admin role" });
     }
     if (req.user?.id === existing.id && req.body.role && req.body.role !== "Super Admin") {
@@ -72,7 +80,7 @@ router.patch("/:id", async (req, res) => {
   }
 
   const { name, role, email, password } = req.body;
-  if (protectedChangeNeedsApproval) {
+  if (privilegedChangeNeedsApproval) {
     const payload = {};
     if (name !== undefined) payload.name = String(name).trim();
     if (email !== undefined) payload.email = String(email).trim().toLowerCase();
@@ -135,7 +143,7 @@ router.delete("/:id", (req, res) => {
   if (req.user?.id === id) {
     return res.status(403).json({ error: "Cannot delete your own account" });
   }
-  if (existing.isProtected && req.user?.role === "Super Admin") {
+  if (isApprovalRole(existing.role) && isApprovalRole(req.user?.role)) {
     const request = createDeleteRequest({
       entityType: "user-delete",
       entityId: id,
@@ -144,8 +152,8 @@ router.delete("/:id", (req, res) => {
     });
     return res.status(202).json({ ok: true, pendingApproval: true, request });
   }
-  if (existing.isProtected && req.user?.role !== "Super Admin") {
-    return res.status(403).json({ error: "Super Admin cannot be removed" });
+  if (isApprovalRole(existing.role)) {
+    return res.status(403).json({ error: "Admin or Super Admin changes need approval" });
   }
   const result = db.prepare("DELETE FROM users WHERE id = ?").run(id);
   if (result.changes === 0) return res.status(404).json({ error: "User not found" });

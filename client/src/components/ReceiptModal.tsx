@@ -16,8 +16,9 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
   const receiptHtml = () => {
     const rows = [
       ["Receipt No", payment.receipt],
-      ["Student", payment.student],
-      ["Roll", payment.roll],
+      ...(payment.category ? [["Category", payment.category]] : []),
+      [payment.category ? "Details" : "Student", payment.student],
+      ...(payment.roll && payment.roll !== "-" ? [["Roll", payment.roll]] : []),
       ["Amount", fmt(payment.amount)],
       ["Date", payment.date],
       ["Method", payment.method],
@@ -56,8 +57,9 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
 
   const rows = [
     ["Receipt No", payment.receipt],
-    ["Student", payment.student],
-    ["Roll", payment.roll],
+    ...(payment.category ? [["Category", payment.category]] : []),
+    [payment.category ? "Details" : "Student", payment.student],
+    ...(payment.roll && payment.roll !== "-" ? [["Roll", payment.roll]] : []),
     ["Amount", fmt(payment.amount)],
     ["Date", payment.date],
     ["Method", payment.method],

@@ -79,12 +79,23 @@ export function Income() {
   const handleAdd = async () => {
     const amount = Number(form.amount);
     if (!amount) return;
-    await api.createIncome({
+    const entry = await api.createIncome({
       category: form.category,
       amount,
       note: form.note,
       method: form.method,
       date: form.date,
+    });
+    setShowReceipt({
+      id: entry.id,
+      student: entry.note || entry.category,
+      roll: "-",
+      category: entry.category,
+      amount: entry.amount,
+      date: entry.date,
+      receipt: entry.receipt,
+      method: entry.method,
+      status: entry.status,
     });
     setForm({ category: "Donation", amount: "", note: "", method: "Cash", date: new Date().toISOString().slice(0, 10) });
     setTab("list");
@@ -111,6 +122,7 @@ export function Income() {
       receipt: entry.receipt,
       method: studentForm.method,
       status: "Completed",
+      category: "Student Fee",
     });
     setStudentForm({ ...studentForm, amount: "" });
     load();
@@ -139,11 +151,11 @@ export function Income() {
   };
 
   const openReceipt = (e: IncomeEntry) => {
-    if (e.category !== "Student Fee") return;
     setShowReceipt({
       id: e.id,
-      student: e.student || "—",
-      roll: e.roll || "—",
+      student: e.student || e.note || e.category,
+      roll: e.roll || "-",
+      category: e.category,
       amount: e.amount,
       date: e.date,
       receipt: e.receipt,
@@ -151,7 +163,6 @@ export function Income() {
       status: e.status,
     });
   };
-
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.income.title}</h2>
@@ -199,9 +210,7 @@ export function Income() {
                     <td style={{ padding: "10px 14px" }}>{e.method}</td>
                     <td style={{ padding: "10px 14px", color: C.muted }}>{e.note || "—"}</td>
                     <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
-                      {e.category === "Student Fee" && (
-                        <button type="button" onClick={() => openReceipt(e)} style={{ background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", marginRight: 4 }}>Receipt</button>
-                      )}
+                      <button type="button" onClick={() => openReceipt(e)} style={{ background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", marginRight: 4 }}>Receipt</button>
                       <button type="button" onClick={() => setEditRow({ ...e })} style={{ background: C.amberL, color: C.amberD, border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", marginRight: 4 }}>Edit</button>
                       <button type="button" onClick={() => handleDelete(e.id)} style={{ background: C.roseL, color: C.rose, border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>Delete</button>
                     </td>
@@ -327,3 +336,4 @@ const fieldStyle: CSSProperties = {
   background: C.card,
   color: C.text,
 };
+

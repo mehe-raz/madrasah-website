@@ -109,6 +109,21 @@ export function Settings() {
     }
   };
 
+  const handleRestore = async (file: File | null) => {
+    if (!file) return;
+    if (authUser?.role !== "Super Admin") {
+      setMsg("Only Super Admin can restore backup");
+      return;
+    }
+    if (!confirm("Restore this backup? Current online data will be replaced.")) return;
+    try {
+      await api.restoreBackup(file);
+      setMsg("Backup restored. Server is restarting. Please login again after one minute.");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Restore failed");
+    }
+  };
+
   const handleAddUser = async () => {
     if (!manageUsers || !userForm.name.trim() || !userForm.email || !userForm.password) return;
     try {
@@ -194,6 +209,13 @@ export function Settings() {
               <button type="button" onClick={handleBackup} style={{ background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 600, cursor: "pointer" }}>
                 {t.settings.downloadBackup}
               </button>
+              {authUser?.role === "Super Admin" && (
+                <div style={{ marginTop: 14, padding: 12, background: C.slateL, borderRadius: 8 }}>
+                  <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Restore backup database (.db)</label>
+                  <input type="file" accept=".db,application/octet-stream" onChange={(e) => handleRestore(e.target.files?.[0] || null)} style={{ fontSize: 13, maxWidth: "100%" }} />
+                  <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>Upload a downloaded madrasah backup to restore old students, income, users and settings.</p>
+                </div>
+              )}
               {backupConfig && (
                 <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.text }}>

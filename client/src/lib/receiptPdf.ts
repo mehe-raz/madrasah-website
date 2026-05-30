@@ -38,8 +38,9 @@ export function downloadReceiptPdf(payment: Payment, settings: Settings) {
   doc.setFontSize(11);
   const rows: [string, string][] = [
     ["Receipt No", payment.receipt],
-    ["Student", payment.student],
-    ["Roll", payment.roll],
+    ...(payment.category ? ([["Category", payment.category]] as [string, string][]) : []),
+    [payment.category ? "Details" : "Student", payment.student],
+    ...(payment.roll && payment.roll !== "-" ? ([["Roll", payment.roll]] as [string, string][]) : []),
     ["Amount", fmt(payment.amount)],
     ["Date", payment.date],
     ["Method", payment.method],
