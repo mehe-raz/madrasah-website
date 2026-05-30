@@ -2,8 +2,6 @@
  * Income category helpers | আয়ের ক্যাটাগরি সেটিংস থেকে পড়া/লেখা
  * Stored in settings table as JSON key: incomeCategories
  */
-const db = require("../db");
-
 const DEFAULT_CATEGORIES = [
   "Student Fee",
   "Donation",
@@ -14,7 +12,12 @@ const DEFAULT_CATEGORIES = [
   "Other",
 ];
 
+function getDb() {
+  return require("../db");
+}
+
 function getIncomeCategories() {
+  const db = getDb();
   const row = db.prepare("SELECT value FROM settings WHERE key = 'incomeCategories'").get();
   if (!row?.value) return [...DEFAULT_CATEGORIES];
   try {
@@ -26,6 +29,7 @@ function getIncomeCategories() {
 }
 
 function setIncomeCategories(categories) {
+  const db = getDb();
   const clean = categories.map((c) => String(c).trim()).filter(Boolean);
   if (!clean.includes("Student Fee")) clean.unshift("Student Fee");
   if (!clean.length) throw new Error("At least one category required");

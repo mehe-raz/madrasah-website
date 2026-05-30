@@ -32,6 +32,8 @@ export function Income() {
   const [categories, setCategories] = useState<string[]>([]);
   const [catEdit, setCatEdit] = useState<string[]>([]);
   const [catDraft, setCatDraft] = useState("");
+  const [showCategoryEditor, setShowCategoryEditor] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
 
   const [studentForm, setStudentForm] = useState({
     className: "",
@@ -58,7 +60,17 @@ export function Income() {
     });
   };
 
-  const studentsInClass = students.filter((s) => s.class === studentForm.className && s.status === "সক্রিয়");
+  const searchText = studentSearch.trim().toLowerCase();
+  const studentsInClass = students.filter((s) => {
+    const classMatch = !studentForm.className || s.class === studentForm.className;
+    const activeMatch = s.status === "সক্রিয়";
+    const searchMatch =
+      !searchText ||
+      s.name.toLowerCase().includes(searchText) ||
+      String(s.roll).toLowerCase().includes(searchText) ||
+      (s.nameEn || "").toLowerCase().includes(searchText);
+    return classMatch && activeMatch && searchMatch;
+  });
   const classList = [...new Set(students.map((s) => s.class).filter(Boolean))];
 
   const saveCategories = async () => {
@@ -259,7 +271,18 @@ export function Income() {
 
       {tab === "add" && (
         <div style={{ maxWidth: 520, background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>{t.income.addByCategory}</h3>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t.income.addByCategory}</h3>
+            <button type="button" onClick={() => setShowCategoryEditor((v) => !v)} title="Edit categories" style={{ width: 34, height: 34, border: `1px solid ${C.border}`, borderRadius: 8, background: C.card, color: C.text, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>...</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 16 }}>
+            {categories.filter((c) => c !== "Student Fee").map((cat) => (
+              <button key={cat} type="button" onClick={() => setForm({ ...form, category: cat })} style={{ border: `2px solid ${form.category === cat ? C.teal : C.border}`, background: form.category === cat ? C.tealL : C.card, borderRadius: 8, padding: "10px", cursor: "pointer", fontSize: 12, fontWeight: form.category === cat ? 700 : 400 }}>
+                {cat}
+              </button>
+            ))}
+          </div>
+          {showCategoryEditor && (
           <div style={{ marginBottom: 16, padding: 12, background: C.slateL, borderRadius: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Edit categories / ক্যাটাগরি সম্পাদনা</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
@@ -273,13 +296,7 @@ export function Income() {
               <button type="button" onClick={saveCategories} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>Save categories</button>
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 16 }}>
-            {categories.filter((c) => c !== "Student Fee").map((cat) => (
-              <button key={cat} type="button" onClick={() => setForm({ ...form, category: cat })} style={{ border: `2px solid ${form.category === cat ? C.teal : C.border}`, background: form.category === cat ? C.tealL : C.card, borderRadius: 8, padding: "10px", cursor: "pointer", fontSize: 12, fontWeight: form.category === cat ? 700 : 400 }}>
-                {cat}
-              </button>
-            ))}
-          </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <input type="number" placeholder="Amount (BDT)" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} style={fieldStyle} />
             <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} style={fieldStyle} />
@@ -309,6 +326,13 @@ export function Income() {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+          <label style={{ fontSize: 12, color: C.muted }}>Search by name or roll</label>
+          <input
+            placeholder="Name or roll"
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+            style={{ ...fieldStyle, marginBottom: 12 }}
+          />
           <label style={{ fontSize: 12, color: C.muted }}>Student / ছাত্র</label>
           <select
             value={studentForm.studentId}
@@ -371,4 +395,8 @@ const fieldStyle: CSSProperties = {
   background: C.card,
   color: C.text,
 };
+
+
+
+
 
