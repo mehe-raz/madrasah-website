@@ -269,7 +269,7 @@ export function Students() {
           </thead>
           <tbody>
             {filtered.map((s, i) => (
-              <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "#fafbfc" }}>
+              <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
                 <td style={{ padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{s.roll}</td>
                 <td style={{ padding: "10px 14px" }}>
                   <div style={{ fontWeight: 600, color: C.text }}>{s.name}</div>
@@ -376,19 +376,19 @@ export function Students() {
               <div style={{ marginTop: 12, padding: 12, background: C.tealL, borderRadius: 8 }}>
                 <div style={{ fontWeight: 600, marginBottom: 8, color: C.tealD }}>মোট হাজিরা সারাংশ</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }} className="attendance-stats-grid">
-                  <div style={{ textAlign: "center", padding: 8, background: "#fff", borderRadius: 6 }}>
+                  <div style={{ textAlign: "center", padding: 8, background: C.card, borderRadius: 6 }}>
                     <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>{totalAttSummary.total}</div>
                     <div style={{ fontSize: 11, color: C.muted }}>মোট দিন</div>
                   </div>
-                  <div style={{ textAlign: "center", padding: 8, background: "#fff", borderRadius: 6 }}>
+                  <div style={{ textAlign: "center", padding: 8, background: C.card, borderRadius: 6 }}>
                     <div style={{ fontSize: 20, fontWeight: 700, color: C.emerald }}>{totalAttSummary.present}</div>
                     <div style={{ fontSize: 11, color: C.muted }}>উপস্থিত</div>
                   </div>
-                  <div style={{ textAlign: "center", padding: 8, background: "#fff", borderRadius: 6 }}>
+                  <div style={{ textAlign: "center", padding: 8, background: C.card, borderRadius: 6 }}>
                     <div style={{ fontSize: 20, fontWeight: 700, color: C.rose }}>{totalAttSummary.absent}</div>
                     <div style={{ fontSize: 11, color: C.muted }}>অনুপস্থিত</div>
                   </div>
-                  <div style={{ textAlign: "center", padding: 8, background: "#fff", borderRadius: 6 }}>
+                  <div style={{ textAlign: "center", padding: 8, background: C.card, borderRadius: 6 }}>
                     <div style={{ fontSize: 20, fontWeight: 700, color: C.amber }}>{totalAttSummary.late}</div>
                     <div style={{ fontSize: 11, color: C.muted }}>দেরি</div>
                   </div>

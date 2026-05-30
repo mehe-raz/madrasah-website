@@ -39,6 +39,31 @@ const ROLE_COLORS: Record<string, string> = {
   "Hostel Manager": C.rose,
 };
 
+function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: open ? 16 : 0 }}>
+      <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>{title}</h3>
+      <button
+        type="button"
+        onClick={onToggle}
+        title={open ? "Close edit" : "Edit"}
+        style={{ width: 34, height: 34, border: `1px solid ${C.border}`, borderRadius: 8, background: C.card, color: C.text, cursor: "pointer", fontSize: 18, lineHeight: 1 }}
+      >
+        ...
+      </button>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 14, color: C.text, fontWeight: 600, wordBreak: "break-word" }}>{value || "-"}</div>
+    </div>
+  );
+}
+
 export function Settings() {
   const { user: authUser } = useAuth();
   const { settings, setSettings, saveSettings, users, refreshUsers } = useAppSettings();
@@ -48,6 +73,10 @@ export function Settings() {
   const [editDraft, setEditDraft] = useState<User | null>(null);
   const [backupConfig, setBackupConfig] = useState<BackupConfig | null>(null);
   const [msg, setMsg] = useState("");
+  const [editInfo, setEditInfo] = useState(false);
+  const [editSystem, setEditSystem] = useState(false);
+  const [editBackup, setEditBackup] = useState(false);
+  const [editUsers, setEditUsers] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const manageUsers = authUser ? canManageUsers(authUser.role) : false;
   const allowBackup = authUser ? canBackup(authUser.role) : false;
@@ -156,10 +185,10 @@ export function Settings() {
     }
   };
 
-  const canEditUser = () => manageUsers;
+  const canEditUser = () => manageUsers && editUsers;
 
   const canDeleteUser = (u: User) => {
-    if (!manageUsers || authUser?.id === u.id) return false;
+    if (!manageUsers || !editUsers || authUser?.id === u.id) return false;
     if (u.isProtected && authUser?.role !== "Super Admin") return false;
     return true;
   };
@@ -184,8 +213,18 @@ export function Settings() {
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 24 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>🕌 {t.settings.madrasaInfo}</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <SectionHeader title={t.settings.madrasaInfo} open={editInfo} onToggle={() => setEditInfo((v) => !v)} />
+            {!editInfo && (
+              <div>
+                <InfoRow label={t.settings.name} value={settings.name} />
+                <InfoRow label={t.settings.address} value={settings.address} />
+                <InfoRow label={t.settings.phone} value={settings.phone} />
+                <InfoRow label={t.settings.email} value={settings.email} />
+                <InfoRow label={t.settings.footer} value={settings.footer} />
+                {settings.logo && <img src={settings.logo} alt="Logo" style={{ maxHeight: 64, marginTop: 12, borderRadius: 8 }} />}
+              </div>
+            )}
+            <div style={{ display: editInfo ? "flex" : "none", flexDirection: "column", gap: 14 }}>
               <Field label={t.settings.name} value={settings.name} onChange={(v) => update("name", v)} />
               <Field label={t.settings.address} value={settings.address} onChange={(v) => update("address", v)} />
               <Field label={t.settings.phone} value={settings.phone} onChange={(v) => update("phone", v)} />
@@ -204,19 +243,26 @@ export function Settings() {
 
           {allowBackup && (
             <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>💾 {t.settings.backup}</h3>
-              <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Download full SQLite database backup.</p>
+              <SectionHeader title={t.settings.backup} open={editBackup} onToggle={() => setEditBackup((v) => !v)} />
+                            <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Download full SQLite database backup.</p>
+              {!editBackup && backupConfig && (
+                <div style={{ marginTop: 12 }}>
+                  <InfoRow label="Automatic backup" value={backupConfig.enabled ? "Enabled" : "Disabled"} />
+                  <InfoRow label="Interval" value={`${backupConfig.intervalHours} hours`} />
+                  <InfoRow label="Last backup" value={backupConfig.lastRunAt ? new Date(backupConfig.lastRunAt).toLocaleString() : "-"} />
+                </div>
+              )}
               <button type="button" onClick={handleBackup} style={{ background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 600, cursor: "pointer" }}>
                 {t.settings.downloadBackup}
               </button>
-              {authUser?.role === "Super Admin" && (
+              {editBackup && authUser?.role === "Super Admin" && (
                 <div style={{ marginTop: 14, padding: 12, background: C.slateL, borderRadius: 8 }}>
                   <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Restore backup database (.db)</label>
                   <input type="file" accept=".db,application/octet-stream" onChange={(e) => handleRestore(e.target.files?.[0] || null)} style={{ fontSize: 13, maxWidth: "100%" }} />
                   <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>Upload a downloaded madrasah backup to restore old students, income, users and settings.</p>
                 </div>
               )}
-              {backupConfig && (
+              {editBackup && backupConfig && (
                 <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.text }}>
                     <input type="checkbox" checked={backupConfig.enabled} onChange={(e) => setBackupConfig({ ...backupConfig, enabled: e.target.checked })} />
@@ -251,8 +297,15 @@ export function Settings() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>⚙️ {t.settings.systemSettings}</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <SectionHeader title={t.settings.systemSettings} open={editSystem} onToggle={() => setEditSystem((v) => !v)} />
+            {!editSystem && (
+              <div>
+                <InfoRow label={t.settings.language} value={settings.lang === "en" ? t.settings.langEn : t.settings.langBn} />
+                <InfoRow label={t.settings.theme} value={settings.theme === "dark" ? t.settings.themeDark : t.settings.themeLight} />
+                <InfoRow label={t.settings.currency} value={settings.currency} />
+              </div>
+            )}
+            <div style={{ display: editSystem ? "flex" : "none", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 5 }}>{t.settings.language}</label>
                 <select value={settings.lang} onChange={(e) => update("lang", e.target.value)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, background: C.card, color: C.text }}>
@@ -279,8 +332,8 @@ export function Settings() {
 
           {manageUsers && (
             <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>👥 {t.settings.userRoles}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8, marginBottom: 14 }}>
+              <SectionHeader title={t.settings.userRoles} open={editUsers} onToggle={() => setEditUsers((v) => !v)} />
+              <div style={{ display: editUsers ? "grid" : "none", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8, marginBottom: 14 }}>
                 <input placeholder={t.settings.userName} value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} style={inputSmall} />
                 <input placeholder={t.settings.loginEmail} type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} style={inputSmall} />
                 <input placeholder={t.settings.userPassword} type="password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} style={inputSmall} />
@@ -290,7 +343,7 @@ export function Settings() {
                   ))}
                 </select>
               </div>
-              <button type="button" onClick={handleAddUser} style={{ background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13, marginBottom: 14 }}>
+              <button type="button" onClick={handleAddUser} style={{ display: editUsers ? "inline-block" : "none", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13, marginBottom: 14 }}>
                 + {t.settings.addUser}
               </button>
 
@@ -354,3 +407,6 @@ const inputSmall: React.CSSProperties = {
   color: C.text,
   boxSizing: "border-box",
 };
+
+
+

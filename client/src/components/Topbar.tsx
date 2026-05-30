@@ -59,7 +59,6 @@ export function Topbar({ onToggleSidebar, onLogout }: TopbarProps) {
       <button
         type="button"
         onClick={onLogout}
-        className="hide-mobile"
         style={{ background: C.slateL, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer", color: C.text }}
       >
         {t.settings.logout}
