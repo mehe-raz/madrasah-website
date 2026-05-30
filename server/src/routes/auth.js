@@ -19,6 +19,15 @@ function publicUser(row) {
 }
 
 router.post("/register", async (req, res) => {
+  const userCount = db.prepare("SELECT COUNT(*) as c FROM users").get().c;
+  const publicSetupEnabled = process.env.ENABLE_PUBLIC_SETUP === "true";
+  if (process.env.NODE_ENV === "production" && !publicSetupEnabled) {
+    return res.status(403).json({ error: "Public setup is disabled on the live server. Ask a Super Admin to create users." });
+  }
+  if (userCount > 0) {
+    return res.status(403).json({ error: "Public registration is closed. Ask an admin to create users." });
+  }
+
   const { name, email, password } = req.body;
   if (!name?.trim() || !email?.trim() || !password) {
     return res.status(400).json({ error: "Name, email and password required" });
@@ -27,19 +36,13 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ error: "Password must be at least 8 characters" });
   }
 
-  const withPassword = db.prepare("SELECT COUNT(*) as c FROM users WHERE passwordHash IS NOT NULL").get().c;
-  if (withPassword > 0) {
-    return res.status(403).json({ error: "Public registration is closed. Ask an admin to create users." });
-  }
-  const role = withPassword === 0 ? "Super Admin" : "User";
-
   const hash = await bcrypt.hash(password, SALT_ROUNDS);
   try {
     const result = db
       .prepare(
-        "INSERT INTO users (name, email, passwordHash, role, isProtected) VALUES (?, ?, ?, ?, 0)"
+        "INSERT INTO users (name, email, passwordHash, role, isProtected) VALUES (?, ?, ?, ?, ?)"
       )
-      .run(name.trim(), email.trim().toLowerCase(), hash, role);
+      .run(name.trim(), email.trim().toLowerCase(), hash, "Super Admin", 1);
     const user = db.prepare("SELECT id, name, email, role FROM users WHERE id = ?").get(result.lastInsertRowid);
     const token = signToken(user);
     res.cookie("token", token, cookieOptions);

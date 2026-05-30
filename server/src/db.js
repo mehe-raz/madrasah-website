@@ -1,6 +1,7 @@
 const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcryptjs");
 const seed = require("./seed");
 
 const dataDir = process.env.DATA_DIR || path.join(__dirname, "..", "data");
@@ -138,10 +139,22 @@ function initDb() {
 
   const userCount = db.prepare("SELECT COUNT(*) as c FROM users").get().c;
   if (userCount === 0) {
-    const insertUser = db.prepare("INSERT INTO users (name, role, isProtected) VALUES (?, ?, 1)");
-    insertUser.run("মুহাম্মদ আলী", "Super Admin");
-    insertUser.run("আব্দুর রহমান", "Admin");
-    insertUser.run("ফাতেমা খাতুন", "Accountant");
+    const initialEmail = process.env.INITIAL_ADMIN_EMAIL;
+    const initialPassword = process.env.INITIAL_ADMIN_PASSWORD;
+    if (process.env.NODE_ENV === "production" && initialEmail && initialPassword) {
+      if (initialPassword.length < 8) throw new Error("INITIAL_ADMIN_PASSWORD must be at least 8 characters");
+      const hash = bcrypt.hashSync(initialPassword, 12);
+      db.prepare(
+        "INSERT INTO users (name, role, email, passwordHash, isProtected) VALUES (?, 'Super Admin', ?, ?, 1)"
+      ).run(process.env.INITIAL_ADMIN_NAME || "Super Admin", initialEmail.trim().toLowerCase(), hash);
+    } else if (process.env.NODE_ENV !== "production") {
+      const insertUser = db.prepare("INSERT INTO users (name, role, isProtected) VALUES (?, ?, 1)");
+      insertUser.run("মুহাম্মদ আলী", "Super Admin");
+      insertUser.run("আব্দুর রহমান", "Admin");
+      insertUser.run("ফাতেমা খাতুন", "Accountant");
+    } else {
+      console.warn("No users found. Set INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD, or restore a backup.");
+    }
   } else {
     const superAdmin = db.prepare("SELECT * FROM users WHERE role = 'Super Admin' LIMIT 1").get();
     if (superAdmin) {
