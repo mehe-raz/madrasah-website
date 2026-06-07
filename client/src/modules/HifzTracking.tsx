@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { PARA_NAMES, STUDENTS } from "../data/mockData";
 import { api } from "../lib/api";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useLanguage } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
 import type { Student } from "../types";
 
 const TOTAL_PARAS = 30;
 
 export function HifzTracking() {
+  const { t } = useLanguage();
   const [hifzStudents, setHifzStudents] = useState<Student[]>(STUDENTS.filter((s) => s.dept === "হিফজ"));
   const [selected, setSelected] = useState<Student | null>(null);
   const [sabaq, setSabaq] = useState("");
@@ -21,7 +23,7 @@ export function HifzTracking() {
     });
   }, []);
 
-  if (!selected) return <p style={{ color: C.muted }}>হিফজ ছাত্র পাওয়া যায়নি</p>;
+  if (!selected) return <p style={{ color: C.muted }}>{t.hifz.noStudents}</p>;
 
   const progress = (selected.para / TOTAL_PARAS) * 100;
 
@@ -29,7 +31,7 @@ export function HifzTracking() {
     try {
       await api.saveSabaq(selected.id, sabaq);
     } catch {
-      /* mock */
+      /* local fallback only */
     }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -37,15 +39,15 @@ export function HifzTracking() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>হিফজ ট্র্যাকিং</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.hifz.title}</h2>
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px 1fr", gap: 20 }}>
         <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 12 }}>হিফজ বিভাগ</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 12 }}>{t.hifz.dept}</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {hifzStudents.map((s) => (
-              <button key={s.id} type="button" onClick={() => setSelected(s)} style={{ border: `1px solid ${selected.id === s.id ? C.emerald : C.border}`, background: selected.id === s.id ? C.emeraldL : "transparent", borderRadius: 8, padding: "10px 12px", cursor: "pointer", textAlign: "left" }}>
+              <button key={s.id} type="button" onClick={() => setSelected(s)} style={{ border: `1px solid ${selected.id === s.id ? C.emerald : C.border}`, background: selected.id === s.id ? C.emeraldL : C.card, borderRadius: 8, padding: "10px 12px", cursor: "pointer", textAlign: "left" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{s.class} · {s.para}/{TOTAL_PARAS} পারা</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{s.class} · {s.para}/{TOTAL_PARAS}</div>
                 <div style={{ marginTop: 6, height: 4, background: C.border, borderRadius: 4, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${(s.para / TOTAL_PARAS) * 100}%`, background: C.emerald, borderRadius: 4 }} />
                 </div>
@@ -64,11 +66,11 @@ export function HifzTracking() {
               </div>
               <div style={{ marginLeft: "auto", textAlign: "right" }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: C.emerald }}>{selected.para}</div>
-                <div style={{ fontSize: 12, color: C.muted }}>পারা সম্পন্ন</div>
+                <div style={{ fontSize: 12, color: C.muted }}>{t.hifz.paraDone}</div>
               </div>
             </div>
             <div style={{ marginBottom: 6, display: "flex", justifyContent: "space-between", fontSize: 12, color: C.muted }}>
-              <span>অগ্রগতি</span><span>{progress.toFixed(1)}%</span>
+              <span>{t.hifz.progress}</span><span>{progress.toFixed(1)}%</span>
             </div>
             <div style={{ height: 12, background: C.border, borderRadius: 8, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${progress}%`, background: `linear-gradient(90deg, ${C.teal}, ${C.emerald})`, borderRadius: 8, transition: "width 0.5s" }} />
@@ -76,7 +78,7 @@ export function HifzTracking() {
           </div>
 
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>পারাওয়ারি অগ্রগতি</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>{t.hifz.paraProgress}</h3>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(5, 1fr)" : "repeat(6, 1fr)", gap: 6 }}>
               {PARA_NAMES.map((name, i) => {
                 const done = i < selected.para;
@@ -91,10 +93,10 @@ export function HifzTracking() {
           </div>
 
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 12 }}>আজকের সবক</h3>
-            <textarea value={sabaq} onChange={(e) => setSabaq(e.target.value)} rows={3} placeholder="আজকের নতুন সবক এবং পুরানো মুরাজাআর বিবরণ লিখুন..." style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", color: C.text }} />
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 12 }}>{t.hifz.todaySabaq}</h3>
+            <textarea value={sabaq} onChange={(e) => setSabaq(e.target.value)} rows={3} placeholder={t.hifz.sabaqPlaceholder} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", color: C.text, background: C.card }} />
             <button type="button" onClick={saveSabaq} style={{ marginTop: 10, background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "9px 20px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>
-              {saved ? "✓ সংরক্ষিত" : "সবক সংরক্ষণ করুন"}
+              {saved ? t.common.saved : t.hifz.saveSabaq}
             </button>
           </div>
         </div>
