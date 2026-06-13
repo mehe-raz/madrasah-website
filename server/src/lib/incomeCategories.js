@@ -16,9 +16,9 @@ function getDb() {
   return require("../db");
 }
 
-function getIncomeCategories() {
+async function getIncomeCategories() {
   const db = getDb();
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'incomeCategories'").get();
+  const row = await db.get("SELECT value FROM settings WHERE key = 'incomeCategories'");
   if (!row?.value) return [...DEFAULT_CATEGORIES];
   try {
     const parsed = JSON.parse(row.value);
@@ -28,14 +28,15 @@ function getIncomeCategories() {
   }
 }
 
-function setIncomeCategories(categories) {
+async function setIncomeCategories(categories) {
   const db = getDb();
   const clean = categories.map((c) => String(c).trim()).filter(Boolean);
   if (!clean.includes("Student Fee")) clean.unshift("Student Fee");
   if (!clean.length) throw new Error("At least one category required");
-  db.prepare(
-    "INSERT INTO settings (key, value) VALUES ('incomeCategories', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-  ).run(JSON.stringify(clean));
+  await db.run(
+    "INSERT INTO settings (key, value) VALUES ('incomeCategories', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+    [JSON.stringify(clean)]
+  );
   return clean;
 }
 

@@ -7,8 +7,7 @@ const rateLimit = require("express-rate-limit");
 const path = require("path");
 
 const app = express();
-
-require("./db");
+const db = require("./db");
 
 const { requireAuth } = require("./middleware/auth");
 const { rbacMiddleware } = require("./middleware/rbac");
@@ -85,6 +84,13 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`Madrasah ERP API running on port ${PORT}`);
-});
+db.init()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Madrasah ERP API running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Database initialization failed:", err.message);
+    process.exit(1);
+  });

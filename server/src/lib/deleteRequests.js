@@ -21,19 +21,18 @@ function publicRequest(row) {
   };
 }
 
-function createDeleteRequest({ entityType, entityId, label, amount, user, payload }) {
-  const existing = db
-    .prepare("SELECT * FROM delete_requests WHERE entityType = ? AND entityId = ? AND status = 'pending'")
-    .get(entityType, entityId);
+async function createDeleteRequest({ entityType, entityId, label, amount, user, payload }) {
+  const existing = await db.get(
+    `SELECT * FROM delete_requests WHERE "entityType" = $1 AND "entityId" = $2 AND status = 'pending'`,
+    [entityType, entityId]
+  );
   if (existing) return publicRequest(existing);
 
-  const result = db
-    .prepare(
-      `INSERT INTO delete_requests
-       (entityType, entityId, label, amount, requestedBy, requestedByName, status, createdAt, payload)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
-    )
-    .run(
+  const result = await db.run(
+    `INSERT INTO delete_requests
+     ("entityType", "entityId", label, amount, "requestedBy", "requestedByName", status, "createdAt", payload)
+     VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, $8) RETURNING id`,
+    [
       entityType,
       entityId,
       label,
@@ -41,46 +40,48 @@ function createDeleteRequest({ entityType, entityId, label, amount, user, payloa
       user?.id || null,
       user?.name || "",
       new Date().toISOString(),
-      payload ? JSON.stringify(payload) : ""
-    );
-  return publicRequest(db.prepare("SELECT * FROM delete_requests WHERE id = ?").get(result.lastInsertRowid));
+      payload ? JSON.stringify(payload) : "",
+    ]
+  );
+  const row = await db.get("SELECT * FROM delete_requests WHERE id = $1", [result.insertId]);
+  return publicRequest(row);
 }
 
-function deleteEntity(entityType, entityId) {
+async function deleteEntity(entityType, entityId) {
   if (entityType === "income") {
-    const result = db.prepare("DELETE FROM income WHERE id = ?").run(entityId);
-    return result.changes > 0;
+    const result = await db.run("DELETE FROM income WHERE id = $1", [entityId]);
+    return result.rowCount > 0;
   }
   if (entityType === "expense") {
-    const result = db.prepare("DELETE FROM expenses WHERE id = ?").run(entityId);
-    return result.changes > 0;
+    const result = await db.run("DELETE FROM expenses WHERE id = $1", [entityId]);
+    return result.rowCount > 0;
   }
   if (entityType === "user-delete") {
-    const result = db.prepare("DELETE FROM users WHERE id = ?").run(entityId);
-    return result.changes > 0;
+    const result = await db.run("DELETE FROM users WHERE id = $1", [entityId]);
+    return result.rowCount > 0;
   }
   return false;
 }
 
-function applyUserUpdate(entityId, payload) {
-  const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(entityId);
+async function applyUserUpdate(entityId, payload) {
+  const existing = await db.get("SELECT * FROM users WHERE id = $1", [entityId]);
   if (!existing) return false;
   const update = { ...payload };
   if (update.name !== undefined) {
-    db.prepare("UPDATE users SET name = ? WHERE id = ?").run(String(update.name).trim(), entityId);
+    await db.run("UPDATE users SET name = $1 WHERE id = $2", [String(update.name).trim(), entityId]);
   }
   if (update.email !== undefined) {
-    db.prepare("UPDATE users SET email = ? WHERE id = ?").run(String(update.email).trim().toLowerCase(), entityId);
+    await db.run("UPDATE users SET email = $1 WHERE id = $2", [String(update.email).trim().toLowerCase(), entityId]);
   }
   if (update.role !== undefined) {
-    db.prepare("UPDATE users SET role = ?, isProtected = ? WHERE id = ?").run(
+    await db.run('UPDATE users SET role = $1, "isProtected" = $2 WHERE id = $3', [
       update.role,
       update.role === "Super Admin" ? 1 : 0,
-      entityId
-    );
+      entityId,
+    ]);
   }
   if (update.passwordHash !== undefined) {
-    db.prepare("UPDATE users SET passwordHash = ? WHERE id = ?").run(update.passwordHash, entityId);
+    await db.run('UPDATE users SET "passwordHash" = $1 WHERE id = $2', [update.passwordHash, entityId]);
   }
   return true;
 }

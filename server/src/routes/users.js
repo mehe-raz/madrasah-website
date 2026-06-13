@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { createDeleteRequest } = require("../lib/deleteRequests");
+const { isUniqueViolation } = require("../pg");
 
 const router = express.Router();
 const ROLES = ["Super Admin", "Admin", "Accountant", "Teacher", "Hostel Manager"];
@@ -16,8 +17,8 @@ function isApprovalRole(role) {
   return APPROVAL_ROLES.includes(role);
 }
 
-router.get("/", (_req, res) => {
-  const rows = db.prepare("SELECT id, name, email, role, isProtected FROM users ORDER BY id").all();
+router.get("/", async (_req, res) => {
+  const rows = await db.all('SELECT id, name, email, role, "isProtected" FROM users ORDER BY id');
   res.json(rows.map(publicUser));
 });
 
@@ -39,24 +40,22 @@ router.post("/", async (req, res) => {
   const hash = await bcrypt.hash(password, SALT_ROUNDS);
   const isProtected = role === "Super Admin" ? 1 : 0;
   try {
-    const result = db
-      .prepare(
-        "INSERT INTO users (name, role, email, passwordHash, isProtected) VALUES (?, ?, ?, ?, ?)"
-      )
-      .run(name.trim(), role, email.trim().toLowerCase(), hash, isProtected);
-    const row = db.prepare("SELECT id, name, email, role, isProtected FROM users WHERE id = ?").get(
-      result.lastInsertRowid
+    const result = await db.run(
+      `INSERT INTO users (name, role, email, "passwordHash", "isProtected")
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [name.trim(), role, email.trim().toLowerCase(), hash, isProtected]
     );
+    const row = await db.get('SELECT id, name, email, role, "isProtected" FROM users WHERE id = $1', [result.insertId]);
     res.status(201).json(publicUser(row));
   } catch (e) {
-    if (e.message.includes("UNIQUE")) return res.status(409).json({ error: "Email already exists" });
+    if (isUniqueViolation(e)) return res.status(409).json({ error: "Email already exists" });
     throw e;
   }
 });
 
 router.patch("/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
+  const existing = await db.get("SELECT * FROM users WHERE id = $1", [id]);
   if (!existing) return res.status(404).json({ error: "User not found" });
 
   const privilegedTarget = isApprovalRole(existing.role);
@@ -89,7 +88,7 @@ router.patch("/:id", async (req, res) => {
       if (password.length < 8) return res.status(400).json({ error: "Password min 8 characters" });
       payload.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     }
-    const request = createDeleteRequest({
+    const request = await createDeleteRequest({
       entityType: "user-update",
       entityId: id,
       label: `Update ${existing.role}: ${existing.name}`,
@@ -99,12 +98,12 @@ router.patch("/:id", async (req, res) => {
     return res.status(202).json({ ok: true, pendingApproval: true, request });
   }
 
-  if (name !== undefined) db.prepare("UPDATE users SET name = ? WHERE id = ?").run(String(name).trim(), id);
+  if (name !== undefined) await db.run("UPDATE users SET name = $1 WHERE id = $2", [String(name).trim(), id]);
   if (email !== undefined) {
     try {
-      db.prepare("UPDATE users SET email = ? WHERE id = ?").run(email.trim().toLowerCase(), id);
+      await db.run("UPDATE users SET email = $1 WHERE id = $2", [email.trim().toLowerCase(), id]);
     } catch (e) {
-      if (e.message.includes("UNIQUE")) return res.status(409).json({ error: "Email already exists" });
+      if (isUniqueViolation(e)) return res.status(409).json({ error: "Email already exists" });
       throw e;
     }
   }
@@ -121,30 +120,26 @@ router.patch("/:id", async (req, res) => {
         return res.status(403).json({ error: "Super Admin role cannot be changed" });
       }
     }
-    db.prepare("UPDATE users SET role = ?, isProtected = ? WHERE id = ?").run(
-      role,
-      role === "Super Admin" ? 1 : 0,
-      id
-    );
+    await db.run('UPDATE users SET role = $1, "isProtected" = $2 WHERE id = $3', [role, role === "Super Admin" ? 1 : 0, id]);
   }
   if (password) {
     if (password.length < 8) return res.status(400).json({ error: "Password min 8 characters" });
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
-    db.prepare("UPDATE users SET passwordHash = ? WHERE id = ?").run(hash, id);
+    await db.run('UPDATE users SET "passwordHash" = $1 WHERE id = $2', [hash, id]);
   }
-  const row = db.prepare("SELECT id, name, email, role, isProtected FROM users WHERE id = ?").get(id);
+  const row = await db.get('SELECT id, name, email, role, "isProtected" FROM users WHERE id = $1', [id]);
   res.json(publicUser(row));
 });
 
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
+  const existing = await db.get("SELECT * FROM users WHERE id = $1", [id]);
   if (!existing) return res.status(404).json({ error: "User not found" });
   if (req.user?.id === id) {
     return res.status(403).json({ error: "Cannot delete your own account" });
   }
   if (isApprovalRole(existing.role) && isApprovalRole(req.user?.role)) {
-    const request = createDeleteRequest({
+    const request = await createDeleteRequest({
       entityType: "user-delete",
       entityId: id,
       label: `Delete ${existing.role}: ${existing.name}`,
@@ -155,8 +150,8 @@ router.delete("/:id", (req, res) => {
   if (isApprovalRole(existing.role)) {
     return res.status(403).json({ error: "Admin or Super Admin changes need approval" });
   }
-  const result = db.prepare("DELETE FROM users WHERE id = ?").run(id);
-  if (result.changes === 0) return res.status(404).json({ error: "User not found" });
+  const result = await db.run("DELETE FROM users WHERE id = $1", [id]);
+  if (result.rowCount === 0) return res.status(404).json({ error: "User not found" });
   res.json({ ok: true });
 });
 

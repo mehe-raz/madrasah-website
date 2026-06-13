@@ -3,21 +3,21 @@ const db = require("../db");
 
 const router = express.Router();
 
-router.get("/", (_req, res) => {
-  const students = db.prepare("SELECT * FROM students").all();
+router.get("/", async (_req, res) => {
+  const students = await db.all("SELECT * FROM students");
   const total = students.length;
   const residential = students.filter((s) => s.type === "আবাসিক").length;
   const totalDue = students.reduce((s, st) => s + st.due, 0);
   const dueCount = students.filter((s) => s.due > 0).length;
-  const monthlyIncome = db.prepare("SELECT COALESCE(SUM(amount), 0) as t FROM income").get().t;
-  const monthlyExpense = db.prepare("SELECT COALESCE(SUM(amount), 0) as t FROM expenses").get().t;
+  const monthlyIncomeRow = await db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM income");
+  const monthlyExpenseRow = await db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM expenses");
+  const monthlyIncome = monthlyIncomeRow?.t || 0;
+  const monthlyExpense = monthlyExpenseRow?.t || 0;
 
-  const incomeByCategory = db
-    .prepare("SELECT category, SUM(amount) as total FROM income GROUP BY category")
-    .all();
+  const incomeByCategory = await db.all("SELECT category, SUM(amount)::int AS total FROM income GROUP BY category");
 
   const today = new Date().toISOString().slice(0, 10);
-  const attToday = db.prepare("SELECT status FROM attendance WHERE date = ?").all(today);
+  const attToday = await db.all("SELECT status FROM attendance WHERE date = $1", [today]);
   const present = attToday.filter((a) => a.status === "উপস্থিত").length;
   const attTotal = attToday.length || total;
 
@@ -47,9 +47,9 @@ router.get("/", (_req, res) => {
   });
   const deptData = Object.entries(deptCounts).map(([name, value]) => ({ name, value }));
 
-  const recentIncome = db.prepare("SELECT * FROM income ORDER BY id DESC LIMIT 3").all();
+  const recentIncome = await db.all("SELECT * FROM income ORDER BY id DESC LIMIT 3");
   const logs = [
-  ...recentIncome.map((inc, i) => ({
+    ...recentIncome.map((inc, i) => ({
       id: i + 1,
       action: `Income: ${inc.category} — ${inc.amount} BDT`,
       user: "System",

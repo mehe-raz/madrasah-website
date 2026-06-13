@@ -7,34 +7,37 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   const date = req.query.date || today();
   const dept = req.query.dept;
   let sql = `SELECT s.*, COALESCE(a.status, 'উপস্থিত') as att
        FROM students s
-       LEFT JOIN attendance a ON a.studentId = s.id AND a.date = ?
+       LEFT JOIN attendance a ON a."studentId" = s.id AND a.date = $1
        WHERE s.status = 'সক্রিয়'`;
   const params = [date];
   if (dept && dept !== "সব") {
-    sql += " AND s.dept = ?";
+    sql += " AND s.dept = $2";
     params.push(dept);
   }
   sql += " ORDER BY s.roll";
-  const rows = db.prepare(sql).all(...params);
+  const rows = await db.all(sql, params);
   res.json({ date, dept: dept || "সব", students: rows });
 });
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   const { date: reqDate, records } = req.body;
   const date = reqDate || today();
   if (!Array.isArray(records)) return res.status(400).json({ error: "records আবশ্যক" });
 
-  const upsert = db.prepare(`
-    INSERT INTO attendance (studentId, date, status) VALUES (?, ?, ?)
-    ON CONFLICT(studentId, date) DO UPDATE SET status = excluded.status
-  `);
-  const tx = db.transaction((items) => items.forEach((r) => upsert.run(r.studentId, date, r.status)));
-  tx(records);
+  await db.withTransaction(async (tx) => {
+    for (const r of records) {
+      await tx.run(
+        `INSERT INTO attendance ("studentId", date, status) VALUES ($1, $2, $3)
+         ON CONFLICT ("studentId", date) DO UPDATE SET status = EXCLUDED.status`,
+        [r.studentId, date, r.status]
+      );
+    }
+  });
   res.json({ ok: true, date });
 });
 
