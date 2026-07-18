@@ -13,10 +13,10 @@ madrasah website/
 │   │   ├── hooks/          # useMadrasaBranding, useMediaQuery
 │   │   └── i18n/           # Bengali / English strings
 │   └── public/             # PWA manifest, service worker
-├── server/                 # Express API + SQLite
+├── server/                 # Express API + PostgreSQL
 │   ├── src/routes/         # REST endpoints per feature
 │   ├── src/lib/            # Shared server helpers
-│   └── data/madrasah.db    # Database file (backup this!)
+│   └── sql/supabase_schema.sql  # Database schema (run once against your PostgreSQL DB)
 └── docs/                   # Documentation
 ```
 

@@ -7,7 +7,7 @@
 - Set a new strong `JWT_SECRET` with at least 32 private random characters.
 - Set `CLIENT_ORIGIN` to the real HTTPS website URL.
 - Rotate any email app password that was used locally, then put only the new value in the server environment variables.
-- Keep `server/data/madrasah.db` outside public web folders and include it in backups.
+- Ensure `DATABASE_URL` points at your PostgreSQL instance and take regular backups (Settings → Data Backup, or `psql`/`pg_dump` directly).
 - Test login, attendance save, PDF export, backup download, and delete approval after deployment.
 
 ## Single Server Deployment

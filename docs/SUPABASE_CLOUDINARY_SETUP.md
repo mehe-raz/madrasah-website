@@ -63,9 +63,7 @@ After saving, redeploy with existing build cache disabled.
 4. For direct browser uploads, create an unsigned upload preset from Settings -> Upload.
 5. Keep signed/server uploads for sensitive images.
 
-## 5. Important Migration Note
+## 5. Database
 
-This project currently uses `better-sqlite3`, which is synchronous. PostgreSQL clients are asynchronous, so backend routes must be migrated before `DATABASE_URL` can fully replace SQLite.
-
-The schema file is ready. The next code step is replacing the SQLite `db.prepare(...).get/all/run` usage with PostgreSQL query helpers.
+This project runs entirely on PostgreSQL via `DATABASE_URL` (`server/src/db.js` uses `pg`, not SQLite). The migration described here is already complete — no `better-sqlite3` code remains. Run `server/sql/supabase_schema.sql` once against a fresh database to create the schema.
 
