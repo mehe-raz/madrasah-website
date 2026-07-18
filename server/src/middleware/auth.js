@@ -1,10 +1,13 @@
 const jwt = require("jsonwebtoken");
 
 const JWT_SECRET = process.env.JWT_SECRET || "madrasah-erp-change-in-production-min-32-chars!!";
-const isProduction = process.env.NODE_ENV === "production";
 
-if (isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
-  throw new Error("JWT_SECRET must be set to a strong 32+ character value in production");
+function validateAuthConfig() {
+  if (process.env.NODE_ENV === "production") {
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      throw new Error("JWT_SECRET must be set to a strong 32+ character value in production");
+    }
+  }
 }
 
 function signToken(user) {
@@ -28,4 +31,4 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { signToken, requireAuth, JWT_SECRET };
+module.exports = { signToken, requireAuth, JWT_SECRET, validateAuthConfig };

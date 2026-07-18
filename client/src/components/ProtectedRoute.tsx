@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/AppSettingsContext";
 import { canAccess, firstAllowedPath, type Permission } from "../lib/permissions";
 import { C } from "../theme/colors";
 
@@ -16,12 +17,13 @@ const PATH_PERMISSION: Record<string, Permission> = {
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const location = useLocation();
 
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg)" }}>
-        <p style={{ color: C.muted }}>Loading...</p>
+        <p style={{ color: C.muted }}>{t.common.loading}</p>
       </div>
     );
   }

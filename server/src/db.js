@@ -8,7 +8,13 @@ const schemaPath = path.join(__dirname, "..", "sql", "supabase_schema.sql");
 
 async function initSchema() {
   const sql = fs.readFileSync(schemaPath, "utf8");
-  await pg.query(sql);
+  const statements = sql
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const statement of statements) {
+    await pg.query(`${statement};`);
+  }
 }
 
 async function initDb() {

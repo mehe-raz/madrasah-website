@@ -1,12 +1,19 @@
 const { Pool } = require("pg");
 
+function normalizeDatabaseUrl(url) {
+  if (!url) return url;
+  // node-pg can fail with Neon's channel_binding=require param
+  return url.replace(/([?&])channel_binding=[^&]*&?/g, "$1").replace(/[?&]$/, "");
+}
+
+const databaseUrl = normalizeDatabaseUrl(process.env.DATABASE_URL);
+const needsSsl =
+  process.env.DATABASE_SSL === "true" ||
+  (databaseUrl || "").includes("sslmode=require");
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl:
-    process.env.DATABASE_SSL === "true" ||
-    (process.env.DATABASE_URL || "").includes("sslmode=require")
-      ? { rejectUnauthorized: false }
-      : undefined,
+  connectionString: databaseUrl,
+  ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
 });
 
 pool.on("error", (err) => {

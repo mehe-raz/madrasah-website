@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
+import { useLanguage } from "./context/AppSettingsContext";
 
 const Attendance = lazy(() => import("./modules/Attendance").then((m) => ({ default: m.Attendance })));
 const Dashboard = lazy(() => import("./modules/Dashboard").then((m) => ({ default: m.Dashboard })));
@@ -16,7 +17,8 @@ const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login
 const ResetPassword = lazy(() => import("./pages/ResetPassword").then((m) => ({ default: m.ResetPassword })));
 
 function PageFallback() {
-  return <div style={{ minHeight: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)" }}>Loading...</div>;
+  const { t } = useLanguage();
+  return <div style={{ minHeight: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)" }}>{t.common.loading}</div>;
 }
 
 export default function App() {

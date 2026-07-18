@@ -1,7 +1,7 @@
 import { useState, type CSSProperties, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useAppSettings } from "../context/AppSettingsContext";
+import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
@@ -31,6 +31,7 @@ const linkBtn: CSSProperties = {
 export function Login() {
   const { user, login, register } = useAuth();
   const { settings } = useAppSettings();
+  const { t } = useLanguage();
   const { name: madrasaName } = useMadrasaBranding();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("login");
@@ -62,11 +63,11 @@ export function Login() {
         setMode("reset");
       } else if (mode === "reset") {
         await api.resetPassword(resetToken, password);
-        setInfo("Password updated. Please login.");
+        setInfo(t.auth.passwordUpdated);
         setMode("login");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      setError(err instanceof Error ? err.message : t.common.requestFailed);
     } finally {
       setLoading(false);
     }
@@ -83,43 +84,43 @@ export function Login() {
           )}
           <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: "8px 0 4px" }}>{madrasaName}</h1>
           <p style={{ fontSize: 13, color: C.muted }}>
-            {mode === "login" && "Sign in to continue"}
-            {mode === "register" && "Create Super Admin account (first setup only)"}
-            {mode === "forgot" && "Forgot password"}
-            {mode === "reset" && "Reset password"}
+            {mode === "login" && t.auth.signInSubtitle}
+            {mode === "register" && t.auth.registerSubtitle}
+            {mode === "forgot" && t.auth.forgotSubtitle}
+            {mode === "reset" && t.auth.resetSubtitle}
           </p>
         </div>
 
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {mode === "register" && (
-            <input required placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+            <input required placeholder={t.auth.fullName} value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
           )}
           {(mode === "login" || mode === "register" || mode === "forgot") && (
-            <input required type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+            <input required type="email" placeholder={t.auth.email} value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
           )}
           {mode === "reset" && (
-            <input required placeholder="Reset token" value={resetToken} onChange={(e) => setResetToken(e.target.value)} style={inputStyle} />
+            <input required placeholder={t.auth.resetToken} value={resetToken} onChange={(e) => setResetToken(e.target.value)} style={inputStyle} />
           )}
           {(mode === "login" || mode === "register" || mode === "reset") && (
-            <input required type="password" placeholder="Password (min 8)" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} minLength={8} />
+            <input required type="password" placeholder={t.auth.passwordMin} value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} minLength={8} />
           )}
           {error && <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{error}</p>}
           {info && <p style={{ color: C.teal, fontSize: 13, margin: 0 }}>{info}</p>}
           <button type="submit" disabled={loading} style={{ background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>
-            {loading ? "Please wait..." : mode === "login" ? "Sign In" : mode === "register" ? "Register" : mode === "forgot" ? "Send Reset" : "Update Password"}
+            {loading ? t.common.pleaseWait : mode === "login" ? t.auth.signIn : mode === "register" ? t.auth.register : mode === "forgot" ? t.auth.sendReset : t.auth.updatePassword}
           </button>
         </form>
 
         <div style={{ marginTop: 16, fontSize: 13, color: C.muted, textAlign: "center" }}>
           {mode === "login" && (
             <>
-              <button type="button" onClick={() => setMode("forgot")} style={linkBtn}>Forgot password?</button>
+              <button type="button" onClick={() => setMode("forgot")} style={linkBtn}>{t.auth.forgotPassword}</button>
               <br />
-              <button type="button" onClick={() => setMode("register")} style={linkBtn}>First time setup (Super Admin)</button>
+              <button type="button" onClick={() => setMode("register")} style={linkBtn}>{t.auth.firstSetup}</button>
             </>
           )}
           {mode !== "login" && (
-            <button type="button" onClick={() => { setMode("login"); setError(""); }} style={linkBtn}>Back to sign in</button>
+            <button type="button" onClick={() => { setMode("login"); setError(""); }} style={linkBtn}>{t.auth.backToSignIn}</button>
           )}
         </div>
       </div>

@@ -21,6 +21,7 @@ interface AppSettingsContextValue {
   saveSettings: (s?: Settings) => Promise<void>;
   lang: Lang;
   t: Dict;
+  tr: (key: string, values?: Record<string, string | number>) => string;
   theme: "light" | "dark";
   users: User[];
   refreshUsers: () => Promise<void>;
@@ -50,6 +51,21 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const lang = (settings.lang === "en" ? "en" : "bn") as Lang;
   const theme: "light" | "dark" = settings.theme === "dark" ? "dark" : "light";
   const t = lang === "en" ? en : bn;
+  const tr = useCallback(
+    (key: string, values?: Record<string, string | number>) => {
+      const read = (path: string) =>
+        path.split(".").reduce<unknown>((acc, part) => {
+          if (acc && typeof acc === "object" && part in acc) return (acc as Record<string, unknown>)[part];
+          return undefined;
+        }, t);
+      const count = Number(values?.count);
+      const pluralKey = values && Number.isFinite(count) && count !== 1 ? `${key}_plural` : key;
+      const template = read(pluralKey) ?? read(key);
+      const text = typeof template === "string" ? template : key;
+      return text.replace(/\{(\w+)\}/g, (_, name) => String(values?.[name] ?? ""));
+    },
+    [t]
+  );
 
   const refreshUsers = useCallback(async () => {
     try {
@@ -106,12 +122,13 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       saveSettings,
       lang,
       t,
+      tr,
       theme,
       users,
       refreshUsers,
       refreshSettings,
     }),
-    [settings, saveSettings, lang, t, theme, users, refreshUsers, refreshSettings]
+    [settings, saveSettings, lang, t, tr, theme, users, refreshUsers, refreshSettings]
   );
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
@@ -124,6 +141,6 @@ export function useAppSettings() {
 }
 
 export function useLanguage() {
-  const { lang, t } = useAppSettings();
-  return { lang, t };
+  const { lang, t, tr } = useAppSettings();
+  return { lang, t, tr };
 }
