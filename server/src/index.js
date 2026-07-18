@@ -1,4 +1,31 @@
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
+
+function validateEnv() {
+  console.log(`Booting NODE_ENV=${process.env.NODE_ENV || "undefined"}`);
+  console.log(`PORT=${process.env.PORT || "10000 (default)"}`);
+  console.log(`DATABASE_URL: ${process.env.DATABASE_URL ? "set" : "MISSING"}`);
+  console.log(`JWT_SECRET: ${process.env.JWT_SECRET ? `set (${process.env.JWT_SECRET.length} chars)` : "MISSING"}`);
+
+  if (process.env.NODE_ENV !== "production") return;
+
+  const missing = [];
+  if (!process.env.DATABASE_URL) missing.push("DATABASE_URL");
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) missing.push("JWT_SECRET (32+ chars)");
+  if (missing.length) {
+    throw new Error(`Missing or invalid production env: ${missing.join(", ")}. Add them in Render Dashboard → Environment.`);
+  }
+  if (!process.env.CLIENT_ORIGIN) {
+    console.warn("CLIENT_ORIGIN not set — CORS will only allow *.vercel.app origins");
+  }
+}
+
+try {
+  validateEnv();
+} catch (err) {
+  console.error("Server startup failed:", err.message);
+  process.exit(1);
+}
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -8,9 +35,10 @@ const path = require("path");
 
 const app = express();
 const db = require("./db");
-
-const { requireAuth } = require("./middleware/auth");
+const { requireAuth, validateAuthConfig } = require("./middleware/auth");
 const { rbacMiddleware } = require("./middleware/rbac");
+
+validateAuthConfig();
 
 const PORT = process.env.PORT || 10000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN;
@@ -45,7 +73,7 @@ app.use(
 );
 
 app.use(cookieParser());
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "6mb" }));
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -84,13 +112,17 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-db.init()
-  .then(() => {
-    app.listen(PORT, () => {
+async function start() {
+  try {
+    await db.init();
+    app.listen(PORT, "0.0.0.0", () => {
       console.log(`Madrasah ERP API running on port ${PORT}`);
     });
-  })
-  .catch((err) => {
+  } catch (err) {
     console.error("Database initialization failed:", err.message);
+    if (err.stack) console.error(err.stack);
     process.exit(1);
-  });
+  }
+}
+
+start();

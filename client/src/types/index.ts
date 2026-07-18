@@ -1,17 +1,47 @@
 export interface Student {
   id: number;
+  admissionNumber?: string;
+  admissionDate?: string;
+  academicYear?: string;
+  session?: string;
   name: string;
   nameEn: string;
+  dateOfBirth?: string;
+  birthRegistrationNumber?: string;
+  gender?: string;
+  religion?: string;
+  studentPhoto?: string;
   roll: string;
   class: string;
+  section?: string;
   dept: string;
   type: string;
   fee: number;
   due: number;
+  admissionFee?: number;
+  discount?: number;
   phone: string;
   blood: string;
   para: number;
   status: string;
+  fatherName?: string;
+  fatherMobile?: string;
+  fatherOccupation?: string;
+  motherName?: string;
+  motherMobile?: string;
+  motherOccupation?: string;
+  guardianName?: string;
+  guardianRelationship?: string;
+  guardianMobile?: string;
+  presentAddress?: string;
+  permanentAddress?: string;
+  district?: string;
+  upazila?: string;
+  postOffice?: string;
+  village?: string;
+  previousInstitution?: string;
+  previousClass?: string;
+  documents?: StudentDocuments;
   att?: string;
   attendanceSummary?: {
     total: number;
@@ -19,6 +49,13 @@ export interface Student {
     absent: number;
     late: number;
   };
+}
+
+export interface StudentDocuments {
+  studentPhoto?: string;
+  birthCertificate?: string;
+  guardianNid?: string;
+  previousCertificate?: string;
 }
 
 export interface Payment {

@@ -1,426 +1,534 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { Badge } from "../components/Badge";
-import { deptColor } from "../data/mockData";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
-import type { Student } from "../types";
-import { STUDENTS as MOCK_STUDENTS } from "../data/mockData";
-import { useAuth } from "../context/AuthContext";
+import type { Student, StudentDocuments } from "../types";
 
-const emptyNew = {
-  name: "",
-  class: "",
-  dept: "হিফজ",
-  type: "আবাসিক",
-  phone: "",
-  blood: "O+",
-  fee: 1500,
-  due: 0,
+type AdmissionForm = Omit<Partial<Student>, "id" | "documents"> & {
+  documents: StudentDocuments;
 };
 
+const today = new Date().toISOString().slice(0, 10);
+
+const emptyForm: AdmissionForm = {
+  admissionNumber: "",
+  admissionDate: today,
+  academicYear: String(new Date().getFullYear()),
+  session: "",
+  class: "",
+  section: "",
+  roll: "",
+  type: "Day",
+  name: "",
+  nameEn: "",
+  dateOfBirth: "",
+  birthRegistrationNumber: "",
+  gender: "Male",
+  religion: "Islam",
+  blood: "",
+  studentPhoto: "",
+  fatherName: "",
+  fatherMobile: "",
+  fatherOccupation: "",
+  motherName: "",
+  motherMobile: "",
+  motherOccupation: "",
+  guardianName: "",
+  guardianRelationship: "",
+  guardianMobile: "",
+  presentAddress: "",
+  permanentAddress: "",
+  district: "",
+  upazila: "",
+  postOffice: "",
+  village: "",
+  previousInstitution: "",
+  previousClass: "",
+  dept: "Hifz",
+  para: 0,
+  admissionFee: 0,
+  fee: 0,
+  discount: 0,
+  due: 0,
+  status: "Active",
+  documents: {},
+};
+
+const requiredFields: (keyof AdmissionForm)[] = [
+  "admissionDate",
+  "academicYear",
+  "session",
+  "class",
+  "roll",
+  "type",
+  "name",
+  "nameEn",
+  "dateOfBirth",
+  "birthRegistrationNumber",
+  "gender",
+  "religion",
+  "fatherName",
+  "fatherMobile",
+  "motherName",
+  "motherMobile",
+  "presentAddress",
+  "permanentAddress",
+  "district",
+  "upazila",
+  "postOffice",
+  "village",
+  "dept",
+  "admissionFee",
+  "fee",
+];
+
+const departmentOptions = ["Hifz", "Nazera", "Kitab", "General"];
+const bloodOptions = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+const genderOptions = ["Male", "Female", "Other"];
+const religionOptions = ["Islam", "Hinduism", "Christianity", "Buddhism", "Other"];
+
+function fieldStyle(error?: string): CSSProperties {
+  return {
+    width: "100%",
+    border: `1px solid ${error ? C.rose : C.border}`,
+    borderRadius: 6,
+    padding: "8px 10px",
+    fontSize: 13,
+    outline: "none",
+  };
+}
+
+function sectionTitle(title: string) {
+  return <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 12px" }}>{title}</h3>;
+}
+
+function textValue(value: unknown) {
+  return value == null || value === "" ? "-" : String(value);
+}
+
+function normalizeStudent(student: Student): AdmissionForm {
+  return {
+    ...emptyForm,
+    ...student,
+    admissionFee: student.admissionFee ?? 0,
+    fee: student.fee ?? 0,
+    discount: student.discount ?? 0,
+    due: student.due ?? 0,
+    para: student.para ?? 0,
+    documents: student.documents || {},
+  };
+}
+
+function validateForm(form: AdmissionForm) {
+  const errors: Record<string, string> = {};
+  requiredFields.forEach((field) => {
+    const value = form[field];
+    if (value === undefined || value === null || value === "") errors[field] = "Required";
+  });
+
+  ["fatherMobile", "motherMobile", "guardianMobile"].forEach((field) => {
+    const value = String(form[field as keyof AdmissionForm] || "").replace(/[\s-]/g, "");
+    if (value && !/^01[3-9]\d{8}$/.test(value)) errors[field] = "Use 01XXXXXXXXX";
+  });
+
+  return errors;
+}
+
+function readFile(file: File, imageOnly = false): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (imageOnly && !file.type.startsWith("image/")) {
+      reject(new Error("Student photo must be an image"));
+      return;
+    }
+    if (!imageOnly && !file.type.startsWith("image/") && file.type !== "application/pdf") {
+      reject(new Error("Document must be an image or PDF"));
+      return;
+    }
+    if (file.size > 750 * 1024) {
+      reject(new Error("File must be 750 KB or smaller"));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function Students() {
-  const { user } = useAuth();
+  const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("সব");
-  const [selected, setSelected] = useState<Student | null>(null);
-  const [editForm, setEditForm] = useState({ phone: "", blood: "O+", fee: 0, due: 0 });
+  const [department, setDepartment] = useState("All");
+  const [status, setStatus] = useState("All");
+  const [form, setForm] = useState<AdmissionForm>(emptyForm);
+  const [editing, setEditing] = useState<Student | null>(null);
+  const [viewing, setViewing] = useState<Student | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newStudent, setNewStudent] = useState(emptyNew);
-  const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS);
-  const [statusFilter, setStatusFilter] = useState<"সব" | "সক্রিয়" | "নিষ্ক্রিয়">("সক্রিয়");
-  const [attMonth, setAttMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [attSummary, setAttSummary] = useState<{ present: number; absent: number; late: number } | null>(null);
-  const [totalAttSummary, setTotalAttSummary] = useState<{ total: number; present: number; absent: number; late: number } | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const depts = ["সব", "হিফজ", "কিতাব", "নাজেরা", "নূরানী"];
 
   const load = useCallback(async () => {
     const data = await api.getStudents({
-      dept: filter !== "সব" ? filter : undefined,
+      dept: department !== "All" ? department : undefined,
       search: search || undefined,
-      status: statusFilter === "সব" ? undefined : statusFilter,
+      status: status !== "All" ? status : undefined,
     });
     setStudents(data);
-  }, [filter, search, statusFilter]);
+  }, [department, search, status]);
 
   useEffect(() => {
-    const t = setTimeout(load, 300);
-    return () => clearTimeout(t);
+    const timer = window.setTimeout(load, 250);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
-  useEffect(() => {
-    if (selected) {
-      api.getStudentAttendance(selected.id, { month: attMonth }).then((r) => setAttSummary(r.summary));
-      // Get total attendance summary from student profile
-      api.getStudent(selected.id).then((student) => {
-        setTotalAttSummary(student.attendanceSummary || null);
-      });
-    }
-  }, [selected, attMonth]);
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return students.filter((student) => {
+      const matchesDepartment = department === "All" || student.dept === department;
+      const matchesStatus = status === "All" || student.status === status;
+      const haystack = [
+        student.name,
+        student.nameEn,
+        student.roll,
+        student.admissionNumber,
+        student.birthRegistrationNumber,
+        student.fatherMobile,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return matchesDepartment && matchesStatus && haystack.includes(q);
+    });
+  }, [department, search, status, students]);
 
-  const toggleStatus = async (s: Student) => {
-    const next = s.status === "সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়";
-    const updated = await api.updateStudent(s.id, { status: next });
-    setStudents((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-    if (selected?.id === s.id) setSelected(updated);
+  const setField = (field: keyof AdmissionForm, value: string | number | StudentDocuments) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[String(field)];
+      return next;
+    });
   };
 
-  const filtered = students.filter(
-    (s) =>
-      (filter === "সব" || s.dept === filter) &&
-      (s.name.includes(search) ||
-        s.nameEn.toLowerCase().includes(search.toLowerCase()) ||
-        s.roll.includes(search))
-  );
-
-  const openStudent = (s: Student) => {
-    setEditForm({ phone: s.phone || "", blood: s.blood || "O+", fee: s.fee, due: s.due });
-    setSelected(s);
+  const startCreate = () => {
+    setEditing(null);
+    setViewing(null);
+    setErrors({});
+    setMessage("");
+    setForm(emptyForm);
+    setShowForm(true);
   };
 
-  const handleAdd = async () => {
-    if (!newStudent.name) return;
-    const payload = {
-      name: newStudent.name,
-      class: newStudent.class,
-      dept: newStudent.dept,
-      type: newStudent.type,
-      phone: newStudent.phone,
-      blood: newStudent.blood,
-      fee: Number(newStudent.fee) || 1500,
-      due: Number(newStudent.due) || 0,
-    };
-    try {
-      const created = await api.createStudent(payload);
-      setStudents((prev) => [...prev, created]);
-    } catch {
-      setStudents((prev) => [
-        ...prev,
-        {
-          ...payload,
-          id: prev.length + 1,
-          roll: String(prev.length + 1).padStart(3, "0"),
-          nameEn: "",
-          blood: "O+",
-          para: 0,
-          status: "সক্রিয়",
-        } as Student,
-      ]);
-    }
-    setNewStudent(emptyNew);
-    setShowAdd(false);
+  const startEdit = (student: Student) => {
+    setEditing(student);
+    setViewing(null);
+    setErrors({});
+    setMessage("");
+    setForm(normalizeStudent(student));
+    setShowForm(true);
   };
 
-  const handleSaveEdit = async () => {
-    if (!selected) return;
+  const saveAdmission = async () => {
+    const nextErrors = validateForm(form);
+    setErrors(nextErrors);
+    setMessage("");
+    if (Object.keys(nextErrors).length) return;
+
     setSaving(true);
-    const payload = {
-      phone: editForm.phone,
-      blood: editForm.blood,
-      fee: Number(editForm.fee) || 0,
-      due: Number(editForm.due) || 0,
-    };
     try {
-      const updated = await api.updateStudent(selected.id, payload);
-      setStudents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-      setSelected(updated);
-    } catch {
-      const updated = { ...selected, ...payload };
-      setStudents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-      setSelected(updated);
+      const payload = { ...form, studentPhoto: form.documents.studentPhoto || form.studentPhoto || "" };
+      const saved = editing ? await api.updateStudent(editing.id, payload) : await api.createStudent(payload);
+      setStudents((prev) => (editing ? prev.map((student) => (student.id === saved.id ? saved : student)) : [saved, ...prev]));
+      setEditing(saved);
+      setViewing(saved);
+      setShowForm(false);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Admission could not be saved");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!selected) return;
-    if (!confirm("আপনি কি নিশ্চিত যে আপনি এই ছাত্রকে মুছে ফেলতে চান?")) return;
-    setDeleting(true);
+  const uploadDocument = async (key: keyof StudentDocuments, file?: File) => {
+    if (!file) return;
     try {
-      await api.deleteStudent(selected.id);
-      setStudents((prev) => prev.filter((s) => s.id !== selected.id));
-      setSelected(null);
+      const value = await readFile(file, key === "studentPhoto");
+      const documents = { ...form.documents, [key]: value };
+      setField("documents", documents);
+      if (key === "studentPhoto") setField("studentPhoto", value);
+
+      if (editing) {
+        const saved = await api.uploadStudentDocuments(editing.id, documents);
+        setEditing(saved);
+        setForm(normalizeStudent(saved));
+        setStudents((prev) => prev.map((student) => (student.id === saved.id ? saved : student)));
+      }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "মুছে ফেলতে ব্যর্থ হয়েছে");
-    } finally {
-      setDeleting(false);
+      setMessage(err instanceof Error ? err.message : "Upload failed");
     }
   };
 
-  const handlePrintStudent = () => {
-    if (!selected) return;
-    const w = window.open("", "_blank", "width=520,height=720");
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head><title>Student ${selected.roll}</title>
-      <style>
-        body{font-family:Arial,sans-serif;padding:24px;max-width:520px;margin:0 auto;color:#111}
-        h1{text-align:center;font-size:20px;margin:0 0 4px}
-        h2{text-align:center;font-size:14px;font-weight:400;margin:0 0 18px;color:#555}
-        table{width:100%;border-collapse:collapse;margin-top:12px}
-        td{border-bottom:1px solid #ddd;padding:8px 4px;font-size:13px}
-        td:first-child{color:#555;width:42%}
-        .footer{text-align:center;margin-top:22px;font-size:12px;color:#666}
-      </style></head><body>
-      <h1>${selected.name}</h1>
-      <h2>Student profile receipt</h2>
-      <table>
-        <tr><td>Roll</td><td>${selected.roll}</td></tr>
-        <tr><td>Class</td><td>${selected.class || ""}</td></tr>
-        <tr><td>Department</td><td>${selected.dept}</td></tr>
-        <tr><td>Type</td><td>${selected.type}</td></tr>
-        <tr><td>Phone</td><td>${editForm.phone || selected.phone || ""}</td></tr>
-        <tr><td>Blood Group</td><td>${editForm.blood || selected.blood || ""}</td></tr>
-        <tr><td>Monthly Fee</td><td>${fmt(Number(editForm.fee) || selected.fee)}</td></tr>
-        <tr><td>Previous/Current Due</td><td>${fmt(Number(editForm.due) || selected.due)}</td></tr>
-        <tr><td>Status</td><td>${selected.status}</td></tr>
-      </table>
-      <p class="footer">Printed: ${new Date().toLocaleString()}</p>
-      <script>window.onload=function(){window.print();}</script>
-      </body></html>`);
-    w.document.close();
-  };
+  const renderInput = (label: string, field: keyof AdmissionForm, type = "text") => (
+    <label style={{ display: "block" }}>
+      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}</span>
+      <input
+        type={type}
+        value={String(form[field] ?? "")}
+        onChange={(event) => setField(field, type === "number" ? Number(event.target.value) : event.target.value)}
+        style={fieldStyle(errors[String(field)])}
+      />
+      {errors[String(field)] && <span style={{ color: C.rose, fontSize: 11 }}>{errors[String(field)]}</span>}
+    </label>
+  );
+
+  const renderSelect = (label: string, field: keyof AdmissionForm, options: string[]) => (
+    <label style={{ display: "block" }}>
+      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}</span>
+      <select value={String(form[field] ?? "")} onChange={(event) => setField(field, event.target.value)} style={fieldStyle(errors[String(field)])}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option || "Select"}
+          </option>
+        ))}
+      </select>
+      {errors[String(field)] && <span style={{ color: C.rose, fontSize: 11 }}>{errors[String(field)]}</span>}
+    </label>
+  );
+
+  const renderTextArea = (label: string, field: keyof AdmissionForm) => (
+    <label style={{ display: "block" }}>
+      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}</span>
+      <textarea value={String(form[field] ?? "")} onChange={(event) => setField(field, event.target.value)} rows={3} style={fieldStyle(errors[String(field)])} />
+      {errors[String(field)] && <span style={{ color: C.rose, fontSize: 11 }}>{errors[String(field)]}</span>}
+    </label>
+  );
+
+  const renderUpload = (label: string, key: keyof StudentDocuments, optional = false) => (
+    <label style={{ display: "block" }}>
+      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}{optional ? " (Optional)" : ""}</span>
+      <input
+        type="file"
+        accept={key === "studentPhoto" ? "image/*" : "image/*,application/pdf"}
+        onChange={(event) => uploadDocument(key, event.target.files?.[0])}
+        style={fieldStyle()}
+      />
+      {form.documents[key] && <span style={{ color: C.emerald, fontSize: 11 }}>Uploaded</span>}
+    </label>
+  );
+
+  const detailRows = viewing
+    ? [
+        ["Admission No.", viewing.admissionNumber],
+        ["Admission Date", viewing.admissionDate],
+        ["Academic Year", viewing.academicYear],
+        ["Session", viewing.session],
+        ["Class / Jamaat", viewing.class],
+        ["Section", viewing.section],
+        ["Roll", viewing.roll],
+        ["Student Type", viewing.type],
+        ["Bengali Name", viewing.name],
+        ["English Name", viewing.nameEn],
+        ["Birth Registration", viewing.birthRegistrationNumber],
+        ["Father", `${textValue(viewing.fatherName)} - ${textValue(viewing.fatherMobile)}`],
+        ["Mother", `${textValue(viewing.motherName)} - ${textValue(viewing.motherMobile)}`],
+        ["Present Address", viewing.presentAddress],
+        ["Permanent Address", viewing.permanentAddress],
+        ["Department", viewing.dept],
+        ["Memorized Quran", viewing.para],
+        ["Admission Fee", fmt(viewing.admissionFee || 0)],
+        ["Monthly Fee", fmt(viewing.fee || 0)],
+        ["Discount", fmt(viewing.discount || 0)],
+      ]
+    : [];
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text }}>ছাত্র ব্যবস্থাপনা</h2>
-        <button type="button" onClick={() => setShowAdd(true)} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>
-          + নতুন ছাত্র
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>Student Admission</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: "4px 0 0" }}>Manage admission records, student profiles, fees, guardians, and documents.</p>
+        </div>
+        <button type="button" onClick={startCreate} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 700, cursor: "pointer" }}>
+          New Admission
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="নাম বা রোল দিয়ে খুঁজুন..." style={{ flex: 1, minWidth: 180, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none" }} />
-        {depts.map((d) => (
-          <button key={d} type="button" onClick={() => setFilter(d)} style={{ border: `1px solid ${filter === d ? C.teal : C.border}`, background: filter === d ? C.tealL : C.card, color: filter === d ? C.tealD : C.muted, borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: filter === d ? 600 : 400 }}>
-            {d}
-          </button>
-        ))}
-        {(["সব", "সক্রিয়", "নিষ্ক্রিয়"] as const).map((st) => (
-          <button key={st} type="button" onClick={() => setStatusFilter(st)} style={{ border: `1px solid ${statusFilter === st ? C.violet : C.border}`, background: statusFilter === st ? C.violetL : C.card, color: statusFilter === st ? C.violetD : C.muted, borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 13 }}>
-            {st}
-          </button>
-        ))}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, roll, admission no., birth reg., mobile" style={{ ...fieldStyle(), flex: 1, minWidth: 240 }} />
+        <select value={department} onChange={(event) => setDepartment(event.target.value)} style={{ ...fieldStyle(), width: 150 }}>
+          {["All", ...departmentOptions].map((option) => <option key={option}>{option}</option>)}
+        </select>
+        <select value={status} onChange={(event) => setStatus(event.target.value)} style={{ ...fieldStyle(), width: 130 }}>
+          {["All", "Active", "Inactive"].map((option) => <option key={option}>{option}</option>)}
+        </select>
       </div>
 
-      {showAdd && (
-        <div style={{ background: C.emeraldL, border: `1px solid ${C.emerald}40`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: C.emeraldD, marginBottom: 12 }}>নতুন ছাত্র যোগ করুন</h3>
-          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 12 }}>
-            {([["নাম (বাংলা)", "name"], ["ক্লাস", "class"], ["ফোন", "phone"]] as const).map(([lbl, k]) => (
-              <div key={k}>
-                <label style={{ fontSize: 12, color: C.emeraldD, display: "block", marginBottom: 4 }}>{lbl}</label>
-                <input
-                  value={String(newStudent[k])}
-                  onChange={(e) => setNewStudent({ ...newStudent, [k]: e.target.value })}
-                  style={{ width: "100%", border: `1px solid ${C.emerald}60`, borderRadius: 6, padding: "7px 10px", fontSize: 13, boxSizing: "border-box" }}
-                />
-              </div>
-            ))}
-            {([["মাসিক বেতন (৳)", "fee"], ["বকেয়া (৳)", "due"]] as const).map(([lbl, k]) => (
-              <div key={k}>
-                <label style={{ fontSize: 12, color: C.emeraldD, display: "block", marginBottom: 4 }}>{lbl}</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={newStudent[k]}
-                  onChange={(e) => setNewStudent({ ...newStudent, [k]: Number(e.target.value) || 0 })}
-                  style={{ width: "100%", border: `1px solid ${C.emerald}60`, borderRadius: 6, padding: "7px 10px", fontSize: 13, boxSizing: "border-box" }}
-                />
-              </div>
-            ))}
-            <div>
-              <label style={{ fontSize: 12, color: C.emeraldD, display: "block", marginBottom: 4 }}>রক্তের গ্রুপ</label>
-              <select value={newStudent.blood} onChange={(e) => setNewStudent({ ...newStudent, blood: e.target.value })} style={{ width: "100%", border: `1px solid ${C.emerald}60`, borderRadius: 6, padding: "7px 10px", fontSize: 13, boxSizing: "border-box" }}>
-                {["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </div>
-            {([["বিভাগ", "dept", ["হিফজ", "কিতাব", "নাজেরা", "নূরানী"]], ["ধরন", "type", ["আবাসিক", "অনাবাসিক"]]] as const).map(([lbl, k, opts]) => (
-              <div key={k}>
-                <label style={{ fontSize: 12, color: C.emeraldD, display: "block", marginBottom: 4 }}>{lbl}</label>
-                <select value={newStudent[k]} onChange={(e) => setNewStudent({ ...newStudent, [k]: e.target.value })} style={{ width: "100%", border: `1px solid ${C.emerald}60`, borderRadius: 6, padding: "7px 10px", fontSize: 13, boxSizing: "border-box" }}>
-                  {opts.map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              </div>
-            ))}
+      {message && <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 13 }}>{message}</div>}
+
+      {showForm && (
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+            <h3 style={{ margin: 0, fontSize: 17, color: C.text }}>{editing ? "Edit Student Admission" : "Admission Form"}</h3>
+            <button type="button" onClick={() => setShowForm(false)} style={{ border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Close</button>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={handleAdd} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>সংরক্ষণ করুন</button>
-            <button type="button" onClick={() => setShowAdd(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 18px", cursor: "pointer", fontSize: 13 }}>বাতিল</button>
+
+          {sectionTitle("Admission Information")}
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+            {renderInput("Admission Number (Auto if blank)", "admissionNumber")}
+            {renderInput("Admission Date", "admissionDate", "date")}
+            {renderInput("Academic Year", "academicYear")}
+            {renderInput("Session", "session")}
+            {renderInput("Class / Jamaat", "class")}
+            {renderInput("Section", "section")}
+            {renderInput("Roll Number", "roll")}
+            {renderSelect("Student Type", "type", ["Day", "Residential"])}
           </div>
+
+          {sectionTitle("Student Information")}
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+            {renderInput("Bengali Name", "name")}
+            {renderInput("English Name", "nameEn")}
+            {renderInput("Date of Birth", "dateOfBirth", "date")}
+            {renderInput("Birth Registration Number", "birthRegistrationNumber")}
+            {renderSelect("Gender", "gender", genderOptions)}
+            {renderSelect("Religion", "religion", religionOptions)}
+            {renderSelect("Blood Group", "blood", bloodOptions)}
+            {renderUpload("Student Photo", "studentPhoto")}
+          </div>
+
+          {sectionTitle("Guardian Information")}
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+            {renderInput("Father Name", "fatherName")}
+            {renderInput("Father Mobile", "fatherMobile")}
+            {renderInput("Father Occupation", "fatherOccupation")}
+            {renderInput("Mother Name", "motherName")}
+            {renderInput("Mother Mobile", "motherMobile")}
+            {renderInput("Mother Occupation", "motherOccupation")}
+            {renderInput("Optional Guardian Name", "guardianName")}
+            {renderInput("Relationship", "guardianRelationship")}
+            {renderInput("Guardian Mobile", "guardianMobile")}
+          </div>
+
+          {sectionTitle("Address")}
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginBottom: 20 }}>
+            {renderTextArea("Present Address", "presentAddress")}
+            {renderTextArea("Permanent Address", "permanentAddress")}
+            {renderInput("District", "district")}
+            {renderInput("Upazila", "upazila")}
+            {renderInput("Post Office", "postOffice")}
+            {renderInput("Village", "village")}
+          </div>
+
+          {sectionTitle("Previous Education")}
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+            {renderInput("Previous Institution", "previousInstitution")}
+            {renderInput("Previous Class", "previousClass")}
+          </div>
+
+          {sectionTitle("Madrasa Information")}
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+            {renderSelect("Department", "dept", departmentOptions)}
+            {renderInput("Memorized Quran (Paras)", "para", "number")}
+          </div>
+
+          {sectionTitle("Fee Information")}
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+            {renderInput("Admission Fee", "admissionFee", "number")}
+            {renderInput("Monthly Fee", "fee", "number")}
+            {renderInput("Discount (Optional)", "discount", "number")}
+          </div>
+
+          {sectionTitle("Documents")}
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginBottom: 18 }}>
+            {renderUpload("Student Photo", "studentPhoto")}
+            {renderUpload("Birth Certificate", "birthCertificate")}
+            {renderUpload("Guardian NID", "guardianNid")}
+            {renderUpload("Previous Certificate", "previousCertificate", true)}
+          </div>
+
+          <button type="button" disabled={saving} onClick={saveAdmission} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 700, cursor: saving ? "wait" : "pointer" }}>
+            {saving ? "Saving..." : editing ? "Save Changes" : "Save Admission"}
+          </button>
         </div>
       )}
 
-      <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
+      <div className="table-wrap" style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 880 }}>
           <thead>
             <tr style={{ background: C.slateL }}>
-              {["রোল", "নাম", "ক্লাস", "বিভাগ", "ধরন", "বেতন", "বকেয়া", "স্ট্যাটাস", ""].map((h) => (
-                <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: C.muted, fontWeight: 600, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+              {["Admission No.", "Roll", "Student", "Class", "Department", "Type", "Guardian Mobile", "Monthly Fee", "Status", ""].map((header) => (
+                <th key={header} style={{ padding: "10px 12px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>{header}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s, i) => (
-              <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
-                <td style={{ padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{s.roll}</td>
-                <td style={{ padding: "10px 14px" }}>
-                  <div style={{ fontWeight: 600, color: C.text }}>{s.name}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{s.nameEn}</div>
+            {filtered.map((student, index) => (
+              <tr key={student.id} style={{ borderBottom: `1px solid ${C.border}`, background: index % 2 === 0 ? C.card : "var(--row-alt)" }}>
+                <td style={{ padding: "10px 12px", fontWeight: 700, color: C.text }}>{textValue(student.admissionNumber)}</td>
+                <td style={{ padding: "10px 12px", color: C.muted }}>{student.roll}</td>
+                <td style={{ padding: "10px 12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    {student.studentPhoto ? (
+                      <img src={student.studentPhoto} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover" }} />
+                    ) : (
+                      <span style={{ width: 34, height: 34, borderRadius: "50%", background: C.tealL, color: C.tealD, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>
+                        {(student.name || "?").slice(0, 1)}
+                      </span>
+                    )}
+                    <span>
+                      <strong style={{ display: "block", color: C.text }}>{student.name}</strong>
+                      <span style={{ color: C.muted, fontSize: 12 }}>{student.nameEn}</span>
+                    </span>
+                  </div>
                 </td>
-                <td style={{ padding: "10px 14px", color: C.muted }}>{s.class}</td>
-                <td style={{ padding: "10px 14px" }}><Badge label={s.dept} color={deptColor(s.dept)} /></td>
-                <td style={{ padding: "10px 14px" }}><Badge label={s.type} color={s.type === "আবাসিক" ? C.sky : C.slate} /></td>
-                <td style={{ padding: "10px 14px", color: C.text }}>{fmt(s.fee)}</td>
-                <td style={{ padding: "10px 14px" }}><span style={{ color: s.due > 0 ? C.rose : C.emerald, fontWeight: 600 }}>{fmt(s.due)}</span></td>
-                <td style={{ padding: "10px 14px" }}><Badge label={s.status} color={s.status === "সক্রিয়" ? C.emerald : C.rose} /></td>
-                <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
-                  <button type="button" onClick={() => openStudent(s)} style={{ background: C.sky + "18", color: C.sky, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, marginRight: 4 }}>দেখুন</button>
-                  <button type="button" onClick={() => toggleStatus(s)} style={{ background: s.status === "সক্রিয়" ? C.roseL : C.emeraldL, color: s.status === "সক্রিয়" ? C.rose : C.emerald, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-                    {s.status === "সক্রিয়" ? "নিষ্ক্রিয়" : "সক্রিয়"}
-                  </button>
+                <td style={{ padding: "10px 12px", color: C.muted }}>{student.class}</td>
+                <td style={{ padding: "10px 12px" }}><Badge label={student.dept} color={C.teal} /></td>
+                <td style={{ padding: "10px 12px" }}><Badge label={student.type} color={student.type === "Residential" ? C.violet : C.sky} /></td>
+                <td style={{ padding: "10px 12px", color: C.muted }}>{student.fatherMobile || student.guardianMobile || student.phone}</td>
+                <td style={{ padding: "10px 12px", color: C.text }}>{fmt(student.fee || 0)}</td>
+                <td style={{ padding: "10px 12px" }}><Badge label={student.status || "Active"} color={student.status === "Inactive" ? C.rose : C.emerald} /></td>
+                <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                  <button type="button" onClick={() => setViewing(student)} style={{ border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", marginRight: 6, fontWeight: 700 }}>View</button>
+                  <button type="button" onClick={() => startEdit(student)} style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontWeight: 700 }}>Edit</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div style={{ padding: "10px 14px", color: C.muted, fontSize: 12, borderTop: `1px solid ${C.border}` }}>মোট {filtered.length} জন ছাত্র</div>
+        <div style={{ padding: "10px 12px", color: C.muted, fontSize: 12, borderTop: `1px solid ${C.border}` }}>Total {filtered.length} students</div>
       </div>
 
-      {selected && (
-        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setSelected(null)}>
-          <div className="modal-content" style={{ background: C.card, borderRadius: 16, padding: 28, width: 440, maxWidth: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-              <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.tealL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: C.tealD }}>{selected.name[0]}</div>
+      {viewing && (
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewing(null)}>
+          <div className="modal-content" style={{ background: C.card, borderRadius: 8, padding: 24, width: 720, maxWidth: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={(event) => event.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+              {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} /> : null}
               <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>{selected.name}</div>
-                <div style={{ fontSize: 13, color: C.muted }}>{selected.nameEn} · রোল: {selected.roll}</div>
+                <h3 style={{ margin: 0, color: C.text, fontSize: 20 }}>{viewing.name}</h3>
+                <div style={{ color: C.muted, fontSize: 13 }}>{viewing.nameEn} | {viewing.admissionNumber || "No admission number"}</div>
               </div>
-              <button type="button" onClick={() => setSelected(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.muted }}>✕</button>
+              <button type="button" onClick={() => setViewing(null)} style={{ marginLeft: "auto", border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Close</button>
             </div>
-            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {([["ক্লাস", selected.class], ["বিভাগ", selected.dept], ["ধরন", selected.type], ["রক্তের গ্রুপ", selected.blood], ["কমপ্লিটেড পারা", selected.para || "—"], ["স্ট্যাটাস", selected.status]] as const).map(([k, v]) => (
-                <div key={k} style={{ background: C.slateL, borderRadius: 8, padding: "10px 12px" }}>
-                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{k}</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{v}</div>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+              {detailRows.map(([label, value]) => (
+                <div key={label} style={{ background: C.slateL, borderRadius: 6, padding: "9px 10px" }}>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>{textValue(value)}</div>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 14, padding: 12, background: C.slateL, borderRadius: 8, fontSize: 12, color: C.muted }}>
-              <div>বর্তমান ফোন: <strong style={{ color: C.text }}>{selected.phone || "—"}</strong></div>
-              <div>ভর্তির সময় ধার্য মাসিক বেতন: <strong style={{ color: C.text }}>{fmt(selected.fee)}</strong></div>
-              <div>বর্তমান/পূর্বের বকেয়া: <strong style={{ color: selected.due > 0 ? C.rose : C.emerald }}>{fmt(selected.due)}</strong></div>
-            </div>
-            <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div>
-                <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>ফোন</label>
-                <input
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  placeholder="01XXXXXXXXX"
-                  style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>রক্তের গ্রুপ</label>
-                <select
-                  value={editForm.blood}
-                  onChange={(e) => setEditForm({ ...editForm, blood: e.target.value })}
-                  style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }}
-                >
-                  {["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>মাসিক বেতন (৳)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={editForm.fee}
-                  onChange={(e) => setEditForm({ ...editForm, fee: Number(e.target.value) || 0 })}
-                  style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }}
-                />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>বকেয়া (৳)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={editForm.due}
-                  onChange={(e) => setEditForm({ ...editForm, due: Number(e.target.value) || 0 })}
-                  style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }}
-                />
-              </div>
-            </div>
-            <div style={{ marginTop: 16, padding: 12, background: C.slateL, borderRadius: 8 }}>
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>হাজিরা সারাংশ (মাস)</div>
-              <input type="month" value={attMonth} onChange={(e) => setAttMonth(e.target.value)} style={{ marginBottom: 8, border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }} />
-              {attSummary && (
-                <div>
-                  <span style={{ color: C.emerald, marginRight: 12 }}>উপস্থিত: {attSummary.present}</span>
-                  <span style={{ color: C.rose, marginRight: 12 }}>অনুপস্থিত: {attSummary.absent}</span>
-                  <span style={{ color: C.amber }}>দেরি: {attSummary.late}</span>
-                </div>
-              )}
-            </div>
-            {totalAttSummary && (
-              <div style={{ marginTop: 12, padding: 12, background: C.tealL, borderRadius: 8 }}>
-                <div style={{ fontWeight: 600, marginBottom: 8, color: C.tealD }}>মোট হাজিরা সারাংশ</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }} className="attendance-stats-grid">
-                  <div style={{ textAlign: "center", padding: 8, background: C.card, borderRadius: 6 }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>{totalAttSummary.total}</div>
-                    <div style={{ fontSize: 11, color: C.muted }}>মোট দিন</div>
-                  </div>
-                  <div style={{ textAlign: "center", padding: 8, background: C.card, borderRadius: 6 }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: C.emerald }}>{totalAttSummary.present}</div>
-                    <div style={{ fontSize: 11, color: C.muted }}>উপস্থিত</div>
-                  </div>
-                  <div style={{ textAlign: "center", padding: 8, background: C.card, borderRadius: 6 }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: C.rose }}>{totalAttSummary.absent}</div>
-                    <div style={{ fontSize: 11, color: C.muted }}>অনুপস্থিত</div>
-                  </div>
-                  <div style={{ textAlign: "center", padding: 8, background: C.card, borderRadius: 6 }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: C.amber }}>{totalAttSummary.late}</div>
-                    <div style={{ fontSize: 11, color: C.muted }}>দেরি</div>
-                  </div>
-                </div>
-              </div>
-            )}
             <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={handleSaveEdit}
-                style={{ flex: 1, minWidth: "120px", background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "10px", fontWeight: 600, cursor: saving ? "wait" : "pointer", fontSize: 14 }}
-              >
-                {saving ? "সংরক্ষণ হচ্ছে…" : "💾 পরিবর্তন সংরক্ষণ"}
-              </button>
-              <button
-                type="button"
-                onClick={handlePrintStudent}
-                style={{ minWidth: "80px", background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}
-              >
-                Print
-              </button>
-              {user?.role === "Super Admin" && (
-                <button
-                  type="button"
-                  disabled={deleting}
-                  onClick={handleDelete}
-                  style={{ minWidth: "80px", background: C.rose, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontWeight: 600, cursor: deleting ? "wait" : "pointer", fontSize: 14 }}
-                >
-                  {deleting ? "মুছছে…" : "🗑️ মুছুন"}
-                </button>
-              )}
+              <button type="button" onClick={() => startEdit(viewing)} style={{ border: "none", background: C.emerald, color: "#fff", borderRadius: 8, padding: "9px 16px", fontWeight: 700, cursor: "pointer" }}>Edit Student</button>
+              {(["studentPhoto", "birthCertificate", "guardianNid", "previousCertificate"] as (keyof StudentDocuments)[]).map((key) => (
+                viewing.documents?.[key] ? (
+                  <a key={key} href={viewing.documents[key]} target="_blank" rel="noreferrer" style={{ color: C.link, fontSize: 13, alignSelf: "center" }}>
+                    {key}
+                  </a>
+                ) : null
+              ))}
             </div>
           </div>
         </div>

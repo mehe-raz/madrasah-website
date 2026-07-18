@@ -108,6 +108,9 @@ export const api = {
   updateStudent: (id: number, body: Partial<Student>) =>
     request<Student>(`/students/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 
+  uploadStudentDocuments: (id: number, documents: NonNullable<Student["documents"]>) =>
+    request<Student>(`/students/${id}/documents`, { method: "PATCH", body: JSON.stringify({ documents }) }),
+
   deleteStudent: (id: number) =>
     request<{ ok: boolean }>(`/students/${id}`, { method: "DELETE" }),
 

@@ -2,12 +2,111 @@ const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const PDFDocument = require("pdfkit");
+const {
+  RETURNING_COLUMNS,
+  admissionFromBody,
+  normalizeDocuments,
+  validateAdmission,
+  validateDocuments,
+} = require("../models/studentAdmission");
 
 const router = express.Router();
+
+const INSERT_COLUMNS = [
+  ["name", "name"],
+  ['"nameEn"', "nameEn"],
+  ["roll", "roll"],
+  ["class", "class"],
+  ["dept", "dept"],
+  ["type", "type"],
+  ["fee", "fee"],
+  ["due", "due"],
+  ["phone", "phone"],
+  ["blood", "blood"],
+  ["para", "para"],
+  ["status", "status"],
+  ['"admissionNumber"', "admissionNumber"],
+  ['"admissionDate"', "admissionDate"],
+  ['"academicYear"', "academicYear"],
+  ["session", "session"],
+  ["section", "section"],
+  ['"dateOfBirth"', "dateOfBirth"],
+  ['"birthRegistrationNumber"', "birthRegistrationNumber"],
+  ["gender", "gender"],
+  ["religion", "religion"],
+  ['"studentPhoto"', "studentPhoto"],
+  ['"fatherName"', "fatherName"],
+  ['"fatherMobile"', "fatherMobile"],
+  ['"fatherOccupation"', "fatherOccupation"],
+  ['"motherName"', "motherName"],
+  ['"motherMobile"', "motherMobile"],
+  ['"motherOccupation"', "motherOccupation"],
+  ['"guardianName"', "guardianName"],
+  ['"guardianRelationship"', "guardianRelationship"],
+  ['"guardianMobile"', "guardianMobile"],
+  ['"presentAddress"', "presentAddress"],
+  ['"permanentAddress"', "permanentAddress"],
+  ["district", "district"],
+  ["upazila", "upazila"],
+  ['"postOffice"', "postOffice"],
+  ["village", "village"],
+  ['"previousInstitution"', "previousInstitution"],
+  ['"previousClass"', "previousClass"],
+  ['"admissionFee"', "admissionFee"],
+  ["discount", "discount"],
+  ["documents", "documents"],
+];
+
+const UPDATE_COLUMNS = INSERT_COLUMNS.filter(([column]) => column !== "documents");
 
 async function getSettings() {
   const rows = await db.all("SELECT key, value FROM settings");
   return rows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
+}
+
+async function nextAdmissionNumber(admissionDate) {
+  const year = String(admissionDate || new Date().toISOString().slice(0, 10)).slice(0, 4);
+  const prefix = `ADM-${year}-`;
+  const row = await db.get(
+    `SELECT "admissionNumber" FROM students
+     WHERE "admissionNumber" LIKE $1
+     ORDER BY "admissionNumber" DESC
+     LIMIT 1`,
+    [`${prefix}%`]
+  );
+  const last = Number(String(row?.admissionNumber || "").slice(prefix.length)) || 0;
+  return `${prefix}${String(last + 1).padStart(4, "0")}`;
+}
+
+async function duplicateError(admission, excludeId) {
+  if (admission.birthRegistrationNumber) {
+    const row = await db.get(
+      `SELECT id FROM students WHERE "birthRegistrationNumber" = $1 AND ($2::int IS NULL OR id <> $2)`,
+      [admission.birthRegistrationNumber, excludeId || null]
+    );
+    if (row) return "Birth registration number already exists";
+  }
+
+  if (admission.admissionNumber) {
+    const row = await db.get(
+      `SELECT id FROM students WHERE "admissionNumber" = $1 AND ($2::int IS NULL OR id <> $2)`,
+      [admission.admissionNumber, excludeId || null]
+    );
+    if (row) return "Admission number already exists";
+  }
+
+  return "";
+}
+
+function admissionValues(admission, columns = INSERT_COLUMNS) {
+  return columns.map(([, key]) => (key === "documents" ? JSON.stringify(admission.documents || {}) : admission[key]));
+}
+
+function constraintError(err) {
+  if (!db.isUniqueViolation?.(err)) return "";
+  if (err.constraint === "students_admission_number_unique") return "Admission number already exists";
+  if (err.constraint === "students_birth_registration_unique") return "Birth registration number already exists";
+  return "Duplicate student admission value";
 }
 
 function logoBuffer(logo) {
@@ -55,25 +154,26 @@ router.get("/:id/attendance", async (req, res) => {
 
 router.get("/", async (req, res) => {
   const { dept, search, status, class: cls } = req.query;
-  let rows = await db.all('SELECT * FROM students ORDER BY roll');
-  if (status === "সক্রিয়") rows = rows.filter((s) => s.status === "সক্রিয়");
-  else if (status === "নিষ্ক্রিয়") rows = rows.filter((s) => s.status === "নিষ্ক্রিয়");
+  let rows = await db.all(`SELECT ${RETURNING_COLUMNS} FROM students ORDER BY roll`);
+  if (status && status !== "All" && status !== "সব") rows = rows.filter((s) => s.status === status);
   if (cls) rows = rows.filter((s) => s.class === cls);
-  if (dept && dept !== "সব") rows = rows.filter((s) => s.dept === dept);
+  if (dept && dept !== "All" && dept !== "সব") rows = rows.filter((s) => s.dept === dept);
   if (search) {
     const q = String(search).toLowerCase();
     rows = rows.filter(
       (s) =>
-        s.name.includes(search) ||
-        s.nameEn.toLowerCase().includes(q) ||
-        s.roll.includes(search)
+        (s.name || "").includes(search) ||
+        (s.nameEn || "").toLowerCase().includes(q) ||
+        (s.roll || "").includes(search) ||
+        (s.admissionNumber || "").toLowerCase().includes(q) ||
+        (s.birthRegistrationNumber || "").includes(search)
     );
   }
   res.json(rows);
 });
 
 router.get("/:id", async (req, res) => {
-  const row = await db.get("SELECT * FROM students WHERE id = $1", [req.params.id]);
+  const row = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);
   if (!row) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
 
   const attendanceRows = await db.all('SELECT status FROM attendance WHERE "studentId" = $1', [req.params.id]);
@@ -93,49 +193,76 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { name, class: cls, dept, type, fee } = req.body;
-  if (!name) return res.status(400).json({ error: "নাম আবশ্যক" });
-  const maxIdRow = await db.get("SELECT MAX(id) as m FROM students");
-  const maxRollRow = await db.get("SELECT MAX(CAST(roll AS INTEGER)) as m FROM students");
-  const maxId = maxIdRow?.m || 0;
-  const maxRoll = maxRollRow?.m || 0;
-  const id = maxId + 1;
-  const roll = String(maxRoll + 1).padStart(3, "0");
-  const student = {
-    id,
-    name,
-    nameEn: req.body.nameEn || "",
-    roll,
-    class: cls || "",
-    dept: dept || "হিফজ",
-    type: type || "আবাসিক",
-    fee: fee != null ? Number(fee) : 1500,
-    due: req.body.due != null ? Number(req.body.due) : 0,
-    phone: req.body.phone || "",
-    blood: req.body.blood || "O+",
-    para: req.body.para || 0,
-    status: "সক্রিয়",
-  };
-  await db.run(
-    `INSERT INTO students (id, name, "nameEn", roll, class, dept, type, fee, due, phone, blood, para, status)
-     OVERRIDING SYSTEM VALUE
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-    [student.id, student.name, student.nameEn, student.roll, student.class, student.dept, student.type, student.fee, student.due, student.phone, student.blood, student.para, student.status]
-  );
-  res.status(201).json(student);
+  const student = admissionFromBody(req.body, { status: "Active", due: 0, discount: 0, para: 0 });
+  if (!student.admissionNumber) student.admissionNumber = await nextAdmissionNumber(student.admissionDate);
+
+  const errors = validateAdmission(student);
+  if (Object.keys(errors).length) return res.status(400).json({ error: "Validation failed", errors });
+
+  const duplicate = await duplicateError(student);
+  if (duplicate) return res.status(409).json({ error: duplicate });
+
+  const columns = INSERT_COLUMNS.map(([column]) => column).join(", ");
+  const placeholders = INSERT_COLUMNS.map((_, i) => `$${i + 1}`).join(", ");
+
+  try {
+    const result = await db.run(
+      `INSERT INTO students (${columns})
+       VALUES (${placeholders})
+       RETURNING id`,
+      admissionValues(student)
+    );
+    const created = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [result.insertId]);
+    res.status(201).json(created);
+  } catch (err) {
+    const duplicateMessage = constraintError(err);
+    if (duplicateMessage) return res.status(409).json({ error: duplicateMessage });
+    throw err;
+  }
 });
 
 router.patch("/:id", async (req, res) => {
-  const existing = await db.get("SELECT * FROM students WHERE id = $1", [req.params.id]);
+  const existing = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);
   if (!existing) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
-  const updated = { ...existing, ...req.body, id: existing.id };
-  await db.run(
-    `UPDATE students SET name=$1, "nameEn"=$2, roll=$3, class=$4, dept=$5,
-     type=$6, fee=$7, due=$8, phone=$9, blood=$10, para=$11, status=$12
-     WHERE id=$13`,
-    [updated.name, updated.nameEn, updated.roll, updated.class, updated.dept, updated.type, updated.fee, updated.due, updated.phone, updated.blood, updated.para, updated.status, updated.id]
-  );
-  res.json(updated);
+  const updated = admissionFromBody(req.body, existing);
+
+  const errors = validateAdmission(updated);
+  if (Object.keys(errors).length) return res.status(400).json({ error: "Validation failed", errors });
+
+  const duplicate = await duplicateError(updated, existing.id);
+  if (duplicate) return res.status(409).json({ error: duplicate });
+
+  const assignments = UPDATE_COLUMNS.map(([column], i) => `${column}=$${i + 1}`).join(", ");
+  const values = admissionValues(updated, UPDATE_COLUMNS);
+
+  try {
+    await db.run(
+      `UPDATE students SET ${assignments}, documents=$${values.length + 1} WHERE id=$${values.length + 2}`,
+      [...values, JSON.stringify(updated.documents || {}), existing.id]
+    );
+    res.json(await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [existing.id]));
+  } catch (err) {
+    const duplicateMessage = constraintError(err);
+    if (duplicateMessage) return res.status(409).json({ error: duplicateMessage });
+    throw err;
+  }
+});
+
+router.patch("/:id/documents", async (req, res) => {
+  const existing = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);
+  if (!existing) return res.status(404).json({ error: "Student not found" });
+
+  const documents = { ...(existing.documents || {}), ...normalizeDocuments(req.body.documents || req.body) };
+  const errors = validateDocuments(documents);
+  if (Object.keys(errors).length) return res.status(400).json({ error: "Validation failed", errors });
+
+  const studentPhoto = documents.studentPhoto || existing.studentPhoto || "";
+  await db.run('UPDATE students SET documents=$1, "studentPhoto"=$2 WHERE id=$3', [
+    JSON.stringify(documents),
+    studentPhoto,
+    existing.id,
+  ]);
+  res.json(await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [existing.id]));
 });
 
 router.delete("/:id", requirePermission("*"), async (req, res) => {
