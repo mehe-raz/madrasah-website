@@ -257,8 +257,8 @@ export function Settings() {
               </button>
               {editBackup && authUser?.role === "Super Admin" && (
                 <div style={{ marginTop: 14, padding: 12, background: C.slateL, borderRadius: 8 }}>
-                  <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Restore backup database (.db)</label>
-                  <input type="file" accept=".db,application/octet-stream" onChange={(e) => handleRestore(e.target.files?.[0] || null)} style={{ fontSize: 13, maxWidth: "100%" }} />
+                  <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Restore backup database (.sql / .json)</label>
+                  <input type="file" accept=".sql,.json,application/octet-stream,application/json" onChange={(e) => handleRestore(e.target.files?.[0] || null)} style={{ fontSize: 13, maxWidth: "100%" }} />
                   <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>Upload a downloaded madrasah backup to restore old students, income, users and settings.</p>
                 </div>
               )}

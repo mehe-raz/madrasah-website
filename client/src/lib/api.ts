@@ -241,11 +241,14 @@ export const api = {
       headers: token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) throw new Error("Backup failed");
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    const filename = match ? match[1] : `madrasah-backup-${new Date().toISOString().slice(0, 10)}.sql`;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `madrasah-backup-${new Date().toISOString().slice(0, 10)}.db`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   },

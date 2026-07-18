@@ -174,21 +174,35 @@ async function restoreJsonBackup(data) {
 }
 
 async function restoreSqlBackup(buffer) {
-  const { Client } = require("pg");
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl:
-      process.env.DATABASE_SSL === "true" ||
-      (process.env.DATABASE_URL || "").includes("sslmode=require")
-        ? { rejectUnauthorized: false }
-        : undefined,
+  // IMPORTANT: pg_dump output can contain psql-only meta-commands
+  // (\restrict / \unrestrict on PostgreSQL 17+) and COPY ... FROM stdin
+  // blocks, neither of which the generic `pg` client can execute via
+  // client.query(). Those must go through the actual psql binary, the
+  // same way pg_dump is spawned as a subprocess for backups.
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL not configured");
+
+  return new Promise((resolve, reject) => {
+    const child = spawn("psql", [process.env.DATABASE_URL, "--set", "ON_ERROR_STOP=1"], {
+      env: process.env,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    const stdout = [];
+    const stderr = [];
+    child.stdout.on("data", (d) => stdout.push(d));
+    child.stderr.on("data", (d) => stderr.push(d));
+    child.on("error", (err) => reject(err));
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(Buffer.concat(stderr).toString("utf8") || `psql exited with code ${code}`));
+        return;
+      }
+      resolve();
+    });
+
+    child.stdin.write(buffer);
+    child.stdin.end();
   });
-  await client.connect();
-  try {
-    await client.query(buffer.toString("utf8"));
-  } finally {
-    await client.end();
-  }
 }
 
 router.get("/", async (_req, res) => {
