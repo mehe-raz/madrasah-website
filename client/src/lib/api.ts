@@ -5,6 +5,7 @@ import type {
   DashboardData,
   DeleteRequest,
   Expense,
+  GoogleDriveStatus,
   IncomeEntry,
   Payment,
   Settings,
@@ -280,4 +281,10 @@ export const api = {
     }
     return (await res.json()) as { ok: boolean; message: string };
   },
+
+  getGoogleDriveStatus: () => request<GoogleDriveStatus>("/backup/google/status"),
+
+  getGoogleDriveAuthUrl: () => request<{ url: string }>("/backup/google/auth-url"),
+
+  disconnectGoogleDrive: () => request<GoogleDriveStatus>("/backup/google/disconnect", { method: "POST" }),
 };

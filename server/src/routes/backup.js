@@ -4,6 +4,7 @@ const fs = require("fs");
 const { spawn } = require("child_process");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const googleDrive = require("../lib/googleDrive");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -147,6 +148,16 @@ async function createBackup(config = null) {
     .reverse();
   copies.slice(activeConfig.keepLocalCopies).forEach((f) => fs.unlinkSync(path.join(backupDir, f)));
 
+  try {
+    const mimeType = format === "sql" ? "application/sql" : "application/json";
+    const uploaded = await googleDrive.uploadBackupFile(localPath, filename, mimeType);
+    if (uploaded) console.log(`Backup uploaded to Google Drive: ${filename}`);
+  } catch (err) {
+    // Google Drive upload is best-effort, same as the local folder destinations above:
+    // a failed upload should never block the backup itself from completing.
+    console.warn("Google Drive backup upload failed:", err.message);
+  }
+
   const saved = await saveConfig({ ...activeConfig, lastRunAt: new Date().toISOString() });
   return { filename, localPath, format, config: saved };
 }
@@ -264,6 +275,64 @@ router.post("/restore", express.raw({ type: ["application/octet-stream", "applic
   } catch (e) {
     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
     res.status(500).json({ error: e.message || "Restore failed" });
+  }
+});
+
+router.get("/google/status", async (_req, res) => {
+  try {
+    res.json(await googleDrive.getStatus());
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Failed to load Google Drive status" });
+  }
+});
+
+router.get("/google/auth-url", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can connect Google Drive" });
+  }
+  try {
+    if (!googleDrive.isConfigured()) {
+      return res.status(400).json({
+        error: "Google Drive integration is not configured on the server (missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_DRIVE_REDIRECT_URI).",
+      });
+    }
+    res.json({ url: googleDrive.getAuthUrl(req.user.id) });
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Failed to start Google Drive connection" });
+  }
+});
+
+// Google redirects the browser here after the user approves/denies access.
+// This is a top-level navigation (not a fetch), so auth relies on the
+// "token" cookie rather than an Authorization header.
+router.get("/google/callback", async (req, res) => {
+  const clientOrigin =
+    (process.env.CLIENT_ORIGIN || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)[0] || "/";
+  const { code, state, error } = req.query;
+
+  try {
+    if (error) throw new Error(String(error));
+    if (req.user?.role !== "Super Admin") throw new Error("Only Super Admin can connect Google Drive");
+    if (!code || !state) throw new Error("Missing Google authorization code");
+    await googleDrive.handleCallback(String(code), String(state), req.user.id);
+    res.redirect(`${clientOrigin}/settings?googleDrive=connected`);
+  } catch (e) {
+    res.redirect(`${clientOrigin}/settings?googleDrive=error&message=${encodeURIComponent(e.message || "Google Drive connection failed")}`);
+  }
+});
+
+router.post("/google/disconnect", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can disconnect Google Drive" });
+  }
+  try {
+    await googleDrive.disconnect();
+    res.json(await googleDrive.getStatus());
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Failed to disconnect Google Drive" });
   }
 });
 

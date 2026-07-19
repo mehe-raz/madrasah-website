@@ -113,6 +113,16 @@ export interface BackupConfig {
   lastRunAt?: string;
 }
 
+export interface GoogleDriveStatus {
+  configured: boolean;
+  connected: boolean;
+  accountEmail: string;
+  folderLink: string;
+  connectedAt: string;
+  lastUploadAt: string;
+  lastUploadError: string;
+}
+
 export interface Settings {
   name: string;
   address: string;

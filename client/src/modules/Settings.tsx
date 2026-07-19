@@ -5,7 +5,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { canBackup, canManageUsers } from "../lib/permissions";
 import { C } from "../theme/colors";
-import { USER_ROLES, type BackupConfig, type Settings as SettingsType, type User } from "../types";
+import { USER_ROLES, type BackupConfig, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
 function Field({
   label,
@@ -72,6 +72,8 @@ export function Settings() {
   const [userForm, setUserForm] = useState({ name: "", role: "Teacher", email: "", password: "" });
   const [editDraft, setEditDraft] = useState<User | null>(null);
   const [backupConfig, setBackupConfig] = useState<BackupConfig | null>(null);
+  const [driveStatus, setDriveStatus] = useState<GoogleDriveStatus | null>(null);
+  const [driveConnecting, setDriveConnecting] = useState(false);
   const [msg, setMsg] = useState("");
   const [editInfo, setEditInfo] = useState(false);
   const [editSystem, setEditSystem] = useState(false);
@@ -86,9 +88,35 @@ export function Settings() {
     setSaved(false);
   };
 
+  const refreshDriveStatus = () => api.getGoogleDriveStatus().then(setDriveStatus).catch(() => {});
+
   useEffect(() => {
-    if (allowBackup) api.getBackupConfig().then(setBackupConfig).catch(() => {});
+    if (allowBackup) {
+      api.getBackupConfig().then(setBackupConfig).catch(() => {});
+      refreshDriveStatus();
+    }
   }, [allowBackup]);
+
+  // After the Google OAuth redirect (routes/backup.js `/google/callback`) sends the
+  // browser back to /settings?googleDrive=connected|error, show the result and
+  // refresh. If this page is running inside the popup opened by handleConnectDrive,
+  // close it so the user lands back on the original tab automatically.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("googleDrive");
+    if (!result) return;
+    if (result === "connected") {
+      setMsg(t.settings.googleDriveConnectedMsg);
+      refreshDriveStatus();
+    } else if (result === "error") {
+      setMsg(params.get("message") || t.settings.googleDriveConnectFailed);
+    }
+    window.history.replaceState({}, "", window.location.pathname);
+    if (window.opener) {
+      window.setTimeout(() => window.close(), 800);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSave = async () => {
     await saveSettings(settings);
@@ -140,6 +168,48 @@ export function Settings() {
       setMsg("Backup created");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Backup failed");
+    }
+  };
+
+  const handleConnectDrive = async () => {
+    if (authUser?.role !== "Super Admin") {
+      setMsg(t.settings.googleDriveOnlySuperAdmin);
+      return;
+    }
+    setDriveConnecting(true);
+    try {
+      const { url } = await api.getGoogleDriveAuthUrl();
+      const popup = window.open(url, "googleDriveAuth", "width=520,height=650");
+      if (!popup) {
+        setMsg(t.settings.googleDriveConnectFailed);
+        setDriveConnecting(false);
+        return;
+      }
+      const poll = window.setInterval(() => {
+        if (popup.closed) {
+          window.clearInterval(poll);
+          setDriveConnecting(false);
+          refreshDriveStatus();
+        }
+      }, 800);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : t.settings.googleDriveConnectFailed);
+      setDriveConnecting(false);
+    }
+  };
+
+  const handleDisconnectDrive = async () => {
+    if (authUser?.role !== "Super Admin") {
+      setMsg(t.settings.googleDriveOnlySuperAdmin);
+      return;
+    }
+    if (!confirm(t.settings.googleDriveDisconnectConfirm)) return;
+    try {
+      const status = await api.disconnectGoogleDrive();
+      setDriveStatus(status);
+      setMsg(t.settings.googleDriveDisconnectedMsg);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
     }
   };
 
@@ -255,6 +325,12 @@ export function Settings() {
                   <InfoRow label="Automatic backup" value={backupConfig.enabled ? "Enabled" : "Disabled"} />
                   <InfoRow label="Interval" value={`${backupConfig.intervalHours} hours`} />
                   <InfoRow label="Last backup" value={backupConfig.lastRunAt ? new Date(backupConfig.lastRunAt).toLocaleString() : "-"} />
+                  {driveStatus?.configured && (
+                    <InfoRow
+                      label={t.settings.googleDriveTitle}
+                      value={driveStatus.connected ? t.settings.googleDriveConnected.replace("{email}", driveStatus.accountEmail) : t.settings.googleDriveNotConnected}
+                    />
+                  )}
                 </div>
               )}
               <button type="button" onClick={handleBackup} style={{ background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 600, cursor: "pointer" }}>
@@ -280,7 +356,7 @@ export function Settings() {
                   {[0, 1, 2].map((i) => (
                     <Field
                       key={i}
-                      label={`Google Drive synced folder ${i + 1}`}
+                      label={`Local sync folder ${i + 1} (e.g. Google Drive desktop app folder)`}
                       value={backupConfig.destinations[i] || ""}
                       onChange={(v) => {
                         const destinations = [...backupConfig.destinations];
@@ -294,6 +370,61 @@ export function Settings() {
                     <button type="button" onClick={saveBackupConfig} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Save backup settings</button>
                     <button type="button" onClick={runBackupNow} style={{ background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Run backup now</button>
                   </div>
+
+                  {driveStatus?.configured && (
+                    <div style={{ marginTop: 6, padding: 12, background: C.slateL, borderRadius: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 6 }}>{t.settings.googleDriveTitle}</div>
+                      {driveStatus.connected ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
+                            {t.settings.googleDriveConnected.replace("{email}", driveStatus.accountEmail)}
+                          </p>
+                          {driveStatus.lastUploadAt && (
+                            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
+                              {t.settings.googleDriveLastUpload.replace("{date}", new Date(driveStatus.lastUploadAt).toLocaleString())}
+                            </p>
+                          )}
+                          {driveStatus.lastUploadError && (
+                            <p style={{ fontSize: 12, color: "#dc2626", margin: 0 }}>
+                              {t.settings.googleDriveUploadError.replace("{message}", driveStatus.lastUploadError)}
+                            </p>
+                          )}
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {driveStatus.folderLink && (
+                              <a href={driveStatus.folderLink} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: C.violet }}>
+                                {t.settings.googleDriveOpenFolder}
+                              </a>
+                            )}
+                            {authUser?.role === "Super Admin" && (
+                              <button
+                                type="button"
+                                onClick={handleDisconnectDrive}
+                                style={{ background: "transparent", color: "#dc2626", border: "1px solid #dc2626", borderRadius: 8, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 12 }}
+                              >
+                                {t.settings.googleDriveDisconnect}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p style={{ fontSize: 12, color: C.muted, margin: "0 0 8px" }}>{t.settings.googleDriveNotConnected}</p>
+                          {authUser?.role === "Super Admin" ? (
+                            <button
+                              type="button"
+                              disabled={driveConnecting}
+                              onClick={handleConnectDrive}
+                              style={{ background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: driveConnecting ? "default" : "pointer", fontSize: 13, opacity: driveConnecting ? 0.7 : 1 }}
+                            >
+                              {driveConnecting ? t.settings.googleDriveConnecting : t.settings.googleDriveConnect}
+                            </button>
+                          ) : (
+                            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{t.settings.googleDriveOnlySuperAdmin}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
