@@ -3,8 +3,12 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 const db = require("../db");
+const { requirePermission } = require("../middleware/rbac");
 
 const router = express.Router();
+// Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
+// (The /restore route below additionally requires Super Admin specifically.)
+router.use(requirePermission("settings"));
 const backupDir = path.join(__dirname, "..", "..", "backups");
 const CONFIG_KEY = "backupConfig";
 

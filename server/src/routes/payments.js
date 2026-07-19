@@ -1,7 +1,11 @@
 const express = require("express");
 const db = require("../db");
+const { requirePermission } = require("../middleware/rbac");
 
 const router = express.Router();
+// Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
+// (payments maps to the "income" permission, matching ROUTE_PERMISSION in rbac.js)
+router.use(requirePermission("income"));
 
 router.get("/", async (_req, res) => {
   res.json(await db.all("SELECT * FROM payments ORDER BY id DESC"));

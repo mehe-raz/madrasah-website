@@ -1,7 +1,10 @@
 const express = require("express");
 const db = require("../db");
+const { requirePermission } = require("../middleware/rbac");
 
 const router = express.Router();
+// Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
+router.use(requirePermission("dashboard"));
 
 router.get("/", async (_req, res) => {
   const students = await db.all("SELECT * FROM students");

@@ -3,8 +3,12 @@ const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { createDeleteRequest } = require("../lib/deleteRequests");
 const { isUniqueViolation } = require("../pg");
+const { requirePermission } = require("../middleware/rbac");
 
 const router = express.Router();
+// Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
+router.use(requirePermission("settings"));
+
 const ROLES = ["Super Admin", "Admin", "Accountant", "Teacher", "Hostel Manager"];
 const SALT_ROUNDS = 12;
 const APPROVAL_ROLES = ["Super Admin", "Admin"];
@@ -18,6 +22,10 @@ function isApprovalRole(role) {
 }
 
 router.get("/", async (_req, res) => {
+  // Previously this route had NO explicit role check and relied entirely on
+  // the (broken) global rbacMiddleware — meaning any logged-in user, including
+  // a Teacher, could list every user's name/email/role. Now guarded above by
+  // router.use(requirePermission("settings")), which only Admin/Super Admin have.
   const rows = await db.all('SELECT id, name, email, role, "isProtected" FROM users ORDER BY id');
   res.json(rows.map(publicUser));
 });

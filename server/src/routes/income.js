@@ -2,8 +2,11 @@ const express = require("express");
 const db = require("../db");
 const { getIncomeCategories, setIncomeCategories } = require("../lib/incomeCategories");
 const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests");
+const { requirePermission } = require("../middleware/rbac");
 
 const router = express.Router();
+// Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
+router.use(requirePermission("income"));
 
 router.get("/categories", async (_req, res) => {
   res.json(await getIncomeCategories());

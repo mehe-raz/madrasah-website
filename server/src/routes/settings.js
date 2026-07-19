@@ -1,7 +1,10 @@
 const express = require("express");
 const db = require("../db");
+const { requirePermission } = require("../middleware/rbac");
 
 const router = express.Router();
+// Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
+router.use(requirePermission("settings"));
 
 async function getAllSettings() {
   const rows = await db.all("SELECT key, value FROM settings");

@@ -18,6 +18,7 @@ const ROUTE_PERMISSION = {
   "/api/settings": "settings",
   "/api/users": "settings",
   "/api/backup": "settings",
+  "/api/reports": "reports",
 };
 
 function canAccess(role, permission) {
@@ -36,7 +37,15 @@ function requirePermission(permission) {
 
 function rbacMiddleware(req, res, next) {
   if (!req.user) return next();
-  const base = req.baseUrl || req.path.split("/").slice(0, 3).join("/");
+  // NOTE: this middleware is mounted with `app.use("/api", ...)`, so
+  // req.baseUrl is always "/api" here — it can NEVER be used to recover
+  // which sub-route ("/api/students", "/api/income", ...) is being hit.
+  // We must read the real path from req.path (relative to "/api") instead.
+  // (Previously `req.baseUrl || ...` always short-circuited to "/api",
+  // meaning this permission check silently never matched anything and
+  // every authenticated role could reach every route below.)
+  const segment = req.path.split("/").filter(Boolean)[0];
+  const base = segment ? `/api/${segment}` : "/api";
   const perm = ROUTE_PERMISSION[base];
   if (!perm) return next();
   if (canAccess(req.user.role, perm)) return next();

@@ -11,6 +11,8 @@ const {
 } = require("../models/studentAdmission");
 
 const router = express.Router();
+// Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
+router.use(requirePermission("students"));
 
 const INSERT_COLUMNS = [
   ["name", "name"],
