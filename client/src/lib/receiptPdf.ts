@@ -1,20 +1,16 @@
 import { createEnglishPdf } from "./pdfEnglish";
 import type { Payment, Settings } from "../types";
 import { fmt } from "./fmt";
+import { toEmbeddableImage } from "./toEmbeddableImage";
 
-function imageType(dataUrl: string) {
-  if (dataUrl.startsWith("data:image/png")) return "PNG";
-  if (dataUrl.startsWith("data:image/jpeg") || dataUrl.startsWith("data:image/jpg")) return "JPEG";
-  return "PNG";
-}
-
-export function downloadReceiptPdf(payment: Payment, settings: Settings) {
+export async function downloadReceiptPdf(payment: Payment, settings: Settings) {
   const doc = createEnglishPdf();
   let y = 14;
 
-  if (settings.logo) {
+  const logo = await toEmbeddableImage(settings.logo);
+  if (logo) {
     try {
-      doc.addImage(settings.logo, imageType(settings.logo), 91, y, 28, 28);
+      doc.addImage(logo.dataUrl, logo.type, 91, y, 28, 28);
       y += 34;
     } catch {
       y += 2;

@@ -102,8 +102,13 @@ export function Settings() {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
-      update("logo", String(reader.result));
+    reader.onload = async () => {
+      try {
+        const { url } = await api.uploadFile(String(reader.result), "settings");
+        update("logo", url);
+      } catch (err) {
+        setMsg(err instanceof Error ? err.message : "Logo upload failed");
+      }
     };
     reader.readAsDataURL(file);
   };

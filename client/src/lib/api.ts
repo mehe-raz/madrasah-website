@@ -225,6 +225,9 @@ export const api = {
 
   getUsers: () => request<User[]>("/users"),
 
+  uploadFile: (dataUrl: string, folder: string) =>
+    request<{ url: string; publicId: string }>("/uploads", { method: "POST", body: JSON.stringify({ dataUrl, folder }) }),
+
   createUser: (body: { name: string; role: string; email: string; password: string }) =>
     request<User>("/users", { method: "POST", body: JSON.stringify(body) }),
 

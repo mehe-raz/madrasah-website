@@ -111,15 +111,31 @@ function constraintError(err) {
   return "Duplicate student admission value";
 }
 
-function logoBuffer(logo) {
-  if (!logo || !String(logo).startsWith("data:image/")) return null;
-  const base64 = String(logo).split(",")[1];
-  if (!base64) return null;
-  try {
-    return Buffer.from(base64, "base64");
-  } catch {
-    return null;
+async function logoBuffer(logo) {
+  const value = String(logo || "");
+  if (!value) return null;
+
+  if (value.startsWith("data:image/")) {
+    const base64 = value.split(",")[1];
+    if (!base64) return null;
+    try {
+      return Buffer.from(base64, "base64");
+    } catch {
+      return null;
+    }
   }
+
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const response = await fetch(value);
+      if (!response.ok) return null;
+      return Buffer.from(await response.arrayBuffer());
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 router.get("/classes/list", async (_req, res) => {
@@ -297,7 +313,7 @@ router.get("/:id/pdf", async (req, res) => {
   try {
     console.log("Starting PDF generation for student:", student.id);
     const settings = await getSettings();
-    const logo = logoBuffer(settings.logo);
+    const logo = await logoBuffer(settings.logo);
 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     const chunks = [];

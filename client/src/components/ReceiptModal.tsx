@@ -53,7 +53,9 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
     w.document.close();
   };
 
-  const handlePdf = () => downloadReceiptPdf(payment, settings);
+  const handlePdf = () => {
+    void downloadReceiptPdf(payment, settings);
+  };
 
   const rows = [
     ["Receipt No", payment.receipt],

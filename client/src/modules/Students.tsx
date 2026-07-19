@@ -255,10 +255,11 @@ export function Students() {
   const uploadDocument = async (key: keyof StudentDocuments, file?: File) => {
     if (!file) return;
     try {
-      const value = await readFile(file, key === "studentPhoto");
-      const documents = { ...form.documents, [key]: value };
+      const rawDataUrl = await readFile(file, key === "studentPhoto");
+      const { url } = await api.uploadFile(rawDataUrl, "students");
+      const documents = { ...form.documents, [key]: url };
       setField("documents", documents);
-      if (key === "studentPhoto") setField("studentPhoto", value);
+      if (key === "studentPhoto") setField("studentPhoto", url);
 
       if (editing) {
         const saved = await api.uploadStudentDocuments(editing.id, documents);

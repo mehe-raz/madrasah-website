@@ -104,6 +104,7 @@ app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/delete-requests", require("./routes/deleteRequests"));
 app.use("/api/reports", require("./routes/reports"));
 app.use("/api/backup", require("./routes/backup"));
+app.use("/api/uploads", require("./routes/uploads"));
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(clientDist));
