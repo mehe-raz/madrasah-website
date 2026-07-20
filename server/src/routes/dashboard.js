@@ -7,20 +7,36 @@ const router = express.Router();
 router.use(requirePermission("dashboard"));
 
 router.get("/", async (_req, res) => {
-  const students = await db.all("SELECT * FROM students");
-  const total = students.length;
-  const residential = students.filter((s) => s.type === "আবাসিক").length;
-  const totalDue = students.reduce((s, st) => s + st.due, 0);
-  const dueCount = students.filter((s) => s.due > 0).length;
-  const monthlyIncomeRow = await db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM income");
-  const monthlyExpenseRow = await db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM expenses");
+  const today = new Date().toISOString().slice(0, 10);
+
+  // All student aggregates computed in one SQL round trip instead of
+  // downloading every column (photo URLs, documents JSONB, addresses, etc)
+  // for every student just to count/sum them in JavaScript.
+  const [statsRow, deptRows, monthlyIncomeRow, monthlyExpenseRow, incomeByCategory, attToday, recentIncome] =
+    await Promise.all([
+      db.get(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE type = 'আবাসিক')::int AS residential,
+           COALESCE(SUM(due), 0)::int AS "totalDue",
+           COUNT(*) FILTER (WHERE due > 0)::int AS "dueCount"
+         FROM students`
+      ),
+      db.all(`SELECT dept AS name, COUNT(*)::int AS value FROM students GROUP BY dept`),
+      db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM income"),
+      db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM expenses"),
+      db.all("SELECT category, SUM(amount)::int AS total FROM income GROUP BY category"),
+      db.all("SELECT status FROM attendance WHERE date = $1", [today]),
+      db.all("SELECT * FROM income ORDER BY id DESC LIMIT 3"),
+    ]);
+
+  const total = statsRow?.total || 0;
+  const residential = statsRow?.residential || 0;
+  const totalDue = statsRow?.totalDue || 0;
+  const dueCount = statsRow?.dueCount || 0;
   const monthlyIncome = monthlyIncomeRow?.t || 0;
   const monthlyExpense = monthlyExpenseRow?.t || 0;
 
-  const incomeByCategory = await db.all("SELECT category, SUM(amount)::int AS total FROM income GROUP BY category");
-
-  const today = new Date().toISOString().slice(0, 10);
-  const attToday = await db.all("SELECT status FROM attendance WHERE date = $1", [today]);
   const present = attToday.filter((a) => a.status === "উপস্থিত").length;
   const attTotal = attToday.length || total;
 
@@ -44,13 +60,8 @@ router.get("/", async (_req, res) => {
     { day: "Fri", present: present || 38, absent: Math.max(0, attTotal - present) },
   ];
 
-  const deptCounts = {};
-  students.forEach((s) => {
-    deptCounts[s.dept] = (deptCounts[s.dept] || 0) + 1;
-  });
-  const deptData = Object.entries(deptCounts).map(([name, value]) => ({ name, value }));
+  const deptData = deptRows.map((r) => ({ name: r.name, value: r.value }));
 
-  const recentIncome = await db.all("SELECT * FROM income ORDER BY id DESC LIMIT 3");
   const logs = [
     ...recentIncome.map((inc, i) => ({
       id: i + 1,

@@ -4,6 +4,7 @@ const { requirePermission } = require("../middleware/rbac");
 const PDFDocument = require("pdfkit");
 const {
   RETURNING_COLUMNS,
+  LIST_COLUMNS,
   admissionFromBody,
   normalizeDocuments,
   validateAdmission,
@@ -172,10 +173,22 @@ router.get("/:id/attendance", async (req, res) => {
 
 router.get("/", async (req, res) => {
   const { dept, search, status, class: cls } = req.query;
-  let rows = await db.all(`SELECT ${RETURNING_COLUMNS} FROM students ORDER BY roll`);
-  if (status && status !== "All" && status !== "সব") rows = rows.filter((s) => s.status === status);
-  if (cls) rows = rows.filter((s) => s.class === cls);
-  if (dept && dept !== "All" && dept !== "সব") rows = rows.filter((s) => s.dept === dept);
+  const conditions = [];
+  const params = [];
+  if (status && status !== "All" && status !== "সব") {
+    params.push(status);
+    conditions.push(`status = $${params.length}`);
+  }
+  if (cls) {
+    params.push(cls);
+    conditions.push(`class = $${params.length}`);
+  }
+  if (dept && dept !== "All" && dept !== "সব") {
+    params.push(dept);
+    conditions.push(`dept = $${params.length}`);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  let rows = await db.all(`SELECT ${LIST_COLUMNS} FROM students ${where} ORDER BY roll`, params);
   if (search) {
     const q = String(search).toLowerCase();
     rows = rows.filter(

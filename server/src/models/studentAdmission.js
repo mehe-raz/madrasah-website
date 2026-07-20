@@ -209,10 +209,27 @@ const RETURNING_COLUMNS = `
   "previousInstitution", "previousClass", "admissionFee", discount, documents
 `;
 
+// Same as RETURNING_COLUMNS but without the "documents" JSONB column, which
+// can hold several uploaded files (birth certificate, guardian NID, previous
+// certificate — sometimes still legacy base64 for older records). The list
+// table never displays these, only the single-student detail view does, so
+// list requests shouldn't pay to transfer them for every row.
+const LIST_COLUMNS = `
+  id, name, "nameEn", roll, class, dept, type, fee, due, phone, blood, para, status,
+  "admissionNumber", "admissionDate", "academicYear", session, section,
+  "dateOfBirth", "birthRegistrationNumber", gender, religion, "studentPhoto",
+  "fatherName", "fatherMobile", "fatherOccupation",
+  "motherName", "motherMobile", "motherOccupation",
+  "guardianName", "guardianRelationship", "guardianMobile",
+  "presentAddress", "permanentAddress", district, upazila, "postOffice", village,
+  "previousInstitution", "previousClass", "admissionFee", discount
+`;
+
 module.exports = {
   admissionFromBody,
   validateAdmission,
   normalizeDocuments,
   validateDocuments,
   RETURNING_COLUMNS,
+  LIST_COLUMNS,
 };

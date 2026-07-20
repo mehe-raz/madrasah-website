@@ -8,13 +8,20 @@ const schemaPath = path.join(__dirname, "..", "sql", "supabase_schema.sql");
 
 async function initSchema() {
   const sql = fs.readFileSync(schemaPath, "utf8");
-  const statements = sql
-    .split(";")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  for (const statement of statements) {
-    await pg.query(`${statement};`);
-  }
+  // All statements in supabase_schema.sql are idempotent ("if not exists"),
+  // have no parameters, and don't depend on results from earlier statements
+  // in this file, so they can be sent to Postgres as a single multi-statement
+  // command instead of one awaited round trip per statement. On a remote DB
+  // (Neon/Supabase) each round trip can cost 50-150ms; with ~80 statements
+  // that was 4-12s added to *every* server boot before the app could accept
+  // its first request. Sending it as one batch cuts that to a single round
+  // trip. IMPORTANT: must call pool.query(sql) with no second argument —
+  // pg.query() always forwards a params array (even [] by default), which
+  // forces node-postgres onto the parameterized "extended" protocol, and
+  // Postgres rejects multiple commands per statement on that protocol. Only
+  // the plain simple-query protocol (single string argument, no params)
+  // allows a semicolon-separated batch like this to run.
+  await pg.pool.query(sql);
 }
 
 async function initDb() {

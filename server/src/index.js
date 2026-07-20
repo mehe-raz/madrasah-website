@@ -29,6 +29,7 @@ try {
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
+const compression = require("compression");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const path = require("path");
@@ -61,6 +62,10 @@ function isAllowedOrigin(origin) {
 
 app.set("trust proxy", 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+// Gzip-compress every response. JSON payloads (student lists, dashboard
+// aggregates, reports) typically shrink by 70-90%, which directly speeds up
+// "page data loading" over slower mobile connections.
+app.use(compression());
 
 app.use(
   cors({
@@ -107,8 +112,24 @@ app.use("/api/backup", require("./routes/backup"));
 app.use("/api/uploads", require("./routes/uploads"));
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(clientDist));
+  app.use(
+    express.static(clientDist, {
+      // Vite fingerprints JS/CSS/image chunk filenames with a content hash,
+      // so once a hashed asset is served it can never change — cache it
+      // "forever" in the browser. index.html itself is NOT hashed, so it
+      // must never be cached (must always revalidate) or users get stuck
+      // on an old app shell after a deploy.
+      setHeaders(res, filePath) {
+        if (filePath.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "no-cache");
+        } else {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    })
+  );
   app.get(/.*/, (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(clientDist, "index.html"));
   });
 }
