@@ -51,11 +51,11 @@ export function Dashboard() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 24, fontWeight: 700, color: C.text, marginBottom: 22, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>ড্যাশবোর্ড</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>ড্যাশবোর্ড</h2>
 
       {canApproveDeletes && deleteRequests.length > 0 && (
-        <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 20, marginBottom: 22 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>Delete approval requests</h3>
+        <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 18, marginBottom: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Delete approval requests</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {deleteRequests.map((r) => (
               <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.slateL, borderRadius: 8, flexWrap: "wrap" }}>
@@ -89,8 +89,8 @@ export function Dashboard() {
           marginBottom: 20,
         }}
       >
-        <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 22 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>আয় ও ব্যয় (মাসওয়ারি)</h3>
+        <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 16 }}>আয় ও ব্যয় (মাসওয়ারি)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data.incomeData} barSize={12}>
               <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
@@ -103,8 +103,8 @@ export function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 22 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>বিভাগ অনুযায়ী ছাত্র</h3>
+        <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 16 }}>বিভাগ অনুযায়ী ছাত্র</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie
@@ -127,8 +127,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 22, marginBottom: 22 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>সাপ্তাহিক হাজিরা</h3>
+      <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, marginBottom: 20 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 16 }}>সাপ্তাহিক হাজিরা</h3>
         <ResponsiveContainer width="100%" height={160}>
           <LineChart data={data.attendanceData}>
             <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
@@ -141,8 +141,8 @@ export function Dashboard() {
         </ResponsiveContainer>
       </div>
 
-      <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 22 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>সাম্প্রতিক কার্যক্রম</h3>
+      <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>সাম্প্রতিক কার্যক্রম</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {data.logs.map((l) => (
             <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>

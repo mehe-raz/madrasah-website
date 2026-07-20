@@ -11,8 +11,8 @@ type Mode = "login" | "register" | "forgot" | "reset";
 const inputStyle: CSSProperties = {
   width: "100%",
   border: `1px solid ${C.border}`,
-  borderRadius: 10,
-  padding: "11px 14px",
+  borderRadius: 8,
+  padding: "10px 12px",
   fontSize: 14,
   boxSizing: "border-box",
   background: C.card,
@@ -75,14 +75,14 @@ export function Login() {
 
   return (
     <div className="auth-page" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 16 }}>
-      <div style={{ width: "100%", maxWidth: 400, background: C.card, borderRadius: 18, border: `1px solid ${C.border}`, borderTop: `3px solid ${C.teal}`, padding: 32, boxShadow: "0 12px 44px rgba(20,16,10,0.12)" }}>
-        <div style={{ textAlign: "center", marginBottom: 26 }}>
+      <div style={{ width: "100%", maxWidth: 400, background: C.card, borderRadius: 16, border: `1px solid ${C.border}`, padding: 28, boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
           {settings.logo ? (
-            <img src={settings.logo} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", marginBottom: 4, border: `1px solid ${C.border}` }} />
+            <img src={settings.logo} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", marginBottom: 4 }} />
           ) : (
             <span style={{ fontSize: 40 }}>🕌</span>
           )}
-          <h1 style={{ fontSize: 21, fontWeight: 700, color: C.text, margin: "10px 0 5px", fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{madrasaName}</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: "8px 0 4px" }}>{madrasaName}</h1>
           <p style={{ fontSize: 13, color: C.muted }}>
             {mode === "login" && t.auth.signInSubtitle}
             {mode === "register" && t.auth.registerSubtitle}
@@ -106,7 +106,7 @@ export function Login() {
           )}
           {error && <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{error}</p>}
           {info && <p style={{ color: C.teal, fontSize: 13, margin: 0 }}>{info}</p>}
-          <button type="submit" disabled={loading} style={{ background: C.teal, color: "#fdfbf6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 700, cursor: "pointer", fontSize: 15, letterSpacing: 0.3, boxShadow: "0 4px 14px rgba(169,129,47,0.28)" }}>
+          <button type="submit" disabled={loading} style={{ background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>
             {loading ? t.common.pleaseWait : mode === "login" ? t.auth.signIn : mode === "register" ? t.auth.register : mode === "forgot" ? t.auth.sendReset : t.auth.updatePassword}
           </button>
         </form>

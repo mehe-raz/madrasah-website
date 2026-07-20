@@ -38,7 +38,7 @@ function Field({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 9, padding: "10px 13px", fontSize: 14, boxSizing: "border-box", color: C.text, background: C.card }}
+        style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, boxSizing: "border-box", color: C.text, background: C.card }}
       />
     </div>
   );
@@ -55,7 +55,7 @@ const ROLE_COLORS: Record<string, string> = {
 function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: open ? 16 : 0 }}>
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: 0, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{title}</h3>
+      <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>{title}</h3>
       <button
         type="button"
         onClick={onToggle}
@@ -330,12 +330,12 @@ export function Settings() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 24, fontWeight: 700, color: C.text, marginBottom: 24, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{t.settings.title}</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 24 }}>{t.settings.title}</h2>
       {msg && <p style={{ color: C.teal, fontSize: 13, marginBottom: 12 }}>{msg}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 24 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 26 }}>
+          <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
             <SectionHeader title={t.settings.madrasaInfo} open={editInfo} onToggle={() => setEditInfo((v) => !v)} />
             {!editInfo && (
               <div>
@@ -365,7 +365,7 @@ export function Settings() {
           </div>
 
           {allowBackup && (
-            <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 26 }}>
+            <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
               <SectionHeader title={t.settings.backup} open={editBackup} onToggle={() => setEditBackup((v) => !v)} />
                             <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Download full SQLite database backup.</p>
               {!editBackup && backupConfig && (
@@ -415,8 +415,8 @@ export function Settings() {
                   ))}
                   {backupConfig.lastRunAt && <p style={{ fontSize: 12, color: C.muted }}>Last auto backup: {new Date(backupConfig.lastRunAt).toLocaleString()}</p>}
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button type="button" onClick={saveBackupConfig} style={{ background: C.emerald, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "9px 16px", fontWeight: 700, cursor: "pointer", fontSize: 13, boxShadow: "0 4px 14px rgba(29,107,79,0.28)" }}>Save backup settings</button>
-                    <button type="button" onClick={runBackupNow} style={{ background: C.teal, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "9px 16px", fontWeight: 700, cursor: "pointer", fontSize: 13, boxShadow: "0 4px 14px rgba(169,129,47,0.28)" }}>Run backup now</button>
+                    <button type="button" onClick={saveBackupConfig} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Save backup settings</button>
+                    <button type="button" onClick={runBackupNow} style={{ background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Run backup now</button>
                   </div>
 
                   {driveStatus?.configured && (
@@ -433,7 +433,7 @@ export function Settings() {
                             </p>
                           )}
                           {driveStatus.lastUploadError && (
-                            <p style={{ fontSize: 12, color: C.rose, margin: 0 }}>
+                            <p style={{ fontSize: 12, color: "#dc2626", margin: 0 }}>
                               {t.settings.googleDriveUploadError.replace("{message}", driveStatus.lastUploadError)}
                             </p>
                           )}
@@ -447,7 +447,7 @@ export function Settings() {
                               <button
                                 type="button"
                                 onClick={handleDisconnectDrive}
-                                style={{ background: "transparent", color: C.rose, border: `1px solid ${C.rose}`, borderRadius: 8, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 12 }}
+                                style={{ background: "transparent", color: "#dc2626", border: "1px solid #dc2626", borderRadius: 8, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 12 }}
                               >
                                 {t.settings.googleDriveDisconnect}
                               </button>
@@ -533,7 +533,7 @@ export function Settings() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 26 }}>
+          <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
             <SectionHeader title={t.settings.systemSettings} open={editSystem} onToggle={() => setEditSystem((v) => !v)} />
             {!editSystem && (
               <div>
@@ -568,7 +568,7 @@ export function Settings() {
           </div>
 
           {manageUsers && (
-            <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 26 }}>
+            <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
               <SectionHeader title={t.settings.userRoles} open={editUsers} onToggle={() => setEditUsers((v) => !v)} />
               <div style={{ display: editUsers ? "grid" : "none", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8, marginBottom: 14 }}>
                 <input placeholder={t.settings.userName} value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} style={inputSmall} />
@@ -580,7 +580,7 @@ export function Settings() {
                   ))}
                 </select>
               </div>
-              <button type="button" onClick={handleAddUser} style={{ display: editUsers ? "inline-block" : "none", background: C.teal, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "9px 16px", fontWeight: 700, cursor: "pointer", fontSize: 13, boxShadow: "0 4px 14px rgba(169,129,47,0.28)", marginBottom: 14 }}>
+              <button type="button" onClick={handleAddUser} style={{ display: editUsers ? "inline-block" : "none", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13, marginBottom: 14 }}>
                 + {t.settings.addUser}
               </button>
 
@@ -628,7 +628,7 @@ export function Settings() {
         </div>
       </div>
 
-      <button type="button" onClick={handleSave} style={{ marginTop: 22, background: saved ? C.emerald : C.teal, color: "#fdfbf6", border: "none", borderRadius: 10, padding: "13px 30px", fontWeight: 700, cursor: "pointer", fontSize: 15, letterSpacing: 0.3, boxShadow: "0 4px 14px rgba(169,129,47,0.28)" }}>
+      <button type="button" onClick={handleSave} style={{ marginTop: 20, background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 10, padding: "12px 28px", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>
         {saved ? t.settings.savedMsg : t.settings.saveChanges}
       </button>
     </div>

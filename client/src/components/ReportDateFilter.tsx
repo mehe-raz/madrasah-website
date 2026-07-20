@@ -38,8 +38,8 @@ export function ReportDateFilter({ value, onChange }: ReportDateFilterProps) {
   const monthInput = value.from.slice(0, 7);
 
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, marginBottom: 22, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)" }}>
-      <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>📅 Report period / রিপোর্ট সময়কাল</h3>
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 12 }}>📅 Report period / রিপোর্ট সময়কাল</h3>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
         <div>
           <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 4 }}>Month / মাস</label>

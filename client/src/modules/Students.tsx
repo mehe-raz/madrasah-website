@@ -93,21 +93,15 @@ function fieldStyle(error?: string): CSSProperties {
   return {
     width: "100%",
     border: `1px solid ${error ? C.rose : C.border}`,
-    borderRadius: 8,
-    padding: "9px 11px",
+    borderRadius: 6,
+    padding: "8px 10px",
     fontSize: 13,
     outline: "none",
-    background: C.card,
-    color: C.text,
   };
 }
 
 function sectionTitle(title: string) {
-  return (
-    <h3 style={{ fontSize: 14, fontWeight: 700, color: C.teal, margin: "0 0 12px", textTransform: "uppercase", letterSpacing: 0.8, borderBottom: `1px solid ${C.border}`, paddingBottom: 8 }}>
-      {title}
-    </h3>
-  );
+  return <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 12px" }}>{title}</h3>;
 }
 
 function textValue(value: unknown) {
@@ -355,10 +349,10 @@ export function Students() {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
         <div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, color: C.text, margin: 0, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>Student Admission</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>Student Admission</h2>
           <p style={{ fontSize: 13, color: C.muted, margin: "4px 0 0" }}>Manage admission records, student profiles, fees, guardians, and documents.</p>
         </div>
-        <button type="button" onClick={startCreate} style={{ background: C.emerald, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "10px 18px", fontWeight: 700, cursor: "pointer", letterSpacing: 0.2, boxShadow: "0 4px 14px rgba(29,107,79,0.28)" }}>
+        <button type="button" onClick={startCreate} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 700, cursor: "pointer" }}>
           New Admission
         </button>
       </div>
@@ -376,9 +370,9 @@ export function Students() {
       {message && <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 13 }}>{message}</div>}
 
       {showForm && (
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 24, marginBottom: 18 }}>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-            <h3 style={{ margin: 0, fontSize: 18, color: C.text, fontWeight: 700, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{editing ? "Edit Student Admission" : "Admission Form"}</h3>
+            <h3 style={{ margin: 0, fontSize: 17, color: C.text }}>{editing ? "Edit Student Admission" : "Admission Form"}</h3>
             <button type="button" onClick={() => setShowForm(false)} style={{ border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Close</button>
           </div>
 
@@ -456,13 +450,13 @@ export function Students() {
             {renderUpload("Previous Certificate", "previousCertificate", true)}
           </div>
 
-          <button type="button" disabled={saving} onClick={saveAdmission} style={{ background: C.emerald, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "11px 20px", fontWeight: 700, cursor: saving ? "wait" : "pointer", letterSpacing: 0.2, boxShadow: "0 4px 14px rgba(29,107,79,0.28)" }}>
+          <button type="button" disabled={saving} onClick={saveAdmission} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 700, cursor: saving ? "wait" : "pointer" }}>
             {saving ? "Saving..." : editing ? "Save Changes" : "Save Admission"}
           </button>
         </div>
       )}
 
-      <div className="table-wrap" style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", overflow: "auto" }}>
+      <div className="table-wrap" style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 880 }}>
           <thead>
             <tr style={{ background: C.slateL }}>
@@ -510,7 +504,7 @@ export function Students() {
 
       {viewing && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewing(null)}>
-          <div className="modal-content" style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", padding: 28, width: 720, maxWidth: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={(event) => event.stopPropagation()}>
+          <div className="modal-content" style={{ background: C.card, borderRadius: 8, padding: 24, width: 720, maxWidth: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={(event) => event.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
               {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} /> : null}
               <div>
@@ -528,7 +522,7 @@ export function Students() {
               ))}
             </div>
             <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => startEdit(viewing)} style={{ border: "none", background: C.emerald, color: "#fdfbf6", borderRadius: 9, padding: "10px 18px", fontWeight: 700, cursor: "pointer", letterSpacing: 0.2, boxShadow: "0 4px 14px rgba(29,107,79,0.28)" }}>Edit Student</button>
+              <button type="button" onClick={() => startEdit(viewing)} style={{ border: "none", background: C.emerald, color: "#fff", borderRadius: 8, padding: "9px 16px", fontWeight: 700, cursor: "pointer" }}>Edit Student</button>
               {(["studentPhoto", "birthCertificate", "guardianNid", "previousCertificate"] as (keyof StudentDocuments)[]).map((key) => (
                 viewing.documents?.[key] ? (
                   <a key={key} href={viewing.documents[key]} target="_blank" rel="noreferrer" style={{ color: C.link, fontSize: 13, alignSelf: "center" }}>

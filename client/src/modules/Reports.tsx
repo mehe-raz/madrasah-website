@@ -50,7 +50,7 @@ export function Reports() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 24, fontWeight: 700, color: C.text, marginBottom: 8, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>রিপোর্ট ও এক্সপোর্ট</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 8 }}>রিপোর্ট ও এক্সপোর্ট</h2>
       <p style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>মাস বা তারিখ সিলেক্ট করে PDF/CSV ডাউনলোড করুন।</p>
 
       <ReportDateFilter value={range} onChange={setRange} />
@@ -59,7 +59,7 @@ export function Reports() {
         type="button"
         disabled={loading !== null}
         onClick={exportAllPdf}
-        style={{ marginBottom: 22, background: C.violet, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "11px 20px", fontWeight: 700, cursor: "pointer", fontSize: 13, letterSpacing: 0.2, boxShadow: "0 4px 14px rgba(106,63,106,0.28)" }}
+        style={{ marginBottom: 20, background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}
       >
         {loading === "all-pdf" ? "…" : "📄 Download income + expense + attendance PDF (selected period)"}
       </button>
@@ -70,9 +70,9 @@ export function Reports() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 28 }}>
         {reports.map((r) => (
-          <div key={r.title} style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 22, borderTop: `2px solid ${r.color}` }}>
+          <div key={r.title} style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
             <div style={{ fontSize: 32, marginBottom: 10 }}>{r.icon}</div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 4, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{r.title}</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>{r.title}</h3>
             <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>{r.desc}</p>
             <div style={{ display: "flex", gap: 8 }}>
               <button type="button" disabled={loading !== null} onClick={() => handleExport(r.kind, "pdf")} style={{ flex: 1, background: r.color + "18", color: r.color, border: `1px solid ${r.color}40`, borderRadius: 7, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>

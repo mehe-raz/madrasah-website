@@ -27,19 +27,19 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
     const rowsHtml = rows
       .map(
         ([k, v]) =>
-          `<tr><td style="padding:6px 0;color:#6f6656">${k}</td><td style="padding:6px 0;text-align:right;font-weight:600">${v}</td></tr>`
+          `<tr><td style="padding:6px 0;color:#64748b">${k}</td><td style="padding:6px 0;text-align:right;font-weight:600">${v}</td></tr>`
       )
       .join("");
     return `<!DOCTYPE html><html><head><title>Receipt ${payment.receipt}</title>
       <style>body{font-family:Arial,sans-serif;padding:24px;max-width:400px;margin:0 auto}
       h1{font-size:18px;text-align:center} table{width:100%;border-collapse:collapse}
       .logo{display:block;max-height:64px;max-width:90px;margin:0 auto 10px}
-      .footer{text-align:center;font-size:11px;color:#6f6656;margin-top:16px}</style></head>
+      .footer{text-align:center;font-size:11px;color:#64748b;margin-top:16px}</style></head>
       <body>
       ${settings.logo ? `<img class="logo" src="${settings.logo}" alt="">` : ""}
       <h1>${settings.name}</h1>
-      <p style="text-align:center;font-size:12px;color:#6f6656">${settings.address}<br>${settings.phone}</p>
-      <h2 style="text-align:center;font-size:14px;color:#a9812f">Fee Receipt</h2>
+      <p style="text-align:center;font-size:12px;color:#64748b">${settings.address}<br>${settings.phone}</p>
+      <h2 style="text-align:center;font-size:14px;color:#0d9488">Fee Receipt</h2>
       <table>${rowsHtml}</table>
       <p class="footer">${settings.footer}</p>
       <script>window.onload=function(){window.print();}</script>
@@ -84,7 +84,7 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
       onClick={onClose}
     >
       <div
-        style={{ background: C.card, borderRadius: 18, padding: 30, width: 400, maxWidth: "100%", border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}
+        style={{ background: C.card, borderRadius: 16, padding: 28, width: 400, maxWidth: "100%" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="receipt-print-area">

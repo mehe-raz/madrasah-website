@@ -6,33 +6,23 @@
 
 :root,
 [data-theme="light"] {
-  /* Premium ivory / warm-white surface system */
-  --bg: #f6f2ea;
-  --card: #fffdf9;
-  --border: #e3d9c2;
-  --text: #221d15;
-  --muted: #6f6656;
-  --slate-l: #f0e9d8;
-  --row-alt: #faf6ee;
-
-  --brand: #a9812f;
-  --brand-dark: #5c4415;
-  --shadow-color: 20, 16, 10;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --muted: #64748b;
+  --slate-l: #f1f5f9;
+  --row-alt: #fafbfc;
 }
 
 [data-theme="dark"] {
-  /* Deep ink / charcoal case with warm gold highlights */
-  --bg: #0d0c0a;
-  --card: #18160f;
-  --border: #3a3323;
-  --text: #f3ecdc;
-  --muted: #a89c81;
-  --slate-l: #241f15;
-  --row-alt: #1d1a12;
-
-  --brand: #c9a24d;
-  --brand-dark: #f3ecdc;
-  --shadow-color: 0, 0, 0;
+  --bg: #111827;
+  --card: #1f2937;
+  --border: #3b4758;
+  --text: #f8fafc;
+  --muted: #cbd5e1;
+  --slate-l: #2d3748;
+  --row-alt: #263244;
 }
 
 html,
@@ -46,21 +36,13 @@ body,
 }
 
 body {
-  font-family: 'Noto Sans Bengali', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: light;
-  letter-spacing: 0.1px;
 }
 
 [data-theme="dark"] body {
   color-scheme: dark;
-}
-
-h1, h2, h3, h4 {
-  font-family: 'Playfair Display', 'Noto Serif Bengali', Georgia, serif;
-  letter-spacing: 0.2px;
-  margin: 0;
 }
 
 button,
@@ -70,55 +52,22 @@ textarea {
   font-family: inherit;
 }
 
-button {
-  transition: transform 0.12s ease, box-shadow 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
-}
-
-button:not(:disabled):hover {
-  filter: brightness(1.06);
-}
-
-button:not(:disabled):active {
-  transform: translateY(1px);
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
-}
-
 input,
 select,
 textarea {
   background: var(--card);
   color: var(--text);
   border-color: var(--border);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 input::placeholder,
 textarea::placeholder {
   color: var(--muted);
-  opacity: 0.85;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  border-color: var(--brand) !important;
-  box-shadow: 0 0 0 3px rgba(169, 129, 47, 0.14);
+  opacity: 0.9;
 }
 
 table {
   color: var(--text);
-  border-collapse: collapse;
 }
 
 th,
@@ -126,21 +75,8 @@ td {
   vertical-align: middle;
 }
 
-thead th {
-  font-family: 'Playfair Display', 'Noto Serif Bengali', Georgia, serif;
-  letter-spacing: 0.3px;
-}
-
-tbody tr {
-  transition: background 0.12s ease;
-}
-
-tbody tr:hover {
-  background: var(--row-alt);
-}
-
 a {
-  color: var(--link, #8a6a2f);
+  color: var(--link, #0ea5e9);
 }
 
 .recharts-text,
@@ -158,22 +94,6 @@ a {
   background: var(--card) !important;
   border-color: var(--border) !important;
   color: var(--text) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 8px 24px rgba(var(--shadow-color), 0.14) !important;
-}
-
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 999px;
 }
 
 .table-wrap {

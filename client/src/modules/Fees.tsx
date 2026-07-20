@@ -51,7 +51,7 @@ export function Fees() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 24, fontWeight: 700, color: C.text, marginBottom: 22, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{t.fees.title}</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.fees.title}</h2>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 24 }}>
         <StatCard label="মোট আয় (জুন)" value={fmt(72000)} icon="💰" color={C.emerald} />
@@ -69,7 +69,7 @@ export function Fees() {
       </div>
 
       {tab === "payments" && (
-        <div className="table-wrap" style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", overflow: "auto" }}>
+        <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 600 }}>
             <thead>
               <tr style={{ background: C.slateL }}>
@@ -80,7 +80,7 @@ export function Fees() {
             </thead>
             <tbody>
               {payments.map((p, i) => (
-                <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
+                <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "#fafbfc" }}>
                   <td style={{ padding: "10px 14px", fontFamily: "monospace", color: C.teal, fontWeight: 600 }}>{p.receipt}</td>
                   <td style={{ padding: "10px 14px" }}>
                     <div style={{ fontWeight: 600, color: C.text }}>{p.student}</div>
@@ -101,7 +101,7 @@ export function Fees() {
       )}
 
       {tab === "due" && (
-        <div className="table-wrap" style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", overflow: "auto" }}>
+        <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 520 }}>
             <thead>
               <tr style={{ background: C.slateL }}>
@@ -112,7 +112,7 @@ export function Fees() {
             </thead>
             <tbody>
               {dueStudents.map((s, i) => (
-                <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
+                <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "#fafbfc" }}>
                   <td style={{ padding: "10px 14px", fontWeight: 600, color: C.muted }}>{s.roll}</td>
                   <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text }}>{s.name}</td>
                   <td style={{ padding: "10px 14px", color: C.muted }}>{s.class}</td>
@@ -130,8 +130,8 @@ export function Fees() {
 
       {tab === "collect" && (
         <div style={{ maxWidth: 480 }}>
-          <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 26 }}>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 18, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>বেতন গ্রহণ</h3>
+          <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 18 }}>বেতন গ্রহণ</h3>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 6 }}>ছাত্র নির্বাচন করুন</label>
               <select value={payStudent.id} onChange={(e) => setPayStudent(students.find((s) => s.id === +e.target.value) || payStudent)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14 }}>
@@ -158,7 +158,7 @@ export function Fees() {
                 ))}
               </div>
             </div>
-            <button type="button" onClick={handlePayment} style={{ width: "100%", background: C.teal, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "12px", fontWeight: 700, cursor: "pointer", fontSize: 15, letterSpacing: 0.3, boxShadow: "0 4px 14px rgba(169,129,47,0.28)" }}>
+            <button type="button" onClick={handlePayment} style={{ width: "100%", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>
               ✅ বেতন গ্রহণ করুন ও রসিদ তৈরি করুন
             </button>
           </div>
