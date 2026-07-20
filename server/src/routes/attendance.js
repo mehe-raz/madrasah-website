@@ -16,7 +16,7 @@ router.get("/", async (req, res) => {
   let sql = `SELECT s.*, COALESCE(a.status, 'উপস্থিত') as att
        FROM students s
        LEFT JOIN attendance a ON a."studentId" = s.id AND a.date = $1
-       WHERE s.status = 'সক্রিয়'`;
+       WHERE s.status = 'Active'`;
   const params = [date];
   if (dept && dept !== "সব") {
     sql += " AND s.dept = $2";

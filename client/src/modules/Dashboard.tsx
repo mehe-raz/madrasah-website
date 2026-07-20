@@ -23,6 +23,7 @@ import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
 import type { DashboardData, DeleteRequest } from "../types";
 import { MOCK_DASHBOARD } from "../data/mockData";
+import { deptLabel } from "../lib/labels";
 
 const logIcon = (icon: string) =>
   icon === "add" ? "➕" : icon === "payment" ? "💳" : icon === "attendance" ? "📋" : "📉";
@@ -116,7 +117,7 @@ export function Dashboard() {
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie
-                data={data.deptData}
+                data={data.deptData.map((d) => ({ ...d, name: deptLabel(d.name) }))}
                 cx="50%"
                 cy="50%"
                 outerRadius={isMobile ? 60 : 75}

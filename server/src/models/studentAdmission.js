@@ -69,7 +69,7 @@ const REQUIRED_FIELDS = [
 
 const ALLOWED = {
   type: ["Day", "Residential"],
-  dept: ["Hifz", "Nazera", "Kitab", "General"],
+  dept: ["Hifz", "Nazera", "Kitab", "Nurani", "General"],
   gender: ["Male", "Female", "Other"],
   religion: ["Islam", "Hinduism", "Christianity", "Buddhism", "Other"],
   blood: ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],

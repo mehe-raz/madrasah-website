@@ -17,7 +17,7 @@ router.get("/", async (_req, res) => {
       db.get(
         `SELECT
            COUNT(*)::int AS total,
-           COUNT(*) FILTER (WHERE type = 'আবাসিক')::int AS residential,
+           COUNT(*) FILTER (WHERE type = 'Residential')::int AS residential,
            COALESCE(SUM(due), 0)::int AS "totalDue",
            COUNT(*) FILTER (WHERE due > 0)::int AS "dueCount"
          FROM students`

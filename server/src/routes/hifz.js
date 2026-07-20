@@ -8,14 +8,14 @@ const router = express.Router();
 router.use(requirePermission("hifz"));
 
 router.get("/", async (_req, res) => {
-  const students = await db.all(`SELECT ${LIST_COLUMNS} FROM students WHERE dept = 'হিফজ' ORDER BY roll`);
+  const students = await db.all(`SELECT ${LIST_COLUMNS} FROM students WHERE dept = 'Hifz' ORDER BY roll`);
   res.json(students);
 });
 
 router.patch("/:studentId/para", async (req, res) => {
   const { para } = req.body;
   const student = await db.get("SELECT * FROM students WHERE id = $1", [req.params.studentId]);
-  if (!student || student.dept !== "হিফজ") return res.status(404).json({ error: "হিফজ ছাত্র পাওয়া যায়নি" });
+  if (!student || student.dept !== "Hifz") return res.status(404).json({ error: "হিফজ ছাত্র পাওয়া যায়নি" });
   await db.run("UPDATE students SET para = $1 WHERE id = $2", [Math.min(30, Math.max(0, Number(para))), student.id]);
   res.json(await db.get("SELECT * FROM students WHERE id = $1", [student.id]));
 });
