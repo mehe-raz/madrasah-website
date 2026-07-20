@@ -171,6 +171,12 @@ export const bn = {
     googleDriveConnectedMsg: "Google Drive সংযুক্ত হয়েছে",
     googleDriveDisconnectedMsg: "Google Drive সংযোগ বিচ্ছিন্ন হয়েছে",
     googleDriveConnectFailed: "Google Drive সংযোগ শুরু করা যায়নি",
+    driveFilesTitle: "Google Drive-এ থাকা ব্যাকআপসমূহ",
+    driveFilesLoading: "ব্যাকআপ তালিকা লোড হচ্ছে…",
+    driveFilesEmpty: "Google Drive-এ এখনো কোনো ব্যাকআপ নেই",
+    driveFileRestore: "রিস্টোর করুন",
+    driveFileRestoring: "রিস্টোর হচ্ছে…",
+    driveFilesRefresh: "রিফ্রেশ করুন",
     newPasswordOptional: "নতুন পাসওয়ার্ড (ঐচ্ছিক)",
   },
   attendance: {

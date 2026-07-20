@@ -5,6 +5,7 @@ import type {
   DashboardData,
   DeleteRequest,
   Expense,
+  GoogleDriveFile,
   GoogleDriveStatus,
   IncomeEntry,
   Payment,
@@ -287,4 +288,9 @@ export const api = {
   getGoogleDriveAuthUrl: () => request<{ url: string }>("/backup/google/auth-url"),
 
   disconnectGoogleDrive: () => request<GoogleDriveStatus>("/backup/google/disconnect", { method: "POST" }),
+
+  listGoogleDriveFiles: () => request<GoogleDriveFile[]>("/backup/google/files"),
+
+  restoreFromGoogleDrive: (fileId: string) =>
+    request<{ ok: boolean; message: string }>(`/backup/google/restore/${fileId}`, { method: "POST" }),
 };

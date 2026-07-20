@@ -173,6 +173,12 @@ export const en = {
     googleDriveConnectedMsg: "Google Drive connected",
     googleDriveDisconnectedMsg: "Google Drive disconnected",
     googleDriveConnectFailed: "Failed to start Google Drive connection",
+    driveFilesTitle: "Backups in Google Drive",
+    driveFilesLoading: "Loading backup list…",
+    driveFilesEmpty: "No backups in Google Drive yet",
+    driveFileRestore: "Restore",
+    driveFileRestoring: "Restoring…",
+    driveFilesRefresh: "Refresh",
     newPasswordOptional: "New password (optional)",
   },
   attendance: {

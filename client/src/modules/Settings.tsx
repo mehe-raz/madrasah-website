@@ -5,7 +5,20 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { canBackup, canManageUsers } from "../lib/permissions";
 import { C } from "../theme/colors";
-import { USER_ROLES, type BackupConfig, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
+import { USER_ROLES, type BackupConfig, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
+
+// Formats a byte count like "1.2 MB" the way the Drive backup list shows it.
+function formatFileSize(bytes: number): string {
+  if (!bytes) return "0 KB";
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let i = 0;
+  while (size >= 1024 && i < units.length - 1) {
+    size /= 1024;
+    i += 1;
+  }
+  return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
 
 function Field({
   label,
@@ -74,6 +87,9 @@ export function Settings() {
   const [backupConfig, setBackupConfig] = useState<BackupConfig | null>(null);
   const [driveStatus, setDriveStatus] = useState<GoogleDriveStatus | null>(null);
   const [driveConnecting, setDriveConnecting] = useState(false);
+  const [driveFiles, setDriveFiles] = useState<GoogleDriveFile[] | null>(null);
+  const [driveFilesLoading, setDriveFilesLoading] = useState(false);
+  const [restoringFileId, setRestoringFileId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [editInfo, setEditInfo] = useState(false);
   const [editSystem, setEditSystem] = useState(false);
@@ -90,12 +106,27 @@ export function Settings() {
 
   const refreshDriveStatus = () => api.getGoogleDriveStatus().then(setDriveStatus).catch(() => {});
 
+  const refreshDriveFiles = () => {
+    setDriveFilesLoading(true);
+    api
+      .listGoogleDriveFiles()
+      .then(setDriveFiles)
+      .catch(() => setDriveFiles([]))
+      .finally(() => setDriveFilesLoading(false));
+  };
+
   useEffect(() => {
     if (allowBackup) {
       api.getBackupConfig().then(setBackupConfig).catch(() => {});
       refreshDriveStatus();
     }
   }, [allowBackup]);
+
+  // Once we know Drive is connected, pull the list of backup files sitting
+  // in the app's Drive folder so they can be restored with one click.
+  useEffect(() => {
+    if (driveStatus?.connected) refreshDriveFiles();
+  }, [driveStatus?.connected]);
 
   // After the Google OAuth redirect (routes/backup.js `/google/callback`) sends the
   // browser back to /settings?googleDrive=connected|error, show the result and
@@ -225,6 +256,23 @@ export function Settings() {
       setMsg("Backup restored. Server is restarting. Please login again after one minute.");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Restore failed");
+    }
+  };
+
+  const handleRestoreFromDrive = async (file: GoogleDriveFile) => {
+    if (authUser?.role !== "Super Admin") {
+      setMsg("Only Super Admin can restore backup");
+      return;
+    }
+    if (!confirm(`Restore "${file.name}"? Current online data will be replaced.`)) return;
+    setRestoringFileId(file.id);
+    try {
+      const result = await api.restoreFromGoogleDrive(file.id);
+      setMsg(result.message || "Backup restored. Server is restarting. Please login again after one minute.");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Restore failed");
+    } finally {
+      setRestoringFileId(null);
     }
   };
 
@@ -405,6 +453,59 @@ export function Settings() {
                               </button>
                             )}
                           </div>
+
+                          {authUser?.role === "Super Admin" && (
+                            <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{t.settings.driveFilesTitle}</span>
+                                <button
+                                  type="button"
+                                  onClick={refreshDriveFiles}
+                                  disabled={driveFilesLoading}
+                                  style={{ background: "transparent", border: "none", color: C.violet, fontSize: 12, cursor: driveFilesLoading ? "default" : "pointer", padding: 0 }}
+                                >
+                                  {t.settings.driveFilesRefresh}
+                                </button>
+                              </div>
+                              {driveFilesLoading && <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{t.settings.driveFilesLoading}</p>}
+                              {!driveFilesLoading && driveFiles?.length === 0 && (
+                                <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{t.settings.driveFilesEmpty}</p>
+                              )}
+                              {!driveFilesLoading && driveFiles && driveFiles.length > 0 && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto" }}>
+                                  {driveFiles.map((f) => (
+                                    <div key={f.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 8px", background: C.card, borderRadius: 6, border: `1px solid ${C.border}` }}>
+                                      <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontSize: 12, color: C.text, fontWeight: 600, wordBreak: "break-word" }}>{f.name}</div>
+                                        <div style={{ fontSize: 11, color: C.muted }}>
+                                          {formatFileSize(f.size)} · {new Date(f.createdTime).toLocaleString()}
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRestoreFromDrive(f)}
+                                        disabled={restoringFileId !== null}
+                                        style={{
+                                          flexShrink: 0,
+                                          background: restoringFileId === f.id ? C.slateL : C.teal,
+                                          color: restoringFileId === f.id ? C.muted : "#fff",
+                                          border: "none",
+                                          borderRadius: 6,
+                                          padding: "6px 10px",
+                                          fontWeight: 600,
+                                          fontSize: 11,
+                                          cursor: restoringFileId !== null ? "default" : "pointer",
+                                          opacity: restoringFileId !== null && restoringFileId !== f.id ? 0.5 : 1,
+                                        }}
+                                      >
+                                        {restoringFileId === f.id ? t.settings.driveFileRestoring : t.settings.driveFileRestore}
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div>

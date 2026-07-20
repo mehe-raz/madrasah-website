@@ -123,6 +123,13 @@ export interface GoogleDriveStatus {
   lastUploadError: string;
 }
 
+export interface GoogleDriveFile {
+  id: string;
+  name: string;
+  size: number;
+  createdTime: string;
+}
+
 export interface Settings {
   name: string;
   address: string;

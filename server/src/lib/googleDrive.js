@@ -215,6 +215,46 @@ async function uploadBackupFile(localPath, filename, mimeType) {
   }
 }
 
+// Lists backup files sitting in the app's Drive folder, newest first, with
+// size and created date so the UI can show something like WhatsApp's
+// "last backed up X, size Y" list. Returns [] when Drive isn't connected.
+async function listBackupFiles() {
+  const conn = await getDriveClient();
+  if (!conn) return [];
+
+  const folder = await ensureFolder(conn.drive, conn.state.folderId);
+  if (folder.id !== conn.state.folderId || folder.webViewLink !== conn.state.folderLink) {
+    await saveAuthState({ folderId: folder.id, folderLink: folder.webViewLink });
+  }
+
+  const res = await conn.drive.files.list({
+    q: `'${folder.id}' in parents and trashed = false`,
+    fields: "files(id, name, size, createdTime, mimeType)",
+    orderBy: "createdTime desc",
+    pageSize: 100,
+    spaces: "drive",
+  });
+  return (res.data.files || []).map((f) => ({
+    id: f.id,
+    name: f.name,
+    size: Number(f.size || 0),
+    createdTime: f.createdTime,
+  }));
+}
+
+// Downloads a single backup file's raw content by its Drive file id, so it
+// can be fed into the same restore logic used for a manually uploaded file.
+async function downloadBackupFile(fileId) {
+  const conn = await getDriveClient();
+  if (!conn) throw new Error("Google Drive is not connected");
+
+  const res = await conn.drive.files.get(
+    { fileId, alt: "media" },
+    { responseType: "arraybuffer" }
+  );
+  return Buffer.from(res.data);
+}
+
 module.exports = {
   isConfigured,
   getAuthUrl,
@@ -222,4 +262,6 @@ module.exports = {
   getStatus,
   disconnect,
   uploadBackupFile,
+  listBackupFiles,
+  downloadBackupFile,
 };

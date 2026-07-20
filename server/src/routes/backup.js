@@ -241,31 +241,44 @@ router.post("/run", async (_req, res) => {
   }
 });
 
-router.post("/restore", express.raw({ type: ["application/octet-stream", "application/json"], limit: "100mb" }), async (req, res) => {
-  if (req.user?.role !== "Super Admin") {
-    return res.status(403).json({ error: "Only Super Admin can restore backup" });
-  }
-  if (!req.body?.length) return res.status(400).json({ error: "Backup file required" });
-
+// Shared by both "upload a file" restore and "pick a Drive backup" restore:
+// takes the raw backup bytes, detects JSON vs SQL, restores it, and always
+// takes a safety backup first so a bad restore can be undone.
+async function performRestore(buffer) {
   ensureDir(backupDir);
   const time = stamp();
   const tempPath = path.join(backupDir, `restore-upload-${time}.bin`);
 
+  fs.writeFileSync(tempPath, buffer);
   try {
-    fs.writeFileSync(tempPath, req.body);
-    const text = req.body.toString("utf8");
+    const text = buffer.toString("utf8");
     const beforeBackup = await createBackup();
 
     if (text.trimStart().startsWith("{")) {
       const data = JSON.parse(text);
       await restoreJsonBackup(data);
     } else if (text.includes("PostgreSQL database dump") || text.includes("CREATE TABLE")) {
-      await restoreSqlBackup(req.body);
+      await restoreSqlBackup(buffer);
     } else {
       throw new Error("Unsupported backup format. Upload JSON or pg_dump SQL.");
     }
 
     fs.unlinkSync(tempPath);
+    return beforeBackup;
+  } catch (e) {
+    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+    throw e;
+  }
+}
+
+router.post("/restore", express.raw({ type: ["application/octet-stream", "application/json"], limit: "100mb" }), async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can restore backup" });
+  }
+  if (!req.body?.length) return res.status(400).json({ error: "Backup file required" });
+
+  try {
+    const beforeBackup = await performRestore(req.body);
     res.json({
       ok: true,
       message: "Backup restored. Server restarting.",
@@ -273,7 +286,6 @@ router.post("/restore", express.raw({ type: ["application/octet-stream", "applic
     });
     setTimeout(() => process.exit(0), 300);
   } catch (e) {
-    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
     res.status(500).json({ error: e.message || "Restore failed" });
   }
 });
@@ -321,6 +333,32 @@ router.get("/google/callback", async (req, res) => {
     res.redirect(`${clientOrigin}/settings?googleDrive=connected`);
   } catch (e) {
     res.redirect(`${clientOrigin}/settings?googleDrive=error&message=${encodeURIComponent(e.message || "Google Drive connection failed")}`);
+  }
+});
+
+router.get("/google/files", async (_req, res) => {
+  try {
+    res.json(await googleDrive.listBackupFiles());
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Failed to load Google Drive backups" });
+  }
+});
+
+router.post("/google/restore/:fileId", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can restore backup" });
+  }
+  try {
+    const buffer = await googleDrive.downloadBackupFile(req.params.fileId);
+    const beforeBackup = await performRestore(buffer);
+    res.json({
+      ok: true,
+      message: "Backup restored. Server restarting.",
+      safetyBackup: beforeBackup.filename,
+    });
+    setTimeout(() => process.exit(0), 300);
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Restore failed" });
   }
 });
 
