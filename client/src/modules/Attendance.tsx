@@ -54,13 +54,13 @@ export function Attendance() {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text }}>{t.attendance.title}</h2>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: C.text, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{t.attendance.title}</h2>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
             <span style={{ fontSize: 13, color: C.muted }}>{t.attendance.date}:</span>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 13, color: C.text, background: C.card }} />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 13, color: C.text, background: C.card }} />
           </div>
         </div>
-        <button type="button" onClick={handleSave} style={{ background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>
+        <button type="button" onClick={handleSave} style={{ background: saved ? C.emerald : C.teal, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "9px 20px", fontWeight: 700, cursor: "pointer", fontSize: 14, letterSpacing: 0.3, boxShadow: "0 4px 14px rgba(169,129,47,0.28)" }}>
           {saved ? t.common.saved : t.common.save}
         </button>
       </div>
@@ -72,12 +72,12 @@ export function Attendance() {
             type="button"
             onClick={() => setDept(d)}
             style={{
-              padding: "7px 14px",
-              borderRadius: 8,
+              padding: "8px 16px",
+              borderRadius: 9,
               border: `1px solid ${dept === d ? C.teal : C.border}`,
               background: dept === d ? C.tealL : C.card,
               color: dept === d ? C.tealD : C.muted,
-              fontWeight: dept === d ? 700 : 400,
+              fontWeight: dept === d ? 700 : 500,
               cursor: "pointer",
               fontSize: 13,
             }}
@@ -89,7 +89,7 @@ export function Attendance() {
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
         {([["উপস্থিত", stats.present, C.emerald], ["অনুপস্থিত", stats.absent, C.rose], ["দেরিতে", stats.late, C.amber]] as const).map(([lbl, val, col]) => (
-          <div key={lbl} style={{ background: col + "18", border: `1px solid ${col}40`, borderRadius: 10, padding: "10px 18px", display: "flex", gap: 8, alignItems: "center" }}>
+          <div key={lbl} style={{ background: col + "18", border: `1px solid ${col}40`, borderRadius: 12, padding: "11px 20px", display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 20, fontWeight: 700, color: col }}>{val}</span>
             <span style={{ fontSize: 13, color: col }}>{lbl}</span>
           </div>
@@ -105,7 +105,7 @@ export function Attendance() {
         ))}
       </div>
 
-      <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
+      <div className="table-wrap" style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
           <thead>
             <tr style={{ background: C.slateL }}>

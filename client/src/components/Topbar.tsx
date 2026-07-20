@@ -36,11 +36,12 @@ export function Topbar({ onToggleSidebar, onLogout }: TopbarProps) {
       style={{
         background: C.card,
         borderBottom: `1px solid ${C.border}`,
-        padding: "12px 16px",
+        padding: "14px 22px",
         display: "flex",
         alignItems: "center",
-        gap: 12,
+        gap: 14,
         flexShrink: 0,
+        boxShadow: "0 1px 0 rgba(0,0,0,0.02)",
       }}
     >
       <button
@@ -53,23 +54,24 @@ export function Topbar({ onToggleSidebar, onLogout }: TopbarProps) {
         ☰
       </button>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: 14, color: C.muted }}>{title}</span>
+        <span style={{ fontSize: 15, color: C.text, fontWeight: 600, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{title}</span>
       </div>
-      <span className="hide-mobile" style={{ fontSize: 13, color: C.muted }}>2025-2026</span>
+      <span className="hide-mobile" style={{ fontSize: 12, color: C.muted, letterSpacing: 0.5 }}>2025-2026</span>
       <button
         type="button"
         onClick={onLogout}
-        style={{ background: C.slateL, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer", color: C.text }}
+        style={{ background: C.slateL, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: C.text }}
       >
         {t.settings.logout}
       </button>
       <div
         title={user?.role}
         style={{
-          width: 34,
-          height: 34,
+          width: 36,
+          height: 36,
           borderRadius: "50%",
           background: C.tealL,
+          border: `1px solid ${C.teal}33`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

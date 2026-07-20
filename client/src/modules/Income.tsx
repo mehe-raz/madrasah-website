@@ -211,7 +211,7 @@ export function Income() {
   };
   return (
     <div>
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.income.title}</h2>
+      <h2 style={{ fontSize: 24, fontWeight: 700, color: C.text, marginBottom: 22, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{t.income.title}</h2>
       {msg && <p style={{ color: msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("invalid") ? C.rose : C.teal, fontSize: 13, marginTop: -8, marginBottom: 12 }}>{msg}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
@@ -238,7 +238,7 @@ export function Income() {
               </button>
             ))}
           </div>
-          <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
+          <div className="table-wrap" style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", overflow: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
               <thead>
                 <tr style={{ background: C.slateL }}>
@@ -270,9 +270,9 @@ export function Income() {
       )}
 
       {tab === "add" && (
-        <div style={{ maxWidth: 520, background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t.income.addByCategory}</h3>
+        <div style={{ maxWidth: 520, background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 26 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
+            <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{t.income.addByCategory}</h3>
             <button type="button" onClick={() => setShowCategoryEditor((v) => !v)} title="Edit categories" style={{ width: 34, height: 34, border: `1px solid ${C.border}`, borderRadius: 8, background: C.card, color: C.text, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>...</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 16 }}>
@@ -304,14 +304,14 @@ export function Income() {
             <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} style={fieldStyle}>
               {METHODS.map((m) => <option key={m}>{m}</option>)}
             </select>
-            <button type="button" disabled={saving} onClick={handleAdd} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: saving ? 0.75 : 1 }}>{saving ? "Saving..." : t.common.save}</button>
+            <button type="button" disabled={saving} onClick={handleAdd} style={{ background: C.emerald, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "12px", fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: saving ? 0.75 : 1, letterSpacing: 0.3, boxShadow: "0 4px 14px rgba(29,107,79,0.28)" }}>{saving ? "Saving..." : t.common.save}</button>
           </div>
         </div>
       )}
 
       {tab === "student" && (
-        <div style={{ maxWidth: 480, background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>{t.income.collectStudentFee}</h3>
+        <div style={{ maxWidth: 480, background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", padding: 26 }}>
+          <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 18, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{t.income.collectStudentFee}</h3>
           <label style={{ fontSize: 12, color: C.muted }}>Class / ক্লাস</label>
           <select
             value={studentForm.className}
@@ -356,7 +356,7 @@ export function Income() {
               </button>
             ))}
           </div>
-          <button type="button" disabled={saving} onClick={handleStudentFee} style={{ width: "100%", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: saving ? 0.75 : 1 }}>
+          <button type="button" disabled={saving} onClick={handleStudentFee} style={{ width: "100%", background: C.teal, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "12px", fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: saving ? 0.75 : 1, letterSpacing: 0.3, boxShadow: "0 4px 14px rgba(169,129,47,0.28)" }}>
             {saving ? "Saving..." : "Collect & Create Receipt"}
           </button>
         </div>
@@ -364,7 +364,7 @@ export function Income() {
 
       {editRow && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setEditRow(null)}>
-          <div style={{ background: C.card, borderRadius: 12, padding: 24, width: 400, maxWidth: "100%" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", padding: 26, width: 400, maxWidth: "100%" }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ marginBottom: 12 }}>Edit Income</h3>
             <select value={editRow.category} onChange={(e) => setEditRow({ ...editRow, category: e.target.value })} style={{ ...fieldStyle, marginBottom: 8 }}>
               {categories.map((c) => <option key={c}>{c}</option>)}
@@ -388,8 +388,8 @@ export function Income() {
 const fieldStyle: CSSProperties = {
   width: "100%",
   border: `1px solid ${C.border}`,
-  borderRadius: 8,
-  padding: "9px 12px",
+  borderRadius: 9,
+  padding: "10px 13px",
   fontSize: 14,
   boxSizing: "border-box",
   background: C.card,

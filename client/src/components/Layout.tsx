@@ -54,7 +54,7 @@ export function Layout() {
         display: "flex",
         height: "100vh",
         background: "var(--bg)",
-        fontFamily: "'Noto Sans Bengali', 'Noto Sans', sans-serif",
+        fontFamily: "'Noto Sans Bengali', 'Inter', sans-serif",
         overflow: isMobile ? "auto" : "hidden",
       }}
     >
@@ -67,7 +67,7 @@ export function Layout() {
       />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         <Topbar onToggleSidebar={() => setSidebarOpen((o) => !o)} onLogout={handleLogout} />
-        <main className="main-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+        <main className="main-content" style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           <Outlet />
         </main>
       </div>

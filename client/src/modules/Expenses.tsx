@@ -79,8 +79,8 @@ export function Expenses() {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text }}>{t.expenses.title}</h2>
-        <button type="button" onClick={() => openAdd()} style={{ background: C.amber, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>+ {t.expenses.addNew}</button>
+        <h2 style={{ fontSize: 24, fontWeight: 700, color: C.text, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{t.expenses.title}</h2>
+        <button type="button" onClick={() => openAdd()} style={{ background: C.amber, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "9px 20px", fontWeight: 700, cursor: "pointer", fontSize: 14, letterSpacing: 0.3, boxShadow: "0 4px 14px rgba(176,116,30,0.28)" }}>+ {t.expenses.addNew}</button>
       </div>
 
       <p style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>{t.expenses.quickAdd}</p>
@@ -117,8 +117,8 @@ export function Expenses() {
       </div>
 
       {showAdd && (
-        <div style={{ background: C.amberL, border: `1px solid ${C.amber}40`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: C.amberD, marginBottom: 12 }}>{t.expenses.addNew}</h3>
+        <div style={{ background: C.amberL, border: `1px solid ${C.amber}40`, borderRadius: 14, padding: 22, marginBottom: 18, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)" }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.amberD, marginBottom: 14, fontFamily: "'Playfair Display', 'Noto Serif Bengali', serif" }}>{t.expenses.addNew}</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 12 }}>
             <div>
               <label style={{ fontSize: 12, color: C.amberD, display: "block", marginBottom: 4 }}>{t.expenses.category}</label>
@@ -143,13 +143,13 @@ export function Expenses() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={handleAdd} style={{ background: C.amber, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>{t.common.save}</button>
+            <button type="button" onClick={handleAdd} style={{ background: C.amber, color: "#fdfbf6", border: "none", borderRadius: 9, padding: "9px 20px", fontWeight: 700, cursor: "pointer", fontSize: 13, boxShadow: "0 4px 14px rgba(176,116,30,0.28)" }}>{t.common.save}</button>
             <button type="button" onClick={() => setShowAdd(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 18px", cursor: "pointer", fontSize: 13 }}>{t.common.cancel}</button>
           </div>
         </div>
       )}
 
-      <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
+      <div className="table-wrap" style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(20,16,10,0.04), 0 6px 20px rgba(20,16,10,0.06)", overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 480 }}>
           <thead>
             <tr style={{ background: C.slateL }}>
