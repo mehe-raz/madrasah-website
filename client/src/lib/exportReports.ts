@@ -53,7 +53,7 @@ function exportSettings(): { name: string; logo?: string } {
   return { name: "Madrasah ERP" };
 }
 
-
+interface ReportRangeOpts {
   from?: string;
   to?: string;
 }
