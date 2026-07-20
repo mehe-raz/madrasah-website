@@ -1,5 +1,4 @@
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
-import { downloadReceiptPdf } from "../lib/receiptPdf";
 import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
 import type { Payment } from "../types";
@@ -51,10 +50,6 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
     if (!w) return;
     w.document.write(receiptHtml());
     w.document.close();
-  };
-
-  const handlePdf = () => {
-    void downloadReceiptPdf(payment, settings);
   };
 
   const rows = [
@@ -135,24 +130,6 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
             }}
           >
             🖨️ {t.common.print}
-          </button>
-          <button
-            type="button"
-            onClick={handlePdf}
-            style={{
-              flex: 1,
-              minWidth: 90,
-              background: C.violet,
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              padding: "9px",
-              fontWeight: 600,
-              cursor: "pointer",
-              fontSize: 13,
-            }}
-          >
-            📄 {t.common.downloadPdf}
           </button>
           <button
             type="button"

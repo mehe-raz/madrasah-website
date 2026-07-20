@@ -3,10 +3,9 @@ import type { CSSProperties } from "react";
 import { Badge } from "../components/Badge";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
+import { printDetailSheet } from "../lib/printReport";
 import { C } from "../theme/colors";
 import type { Student, StudentDocuments } from "../types";
-import { useLanguage } from "../context/AppSettingsContext";
-import type { Dict } from "../i18n/bn";
 
 type AdmissionForm = Omit<Partial<Student>, "id" | "documents"> & {
   documents: StudentDocuments;
@@ -123,44 +122,43 @@ function normalizeStudent(student: Student): AdmissionForm {
   };
 }
 
-function validateForm(form: AdmissionForm, t: Dict) {
+function validateForm(form: AdmissionForm) {
   const errors: Record<string, string> = {};
   requiredFields.forEach((field) => {
     const value = form[field];
-    if (value === undefined || value === null || value === "") errors[field] = t.students.validationRequired;
+    if (value === undefined || value === null || value === "") errors[field] = "Required";
   });
 
   ["fatherMobile", "motherMobile", "guardianMobile"].forEach((field) => {
     const value = String(form[field as keyof AdmissionForm] || "").replace(/[\s-]/g, "");
-    if (value && !/^01[3-9]\d{8}$/.test(value)) errors[field] = t.students.mobileValidation;
+    if (value && !/^01[3-9]\d{8}$/.test(value)) errors[field] = "Use 01XXXXXXXXX";
   });
 
   return errors;
 }
 
-function readFile(file: File, t: Dict, imageOnly = false): Promise<string> {
+function readFile(file: File, imageOnly = false): Promise<string> {
   return new Promise((resolve, reject) => {
     if (imageOnly && !file.type.startsWith("image/")) {
-      reject(new Error(t.students.photoMustBeImage));
+      reject(new Error("Student photo must be an image"));
       return;
     }
     if (!imageOnly && !file.type.startsWith("image/") && file.type !== "application/pdf") {
-      reject(new Error(t.students.docMustBeImageOrPdf));
+      reject(new Error("Document must be an image or PDF"));
       return;
     }
     if (file.size > 750 * 1024) {
-      reject(new Error(t.students.fileTooLarge));
+      reject(new Error("File must be 750 KB or smaller"));
       return;
     }
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error(t.students.fileReadFailed));
+    reader.onerror = () => reject(new Error("Could not read file"));
     reader.readAsDataURL(file);
   });
 }
 
 export function Students() {
-  const { t, tr } = useLanguage();
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("All");
@@ -235,7 +233,7 @@ export function Students() {
   };
 
   const saveAdmission = async () => {
-    const nextErrors = validateForm(form, t);
+    const nextErrors = validateForm(form);
     setErrors(nextErrors);
     setMessage("");
     if (Object.keys(nextErrors).length) return;
@@ -249,7 +247,7 @@ export function Students() {
       setViewing(saved);
       setShowForm(false);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : t.students.saveFailed);
+      setMessage(err instanceof Error ? err.message : "Admission could not be saved");
     } finally {
       setSaving(false);
     }
@@ -258,7 +256,7 @@ export function Students() {
   const uploadDocument = async (key: keyof StudentDocuments, file?: File) => {
     if (!file) return;
     try {
-      const rawDataUrl = await readFile(file, t, key === "studentPhoto");
+      const rawDataUrl = await readFile(file, key === "studentPhoto");
       const { url } = await api.uploadFile(rawDataUrl, "students");
       const documents = { ...form.documents, [key]: url };
       setField("documents", documents);
@@ -271,7 +269,7 @@ export function Students() {
         setStudents((prev) => prev.map((student) => (student.id === saved.id ? saved : student)));
       }
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : t.students.uploadFailed);
+      setMessage(err instanceof Error ? err.message : "Upload failed");
     }
   };
 
@@ -294,7 +292,7 @@ export function Students() {
       <select value={String(form[field] ?? "")} onChange={(event) => setField(field, event.target.value)} style={fieldStyle(errors[String(field)])}>
         {options.map((option) => (
           <option key={option} value={option}>
-            {option || t.common.select}
+            {option || "Select"}
           </option>
         ))}
       </select>
@@ -312,39 +310,39 @@ export function Students() {
 
   const renderUpload = (label: string, key: keyof StudentDocuments, optional = false) => (
     <label style={{ display: "block" }}>
-      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}{optional ? ` (${t.students.optional})` : ""}</span>
+      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}{optional ? " (Optional)" : ""}</span>
       <input
         type="file"
         accept={key === "studentPhoto" ? "image/*" : "image/*,application/pdf"}
         onChange={(event) => uploadDocument(key, event.target.files?.[0])}
         style={fieldStyle()}
       />
-      {form.documents[key] && <span style={{ color: C.emerald, fontSize: 11 }}>{t.common.uploaded}</span>}
+      {form.documents[key] && <span style={{ color: C.emerald, fontSize: 11 }}>Uploaded</span>}
     </label>
   );
 
   const detailRows = viewing
     ? [
-        [t.students.admissionNo, viewing.admissionNumber],
-        [t.students.admissionDate, viewing.admissionDate],
-        [t.students.academicYear, viewing.academicYear],
-        [t.students.session, viewing.session],
-        [t.students.classJamaat, viewing.class],
-        [t.students.section, viewing.section],
-        [t.students.roll, viewing.roll],
-        [t.students.studentType, viewing.type],
-        [t.students.bengaliName, viewing.name],
-        [t.students.englishName, viewing.nameEn],
-        [t.students.birthRegistration, viewing.birthRegistrationNumber],
-        [t.students.fatherName, `${textValue(viewing.fatherName)} - ${textValue(viewing.fatherMobile)}`],
-        [t.students.motherName, `${textValue(viewing.motherName)} - ${textValue(viewing.motherMobile)}`],
-        [t.students.presentAddress, viewing.presentAddress],
-        [t.students.permanentAddress, viewing.permanentAddress],
-        [t.students.department, viewing.dept],
-        [t.students.memorizedQuran, viewing.para],
-        [t.students.admissionFee, fmt(viewing.admissionFee || 0)],
-        [t.students.monthlyFee, fmt(viewing.fee || 0)],
-        [t.students.discount, fmt(viewing.discount || 0)],
+        ["Admission No.", viewing.admissionNumber],
+        ["Admission Date", viewing.admissionDate],
+        ["Academic Year", viewing.academicYear],
+        ["Session", viewing.session],
+        ["Class / Jamaat", viewing.class],
+        ["Section", viewing.section],
+        ["Roll", viewing.roll],
+        ["Student Type", viewing.type],
+        ["Bengali Name", viewing.name],
+        ["English Name", viewing.nameEn],
+        ["Birth Registration", viewing.birthRegistrationNumber],
+        ["Father", `${textValue(viewing.fatherName)} - ${textValue(viewing.fatherMobile)}`],
+        ["Mother", `${textValue(viewing.motherName)} - ${textValue(viewing.motherMobile)}`],
+        ["Present Address", viewing.presentAddress],
+        ["Permanent Address", viewing.permanentAddress],
+        ["Department", viewing.dept],
+        ["Memorized Quran", viewing.para],
+        ["Admission Fee", fmt(viewing.admissionFee || 0)],
+        ["Monthly Fee", fmt(viewing.fee || 0)],
+        ["Discount", fmt(viewing.discount || 0)],
       ]
     : [];
 
@@ -352,25 +350,21 @@ export function Students() {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>{t.students.admissionTitle}</h2>
-          <p style={{ fontSize: 13, color: C.muted, margin: "4px 0 0" }}>{t.students.admissionSubtitle}</p>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>Student Admission</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: "4px 0 0" }}>Manage admission records, student profiles, fees, guardians, and documents.</p>
         </div>
         <button type="button" onClick={startCreate} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 700, cursor: "pointer" }}>
-          {t.students.newAdmission}
+          New Admission
         </button>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t.students.admissionSearch} style={{ ...fieldStyle(), flex: 1, minWidth: 240 }} />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, roll, admission no., birth reg., mobile" style={{ ...fieldStyle(), flex: 1, minWidth: 240 }} />
         <select value={department} onChange={(event) => setDepartment(event.target.value)} style={{ ...fieldStyle(), width: 150 }}>
-          {["All", ...departmentOptions].map((option) => (
-            <option key={option} value={option}>{option === "All" ? t.common.all : option}</option>
-          ))}
+          {["All", ...departmentOptions].map((option) => <option key={option}>{option}</option>)}
         </select>
         <select value={status} onChange={(event) => setStatus(event.target.value)} style={{ ...fieldStyle(), width: 130 }}>
-          <option value="All">{t.common.all}</option>
-          <option value="Active">{t.students.active}</option>
-          <option value="Inactive">{t.students.inactive}</option>
+          {["All", "Active", "Inactive"].map((option) => <option key={option}>{option}</option>)}
         </select>
       </div>
 
@@ -379,86 +373,86 @@ export function Students() {
       {showForm && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-            <h3 style={{ margin: 0, fontSize: 17, color: C.text }}>{editing ? t.students.editAdmission : t.students.admissionForm}</h3>
-            <button type="button" onClick={() => setShowForm(false)} style={{ border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>{t.common.close}</button>
+            <h3 style={{ margin: 0, fontSize: 17, color: C.text }}>{editing ? "Edit Student Admission" : "Admission Form"}</h3>
+            <button type="button" onClick={() => setShowForm(false)} style={{ border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Close</button>
           </div>
 
-          {sectionTitle(t.students.admissionInfo)}
+          {sectionTitle("Admission Information")}
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {renderInput(t.students.admissionNumber, "admissionNumber")}
-            {renderInput(t.students.admissionDate, "admissionDate", "date")}
-            {renderInput(t.students.academicYear, "academicYear")}
-            {renderInput(t.students.session, "session")}
-            {renderInput(t.students.classJamaat, "class")}
-            {renderInput(t.students.section, "section")}
-            {renderInput(t.students.rollNumber, "roll")}
-            {renderSelect(t.students.studentType, "type", ["Day", "Residential"])}
+            {renderInput("Admission Number (Auto if blank)", "admissionNumber")}
+            {renderInput("Admission Date", "admissionDate", "date")}
+            {renderInput("Academic Year", "academicYear")}
+            {renderInput("Session", "session")}
+            {renderInput("Class / Jamaat", "class")}
+            {renderInput("Section", "section")}
+            {renderInput("Roll Number", "roll")}
+            {renderSelect("Student Type", "type", ["Day", "Residential"])}
           </div>
 
-          {sectionTitle(t.students.studentInfo)}
+          {sectionTitle("Student Information")}
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {renderInput(t.students.bengaliName, "name")}
-            {renderInput(t.students.englishName, "nameEn")}
-            {renderInput(t.students.dateOfBirth, "dateOfBirth", "date")}
-            {renderInput(t.students.birthRegistration, "birthRegistrationNumber")}
-            {renderSelect(t.students.gender, "gender", genderOptions)}
-            {renderSelect(t.students.religion, "religion", religionOptions)}
-            {renderSelect(t.students.blood, "blood", bloodOptions)}
-            {renderUpload(t.students.studentPhoto, "studentPhoto")}
+            {renderInput("Bengali Name", "name")}
+            {renderInput("English Name", "nameEn")}
+            {renderInput("Date of Birth", "dateOfBirth", "date")}
+            {renderInput("Birth Registration Number", "birthRegistrationNumber")}
+            {renderSelect("Gender", "gender", genderOptions)}
+            {renderSelect("Religion", "religion", religionOptions)}
+            {renderSelect("Blood Group", "blood", bloodOptions)}
+            {renderUpload("Student Photo", "studentPhoto")}
           </div>
 
-          {sectionTitle(t.students.guardianInfo)}
+          {sectionTitle("Guardian Information")}
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {renderInput(t.students.fatherName, "fatherName")}
-            {renderInput(t.students.fatherMobile, "fatherMobile")}
-            {renderInput(t.students.fatherOccupation, "fatherOccupation")}
-            {renderInput(t.students.motherName, "motherName")}
-            {renderInput(t.students.motherMobile, "motherMobile")}
-            {renderInput(t.students.motherOccupation, "motherOccupation")}
-            {renderInput(t.students.optionalGuardianName, "guardianName")}
-            {renderInput(t.students.relationship, "guardianRelationship")}
-            {renderInput(t.students.guardianMobile, "guardianMobile")}
+            {renderInput("Father Name", "fatherName")}
+            {renderInput("Father Mobile", "fatherMobile")}
+            {renderInput("Father Occupation", "fatherOccupation")}
+            {renderInput("Mother Name", "motherName")}
+            {renderInput("Mother Mobile", "motherMobile")}
+            {renderInput("Mother Occupation", "motherOccupation")}
+            {renderInput("Optional Guardian Name", "guardianName")}
+            {renderInput("Relationship", "guardianRelationship")}
+            {renderInput("Guardian Mobile", "guardianMobile")}
           </div>
 
-          {sectionTitle(t.students.address)}
+          {sectionTitle("Address")}
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {renderTextArea(t.students.presentAddress, "presentAddress")}
-            {renderTextArea(t.students.permanentAddress, "permanentAddress")}
-            {renderInput(t.students.district, "district")}
-            {renderInput(t.students.upazila, "upazila")}
-            {renderInput(t.students.postOffice, "postOffice")}
-            {renderInput(t.students.village, "village")}
+            {renderTextArea("Present Address", "presentAddress")}
+            {renderTextArea("Permanent Address", "permanentAddress")}
+            {renderInput("District", "district")}
+            {renderInput("Upazila", "upazila")}
+            {renderInput("Post Office", "postOffice")}
+            {renderInput("Village", "village")}
           </div>
 
-          {sectionTitle(t.students.previousEducation)}
+          {sectionTitle("Previous Education")}
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {renderInput(t.students.previousInstitution, "previousInstitution")}
-            {renderInput(t.students.previousClass, "previousClass")}
+            {renderInput("Previous Institution", "previousInstitution")}
+            {renderInput("Previous Class", "previousClass")}
           </div>
 
-          {sectionTitle(t.students.madrasaInfo)}
+          {sectionTitle("Madrasa Information")}
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {renderSelect(t.students.department, "dept", departmentOptions)}
-            {renderInput(t.students.memorizedQuran, "para", "number")}
+            {renderSelect("Department", "dept", departmentOptions)}
+            {renderInput("Memorized Quran (Paras)", "para", "number")}
           </div>
 
-          {sectionTitle(t.students.feeInfo)}
+          {sectionTitle("Fee Information")}
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {renderInput(t.students.admissionFee, "admissionFee", "number")}
-            {renderInput(t.students.monthlyFee, "fee", "number")}
-            {renderInput(t.students.discount, "discount", "number")}
+            {renderInput("Admission Fee", "admissionFee", "number")}
+            {renderInput("Monthly Fee", "fee", "number")}
+            {renderInput("Discount (Optional)", "discount", "number")}
           </div>
 
-          {sectionTitle(t.students.documents)}
+          {sectionTitle("Documents")}
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginBottom: 18 }}>
-            {renderUpload(t.students.studentPhoto, "studentPhoto")}
-            {renderUpload(t.students.birthCertificate, "birthCertificate")}
-            {renderUpload(t.students.guardianNid, "guardianNid")}
-            {renderUpload(t.students.previousCertificate, "previousCertificate", true)}
+            {renderUpload("Student Photo", "studentPhoto")}
+            {renderUpload("Birth Certificate", "birthCertificate")}
+            {renderUpload("Guardian NID", "guardianNid")}
+            {renderUpload("Previous Certificate", "previousCertificate", true)}
           </div>
 
           <button type="button" disabled={saving} onClick={saveAdmission} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 700, cursor: saving ? "wait" : "pointer" }}>
-            {saving ? t.students.saving : editing ? t.students.saveChanges : t.students.saveAdmission}
+            {saving ? "Saving..." : editing ? "Save Changes" : "Save Admission"}
           </button>
         </div>
       )}
@@ -467,8 +461,8 @@ export function Students() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 880 }}>
           <thead>
             <tr style={{ background: C.slateL }}>
-              {[t.students.admissionNo, t.students.roll, t.fees.student, t.students.class, t.students.dept, t.students.type, t.students.guardianMobile, t.students.monthlyFee, t.students.status, ""].map((header, i) => (
-                <th key={i} style={{ padding: "10px 12px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>{header}</th>
+              {["Admission No.", "Roll", "Student", "Class", "Department", "Type", "Guardian Mobile", "Monthly Fee", "Status", ""].map((header) => (
+                <th key={header} style={{ padding: "10px 12px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>{header}</th>
               ))}
             </tr>
           </thead>
@@ -497,16 +491,16 @@ export function Students() {
                 <td style={{ padding: "10px 12px" }}><Badge label={student.type} color={student.type === "Residential" ? C.violet : C.sky} /></td>
                 <td style={{ padding: "10px 12px", color: C.muted }}>{student.fatherMobile || student.guardianMobile || student.phone}</td>
                 <td style={{ padding: "10px 12px", color: C.text }}>{fmt(student.fee || 0)}</td>
-                <td style={{ padding: "10px 12px" }}><Badge label={student.status === "Inactive" ? t.students.inactive : t.students.active} color={student.status === "Inactive" ? C.rose : C.emerald} /></td>
+                <td style={{ padding: "10px 12px" }}><Badge label={student.status || "Active"} color={student.status === "Inactive" ? C.rose : C.emerald} /></td>
                 <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                  <button type="button" onClick={() => setViewing(student)} style={{ border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", marginRight: 6, fontWeight: 700 }}>{t.students.view}</button>
-                  <button type="button" onClick={() => startEdit(student)} style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontWeight: 700 }}>{t.common.edit}</button>
+                  <button type="button" onClick={() => setViewing(student)} style={{ border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", marginRight: 6, fontWeight: 700 }}>View</button>
+                  <button type="button" onClick={() => startEdit(student)} style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontWeight: 700 }}>Edit</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div style={{ padding: "10px 12px", color: C.muted, fontSize: 12, borderTop: `1px solid ${C.border}` }}>{tr("students.totalStudentsLine", { count: filtered.length })}</div>
+        <div style={{ padding: "10px 12px", color: C.muted, fontSize: 12, borderTop: `1px solid ${C.border}` }}>Total {filtered.length} students</div>
       </div>
 
       {viewing && (
@@ -516,20 +510,33 @@ export function Students() {
               {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} /> : null}
               <div>
                 <h3 style={{ margin: 0, color: C.text, fontSize: 20 }}>{viewing.name}</h3>
-                <div style={{ color: C.muted, fontSize: 13 }}>{viewing.nameEn} | {viewing.admissionNumber || t.students.noAdmissionNumber}</div>
+                <div style={{ color: C.muted, fontSize: 13 }}>{viewing.nameEn} | {viewing.admissionNumber || "No admission number"}</div>
               </div>
-              <button type="button" onClick={() => setViewing(null)} style={{ marginLeft: "auto", border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>{t.common.close}</button>
+              <button type="button" onClick={() => setViewing(null)} style={{ marginLeft: "auto", border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>Close</button>
             </div>
             <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-              {detailRows.map(([label, value], i) => (
-                <div key={i} style={{ background: C.slateL, borderRadius: 6, padding: "9px 10px" }}>
+              {detailRows.map(([label, value]) => (
+                <div key={label} style={{ background: C.slateL, borderRadius: 6, padding: "9px 10px" }}>
                   <div style={{ fontSize: 11, color: C.muted, marginBottom: 3 }}>{label}</div>
                   <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>{textValue(value)}</div>
                 </div>
               ))}
             </div>
             <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => startEdit(viewing)} style={{ border: "none", background: C.emerald, color: "#fff", borderRadius: 8, padding: "9px 16px", fontWeight: 700, cursor: "pointer" }}>{t.students.editStudent}</button>
+              <button type="button" onClick={() => startEdit(viewing)} style={{ border: "none", background: C.emerald, color: "#fff", borderRadius: 8, padding: "9px 16px", fontWeight: 700, cursor: "pointer" }}>Edit Student</button>
+              <button
+                type="button"
+                onClick={() =>
+                  printDetailSheet({
+                    title: viewing.name,
+                    subtitle: `${viewing.nameEn} | ${viewing.admissionNumber || "No admission number"}`,
+                    rows: detailRows as [string, string | number][],
+                  })
+                }
+                style={{ border: "none", background: C.sky, color: "#fff", borderRadius: 8, padding: "9px 16px", fontWeight: 700, cursor: "pointer" }}
+              >
+                🖨️ Print
+              </button>
               {(["studentPhoto", "birthCertificate", "guardianNid", "previousCertificate"] as (keyof StudentDocuments)[]).map((key) => (
                 viewing.documents?.[key] ? (
                   <a key={key} href={viewing.documents[key]} target="_blank" rel="noreferrer" style={{ color: C.link, fontSize: 13, alignSelf: "center" }}>

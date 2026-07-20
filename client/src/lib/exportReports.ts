@@ -1,9 +1,6 @@
-import autoTable from "jspdf-autotable";
 import { api } from "./api";
-import { createBengaliPdf } from "./pdfFont";
-import { NOTO_SANS_BENGALI_FAMILY } from "./fonts/notoSansBengaliBase64";
+import { printReportTable } from "./printReport";
 import type { Expense, IncomeEntry, Student } from "../types";
-import { toEmbeddableImage } from "./toEmbeddableImage";
 
 export type ReportKind =
   | "students"
@@ -26,85 +23,14 @@ function stamp() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Madrasa name for PDF header | পিডিএফ হেডারে মাদ্রাসার নাম */
-function madrasaNameForExport(): string {
-  try {
-    const raw = localStorage.getItem("madrasah-settings");
-    if (raw) {
-      const s = JSON.parse(raw) as { name?: string };
-      if (s.name) return s.name;
-    }
-  } catch {
-    /* ignore */
-  }
-  return "Madrasah ERP";
-}
-
-function exportSettings(): { name: string; logo?: string } {
-  try {
-    const raw = localStorage.getItem("madrasah-settings");
-    if (raw) {
-      const s = JSON.parse(raw) as { name?: string; logo?: string };
-      return { name: s.name || "Madrasah ERP", logo: s.logo };
-    }
-  } catch {
-    /* ignore */
-  }
-  return { name: "Madrasah ERP" };
-}
-
 interface ReportRangeOpts {
   from?: string;
   to?: string;
 }
 
-function pdfName(kind: ReportKind, range?: ReportRangeOpts) {
-  const r = range?.from && range?.to ? `-${range.from}_${range.to}` : `-${stamp()}`;
-  return `madrasah-${kind}${r}.pdf`;
-}
-
 function csvName(kind: ReportKind, range?: ReportRangeOpts) {
   const r = range?.from && range?.to ? `-${range.from}_${range.to}` : `-${stamp()}`;
   return `madrasah-${kind}${r}.csv`;
-}
-
-async function exportPdfTable(
-  title: string,
-  headers: string[],
-  rows: (string | number)[][],
-  filename: string,
-  landscape = false
-) {
-  const doc = createBengaliPdf(landscape ? "landscape" : "portrait");
-  const settings = exportSettings();
-  let startY = 28;
-  const logo = await toEmbeddableImage(settings.logo);
-  if (logo) {
-    try {
-      doc.addImage(logo.dataUrl, logo.type, 14, 8, 18, 18);
-    } catch {
-      /* ignore bad logo data */
-    }
-  }
-  doc.setFont(NOTO_SANS_BENGALI_FAMILY);
-  doc.setFontSize(11);
-  doc.text(settings.name || madrasaNameForExport(), logo ? 36 : 14, 12);
-  doc.setFontSize(13);
-  doc.text(title, logo ? 36 : 14, 19);
-  doc.setFontSize(9);
-  doc.setFontSize(9);
-  doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, logo ? 36 : 14, 25);
-  doc.line(14, startY, landscape ? 283 : 196, startY);
-  startY += 4;
-  autoTable(doc, {
-    head: [headers],
-    body: rows.map((r) => r.map(String)),
-    startY,
-    styles: { font: NOTO_SANS_BENGALI_FAMILY, fontSize: 8, cellPadding: 2, textColor: [30, 30, 30], lineColor: [225, 225, 225] },
-    headStyles: { font: NOTO_SANS_BENGALI_FAMILY, fillColor: [245, 245, 245], textColor: [30, 30, 30], lineColor: [210, 210, 210] },
-    bodyStyles: { font: NOTO_SANS_BENGALI_FAMILY },
-  });
-  doc.save(filename);
 }
 
 function csvCell(value: string | number) {
@@ -163,7 +89,7 @@ function hifzRows(students: Student[]) {
   return { header, body };
 }
 
-export async function exportReport(kind: ReportKind, format: "pdf" | "excel", range?: ReportRangeOpts) {
+export async function exportReport(kind: ReportKind, format: "print" | "excel", range?: ReportRangeOpts) {
   const title = REPORT_TITLES[kind];
   const period =
     range?.from && range?.to ? ` (${range.from} to ${range.to})` : "";
@@ -172,7 +98,7 @@ export async function exportReport(kind: ReportKind, format: "pdf" | "excel", ra
     const students = await api.getStudents();
     const { header, body } = studentListRows(students);
     if (format === "excel") exportExcelSheet([header, ...body], csvName(kind, range));
-    else await exportPdfTable(title + period, header, body, pdfName(kind, range), true);
+    else printReportTable({ title: title + period, headers: header, rows: body });
     return;
   }
 
@@ -180,7 +106,7 @@ export async function exportReport(kind: ReportKind, format: "pdf" | "excel", ra
     const students = (await api.getStudents()).filter((s) => s.due > 0);
     const { header, body } = dueListRows(students);
     if (format === "excel") exportExcelSheet([header, ...body], csvName(kind, range));
-    else await exportPdfTable(title + period, header, body, pdfName(kind, range));
+    else printReportTable({ title: title + period, headers: header, rows: body });
     return;
   }
 
@@ -189,7 +115,7 @@ export async function exportReport(kind: ReportKind, format: "pdf" | "excel", ra
     const header = ["Date", "Roll", "Name", "Class", "Dept", "Status"];
     const body = rows.map((r) => [r.date, r.roll, r.name, r.class, r.dept, r.status]);
     if (format === "excel") exportExcelSheet([header, ...body], csvName(kind, range));
-    else await exportPdfTable(`${title}${period}`, header, body, pdfName(kind, range), true);
+    else printReportTable({ title: `${title}${period}`, headers: header, rows: body });
     return;
   }
 
@@ -200,7 +126,7 @@ export async function exportReport(kind: ReportKind, format: "pdf" | "excel", ra
     if (format === "excel") {
       exportExcelSheet([["Total Income", total], [], header, ...body], csvName(kind, range));
     } else {
-      await exportPdfTable(`${title}${period} Total: ${total}`, header, body, pdfName(kind, range), true);
+      printReportTable({ title: `${title}${period}`, subtitle: `Total: ${total}`, headers: header, rows: body });
     }
     return;
   }
@@ -212,7 +138,7 @@ export async function exportReport(kind: ReportKind, format: "pdf" | "excel", ra
     if (format === "excel") {
       exportExcelSheet([["Total Expense", total], [], header, ...body], csvName(kind, range));
     } else {
-      await exportPdfTable(`${title}${period} Total: ${total}`, header, body, pdfName(kind, range));
+      printReportTable({ title: `${title}${period}`, subtitle: `Total: ${total}`, headers: header, rows: body });
     }
     return;
   }
@@ -221,6 +147,6 @@ export async function exportReport(kind: ReportKind, format: "pdf" | "excel", ra
     const students = await api.getHifzStudents();
     const { header, body } = hifzRows(students);
     if (format === "excel") exportExcelSheet([header, ...body], csvName(kind, range));
-    else await exportPdfTable(title + period, header, body, pdfName(kind, range));
+    else printReportTable({ title: title + period, headers: header, rows: body });
   }
 }
