@@ -13,6 +13,7 @@ export const en = {
     settings: "Settings",
   },
   common: {
+    select: "Select",
     save: "Save",
     saved: "Saved",
     cancel: "Cancel",

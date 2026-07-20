@@ -11,6 +11,7 @@ export const bn = {
     settings: "সেটিংস",
   },
   common: {
+    select: "নির্বাচন করুন",
     save: "সংরক্ষণ করুন",
     saved: "সংরক্ষিত",
     cancel: "বাতিল",
