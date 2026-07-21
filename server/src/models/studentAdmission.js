@@ -96,6 +96,8 @@ function isValidMobile(value) {
   return /^01[3-9]\d{8}$/.test(normalizeMobile(value));
 }
 
+const HTTP_URL_RE = /^https?:\/\//i;
+
 function dataUrlSize(value) {
   const match = String(value || "").match(DATA_URL_RE);
   if (!match) return 0;
@@ -104,6 +106,10 @@ function dataUrlSize(value) {
 
 function validateDataUrl(value, { imageOnly = false, required = false, maxBytes = 750 * 1024 } = {}) {
   if (!value) return required ? "File is required" : "";
+  // Files uploaded through /uploads are already stored (e.g. on Cloudinary)
+  // and come back as a normal https URL, not a base64 data URL. They were
+  // already type/size validated at upload time, so just accept them here.
+  if (HTTP_URL_RE.test(String(value))) return "";
   const match = String(value).match(DATA_URL_RE);
   if (!match) return "Upload must be a valid base64 file";
   const mime = match[1].toLowerCase();

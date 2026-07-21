@@ -475,10 +475,6 @@ export function Students() {
     });
   };
 
-  const printProfile = () => {
-    if (viewing) printAdmissionForm(viewing);
-  };
-
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
@@ -678,7 +674,6 @@ export function Students() {
                 <div style={{ color: C.muted, fontSize: 13 }}>{viewing.nameEn} | {viewing.admissionNumber || t.students.noAdmissionNumber}</div>
               </div>
               <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button type="button" onClick={printProfile} style={{ border: "none", background: C.emerald, color: "#fff", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontWeight: 700 }}>{t.common.print} ফরম</button>
                 <button type="button" onClick={printHistory} style={{ border: "none", background: C.sky, color: "#fff", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontWeight: 700 }}>{t.common.print} হিস্ট্রি</button>
                 <button type="button" onClick={() => startEdit(viewing)} style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontWeight: 700 }}>{t.students.editStudent}</button>
                 <button type="button" onClick={() => setViewing(null)} style={{ border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 8, padding: "8px 12px", cursor: "pointer" }}>{t.common.close}</button>
@@ -710,7 +705,7 @@ export function Students() {
               {detailSections.map((section) => (
                 <div key={section.title} style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
                   <div style={{ background: C.slateL, padding: "8px 12px", fontWeight: 800, color: C.text }}>{section.title}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, padding: 10 }}>
+                  <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, padding: 10 }}>
                     {section.rows.map(([label, value]) => (
                       <div key={label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: 8 }}>
                         <div style={{ fontSize: 11, color: C.muted, marginBottom: 3 }}>{label}</div>

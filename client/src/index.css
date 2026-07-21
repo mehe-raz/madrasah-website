@@ -193,6 +193,10 @@ a {
     grid-template-columns: 1fr !important;
   }
 
+  .detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   button {
     font-size: 13px !important;
     padding: 8px 12px !important;
