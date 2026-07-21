@@ -259,7 +259,7 @@ export function Settings() {
     if (!confirm("Restore this backup? Current online data will be replaced.")) return;
     try {
       await api.restoreBackup(file);
-      setMsg("Backup restored. Server is restarting. Please login again after one minute.");
+      setMsg("Backup restored successfully. Refresh the page (and log in again if needed) to see the restored data.");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Restore failed");
     }
@@ -274,7 +274,7 @@ export function Settings() {
     setRestoringFileId(file.id);
     try {
       const result = await api.restoreFromGoogleDrive(file.id);
-      setMsg(result.message || "Backup restored. Server is restarting. Please login again after one minute.");
+      setMsg(result.message || "Backup restored successfully. Refresh the page (and log in again if needed) to see the restored data.");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Restore failed");
     } finally {

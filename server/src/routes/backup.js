@@ -99,7 +99,7 @@ async function exportJsonBackup() {
 async function runPgDump(outputPath) {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL not configured");
   return new Promise((resolve, reject) => {
-    const child = spawn("pg_dump", ["--no-owner", "--no-acl", process.env.DATABASE_URL], {
+    const child = spawn("pg_dump", ["--no-owner", "--no-acl", "--clean", "--if-exists", process.env.DATABASE_URL], {
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -226,7 +226,7 @@ async function restoreSqlBackup(buffer) {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL not configured");
 
   return new Promise((resolve, reject) => {
-    const child = spawn("psql", [process.env.DATABASE_URL, "--set", "ON_ERROR_STOP=1"], {
+    const child = spawn("psql", [process.env.DATABASE_URL, "--set", "ON_ERROR_STOP=1", "--single-transaction"], {
       env: process.env,
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -354,10 +354,9 @@ router.post("/restore", express.raw({ type: ["application/octet-stream", "applic
     const beforeBackup = await performRestore(req.body);
     res.json({
       ok: true,
-      message: "Backup restored. Server restarting.",
+      message: "Backup restored successfully.",
       safetyBackup: beforeBackup.filename,
     });
-    setTimeout(() => process.exit(0), 300);
   } catch (e) {
     res.status(500).json({ error: e.message || "Restore failed" });
   }
@@ -426,10 +425,9 @@ router.post("/google/restore/:fileId", async (req, res) => {
     const beforeBackup = await performRestore(buffer);
     res.json({
       ok: true,
-      message: "Backup restored. Server restarting.",
+      message: "Backup restored successfully.",
       safetyBackup: beforeBackup.filename,
     });
-    setTimeout(() => process.exit(0), 300);
   } catch (e) {
     res.status(500).json({ error: e.message || "Restore failed" });
   }
