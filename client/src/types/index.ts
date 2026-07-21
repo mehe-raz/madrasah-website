@@ -190,9 +190,9 @@ export interface DashboardData {
   };
   incomeData: { month: string; income: number; expense: number }[];
   incomeByCategory?: { category: string; total: number }[];
-  attendanceData: { day: string; present: number; absent: number }[];
+  attendanceData: { day: string; present: number; absent: number; late: number }[];
   deptData: { name: string; value: number }[];
-  logs: { id: number; action: string; user: string; time: string; icon: string }[];
+  logs: { id: string | number; action: string; user: string; time: string; icon: string }[];
 }
 
 export interface AttendanceResponse {

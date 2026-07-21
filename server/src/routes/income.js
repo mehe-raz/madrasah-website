@@ -3,6 +3,7 @@ const db = require("../db");
 const { getIncomeCategories, setIncomeCategories } = require("../lib/incomeCategories");
 const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests");
 const { requirePermission } = require("../middleware/rbac");
+const { nextReceipt } = require("../lib/receiptCounter");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -50,12 +51,6 @@ router.get("/", async (req, res) => {
   );
 });
 
-async function nextReceipt(tx, table, prefix, pad) {
-  const maxRow = await tx.get(`SELECT MAX(id) as m FROM ${table}`);
-  const maxId = maxRow?.m || 0;
-  return `${prefix}${String(maxId + 1).padStart(pad, "0")}`;
-}
-
 router.post("/", async (req, res) => {
   const { category, amount, note, method, studentId, date } = req.body;
   const CATEGORIES = await getIncomeCategories();
@@ -74,38 +69,39 @@ router.post("/", async (req, res) => {
   const entryDate = date || new Date().toISOString().slice(0, 10);
   const year = new Date().getFullYear();
 
-  const ATTEMPTS = 5;
-  let insertId;
-  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
-    try {
-      insertId = await db.withTransaction(async (tx) => {
-        const receipt = await nextReceipt(tx, "income", `INC-${year}-`, 4);
-        const result = await tx.run(
-          `INSERT INTO income (category, amount, date, note, method, receipt, "studentId", status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-          [category, amt, entryDate, note || "", method || "Cash", receipt, studentId || null, "Completed"]
-        );
+  const insertId = await db.withTransaction(async (tx) => {
+    const receipt = await nextReceipt(tx, {
+      table: "income",
+      key: "income_receipt",
+      prefix: `INC-${year}-`,
+      pad: 4,
+    });
 
-        if (student && category === "Student Fee") {
-          const newDue = Math.max(0, student.due - amt);
-          await tx.run("UPDATE students SET due = $1 WHERE id = $2", [newDue, studentId]);
+    const result = await tx.run(
+      `INSERT INTO income (category, amount, date, note, method, receipt, "studentId", status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [category, amt, entryDate, note || "", method || "Cash", receipt, studentId || null, "Completed"]
+    );
 
-          const payReceipt = await nextReceipt(tx, "payments", `RCP-${year}-`, 3);
-          await tx.run(
-            `INSERT INTO payments ("studentId", student, roll, amount, date, receipt, method, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [studentId, student.name, student.roll, amt, entryDate, payReceipt, method || "Cash", newDue === 0 ? "Completed" : "Partial"]
-          );
-        }
+    if (student && category === "Student Fee") {
+      const newDue = Math.max(0, student.due - amt);
+      await tx.run("UPDATE students SET due = $1 WHERE id = $2", [newDue, studentId]);
 
-        return result.insertId;
+      const payReceipt = await nextReceipt(tx, {
+        table: "payments",
+        key: "payment_receipt",
+        prefix: `RCP-${year}-`,
+        pad: 4,
       });
-      break;
-    } catch (err) {
-      if (db.isUniqueViolation(err) && attempt < ATTEMPTS) continue;
-      throw err;
+      await tx.run(
+        `INSERT INTO payments ("studentId", student, roll, amount, date, receipt, method, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [studentId, student.name, student.roll, amt, entryDate, payReceipt, method || "Cash", newDue === 0 ? "Completed" : "Partial"]
+      );
     }
-  }
+
+    return result.insertId;
+  });
 
   const row = await db.get("SELECT * FROM income WHERE id = $1", [insertId]);
   res.status(201).json(row);

@@ -25,7 +25,7 @@ import type { DashboardData, DeleteRequest } from "../types";
 import { MOCK_DASHBOARD } from "../data/mockData";
 
 const logIcon = (icon: string) =>
-  icon === "add" ? "➕" : icon === "payment" ? "💳" : icon === "attendance" ? "📋" : "📉";
+  icon === "add" ? "➕" : icon === "payment" ? "💳" : icon === "attendance" ? "📋" : icon === "expense" ? "💸" : "📉";
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -81,7 +81,7 @@ export function Dashboard() {
 
       <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 }}>
         <StatCard label={t.dashboard.totalStudents} value={String(stats.total)} icon="👨‍🎓" color={C.teal} sub={tr("dashboard.residentialSub", { count: stats.residential })} />
-        <StatCard label={t.dashboard.residential} value={String(stats.residential)} icon="🏠" color={C.emerald} sub={tr("dashboard.totalPercent", { percent: Math.round((stats.residential / stats.total) * 100) })} />
+        <StatCard label={t.dashboard.residential} value={String(stats.residential)} icon="🏠" color={C.emerald} sub={tr("dashboard.totalPercent", { percent: stats.total ? Math.round((stats.residential / stats.total) * 100) : 0 })} />
         <StatCard label={t.dashboard.monthlyIncome} value={fmt(stats.monthlyIncome)} icon="💰" color={C.sky} sub={t.dashboard.monthLabel} />
         <StatCard label={t.dashboard.totalDue} value={fmt(stats.totalDue)} icon="⚠️" color={C.rose} sub={tr("dashboard.dueStudents", { count: stats.dueCount })} />
         <StatCard label={t.dashboard.monthlyExpense} value={fmt(stats.monthlyExpense)} icon="💸" color={C.amber} sub={t.dashboard.monthLabel} />
@@ -145,6 +145,7 @@ export function Dashboard() {
             <Tooltip />
             <Line type="monotone" dataKey="present" name={t.dashboard.present} stroke={C.emerald} strokeWidth={2} dot={{ r: 4 }} />
             <Line type="monotone" dataKey="absent" name={t.dashboard.absent} stroke={C.rose} strokeWidth={2} dot={{ r: 4 }} />
+            <Line type="monotone" dataKey="late" name={t.dashboard.late} stroke={C.amber} strokeWidth={2} dot={{ r: 4 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>

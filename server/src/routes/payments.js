@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { nextReceipt } = require("../lib/receiptCounter");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -19,9 +20,6 @@ router.post("/", async (req, res) => {
   const payAmount = Number(amount);
   if (!payAmount || payAmount <= 0) return res.status(400).json({ error: "Invalid amount" });
 
-  const maxRow = await db.get("SELECT MAX(id) as m FROM payments");
-  const maxId = maxRow?.m || 0;
-  const receipt = `RCP-${new Date().getFullYear()}-${String(maxId + 1).padStart(3, "0")}`;
   const date = new Date().toISOString().slice(0, 10);
   const newDue = Math.max(0, Number(student.due || 0) - payAmount);
   const status = newDue === 0 || payAmount >= Number(student.due || 0) ? "Completed" : "Partial";
@@ -31,16 +29,22 @@ router.post("/", async (req, res) => {
     roll: student.roll,
     amount: payAmount,
     date,
-    receipt,
     method: method || "Cash",
     status,
   };
 
   const insertId = await db.withTransaction(async (tx) => {
+    const receipt = await nextReceipt(tx, {
+      table: "payments",
+      key: "payment_receipt",
+      prefix: `RCP-${new Date().getFullYear()}-`,
+      pad: 4,
+    });
+
     const result = await tx.run(
       `INSERT INTO payments ("studentId", student, roll, amount, date, receipt, method, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [payment.studentId, payment.student, payment.roll, payment.amount, payment.date, payment.receipt, payment.method, payment.status]
+      [payment.studentId, payment.student, payment.roll, payment.amount, date, receipt, payment.method, payment.status]
     );
 
     await tx.run(
@@ -53,7 +57,8 @@ router.post("/", async (req, res) => {
     return result.insertId;
   });
 
-  res.status(201).json({ id: insertId, ...payment });
+  const receipt = await db.get("SELECT receipt FROM payments WHERE id = $1", [insertId]);
+  res.status(201).json({ id: insertId, receipt: receipt?.receipt || "", ...payment });
 });
 
 module.exports = router;

@@ -59,12 +59,12 @@ export const MOCK_DASHBOARD: DashboardData = {
     { month: "জুন", income: 72000, expense: 45000 },
   ],
   attendanceData: [
-    { day: "রবি", present: 45, absent: 8 },
-    { day: "সোম", present: 50, absent: 3 },
-    { day: "মঙ্গল", present: 47, absent: 6 },
-    { day: "বুধ", present: 52, absent: 1 },
-    { day: "বৃহ", present: 49, absent: 4 },
-    { day: "শুক্র", present: 38, absent: 15 },
+    { day: "রবি", present: 45, absent: 8, late: 1 },
+    { day: "সোম", present: 50, absent: 3, late: 0 },
+    { day: "মঙ্গল", present: 47, absent: 6, late: 2 },
+    { day: "বুধ", present: 52, absent: 1, late: 1 },
+    { day: "বৃহ", present: 49, absent: 4, late: 0 },
+    { day: "শুক্র", present: 38, absent: 15, late: 3 },
   ],
   deptData: [
     { name: "হিফজ", value: 35 },
