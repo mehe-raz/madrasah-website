@@ -30,6 +30,8 @@ export function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>(EXPENSES);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ cat: "", amount: "", note: "" });
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.getExpenses().then(setExpenses);
@@ -53,27 +55,39 @@ export function Expenses() {
 
   const handleAdd = async () => {
     if (!form.cat || !form.amount) return;
+    setSaving(true);
+    setError("");
     try {
       const created = await api.createExpense({ cat: form.cat, amount: Number(form.amount), note: form.note });
       setExpenses((prev) => [created, ...prev]);
-    } catch {
-      setExpenses((prev) => [...prev, { id: prev.length + 1, cat: form.cat, amount: +form.amount, date: "আজ", note: form.note }]);
+      setForm({ cat: "", amount: "", note: "" });
+      setShowAdd(false);
+    } catch (err) {
+      // Previously a failed save fabricated a fake local row (fake id,
+      // date "আজ") so the expense LOOKED added even though it never
+      // reached the server. Now a failure shows a real error and leaves
+      // the list untouched instead of pretending it was saved.
+      setError(err instanceof Error ? err.message : t.common.requestFailed);
+    } finally {
+      setSaving(false);
     }
-    setForm({ cat: "", amount: "", note: "" });
-    setShowAdd(false);
   };
 
   const handleDelete = async (id: number) => {
+    setError("");
     try {
       const res = await api.deleteExpense(id);
       if (res.pendingApproval) {
         alert("Delete request sent for Admin approval.");
         return;
       }
-    } catch {
-      /* mock */
+      // Only drop the row once the server confirms the delete — previously
+      // this ran unconditionally even after a failed request, so the row
+      // could disappear from the screen while still existing in the database.
+      setExpenses((prev) => prev.filter((e) => e.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.common.requestFailed);
     }
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
   return (
@@ -82,6 +96,10 @@ export function Expenses() {
         <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text }}>{t.expenses.title}</h2>
         <button type="button" onClick={() => openAdd()} style={{ background: C.amber, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>+ {t.expenses.addNew}</button>
       </div>
+
+      {error && (
+        <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>{error}</div>
+      )}
 
       <p style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>{t.expenses.quickAdd}</p>
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
@@ -143,7 +161,7 @@ export function Expenses() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={handleAdd} style={{ background: C.amber, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>{t.common.save}</button>
+            <button type="button" disabled={saving} onClick={handleAdd} style={{ background: C.amber, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", fontSize: 13, opacity: saving ? 0.7 : 1 }}>{saving ? "…" : t.common.save}</button>
             <button type="button" onClick={() => setShowAdd(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 18px", cursor: "pointer", fontSize: 13 }}>{t.common.cancel}</button>
           </div>
         </div>

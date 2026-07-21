@@ -14,6 +14,10 @@ export function HifzTracking() {
   const [selected, setSelected] = useState<Student | null>(null);
   const [sabaq, setSabaq] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [paraSaving, setParaSaving] = useState(false);
+  const [paraError, setParaError] = useState("");
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
@@ -27,14 +31,43 @@ export function HifzTracking() {
 
   const progress = (selected.para / TOTAL_PARAS) * 100;
 
+  // This was the missing piece: api.updatePara() and the server's
+  // PATCH /hifz/:studentId/para route already existed, but no button or
+  // control anywhere in the UI ever called them — a teacher had no way to
+  // actually record Quran-memorization progress, only view it.
+  const updatePara = async (nextPara: number) => {
+    const clamped = Math.min(TOTAL_PARAS, Math.max(0, nextPara));
+    if (clamped === selected.para) return;
+    setParaSaving(true);
+    setParaError("");
+    try {
+      const updated = await api.updatePara(selected.id, clamped);
+      setSelected(updated);
+      setHifzStudents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    } catch (err) {
+      setParaError(err instanceof Error ? err.message : "সংরক্ষণ ব্যর্থ হয়েছে");
+    } finally {
+      setParaSaving(false);
+    }
+  };
+
   const saveSabaq = async () => {
+    setSaving(true);
+    setError("");
     try {
       await api.saveSabaq(selected.id, sabaq);
-    } catch {
-      /* local fallback only */
+      // Previously this ran unconditionally (even after a swallowed
+      // error), so "Saved" showed and the textarea kept stale text even
+      // when the log never reached the server. Now only a confirmed
+      // save clears the field and shows success.
+      setSabaq("");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "সংরক্ষণ ব্যর্থ হয়েছে");
+    } finally {
+      setSaving(false);
     }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
@@ -65,10 +98,29 @@ export function HifzTracking() {
                 <div style={{ fontSize: 13, color: C.muted }}>{selected.class}</div>
               </div>
               <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: C.emerald }}>{selected.para}</div>
-                <div style={{ fontSize: 12, color: C.muted }}>{t.hifz.paraDone}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    disabled={paraSaving || selected.para <= 0}
+                    onClick={() => updatePara(selected.para - 1)}
+                    style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${C.border}`, background: C.card, color: C.text, cursor: paraSaving || selected.para <= 0 ? "not-allowed" : "pointer", fontSize: 16, fontWeight: 700, lineHeight: 1, opacity: paraSaving ? 0.6 : 1 }}
+                  >
+                    −
+                  </button>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: C.emerald, minWidth: 32, textAlign: "center" }}>{selected.para}</div>
+                  <button
+                    type="button"
+                    disabled={paraSaving || selected.para >= TOTAL_PARAS}
+                    onClick={() => updatePara(selected.para + 1)}
+                    style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${C.emerald}`, background: C.emeraldL, color: C.emeraldD, cursor: paraSaving || selected.para >= TOTAL_PARAS ? "not-allowed" : "pointer", fontSize: 16, fontWeight: 700, lineHeight: 1, opacity: paraSaving ? 0.6 : 1 }}
+                  >
+                    +
+                  </button>
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{t.hifz.paraDone}</div>
               </div>
             </div>
+            {paraError && <div style={{ color: C.rose, fontSize: 12, marginTop: 8 }}>{paraError}</div>}
             <div style={{ marginBottom: 6, display: "flex", justifyContent: "space-between", fontSize: 12, color: C.muted }}>
               <span>{t.hifz.progress}</span><span>{progress.toFixed(1)}%</span>
             </div>
@@ -84,9 +136,16 @@ export function HifzTracking() {
                 const done = i < selected.para;
                 const current = i === selected.para;
                 return (
-                  <div key={i} title={name} style={{ height: 36, borderRadius: 6, border: `1px solid ${done ? C.emerald : current ? C.amber : C.border}`, background: done ? C.emeraldL : current ? C.amberL : C.slateL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: done ? C.emeraldD : current ? C.amberD : C.muted }}>
+                  <button
+                    key={i}
+                    type="button"
+                    title={name}
+                    disabled={paraSaving}
+                    onClick={() => updatePara(i + 1)}
+                    style={{ height: 36, borderRadius: 6, border: `1px solid ${done ? C.emerald : current ? C.amber : C.border}`, background: done ? C.emeraldL : current ? C.amberL : C.slateL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: done ? C.emeraldD : current ? C.amberD : C.muted, cursor: paraSaving ? "not-allowed" : "pointer", opacity: paraSaving ? 0.6 : 1, padding: 0 }}
+                  >
                     {i + 1}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -95,8 +154,9 @@ export function HifzTracking() {
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
             <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 12 }}>{t.hifz.todaySabaq}</h3>
             <textarea value={sabaq} onChange={(e) => setSabaq(e.target.value)} rows={3} placeholder={t.hifz.sabaqPlaceholder} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", color: C.text, background: C.card }} />
-            <button type="button" onClick={saveSabaq} style={{ marginTop: 10, background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "9px 20px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>
-              {saved ? t.common.saved : t.hifz.saveSabaq}
+            {error && <div style={{ color: C.rose, marginTop: 8, fontSize: 12 }}>{error}</div>}
+            <button type="button" disabled={saving} onClick={saveSabaq} style={{ marginTop: 10, background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "9px 20px", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", fontSize: 13, opacity: saving ? 0.7 : 1 }}>
+              {saving ? "…" : saved ? t.common.saved : t.hifz.saveSabaq}
             </button>
           </div>
         </div>

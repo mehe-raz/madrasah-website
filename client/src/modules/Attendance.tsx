@@ -12,6 +12,8 @@ export function Attendance() {
   const [dept, setDept] = useState<string>("All");
   const [att, setAtt] = useState<Student[]>([]);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
   const load = useCallback(() => {
@@ -35,17 +37,25 @@ export function Attendance() {
   };
 
   const handleSave = async () => {
+    setSaving(true);
+    setError("");
     try {
       await api.saveAttendance(
         att.map((s) => ({ studentId: s.id, status: s.att || "উপস্থিত" })),
         date
       );
       load();
-    } catch {
-      /* mock mode */
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      // Previously this was swallowed and the button still flashed "Saved"
+      // even when nothing reached the server — a teacher could believe
+      // attendance was recorded when it silently wasn't. Now a real save
+      // failure surfaces as an error and never claims success.
+      setError(err instanceof Error ? err.message : t.common.requestFailed);
+    } finally {
+      setSaving(false);
     }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   const bulkMark = (v: string) => setAtt(att.map((s) => ({ ...s, att: v })));
@@ -60,10 +70,14 @@ export function Attendance() {
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 13, color: C.text, background: C.card }} />
           </div>
         </div>
-        <button type="button" onClick={handleSave} style={{ background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>
-          {saved ? t.common.saved : t.common.save}
+        <button type="button" disabled={saving} onClick={handleSave} style={{ background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", fontSize: 14, opacity: saving ? 0.7 : 1 }}>
+          {saving ? "…" : saved ? t.common.saved : t.common.save}
         </button>
       </div>
+
+      {error && (
+        <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>{error}</div>
+      )}
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {DEPTS.map((d) => (
