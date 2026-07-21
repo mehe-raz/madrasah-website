@@ -62,11 +62,6 @@ const INSERT_COLUMNS = [
 
 const UPDATE_COLUMNS = INSERT_COLUMNS.filter(([column]) => column !== "documents");
 
-const BASIC_LIST_COLUMNS = `
-  id, name, "nameEn", roll, class, dept, type, fee, due, phone, status,
-  "admissionNumber", "studentPhoto", "fatherMobile", "guardianMobile"
-`;
-
 async function getSettings() {
   const rows = await db.all("SELECT key, value FROM settings");
   return rows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
@@ -117,20 +112,6 @@ function constraintError(err) {
   return "Duplicate student admission value";
 }
 
-function clampInt(value, fallback, min, max) {
-  const n = Number.parseInt(String(value ?? ""), 10);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, n));
-}
-
-function parseStudentListOptions(query) {
-  const limit = clampInt(query.limit, 25, 1, 100);
-  const page = clampInt(query.page, 1, 1, 100000);
-  const paginate = query.paginate === "1" || query.paginate === "true" || query.page != null || query.limit != null;
-  const fields = String(query.fields || "full").toLowerCase();
-  return { limit, page, paginate, basic: fields === "basic" };
-}
-
 async function logoBuffer(logo) {
   const value = String(logo || "");
   if (!value) return null;
@@ -164,7 +145,8 @@ router.get("/classes/list", async (_req, res) => {
 });
 
 router.get("/:id/attendance", async (req, res) => {
-  const { from, to, month } = req.query;
+  const { from, to, month, all } = req.query;
+  const isAll = String(all || "").toLowerCase() === "true" || String(all || "") === "1";
   let f = from;
   let t = to;
   if (month) {
@@ -173,13 +155,16 @@ router.get("/:id/attendance", async (req, res) => {
     const last = new Date(y, m, 0).getDate();
     t = `${month}-${String(last).padStart(2, "0")}`;
   }
-  if (!f) f = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
-  if (!t) t = new Date().toISOString().slice(0, 10);
 
-  const rows = await db.all(
-    `SELECT date, status FROM attendance WHERE "studentId" = $1 AND date >= $2 AND date <= $3 ORDER BY date`,
-    [req.params.id, f, t]
-  );
+  const rows = isAll
+    ? await db.all(
+        `SELECT date, status FROM attendance WHERE "studentId" = $1 ORDER BY date`,
+        [req.params.id]
+      )
+    : await db.all(
+        `SELECT date, status FROM attendance WHERE "studentId" = $1 AND date >= $2 AND date <= $3 ORDER BY date`,
+        [req.params.id, f || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), t || new Date().toISOString().slice(0, 10)]
+      );
 
   const summary = { present: 0, absent: 0, late: 0 };
   rows.forEach((r) => {
@@ -187,12 +172,11 @@ router.get("/:id/attendance", async (req, res) => {
     else if (r.status === "অনুপস্থিত") summary.absent++;
     else if (r.status === "দেরিতে") summary.late++;
   });
-  res.json({ from: f, to: t, records: rows, summary });
+  res.json({ from: isAll ? "" : f, to: isAll ? "" : t, records: rows, summary });
 });
 
 router.get("/", async (req, res) => {
   const { dept, search, status, class: cls } = req.query;
-  const { limit, page, paginate, basic } = parseStudentListOptions(req.query);
   const conditions = [];
   const params = [];
   if (status && status !== "All" && status !== "সব") {
@@ -207,32 +191,19 @@ router.get("/", async (req, res) => {
     params.push(dept);
     conditions.push(`dept = $${params.length}`);
   }
-  if (search) {
-    const q = `%${String(search).trim().toLowerCase()}%`;
-    params.push(q);
-    conditions.push(`(
-      LOWER(name) LIKE $${params.length}
-      OR LOWER("nameEn") LIKE $${params.length}
-      OR COALESCE(roll, '') LIKE $${params.length}
-      OR LOWER(COALESCE("admissionNumber", '')) LIKE $${params.length}
-      OR COALESCE("birthRegistrationNumber", '') LIKE $${params.length}
-      OR COALESCE("fatherMobile", '') LIKE $${params.length}
-      OR COALESCE("guardianMobile", '') LIKE $${params.length}
-    )`);
-  }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  const columns = basic ? BASIC_LIST_COLUMNS : LIST_COLUMNS;
-  const orderBy = "ORDER BY roll NULLS LAST, id DESC";
-
-  if (paginate) {
-    const totalRow = await db.get(`SELECT COUNT(*)::int AS total FROM students ${where}`, params);
-    const total = totalRow?.total || 0;
-    const offset = (page - 1) * limit;
-    const rows = await db.all(`SELECT ${columns} FROM students ${where} ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset]);
-    return res.json({ items: rows, page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) });
+  let rows = await db.all(`SELECT ${LIST_COLUMNS} FROM students ${where} ORDER BY roll`, params);
+  if (search) {
+    const q = String(search).toLowerCase();
+    rows = rows.filter(
+      (s) =>
+        (s.name || "").includes(search) ||
+        (s.nameEn || "").toLowerCase().includes(q) ||
+        (s.roll || "").includes(search) ||
+        (s.admissionNumber || "").toLowerCase().includes(q) ||
+        (s.birthRegistrationNumber || "").includes(search)
+    );
   }
-
-  const rows = await db.all(`SELECT ${columns} FROM students ${where} ${orderBy}`, params);
   res.json(rows);
 });
 

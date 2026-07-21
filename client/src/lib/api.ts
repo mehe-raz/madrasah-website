@@ -8,8 +8,6 @@ import type {
   GoogleDriveFile,
   GoogleDriveStatus,
   IncomeEntry,
-  IncomeSummary,
-  PaginatedResult,
   Payment,
   Settings,
   Student,
@@ -43,37 +41,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
-}
-
-function buildQuery(params: Record<string, string | number | undefined | null>) {
-  const qs = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && String(value).length) qs.set(key, String(value));
-  });
-  const q = qs.toString();
-  return q ? `?${q}` : "";
-}
-
-
-function normalizePagedResponse<T>(value: unknown): PaginatedResult<T> {
-  if (Array.isArray(value)) {
-    return {
-      items: value as T[],
-      page: 1,
-      limit: value.length,
-      total: value.length,
-      totalPages: 1,
-    };
-  }
-
-  const obj = (value && typeof value === "object" ? value as Record<string, unknown> : {});
-  const items = Array.isArray(obj.items) ? (obj.items as T[]) : Array.isArray(obj.data) ? (obj.data as T[]) : [];
-  const page = Number(obj.page) || 1;
-  const limit = Number(obj.limit) || (items.length || 1);
-  const total = Number(obj.total) || items.length;
-  const totalPages = Number(obj.totalPages) || Math.max(1, Math.ceil(total / Math.max(1, limit)));
-
-  return { items, page, limit, total, totalPages };
 }
 
 export const api = {
@@ -110,29 +77,25 @@ export const api = {
   getDashboard: () => request<DashboardData>("/dashboard"),
 
   getStudents: (params?: { dept?: string; search?: string; status?: string; class?: string }) => {
-    const q = buildQuery({ dept: params?.dept, search: params?.search, status: params?.status, class: params?.class });
-    return request<Student[]>(`/students${q}`);
-  },
-
-  getStudentsPage: (params?: { dept?: string; search?: string; status?: string; class?: string; page?: number; limit?: number; fields?: "basic" | "full" }) => {
-    const q = buildQuery({ dept: params?.dept, search: params?.search, status: params?.status, class: params?.class, page: params?.page, limit: params?.limit, fields: params?.fields });
-    return request<unknown>(`/students${q}`).then((value) => normalizePagedResponse<Student>(value));
-  },
-
-  getStudentsBasic: (params?: { dept?: string; search?: string; status?: string; class?: string }) => {
-    const q = buildQuery({ dept: params?.dept, search: params?.search, status: params?.status, class: params?.class, page: 1, limit: 1000, fields: "basic" });
-    return request<unknown>(`/students${q}`).then((value) => normalizePagedResponse<Student>(value));
+    const qs = new URLSearchParams();
+    if (params?.dept) qs.set("dept", params.dept);
+    if (params?.search) qs.set("search", params.search);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.class) qs.set("class", params.class);
+    const q = qs.toString();
+    return request<Student[]>(`/students${q ? `?${q}` : ""}`);
   },
 
   getClasses: () => request<string[]>("/students/classes/list"),
 
   getStudent: (id: number) => request<Student>(`/students/${id}`),
 
-  getStudentAttendance: (id: number, params?: { month?: string; from?: string; to?: string }) => {
+  getStudentAttendance: (id: number, params?: { month?: string; from?: string; to?: string; all?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.month) qs.set("month", params.month);
     if (params?.from) qs.set("from", params.from);
     if (params?.to) qs.set("to", params.to);
+    if (params?.all) qs.set("all", "true");
     const q = qs.toString();
     return request<{
       from: string;
@@ -186,11 +149,6 @@ export const api = {
 
   getPayments: () => request<Payment[]>("/payments"),
 
-  getPaymentsPage: (params?: { page?: number; limit?: number }) => {
-    const q = buildQuery({ page: params?.page, limit: params?.limit });
-    return request<unknown>(`/payments${q}`).then((value) => normalizePagedResponse<Payment>(value));
-  },
-
   createPayment: (body: { studentId: number; amount: number; method: string }) =>
     request<Payment>("/payments", { method: "POST", body: JSON.stringify(body) }),
 
@@ -200,18 +158,11 @@ export const api = {
     request<string[]>("/income/categories", { method: "PUT", body: JSON.stringify({ categories }) }),
 
   getIncome: (params?: { from?: string; to?: string }) => {
-    const q = buildQuery({ from: params?.from, to: params?.to });
-    return request<IncomeEntry[]>(`/income${q}`);
-  },
-
-  getIncomePage: (params?: { from?: string; to?: string; category?: string; page?: number; limit?: number }) => {
-    const q = buildQuery({ from: params?.from, to: params?.to, category: params?.category, page: params?.page, limit: params?.limit });
-    return request<unknown>(`/income${q}`).then((value) => normalizePagedResponse<IncomeEntry>(value));
-  },
-
-  getIncomeSummary: (params?: { from?: string; to?: string }) => {
-    const q = buildQuery({ from: params?.from, to: params?.to });
-    return request<IncomeSummary>(`/income/summary${q}`);
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    const q = qs.toString();
+    return request<IncomeEntry[]>(`/income${q ? `?${q}` : ""}`);
   },
 
   createIncome: (body: {
@@ -230,13 +181,11 @@ export const api = {
     request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/income/${id}`, { method: "DELETE" }),
 
   getExpenses: (params?: { from?: string; to?: string }) => {
-    const q = buildQuery({ from: params?.from, to: params?.to });
-    return request<Expense[]>(`/expenses${q}`);
-  },
-
-  getExpensesPage: (params?: { from?: string; to?: string; page?: number; limit?: number }) => {
-    const q = buildQuery({ from: params?.from, to: params?.to, page: params?.page, limit: params?.limit });
-    return request<PaginatedResult<Expense>>(`/expenses${q}`);
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    const q = qs.toString();
+    return request<Expense[]>(`/expenses${q ? `?${q}` : ""}`);
   },
 
   getReportAttendance: (from: string, to: string) =>

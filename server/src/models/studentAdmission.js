@@ -49,7 +49,6 @@ const REQUIRED_FIELDS = [
   ["name", "Bengali name is required"],
   ["nameEn", "English name is required"],
   ["dateOfBirth", "Date of birth is required"],
-  ["birthRegistrationNumber", "Birth registration number is required"],
   ["gender", "Gender is required"],
   ["religion", "Religion is required"],
   ["fatherName", "Father name is required"],
@@ -206,7 +205,7 @@ const RETURNING_COLUMNS = `
   "motherName", "motherMobile", "motherOccupation",
   "guardianName", "guardianRelationship", "guardianMobile",
   "presentAddress", "permanentAddress", district, upazila, "postOffice", village,
-  "previousInstitution", "previousClass", "admissionFee", discount, documents, "archivedStatus", "deletedAt", "deletedBy"
+  "previousInstitution", "previousClass", "admissionFee", discount, documents
 `;
 
 // Same as RETURNING_COLUMNS but without the "documents" JSONB column, which
@@ -222,7 +221,7 @@ const LIST_COLUMNS = `
   "motherName", "motherMobile", "motherOccupation",
   "guardianName", "guardianRelationship", "guardianMobile",
   "presentAddress", "permanentAddress", district, upazila, "postOffice", village,
-  "previousInstitution", "previousClass", "admissionFee", discount, "archivedStatus", "deletedAt", "deletedBy"
+  "previousInstitution", "previousClass", "admissionFee", discount
 `;
 
 module.exports = {

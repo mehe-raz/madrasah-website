@@ -1,3 +1,5 @@
+import type { Student } from "../types";
+
 /**
  * Print-based report/document generator.
  *
@@ -15,7 +17,7 @@ function escapeHtml(value: string | number | null | undefined): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
@@ -39,19 +41,41 @@ const PRINT_STYLES = `
     font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
     margin: 0; padding: 20px; color: #1e293b;
   }
-  header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; border-bottom: 2px solid #0d9488; padding-bottom: 12px; }
+  header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+    border-bottom: 2px solid #0d9488; padding-bottom: 12px;
+  }
   header img { height: 46px; width: 46px; object-fit: contain; border-radius: 6px; }
   header h1 { font-size: 17px; margin: 0; }
   header h2 { font-size: 13px; margin: 3px 0 0; font-weight: 600; color: #0d9488; }
   header .meta { font-size: 11px; color: #64748b; margin-top: 3px; }
+  .section {
+    border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;
+    margin-top: 14px;
+  }
+  .section-title {
+    background: #f8fafc; padding: 8px 12px; font-size: 12px; font-weight: 800;
+    color: #0f172a; border-bottom: 1px solid #e2e8f0;
+  }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; }
+  .cell {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px;
+    min-height: 56px;
+  }
+  .cell .label { font-size: 10.5px; color: #64748b; margin-bottom: 3px; }
+  .cell .value { font-size: 12.5px; font-weight: 700; color: #0f172a; white-space: pre-wrap; }
+  .top { display: grid; grid-template-columns: 1.35fr .65fr; gap: 12px; }
+  .photoBox {
+    border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; text-align: center;
+    background: #f8fafc;
+  }
+  .photoBox img { max-width: 100%; max-height: 170px; object-fit: cover; border-radius: 8px; }
+  .photoBox .empty { color: #94a3b8; font-size: 12px; padding: 36px 0; }
   table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
   th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; vertical-align: top; }
   th { background: #f1f5f9; font-weight: 700; }
   tbody tr:nth-child(even) { background: #f8fafc; }
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 4px; }
-  .cell { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; }
-  .cell .label { font-size: 10.5px; color: #64748b; margin-bottom: 2px; }
-  .cell .value { font-size: 12.5px; font-weight: 700; }
+  .no-print { display: none !important; }
   @media print {
     .no-print { display: none !important; }
   }
@@ -65,16 +89,8 @@ export class PopupBlockedError extends Error {
   }
 }
 
-function openPrintWindow(title: string, bodyHtml: string) {
+function writePrintWindow(w: Window, title: string, bodyHtml: string) {
   const settings = madrasaSettings();
-  const w = window.open("", "_blank", "width=960,height=720");
-  if (!w) {
-    // window.open returns null when the browser's popup blocker stops it.
-    // Failing silently here left users clicking "প্রিন্ট" with nothing
-    // happening and no explanation, so surface it as a real error instead.
-    throw new PopupBlockedError();
-  }
-
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
     <style>${PRINT_STYLES}</style></head>
     <body>
@@ -87,11 +103,23 @@ function openPrintWindow(title: string, bodyHtml: string) {
         </div>
       </header>
       ${bodyHtml}
-      <script>window.onload = function () { window.print(); };</script>
+      <script>
+        window.onload = function () {
+          window.focus();
+          window.print();
+        };
+      </script>
     </body></html>`;
 
+  w.document.open();
   w.document.write(html);
   w.document.close();
+}
+
+function openPrintWindow(title: string, bodyHtml: string, targetWindow?: Window | null) {
+  const w = targetWindow ?? window.open("", "_blank", "width=980,height=760");
+  if (!w) throw new PopupBlockedError();
+  writePrintWindow(w, title, bodyHtml);
 }
 
 export interface PrintTableOptions {
@@ -133,4 +161,104 @@ export function printDetailSheet({ title, subtitle, rows }: PrintDetailOptions) 
     <div class="grid">${cells}</div>
   `;
   openPrintWindow(title, body);
+}
+
+function section(title: string, rows: [string, string | number | null | undefined][]) {
+  return `
+    <div class="section">
+      <div class="section-title">${escapeHtml(title)}</div>
+      <div class="grid">
+        ${rows
+          .map(
+            ([label, value]) => `
+              <div class="cell">
+                <div class="label">${escapeHtml(label)}</div>
+                <div class="value">${escapeHtml(value)}</div>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+export function printAdmissionForm(student: Student, targetWindow?: Window | null) {
+  const topRows: [string, string | number | null | undefined][] = [
+    ["ভর্তি নং", student.admissionNumber || ""],
+    ["ভর্তির তারিখ", student.admissionDate || ""],
+    ["শিক্ষাবর্ষ", student.academicYear || ""],
+    ["সেশন", student.session || ""],
+    ["ক্লাস / জামাত", student.class || ""],
+    ["শাখা", student.section || ""],
+    ["রোল", student.roll || ""],
+    ["ধরন", student.type || ""],
+    ["নাম (বাংলা)", student.name || ""],
+    ["নাম (ইংরেজি)", student.nameEn || ""],
+    ["জন্ম তারিখ", student.dateOfBirth || ""],
+    ["জন্ম নিবন্ধন নম্বর", student.birthRegistrationNumber || "ঐচ্ছিক"],
+    ["লিঙ্গ", student.gender || ""],
+    ["ধর্ম", student.religion || ""],
+    ["রক্তের গ্রুপ", student.blood || ""],
+  ];
+
+  const guardianRows: [string, string | number | null | undefined][] = [
+    ["পিতার নাম", student.fatherName || ""],
+    ["পিতার মোবাইল", student.fatherMobile || ""],
+    ["পিতার পেশা", student.fatherOccupation || ""],
+    ["মাতার নাম", student.motherName || ""],
+    ["মাতার মোবাইল", student.motherMobile || ""],
+    ["মাতার পেশা", student.motherOccupation || ""],
+    ["অভিভাবকের নাম", student.guardianName || ""],
+    ["সম্পর্ক", student.guardianRelationship || ""],
+    ["অভিভাবকের মোবাইল", student.guardianMobile || ""],
+  ];
+
+  const addressRows: [string, string | number | null | undefined][] = [
+    ["বর্তমান ঠিকানা", student.presentAddress || ""],
+    ["স্থায়ী ঠিকানা", student.permanentAddress || ""],
+    ["জেলা", student.district || ""],
+    ["উপজেলা", student.upazila || ""],
+    ["ডাকঘর", student.postOffice || ""],
+    ["গ্রাম", student.village || ""],
+  ];
+
+  const studyRows: [string, string | number | null | undefined][] = [
+    ["পূর্বের প্রতিষ্ঠান", student.previousInstitution || ""],
+    ["পূর্বের ক্লাস", student.previousClass || ""],
+    ["বিভাগ", student.dept || ""],
+    ["মুখস্থ কুরআন (পারা)", student.para ?? ""],
+    ["ভর্তি ফি", student.admissionFee ?? 0],
+    ["মাসিক বেতন", student.fee ?? 0],
+    ["ছাড়", student.discount ?? 0],
+    ["বকেয়া", student.due ?? 0],
+    ["অবস্থা", student.status || ""],
+  ];
+
+  const docs = student.documents || {};
+  const docRows: [string, string | number | null | undefined][] = [
+    ["ছাত্রের ছবি", docs.studentPhoto ? "সংযুক্ত" : ""],
+    ["জন্ম সনদ", docs.birthCertificate ? "সংযুক্ত" : ""],
+    ["অভিভাবকের NID", docs.guardianNid ? "সংযুক্ত" : ""],
+    ["পূর্বের সনদ", docs.previousCertificate ? "সংযুক্ত" : ""],
+  ];
+
+  const body = `
+    <div class="top">
+      <div>
+        ${section("ভর্তি তথ্য", topRows)}
+      </div>
+      <div class="photoBox">
+        ${student.studentPhoto ? `<img src="${escapeHtml(student.studentPhoto)}" alt="Student photo">` : `<div class="empty">ছাত্রের ছবি নেই</div>`}
+        <div style="margin-top:10px;font-size:12px;font-weight:700;color:#0f172a;">${escapeHtml(student.name || "")}</div>
+        <div style="margin-top:4px;font-size:11px;color:#64748b;">${escapeHtml(student.admissionNumber || "")}</div>
+      </div>
+    </div>
+    ${section("অভিভাবক তথ্য", guardianRows)}
+    ${section("ঠিকানা", addressRows)}
+    ${section("শিক্ষা ও ফি", studyRows)}
+    ${section("ডকুমেন্ট", docRows)}
+  `;
+
+  openPrintWindow(`ভর্তি ফরম - ${student.name || "ছাত্র"}`, body, targetWindow);
 }
