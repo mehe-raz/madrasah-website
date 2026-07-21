@@ -57,10 +57,25 @@ async function deleteEntity(entityType, entityId) {
     }
     return result.rowCount > 0;
   }
+
+  if (entityType === "payment-delete") {
+    const payment = await db.get("SELECT * FROM payments WHERE id = $1", [entityId]);
+    if (!payment) return false;
+    await db.withTransaction(async (tx) => {
+      if (payment.studentId) {
+        await tx.run("UPDATE students SET due = due + $1 WHERE id = $2", [payment.amount, payment.studentId]);
+      }
+      await tx.run("DELETE FROM income WHERE receipt = $1 AND category = 'Student Fee'", [payment.receipt]);
+      await tx.run("DELETE FROM payments WHERE id = $1", [entityId]);
+    });
+    return true;
+  }
+
   if (entityType === "expense") {
     const result = await db.run("DELETE FROM expenses WHERE id = $1", [entityId]);
     return result.rowCount > 0;
   }
+
   if (entityType === "user-delete") {
     const result = await db.run("DELETE FROM users WHERE id = $1", [entityId]);
     return result.rowCount > 0;

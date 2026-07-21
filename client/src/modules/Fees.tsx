@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "../components/Badge";
 import { ReceiptModal } from "../components/ReceiptModal";
 import { StatCard } from "../components/StatCard";
@@ -18,20 +18,33 @@ export function Fees() {
   const [students, setStudents] = useState<Student[]>(STUDENTS);
   const [payments, setPayments] = useState<Payment[]>(PAYMENTS);
   const [method, setMethod] = useState("নগদ");
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editMethod, setEditMethod] = useState("নগদ");
+  const [editDate, setEditDate] = useState("");
+
+  const loadData = async () => {
+    const [studentRows, paymentRows] = await Promise.all([api.getStudents(), api.getPayments()]);
+    setStudents(studentRows);
+    setPayments(paymentRows);
+    const firstDue = studentRows.find((s) => s.due > 0) || studentRows[0];
+    if (firstDue) setPayStudent(firstDue);
+  };
 
   useEffect(() => {
-    api.getStudents().then(setStudents);
-    api.getPayments().then(setPayments);
+    loadData().catch(() => {
+      setStudents(STUDENTS);
+      setPayments(PAYMENTS);
+    });
   }, []);
 
-  const dueStudents = students.filter((s) => s.due > 0);
+  const dueStudents = useMemo(() => students.filter((s) => s.due > 0), [students]);
 
   const handlePayment = async () => {
     const amount = Number(payAmount) || payStudent.fee;
     try {
       const p = await api.createPayment({ studentId: payStudent.id, amount, method });
-      setPayments((prev) => [p, ...prev]);
-      setStudents((prev) => prev.map((s) => (s.id === payStudent.id ? { ...s, due: Math.max(0, s.due - amount) } : s)));
+      await loadData();
       setShowReceipt(p);
     } catch {
       setShowReceipt({
@@ -47,6 +60,33 @@ export function Fees() {
     }
     setPayAmount("");
     setTab("payments");
+  };
+
+  const openEdit = (payment: Payment) => {
+    setEditingPayment(payment);
+    setEditAmount(String(payment.amount));
+    setEditMethod(payment.method);
+    setEditDate(payment.date);
+  };
+
+  const saveEdit = async () => {
+    if (!editingPayment) return;
+    await api.updatePayment(editingPayment.id, {
+      amount: Number(editAmount),
+      method: editMethod,
+      date: editDate,
+    });
+    setEditingPayment(null);
+    await loadData();
+  };
+
+  const deletePayment = async (payment: Payment) => {
+    if (!window.confirm(`এই পেমেন্টটি মুছে ফেলতে চান?\n${payment.receipt} - ${payment.student}`)) return;
+    const result = await api.deletePayment(payment.id);
+    if (result.pendingApproval) {
+      window.alert("ডিলিট অনুরোধ জমা হয়েছে। অনুমোদনের অপেক্ষায় আছে।");
+    }
+    await loadData();
   };
 
   return (
@@ -70,10 +110,10 @@ export function Fees() {
 
       {tab === "payments" && (
         <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 600 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 780 }}>
             <thead>
               <tr style={{ background: C.slateL }}>
-                {["রসিদ নং", "ছাত্র", "পরিমাণ", "তারিখ", "মাধ্যম", "স্ট্যাটাস", ""].map((h) => (
+                {["রসিদ নং", "ছাত্র", "পরিমাণ", "তারিখ", "মাধ্যম", "স্ট্যাটাস", "", ""].map((h) => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: C.muted, fontWeight: 600, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                 ))}
               </tr>
@@ -92,6 +132,10 @@ export function Fees() {
                   <td style={{ padding: "10px 14px" }}><Badge label={p.status} color={p.status === "সম্পন্ন" ? C.emerald : C.amber} /></td>
                   <td style={{ padding: "10px 14px" }}>
                     <button type="button" onClick={() => setShowReceipt(p)} style={{ background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🧾 রসিদ</button>
+                  </td>
+                  <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                    <button type="button" onClick={() => openEdit(p)} style={{ background: C.amberL, color: C.amberD, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, marginRight: 8 }}>✏️ এডিট</button>
+                    <button type="button" onClick={() => deletePayment(p)} style={{ background: C.roseL, color: C.roseD, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🗑️ ডিলিট</button>
                   </td>
                 </tr>
               ))}
@@ -167,6 +211,32 @@ export function Fees() {
 
       {showReceipt && <ReceiptModal payment={showReceipt} onClose={() => setShowReceipt(null)} />}
 
+      {editingPayment && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.45)", display: "grid", placeItems: "center", padding: 16, zIndex: 50 }}>
+          <div style={{ width: "min(520px, 100%)", background: C.card, borderRadius: 16, border: `1px solid ${C.border}`, padding: 22 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18, color: C.text }}>পেমেন্ট এডিট</h3>
+              <button type="button" onClick={() => setEditingPayment(null)} style={{ border: "none", background: "transparent", fontSize: 18, cursor: "pointer" }}>✕</button>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 6 }}>পরিমাণ</label>
+              <input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 6 }}>তারিখ</label>
+              <input type="text" value={editDate} onChange={(e) => setEditDate(e.target.value)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 6 }}>মাধ্যম</label>
+              <input type="text" value={editMethod} onChange={(e) => setEditMethod(e.target.value)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setEditingPayment(null)} style={{ border: `1px solid ${C.border}`, background: C.card, borderRadius: 8, padding: "10px 14px", cursor: "pointer" }}>বাতিল</button>
+              <button type="button" onClick={saveEdit} style={{ border: "none", background: C.teal, color: "#fff", borderRadius: 8, padding: "10px 14px", cursor: "pointer" }}>সংরক্ষণ</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

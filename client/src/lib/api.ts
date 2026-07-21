@@ -151,6 +151,12 @@ export const api = {
   createPayment: (body: { studentId: number; amount: number; method: string }) =>
     request<Payment>("/payments", { method: "POST", body: JSON.stringify(body) }),
 
+  updatePayment: (id: number, body: { studentId?: number; amount?: number; method?: string; date?: string }) =>
+    request<Payment>(`/payments/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  deletePayment: (id: number) =>
+    request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/payments/${id}`, { method: "DELETE" }),
+
   getIncomeCategories: () => request<string[]>("/income/categories"),
 
   saveIncomeCategories: (categories: string[]) =>

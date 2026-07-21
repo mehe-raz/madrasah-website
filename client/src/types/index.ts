@@ -41,9 +41,6 @@ export interface Student {
   village?: string;
   previousInstitution?: string;
   previousClass?: string;
-  archivedStatus?: string;
-  deletedAt?: string | null;
-  deletedBy?: number | null;
   documents?: StudentDocuments;
   att?: string;
   attendanceSummary?: {
@@ -99,7 +96,7 @@ export interface Expense {
 
 export interface DeleteRequest {
   id: number;
-  entityType: "income" | "expense" | "user-update" | "user-delete";
+  entityType: "income" | "expense" | "payment-delete" | "user-update" | "user-delete";
   entityId: number;
   label: string;
   amount: number;
