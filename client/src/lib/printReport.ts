@@ -57,10 +57,23 @@ const PRINT_STYLES = `
   }
 `;
 
+/** Thrown when the browser blocks window.open (popup blocker enabled). */
+export class PopupBlockedError extends Error {
+  constructor() {
+    super("POPUP_BLOCKED");
+    this.name = "PopupBlockedError";
+  }
+}
+
 function openPrintWindow(title: string, bodyHtml: string) {
   const settings = madrasaSettings();
   const w = window.open("", "_blank", "width=960,height=720");
-  if (!w) return;
+  if (!w) {
+    // window.open returns null when the browser's popup blocker stops it.
+    // Failing silently here left users clicking "প্রিন্ট" with nothing
+    // happening and no explanation, so surface it as a real error instead.
+    throw new PopupBlockedError();
+  }
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
     <style>${PRINT_STYLES}</style></head>

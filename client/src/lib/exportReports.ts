@@ -28,6 +28,31 @@ interface ReportRangeOpts {
   to?: string;
 }
 
+/** Thrown when a date-scoped report (attendance/income/expenses) is
+ *  requested without a valid from/to range — e.g. the user cleared the
+ *  date inputs. Previously exportReport() just returned undefined here,
+ *  so the button spun and then quietly did nothing. */
+export class ReportRangeRequiredError extends Error {
+  constructor() {
+    super("REPORT_RANGE_REQUIRED");
+    this.name = "ReportRangeRequiredError";
+  }
+}
+
+/** Report kinds whose underlying data is actually filtered by the
+ *  selected date range. "students", "due" and "hifz" always return the
+ *  full current list regardless of the date filter, so we must not show
+ *  a period in their title — that would imply the list is scoped to
+ *  that period when it isn't. */
+const RANGE_FILTERED: Record<ReportKind, boolean> = {
+  students: false,
+  due: false,
+  attendance: true,
+  income: true,
+  expenses: true,
+  hifz: false,
+};
+
 function csvName(kind: ReportKind, range?: ReportRangeOpts) {
   const r = range?.from && range?.to ? `-${range.from}_${range.to}` : `-${stamp()}`;
   return `madrasah-${kind}${r}.csv`;
@@ -92,7 +117,11 @@ function hifzRows(students: Student[]) {
 export async function exportReport(kind: ReportKind, format: "print" | "excel", range?: ReportRangeOpts) {
   const title = REPORT_TITLES[kind];
   const period =
-    range?.from && range?.to ? ` (${range.from} to ${range.to})` : "";
+    RANGE_FILTERED[kind] && range?.from && range?.to ? ` (${range.from} to ${range.to})` : "";
+
+  if (RANGE_FILTERED[kind] && (!range?.from || !range?.to)) {
+    throw new ReportRangeRequiredError();
+  }
 
   if (kind === "students") {
     const students = await api.getStudents();
