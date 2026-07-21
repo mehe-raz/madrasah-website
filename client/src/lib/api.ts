@@ -248,7 +248,7 @@ export const api = {
     if (!res.ok) throw new Error("Backup failed");
     const disposition = res.headers.get("Content-Disposition") || "";
     const match = disposition.match(/filename="?([^"]+)"?/i);
-    const filename = match ? match[1] : `madrasah-backup-${new Date().toISOString().slice(0, 10)}.sql`;
+    const filename = match ? match[1] : `madrasah-backup-${new Date().toISOString().slice(0, 10)}.json`;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -264,6 +264,29 @@ export const api = {
     request<BackupConfig>("/backup/config", { method: "PUT", body: JSON.stringify(body) }),
 
   runBackupNow: () => request<{ filename: string; localPath: string; config: BackupConfig }>("/backup/run", { method: "POST" }),
+
+  previewBackup: async (file: File) => {
+    const token = getToken();
+    const res = await fetch(`${API}/backup/preview`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...(token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: await file.arrayBuffer(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return (await res.json()) as { exportedAt: string | null; backupCounts: Record<string, number>; currentCounts: Record<string, number> };
+  },
+
+  previewGoogleDriveBackup: (fileId: string) =>
+    request<{ exportedAt: string | null; backupCounts: Record<string, number>; currentCounts: Record<string, number> }>(
+      `/backup/google/preview/${fileId}`
+    ),
 
   restoreBackup: async (file: File) => {
     const token = getToken();
