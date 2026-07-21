@@ -96,7 +96,7 @@ export interface Expense {
 
 export interface DeleteRequest {
   id: number;
-  entityType: "income" | "expense" | "payment-delete" | "user-update" | "user-delete";
+  entityType: "income" | "expense" | "user-update" | "user-delete";
   entityId: number;
   label: string;
   amount: number;
@@ -157,6 +157,19 @@ export interface User {
   email?: string;
   role: string;
   isProtected?: boolean;
+}
+
+export interface AuditLog {
+  id: number;
+  action: string;
+  actorId?: number | null;
+  actorName: string;
+  actorRole: string;
+  entityType?: string;
+  entityId?: number | null;
+  label: string;
+  details: string;
+  createdAt: string;
 }
 
 export const USER_ROLES = [

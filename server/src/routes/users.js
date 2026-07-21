@@ -4,6 +4,7 @@ const db = require("../db");
 const { createDeleteRequest } = require("../lib/deleteRequests");
 const { isUniqueViolation } = require("../pg");
 const { requirePermission } = require("../middleware/rbac");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -54,6 +55,14 @@ router.post("/", async (req, res) => {
       [name.trim(), role, email.trim().toLowerCase(), hash, isProtected]
     );
     const row = await db.get('SELECT id, name, email, role, "isProtected" FROM users WHERE id = $1', [result.insertId]);
+    await recordAudit({
+      action: "user.created",
+      actor: req.user,
+      entityType: "user",
+      entityId: row.id,
+      label: `Created ${row.role}: ${row.name}`,
+      details: { role: row.role, email: row.email || "" },
+    });
     res.status(201).json(publicUser(row));
   } catch (e) {
     if (isUniqueViolation(e)) return res.status(409).json({ error: "Email already exists" });
@@ -103,6 +112,14 @@ router.patch("/:id", async (req, res) => {
       user: req.user,
       payload,
     });
+    await recordAudit({
+      action: "user.update.requested",
+      actor: req.user,
+      entityType: "user",
+      entityId: id,
+      label: `Requested update for ${existing.role}: ${existing.name}`,
+      details: { fields: Object.keys(payload) },
+    });
     return res.status(202).json({ ok: true, pendingApproval: true, request });
   }
 
@@ -136,6 +153,19 @@ router.patch("/:id", async (req, res) => {
     await db.run('UPDATE users SET "passwordHash" = $1 WHERE id = $2', [hash, id]);
   }
   const row = await db.get('SELECT id, name, email, role, "isProtected" FROM users WHERE id = $1', [id]);
+  await recordAudit({
+    action: "user.updated",
+    actor: req.user,
+    entityType: "user",
+    entityId: id,
+    label: `Updated ${row.role}: ${row.name}`,
+    details: {
+      nameChanged: name !== undefined,
+      emailChanged: email !== undefined,
+      roleChanged: role !== undefined,
+      passwordChanged: !!password,
+    },
+  });
   res.json(publicUser(row));
 });
 
@@ -153,6 +183,13 @@ router.delete("/:id", async (req, res) => {
       label: `Delete ${existing.role}: ${existing.name}`,
       user: req.user,
     });
+    await recordAudit({
+      action: "user.delete.requested",
+      actor: req.user,
+      entityType: "user",
+      entityId: id,
+      label: `Requested delete for ${existing.role}: ${existing.name}`,
+    });
     return res.status(202).json({ ok: true, pendingApproval: true, request });
   }
   if (isApprovalRole(existing.role)) {
@@ -160,6 +197,13 @@ router.delete("/:id", async (req, res) => {
   }
   const result = await db.run("DELETE FROM users WHERE id = $1", [id]);
   if (result.rowCount === 0) return res.status(404).json({ error: "User not found" });
+  await recordAudit({
+    action: "user.deleted",
+    actor: req.user,
+    entityType: "user",
+    entityId: id,
+    label: `Deleted ${existing.role}: ${existing.name}`,
+  });
   res.json({ ok: true });
 });
 

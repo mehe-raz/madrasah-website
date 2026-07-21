@@ -108,6 +108,7 @@ app.use("/api/users", require("./routes/users"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/delete-requests", require("./routes/deleteRequests"));
 app.use("/api/reports", require("./routes/reports"));
+app.use("/api/audit-logs", require("./routes/auditLogs"));
 app.use("/api/backup", require("./routes/backup"));
 app.use("/api/uploads", require("./routes/uploads"));
 

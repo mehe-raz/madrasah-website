@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { recordAudit } = require("../lib/auditLog");
 const googleDrive = require("../lib/googleDrive");
 const backupEncryption = require("../lib/backupEncryption");
 
@@ -12,15 +13,8 @@ const router = express.Router();
 // data includes password hashes and full financial records, so the broader
 // "settings" permission that Admin also holds isn't enough on its own.)
 router.use(requirePermission("settings"));
-router.use(requireSuperAdmin);
 const backupDir = path.join(__dirname, "..", "..", "backups");
 const CONFIG_KEY = "backupConfig";
-
-function requireSuperAdmin(req, res, next) {
-  if (!req.user) return res.status(401).json({ error: "Login required" });
-  if (req.user.role !== "Super Admin") return res.status(403).json({ error: "Only Super Admin can access backup" });
-  return next();
-}
 
 const BACKUP_TABLES = [
   "students",
@@ -218,7 +212,21 @@ router.put("/config", async (req, res) => {
   if (req.user?.role !== "Super Admin") {
     return res.status(403).json({ error: "Only Super Admin can change backup settings" });
   }
-  res.json(await saveConfig(req.body || {}));
+  const config = await saveConfig(req.body || {});
+  await recordAudit({
+    action: "backup.config.updated",
+    actor: req.user,
+    entityType: "backup",
+    entityId: 0,
+    label: "Updated backup settings",
+    details: {
+      enabled: !!config.enabled,
+      intervalHours: config.intervalHours,
+      keepLocalCopies: config.keepLocalCopies,
+      destinations: Array.isArray(config.destinations) ? config.destinations.length : 0,
+    },
+  });
+  res.json(config);
 });
 
 router.post("/run", async (req, res) => {
@@ -226,7 +234,16 @@ router.post("/run", async (req, res) => {
     return res.status(403).json({ error: "Only Super Admin can run a backup" });
   }
   try {
-    res.json(await createBackup());
+    const result = await createBackup();
+    await recordAudit({
+      action: "backup.run",
+      actor: req.user,
+      entityType: "backup",
+      entityId: 0,
+      label: "Ran backup now",
+      details: { filename: result.filename, localPath: result.localPath },
+    });
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message || "Backup failed" });
   }
@@ -305,6 +322,14 @@ router.post("/restore", express.raw({ type: ["application/octet-stream", "applic
 
   try {
     const beforeBackup = await performRestore(req.body);
+    await recordAudit({
+      action: "backup.restored",
+      actor: req.user,
+      entityType: "backup",
+      entityId: 0,
+      label: "Restored backup from upload",
+      details: { safetyBackup: beforeBackup.filename },
+    });
     res.json({
       ok: true,
       message: "Backup restored successfully.",
@@ -355,6 +380,13 @@ router.get("/google/callback", async (req, res) => {
     if (req.user?.role !== "Super Admin") throw new Error("Only Super Admin can connect Google Drive");
     if (!code || !state) throw new Error("Missing Google authorization code");
     await googleDrive.handleCallback(String(code), String(state), req.user.id);
+    await recordAudit({
+      action: "backup.drive.connected",
+      actor: req.user,
+      entityType: "backup",
+      entityId: 0,
+      label: "Connected Google Drive",
+    });
     res.redirect(`${clientOrigin}/settings?googleDrive=connected`);
   } catch (e) {
     res.redirect(`${clientOrigin}/settings?googleDrive=error&message=${encodeURIComponent(e.message || "Google Drive connection failed")}`);
@@ -388,6 +420,14 @@ router.post("/google/restore/:fileId", async (req, res) => {
   try {
     const buffer = await googleDrive.downloadBackupFile(req.params.fileId);
     const beforeBackup = await performRestore(buffer);
+    await recordAudit({
+      action: "backup.drive.restored",
+      actor: req.user,
+      entityType: "backup",
+      entityId: 0,
+      label: "Restored backup from Google Drive",
+      details: { fileId: req.params.fileId, safetyBackup: beforeBackup.filename },
+    });
     res.json({
       ok: true,
       message: "Backup restored successfully.",
@@ -404,6 +444,13 @@ router.post("/google/disconnect", async (req, res) => {
   }
   try {
     await googleDrive.disconnect();
+    await recordAudit({
+      action: "backup.drive.disconnected",
+      actor: req.user,
+      entityType: "backup",
+      entityId: 0,
+      label: "Disconnected Google Drive",
+    });
     res.json(await googleDrive.getStatus());
   } catch (e) {
     res.status(500).json({ error: e.message || "Failed to disconnect Google Drive" });

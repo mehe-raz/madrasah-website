@@ -19,6 +19,7 @@ const ROUTE_PERMISSION = {
   "/api/users": "settings",
   "/api/backup": "settings",
   "/api/reports": "reports",
+  "/api/audit-logs": "settings",
 };
 
 function canAccess(role, permission) {

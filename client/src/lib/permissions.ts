@@ -30,6 +30,10 @@ export function canBackup(role: string): boolean {
   return role === "Super Admin";
 }
 
+export function canViewAuditLogs(role: string): boolean {
+  return role === "Super Admin";
+}
+
 export function firstAllowedPath(role: string): string {
   const fallbackOrder: { permission: Permission; path: string }[] = [
     { permission: "dashboard", path: "/" },

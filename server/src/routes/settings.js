@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -24,16 +25,32 @@ router.get("/", async (_req, res) => {
 });
 
 router.put("/", async (req, res) => {
+  const before = await getAllSettings();
+  const applied = {};
   await db.withTransaction(async (tx) => {
     for (const [k, v] of Object.entries(req.body)) {
       if (!ALLOWED_KEYS.has(k)) continue;
+      const value = String(v);
+      applied[k] = value;
       await tx.run(
         "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-        [k, String(v)]
+        [k, value]
       );
     }
   });
-  res.json(await getAllSettings());
+  const after = await getAllSettings();
+  const changedKeys = Object.keys(applied).filter((k) => before[k] !== after[k]);
+  if (changedKeys.length) {
+    await recordAudit({
+      action: "settings.updated",
+      actor: req.user,
+      entityType: "settings",
+      entityId: 0,
+      label: `Updated ${changedKeys.length} setting(s)`,
+      details: { keys: changedKeys, values: changedKeys.reduce((acc, k) => ({ ...acc, [k]: after[k] }), {}) },
+    });
+  }
+  res.json(after);
 });
 
 module.exports = router;
