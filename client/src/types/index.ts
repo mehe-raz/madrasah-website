@@ -41,6 +41,9 @@ export interface Student {
   village?: string;
   previousInstitution?: string;
   previousClass?: string;
+  archivedStatus?: string;
+  deletedAt?: string | null;
+  deletedBy?: number | null;
   documents?: StudentDocuments;
   att?: string;
   attendanceSummary?: {
@@ -190,9 +193,9 @@ export interface DashboardData {
   };
   incomeData: { month: string; income: number; expense: number }[];
   incomeByCategory?: { category: string; total: number }[];
-  attendanceData: { day: string; present: number; absent: number; late: number }[];
+  attendanceData: { day: string; present: number; absent: number }[];
   deptData: { name: string; value: number }[];
-  logs: { id: string | number; action: string; user: string; time: string; icon: string }[];
+  logs: { id: number; action: string; user: string; time: string; icon: string }[];
 }
 
 export interface AttendanceResponse {

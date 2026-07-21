@@ -160,6 +160,19 @@ async function createBackup(config = null) {
   return { filename, localPath, format: "json", config: saved };
 }
 
+const COLUMN_CACHE = new Map();
+
+async function getAllowedColumns(tx, table) {
+  if (COLUMN_CACHE.has(table)) return COLUMN_CACHE.get(table);
+  const rows = await tx.all(
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
+    [table]
+  );
+  const allowed = new Set(rows.map((r) => r.column_name));
+  COLUMN_CACHE.set(table, allowed);
+  return allowed;
+}
+
 async function restoreJsonBackup(data) {
   if (!data?.tables?.users || !data?.tables?.students || !data?.tables?.settings) {
     throw new Error("Invalid madrasah backup file");
@@ -172,10 +185,12 @@ async function restoreJsonBackup(data) {
     for (const table of BACKUP_TABLES) {
       const rows = data.tables[table] || [];
       for (const row of rows) {
-        const cols = Object.keys(row);
-        const values = Object.values(row);
+        const allowed = await getAllowedColumns(tx, table);
+        const cols = Object.keys(row).filter((c) => allowed.has(c));
+        if (!cols.length) continue;
+        const values = cols.map((c) => row[c]);
         const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
-        const quotedCols = cols.map((c) => `"${c}"`).join(", ");
+        const quotedCols = cols.map((c) => `"${c.replace(/"/g, '""')}"`).join(", ");
         await tx.run(`INSERT INTO ${table} (${quotedCols}) VALUES (${placeholders})`, values);
       }
     }
@@ -308,7 +323,10 @@ router.post("/restore", express.raw({ type: ["application/octet-stream", "applic
   }
 });
 
-router.get("/google/status", async (_req, res) => {
+router.get("/google/status", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can view Google Drive status" });
+  }
   try {
     res.json(await googleDrive.getStatus());
   } catch (e) {
@@ -354,7 +372,10 @@ router.get("/google/callback", async (req, res) => {
   }
 });
 
-router.get("/google/files", async (_req, res) => {
+router.get("/google/files", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can view Google Drive backups" });
+  }
   try {
     res.json(await googleDrive.listBackupFiles());
   } catch (e) {

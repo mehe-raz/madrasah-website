@@ -206,7 +206,7 @@ const RETURNING_COLUMNS = `
   "motherName", "motherMobile", "motherOccupation",
   "guardianName", "guardianRelationship", "guardianMobile",
   "presentAddress", "permanentAddress", district, upazila, "postOffice", village,
-  "previousInstitution", "previousClass", "admissionFee", discount, documents
+  "previousInstitution", "previousClass", "admissionFee", discount, documents, "archivedStatus", "deletedAt", "deletedBy"
 `;
 
 // Same as RETURNING_COLUMNS but without the "documents" JSONB column, which
@@ -222,7 +222,7 @@ const LIST_COLUMNS = `
   "motherName", "motherMobile", "motherOccupation",
   "guardianName", "guardianRelationship", "guardianMobile",
   "presentAddress", "permanentAddress", district, upazila, "postOffice", village,
-  "previousInstitution", "previousClass", "admissionFee", discount
+  "previousInstitution", "previousClass", "admissionFee", discount, "archivedStatus", "deletedAt", "deletedBy"
 `;
 
 module.exports = {

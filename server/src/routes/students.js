@@ -112,6 +112,17 @@ function constraintError(err) {
   return "Duplicate student admission value";
 }
 
+function activeStudentWhere(includeDeleted = false) {
+  return includeDeleted ? "1=1" : '"deletedAt" IS NULL';
+}
+
+async function fetchStudentById(id, { includeDeleted = false } = {}) {
+  return db.get(
+    `SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1 AND ${activeStudentWhere(includeDeleted)}`,
+    [id]
+  );
+}
+
 async function logoBuffer(logo) {
   const value = String(logo || "");
   if (!value) return null;
@@ -140,7 +151,7 @@ async function logoBuffer(logo) {
 }
 
 router.get("/classes/list", async (_req, res) => {
-  const rows = await db.all("SELECT DISTINCT class FROM students WHERE class != '' ORDER BY class");
+  const rows = await db.all("SELECT DISTINCT class FROM students WHERE class != '' AND \"deletedAt\" IS NULL ORDER BY class");
   res.json(rows.map((r) => r.class));
 });
 
@@ -172,9 +183,11 @@ router.get("/:id/attendance", async (req, res) => {
 });
 
 router.get("/", async (req, res) => {
-  const { dept, search, status, class: cls } = req.query;
+  const { dept, search, status, class: cls, includeDeleted } = req.query;
   const conditions = [];
   const params = [];
+  const wantsDeleted = String(includeDeleted || "").toLowerCase() === "true" || includeDeleted === "1";
+  if (!wantsDeleted) conditions.push('"deletedAt" IS NULL');
   if (status && status !== "All" && status !== "সব") {
     params.push(status);
     conditions.push(`status = $${params.length}`);
@@ -204,7 +217,8 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
-  const row = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);
+  const includeDeleted = String(req.query.includeDeleted || "").toLowerCase() === "true" || req.query.includeDeleted === "1";
+  const row = await fetchStudentById(req.params.id, { includeDeleted });
   if (!row) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
 
   const attendanceRows = await db.all('SELECT status FROM attendance WHERE "studentId" = $1', [req.params.id]);
@@ -253,8 +267,9 @@ router.post("/", async (req, res) => {
 });
 
 router.patch("/:id", async (req, res) => {
-  const existing = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);
+  const existing = await fetchStudentById(req.params.id, { includeDeleted: true });
   if (!existing) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
+  if (existing.deletedAt) return res.status(409).json({ error: "Archived students must be restored before editing" });
   const updated = admissionFromBody(req.body, existing);
 
   const errors = validateAdmission(updated);
@@ -280,8 +295,9 @@ router.patch("/:id", async (req, res) => {
 });
 
 router.patch("/:id/documents", async (req, res) => {
-  const existing = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);
+  const existing = await fetchStudentById(req.params.id, { includeDeleted: true });
   if (!existing) return res.status(404).json({ error: "Student not found" });
+  if (existing.deletedAt) return res.status(409).json({ error: "Archived students must be restored before editing" });
 
   const documents = { ...(existing.documents || {}), ...normalizeDocuments(req.body.documents || req.body) };
   const errors = validateDocuments(documents);
@@ -297,17 +313,37 @@ router.patch("/:id/documents", async (req, res) => {
 });
 
 router.delete("/:id", requirePermission("*"), async (req, res) => {
-  const existing = await db.get("SELECT * FROM students WHERE id = $1", [req.params.id]);
+  const existing = await fetchStudentById(req.params.id, { includeDeleted: true });
   if (!existing) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
 
-  await db.run('DELETE FROM attendance WHERE "studentId" = $1', [req.params.id]);
-  await db.run("DELETE FROM students WHERE id = $1", [req.params.id]);
+  if (existing.deletedAt) {
+    return res.status(200).json({ ok: true, message: "ছাত্র আগেই আর্কাইভ করা ছিল" });
+  }
 
-  res.json({ ok: true, message: "ছাত্র মুছে ফেলা হয়েছে" });
+  await db.run(
+    'UPDATE students SET status = $1, "archivedStatus" = $2, "deletedAt" = $3, "deletedBy" = $4 WHERE id = $5',
+    ["Archived", existing.status || "Active", new Date().toISOString(), req.user?.id || null, existing.id]
+  );
+
+  res.json({ ok: true, message: "ছাত্র archive করা হয়েছে" });
+});
+
+router.post("/:id/restore", requirePermission("*"), async (req, res) => {
+  const existing = await fetchStudentById(req.params.id, { includeDeleted: true });
+  if (!existing) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
+  if (!existing.deletedAt) return res.status(400).json({ error: "Student is not archived" });
+
+  const restoredStatus = existing.archivedStatus || "Active";
+  await db.run(
+    `UPDATE students SET status = $1, "archivedStatus" = '', "deletedAt" = NULL, "deletedBy" = NULL WHERE id = $2`,
+    [restoredStatus, existing.id]
+  );
+
+  res.json({ ok: true, message: "ছাত্র পুনরুদ্ধার করা হয়েছে" });
 });
 
 router.get("/:id/pdf", async (req, res) => {
-  const student = await db.get("SELECT * FROM students WHERE id = $1", [req.params.id]);
+  const student = await fetchStudentById(req.params.id, { includeDeleted: true });
   if (!student) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
 
   const attendanceRows = await db.all('SELECT status FROM attendance WHERE "studentId" = $1', [req.params.id]);
