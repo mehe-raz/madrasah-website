@@ -1,7 +1,6 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
-const { spawn } = require("child_process");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const googleDrive = require("../lib/googleDrive");
@@ -96,53 +95,23 @@ async function exportJsonBackup() {
   };
 }
 
-async function runPgDump(outputPath) {
-  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL not configured");
-  return new Promise((resolve, reject) => {
-    const child = spawn("pg_dump", ["--no-owner", "--no-acl", "--clean", "--if-exists", process.env.DATABASE_URL], {
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const chunks = [];
-    const errors = [];
-    child.stdout.on("data", (d) => chunks.push(d));
-    child.stderr.on("data", (d) => errors.push(d));
-    child.on("error", (err) => reject(err));
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new Error(Buffer.concat(errors).toString("utf8") || `pg_dump exited with code ${code}`));
-        return;
-      }
-      fs.writeFileSync(outputPath, Buffer.concat(chunks));
-      resolve(outputPath);
-    });
-  });
-}
-
+// NOTE: backups are JSON-only, on purpose. An earlier version also produced a
+// pg_dump/psql SQL format, but restoring that onto a live, already-existing
+// database required "--clean" (drop-and-recreate), which on managed Postgres
+// (Supabase/Render) can drop and fail to properly recreate the "public"
+// schema itself — taking the whole app down at boot ("no schema has been
+// selected to create in"), far worse than a bad data restore. JSON restore
+// only ever TRUNCATEs + INSERTs rows inside a single transaction; it never
+// touches schema, so it can't cause that class of outage.
 async function createBackup(config = null) {
   const activeConfig = config || (await getConfig());
   ensureDir(backupDir);
   const time = stamp();
-  const jsonFilename = `madrasah-backup-${time}.json`;
-  const sqlFilename = `madrasah-backup-${time}.sql`;
-  const jsonPath = path.join(backupDir, jsonFilename);
-  const sqlPath = path.join(backupDir, sqlFilename);
+  const filename = `madrasah-backup-${time}.json`;
+  const localPath = path.join(backupDir, filename);
 
   const snapshot = await exportJsonBackup();
-  fs.writeFileSync(jsonPath, JSON.stringify(snapshot, null, 2));
-
-  let filename = jsonFilename;
-  let localPath = jsonPath;
-  let format = "json";
-
-  try {
-    await runPgDump(sqlPath);
-    filename = sqlFilename;
-    localPath = sqlPath;
-    format = "sql";
-  } catch (err) {
-    console.warn("pg_dump unavailable, using JSON backup:", err.message);
-  }
+  fs.writeFileSync(localPath, JSON.stringify(snapshot, null, 2));
 
   activeConfig.destinations
     .map((d) => String(d || "").trim())
@@ -150,24 +119,20 @@ async function createBackup(config = null) {
     .forEach((dest) => {
       ensureDir(dest);
       fs.copyFileSync(localPath, path.join(dest, filename));
-      if (format === "sql" && fs.existsSync(jsonPath)) {
-        fs.copyFileSync(jsonPath, path.join(dest, jsonFilename));
-      }
     });
 
   const copies = fs
     .readdirSync(backupDir)
-    .filter((f) => f.startsWith("madrasah-backup-") && (f.endsWith(".json") || f.endsWith(".sql")))
+    .filter((f) => f.startsWith("madrasah-backup-") && f.endsWith(".json"))
     .sort()
     .reverse();
   copies.slice(activeConfig.keepLocalCopies).forEach((f) => fs.unlinkSync(path.join(backupDir, f)));
 
   let tempEncPath = null;
   try {
-    const mimeType = format === "sql" ? "application/sql" : "application/json";
     let uploadPath = localPath;
     let uploadFilename = filename;
-    let uploadMimeType = mimeType;
+    let uploadMimeType = "application/json";
 
     if (backupEncryption.isConfigured()) {
       tempEncPath = `${localPath}.enc`;
@@ -177,7 +142,7 @@ async function createBackup(config = null) {
       uploadMimeType = "application/octet-stream";
     } else {
       console.warn(
-        "BACKUP_ENCRYPTION_KEY is not set — backups uploaded to Google Drive will be plain, readable JSON/SQL."
+        "BACKUP_ENCRYPTION_KEY is not set — backups uploaded to Google Drive will be plain, readable JSON."
       );
     }
 
@@ -192,7 +157,7 @@ async function createBackup(config = null) {
   }
 
   const saved = await saveConfig({ ...activeConfig, lastRunAt: new Date().toISOString() });
-  return { filename, localPath, format, config: saved };
+  return { filename, localPath, format: "json", config: saved };
 }
 
 async function restoreJsonBackup(data) {
@@ -214,38 +179,6 @@ async function restoreJsonBackup(data) {
         await tx.run(`INSERT INTO ${table} (${quotedCols}) VALUES (${placeholders})`, values);
       }
     }
-  });
-}
-
-async function restoreSqlBackup(buffer) {
-  // IMPORTANT: pg_dump output can contain psql-only meta-commands
-  // (\restrict / \unrestrict on PostgreSQL 17+) and COPY ... FROM stdin
-  // blocks, neither of which the generic `pg` client can execute via
-  // client.query(). Those must go through the actual psql binary, the
-  // same way pg_dump is spawned as a subprocess for backups.
-  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL not configured");
-
-  return new Promise((resolve, reject) => {
-    const child = spawn("psql", [process.env.DATABASE_URL, "--set", "ON_ERROR_STOP=1", "--single-transaction"], {
-      env: process.env,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-
-    const stdout = [];
-    const stderr = [];
-    child.stdout.on("data", (d) => stdout.push(d));
-    child.stderr.on("data", (d) => stderr.push(d));
-    child.on("error", (err) => reject(err));
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new Error(Buffer.concat(stderr).toString("utf8") || `psql exited with code ${code}`));
-        return;
-      }
-      resolve();
-    });
-
-    child.stdin.write(buffer);
-    child.stdin.end();
   });
 }
 
@@ -292,57 +225,70 @@ router.post("/run", async (req, res) => {
   }
 });
 
-// Shared by both "upload a file" restore and "pick a Drive backup" restore:
-// takes the raw backup bytes, detects JSON vs SQL, restores it, and always
-// takes a safety backup first so a bad restore can be undone.
-async function performRestore(buffer) {
-  ensureDir(backupDir);
-  const time = stamp();
-  const tempPath = path.join(backupDir, `restore-upload-${time}.bin`);
+// Shared by upload/Drive restore AND preview: decrypts a .enc backup if
+// needed and returns the parsed JSON. Only JSON backups are supported now
+// (see the note above createBackup for why the old SQL path was removed).
+function decodeBackupToJson(buffer) {
+  let plain = buffer;
+  let text = plain.toString("utf8");
 
-  fs.writeFileSync(tempPath, buffer);
-  try {
-    let plain = buffer;
-    let text = plain.toString("utf8");
-
-    // An encrypted backup (see lib/backupEncryption.js) is binary and won't
-    // match either marker below, whether it arrived via the "restore from
-    // Drive" button or was manually re-uploaded as a .enc file someone
-    // downloaded from the Drive folder. Try decrypting first so both paths
-    // restore the same way a plain backup does.
-    if (
-      !text.trimStart().startsWith("{") &&
-      !text.includes("PostgreSQL database dump") &&
-      !text.includes("CREATE TABLE") &&
-      backupEncryption.isConfigured()
-    ) {
-      try {
-        plain = backupEncryption.decryptBuffer(buffer);
-        text = plain.toString("utf8");
-      } catch {
-        // Not an encrypted backup either — fall through to the
-        // "Unsupported backup format" error below with the original bytes.
-      }
+  // An encrypted backup (see lib/backupEncryption.js) is binary and won't
+  // start with "{", whether it arrived via the "restore from Drive" button
+  // or was manually re-uploaded as a .enc file someone downloaded from the
+  // Drive folder. Try decrypting first so both paths behave the same way.
+  if (!text.trimStart().startsWith("{") && backupEncryption.isConfigured()) {
+    try {
+      plain = backupEncryption.decryptBuffer(buffer);
+      text = plain.toString("utf8");
+    } catch {
+      // Not an encrypted backup either — fall through to the JSON.parse
+      // below, which will throw a clear "Unsupported backup format" error.
     }
-
-    const beforeBackup = await createBackup();
-
-    if (text.trimStart().startsWith("{")) {
-      const data = JSON.parse(text);
-      await restoreJsonBackup(data);
-    } else if (text.includes("PostgreSQL database dump") || text.includes("CREATE TABLE")) {
-      await restoreSqlBackup(plain);
-    } else {
-      throw new Error("Unsupported backup format. Upload JSON or pg_dump SQL.");
-    }
-
-    fs.unlinkSync(tempPath);
-    return beforeBackup;
-  } catch (e) {
-    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-    throw e;
   }
+
+  if (!text.trimStart().startsWith("{")) {
+    throw new Error("Unsupported backup format. Only JSON madrasah backups (.json or encrypted .enc) can be restored.");
+  }
+  return JSON.parse(text);
 }
+
+// Counts rows per table in a backup file WITHOUT touching the database, so
+// the UI can show "this will replace X students / Y income rows / ..." and
+// let the Super Admin confirm before anything is actually restored.
+async function previewBackup(buffer) {
+  const data = decodeBackupToJson(buffer);
+  if (!data?.tables) throw new Error("Invalid madrasah backup file");
+  const backupCounts = {};
+  const currentCounts = {};
+  for (const table of BACKUP_TABLES) {
+    backupCounts[table] = Array.isArray(data.tables[table]) ? data.tables[table].length : 0;
+    const row = await db.get(`SELECT COUNT(*)::int AS c FROM ${table}`);
+    currentCounts[table] = row?.c || 0;
+  }
+  return { exportedAt: data.exportedAt || null, backupCounts, currentCounts };
+}
+
+// Shared by both "upload a file" restore and "pick a Drive backup" restore:
+// takes the raw backup bytes, restores it, and always takes a safety backup
+// first so a bad restore can be undone.
+async function performRestore(buffer) {
+  const data = decodeBackupToJson(buffer);
+  const beforeBackup = await createBackup();
+  await restoreJsonBackup(data);
+  return beforeBackup;
+}
+
+router.post("/preview", express.raw({ type: ["application/octet-stream", "application/json"], limit: "100mb" }), async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can preview a backup" });
+  }
+  if (!req.body?.length) return res.status(400).json({ error: "Backup file required" });
+  try {
+    res.json(await previewBackup(req.body));
+  } catch (e) {
+    res.status(400).json({ error: e.message || "Could not read backup file" });
+  }
+});
 
 router.post("/restore", express.raw({ type: ["application/octet-stream", "application/json"], limit: "100mb" }), async (req, res) => {
   if (req.user?.role !== "Super Admin") {
@@ -413,6 +359,18 @@ router.get("/google/files", async (_req, res) => {
     res.json(await googleDrive.listBackupFiles());
   } catch (e) {
     res.status(500).json({ error: e.message || "Failed to load Google Drive backups" });
+  }
+});
+
+router.get("/google/preview/:fileId", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can preview a backup" });
+  }
+  try {
+    const buffer = await googleDrive.downloadBackupFile(req.params.fileId);
+    res.json(await previewBackup(buffer));
+  } catch (e) {
+    res.status(400).json({ error: e.message || "Could not read backup file" });
   }
 });
 

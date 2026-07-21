@@ -90,6 +90,14 @@ export function Settings() {
   const [driveFiles, setDriveFiles] = useState<GoogleDriveFile[] | null>(null);
   const [driveFilesLoading, setDriveFilesLoading] = useState(false);
   const [restoringFileId, setRestoringFileId] = useState<string | null>(null);
+  const [restorePreview, setRestorePreview] = useState<{
+    source: { kind: "file"; file: File } | { kind: "drive"; file: GoogleDriveFile };
+    exportedAt: string | null;
+    backupCounts: Record<string, number>;
+    currentCounts: Record<string, number>;
+  } | null>(null);
+  const [restorePreviewLoading, setRestorePreviewLoading] = useState(false);
+  const [restoreConfirming, setRestoreConfirming] = useState(false);
   const [msg, setMsg] = useState("");
   const [editInfo, setEditInfo] = useState(false);
   const [editSystem, setEditSystem] = useState(false);
@@ -250,18 +258,23 @@ export function Settings() {
     }
   };
 
+  // Step 1 of restore: load a preview (row counts, no DB changes yet) so the
+  // Super Admin can see exactly what will be replaced before confirming.
   const handleRestore = async (file: File | null) => {
     if (!file) return;
     if (authUser?.role !== "Super Admin") {
       setMsg("Only Super Admin can restore backup");
       return;
     }
-    if (!confirm("Restore this backup? Current online data will be replaced.")) return;
+    setRestorePreviewLoading(true);
+    setMsg("");
     try {
-      await api.restoreBackup(file);
-      setMsg("Backup restored successfully. Refresh the page (and log in again if needed) to see the restored data.");
+      const preview = await api.previewBackup(file);
+      setRestorePreview({ source: { kind: "file", file }, ...preview });
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Restore failed");
+      setMsg(e instanceof Error ? e.message : "Could not read backup file");
+    } finally {
+      setRestorePreviewLoading(false);
     }
   };
 
@@ -270,17 +283,40 @@ export function Settings() {
       setMsg("Only Super Admin can restore backup");
       return;
     }
-    if (!confirm(`Restore "${file.name}"? Current online data will be replaced.`)) return;
     setRestoringFileId(file.id);
+    setRestorePreviewLoading(true);
+    setMsg("");
     try {
-      const result = await api.restoreFromGoogleDrive(file.id);
-      setMsg(result.message || "Backup restored successfully. Refresh the page (and log in again if needed) to see the restored data.");
+      const preview = await api.previewGoogleDriveBackup(file.id);
+      setRestorePreview({ source: { kind: "drive", file }, ...preview });
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Restore failed");
+      setMsg(e instanceof Error ? e.message : "Could not read backup file");
     } finally {
+      setRestorePreviewLoading(false);
       setRestoringFileId(null);
     }
   };
+
+  // Step 2: the Super Admin has seen the row-count comparison and confirmed.
+  const handleConfirmRestore = async () => {
+    if (!restorePreview) return;
+    setRestoreConfirming(true);
+    try {
+      if (restorePreview.source.kind === "file") {
+        await api.restoreBackup(restorePreview.source.file);
+      } else {
+        await api.restoreFromGoogleDrive(restorePreview.source.file.id);
+      }
+      setMsg("Backup restored successfully. Refresh the page (and log in again if needed) to see the restored data.");
+      setRestorePreview(null);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Restore failed");
+    } finally {
+      setRestoreConfirming(false);
+    }
+  };
+
+  const handleCancelRestore = () => setRestorePreview(null);
 
   const handleAddUser = async () => {
     if (!manageUsers || !userForm.name.trim() || !userForm.email || !userForm.password) return;
@@ -373,7 +409,7 @@ export function Settings() {
           {allowBackup && (
             <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
               <SectionHeader title={t.settings.backup} open={editBackup} onToggle={() => setEditBackup((v) => !v)} />
-                            <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Download a full database backup (PostgreSQL dump, or JSON if pg_dump isn't available).</p>
+                            <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Download a full database backup as JSON (encrypted if configured).</p>
               {!editBackup && backupConfig && (
                 <div style={{ marginTop: 12 }}>
                   <InfoRow label="Automatic backup" value={backupConfig.enabled ? "Enabled" : "Disabled"} />
@@ -392,9 +428,70 @@ export function Settings() {
               </button>
               {editBackup && authUser?.role === "Super Admin" && (
                 <div style={{ marginTop: 14, padding: 12, background: C.slateL, borderRadius: 8 }}>
-                  <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Restore backup database (.sql / .json)</label>
-                  <input type="file" accept=".sql,.json,.enc,application/octet-stream,application/json" onChange={(e) => handleRestore(e.target.files?.[0] || null)} style={{ fontSize: 13, maxWidth: "100%" }} />
+                  <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Restore backup database (.json / .enc)</label>
+                  <input
+                    type="file"
+                    accept=".json,.enc,application/octet-stream,application/json"
+                    disabled={restorePreviewLoading}
+                    onChange={(e) => {
+                      handleRestore(e.target.files?.[0] || null);
+                      e.target.value = "";
+                    }}
+                    style={{ fontSize: 13, maxWidth: "100%" }}
+                  />
                   <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>Upload a downloaded madrasah backup to restore old students, income, users and settings.</p>
+                  {restorePreviewLoading && !restorePreview && (
+                    <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>Reading backup file…</p>
+                  )}
+                </div>
+              )}
+
+              {restorePreview && (
+                <div style={{ marginTop: 14, padding: 14, background: "#FEF3F2", border: `1px solid ${C.rose}`, borderRadius: 8 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: "0 0 8px" }}>
+                    Confirm restore{restorePreview.source.kind === "drive" ? `: "${restorePreview.source.file.name}"` : ""}
+                  </p>
+                  {restorePreview.exportedAt && (
+                    <p style={{ fontSize: 12, color: C.muted, margin: "0 0 8px" }}>
+                      Backup taken: {new Date(restorePreview.exportedAt).toLocaleString()}
+                    </p>
+                  )}
+                  <div style={{ fontSize: 12, color: C.text, marginBottom: 10 }}>
+                    {Object.keys(restorePreview.backupCounts).map((table) => {
+                      const backupCount = restorePreview.backupCounts[table];
+                      const currentCount = restorePreview.currentCounts[table];
+                      const changed = backupCount !== currentCount;
+                      return (
+                        <div key={table} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: changed ? C.rose : C.muted }}>
+                          <span>{table}</span>
+                          <span>
+                            {currentCount} → {backupCount}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontSize: 12, color: C.rose, margin: "0 0 10px", fontWeight: 600 }}>
+                    This will permanently replace all current data in the tables above with the numbers on the right. This cannot be undone from the app (a safety backup of the current data is taken automatically, but restoring it requires repeating this process).
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={handleConfirmRestore}
+                      disabled={restoreConfirming}
+                      style={{ background: C.rose, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 600, cursor: restoreConfirming ? "default" : "pointer" }}
+                    >
+                      {restoreConfirming ? "Restoring…" : "Confirm restore"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelRestore}
+                      disabled={restoreConfirming}
+                      style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 16px", fontWeight: 600, cursor: restoreConfirming ? "default" : "pointer" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
               {editBackup && backupConfig && (
