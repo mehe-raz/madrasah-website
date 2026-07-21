@@ -5,7 +5,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { canBackup, canManageUsers } from "../lib/permissions";
 import { C } from "../theme/colors";
-import { USER_ROLES, type BackupConfig, type BackupRestoreEvent, type BackupRestorePreview, type BackupRestoreReport, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
+import { USER_ROLES, type BackupConfig, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
 // Formats a byte count like "1.2 MB" the way the Drive backup list shows it.
 function formatFileSize(bytes: number): string {
@@ -90,10 +90,14 @@ export function Settings() {
   const [driveFiles, setDriveFiles] = useState<GoogleDriveFile[] | null>(null);
   const [driveFilesLoading, setDriveFilesLoading] = useState(false);
   const [restoringFileId, setRestoringFileId] = useState<string | null>(null);
-  const [restorePreview, setRestorePreview] = useState<(BackupRestorePreview & { source: { kind: "file"; file: File } | { kind: "drive"; file: GoogleDriveFile } }) | null>(null);
+  const [restorePreview, setRestorePreview] = useState<{
+    source: { kind: "file"; file: File } | { kind: "drive"; file: GoogleDriveFile };
+    exportedAt: string | null;
+    backupCounts: Record<string, number>;
+    currentCounts: Record<string, number>;
+  } | null>(null);
   const [restorePreviewLoading, setRestorePreviewLoading] = useState(false);
   const [restoreConfirming, setRestoreConfirming] = useState(false);
-  const [restoreEvents, setRestoreEvents] = useState<BackupRestoreEvent[]>([]);
   const [msg, setMsg] = useState("");
   const [editInfo, setEditInfo] = useState(false);
   const [editSystem, setEditSystem] = useState(false);
@@ -120,15 +124,20 @@ export function Settings() {
   };
 
   useEffect(() => {
-    if (allowBackup) {
+    if (allowBackup && editBackup) {
       api.getBackupConfig().then(setBackupConfig).catch(() => {});
-      api.listRestoreEvents().then(setRestoreEvents).catch(() => {});
       refreshDriveStatus();
     }
-  }, [allowBackup]);
+  }, [allowBackup, editBackup]);
 
   // Once we know Drive is connected, pull the list of backup files sitting
   // in the app's Drive folder so they can be restored with one click.
+  useEffect(() => {
+    if (manageUsers && editUsers && !users.length) {
+      refreshUsers();
+    }
+  }, [manageUsers, editUsers, users.length, refreshUsers]);
+
   useEffect(() => {
     if (driveStatus?.connected) refreshDriveFiles();
   }, [driveStatus?.connected]);
@@ -266,7 +275,7 @@ export function Settings() {
     setRestorePreviewLoading(true);
     setMsg("");
     try {
-      const preview = await api.dryRunBackup(file);
+      const preview = await api.previewBackup(file);
       setRestorePreview({ source: { kind: "file", file }, ...preview });
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Could not read backup file");
@@ -383,7 +392,7 @@ export function Settings() {
                 <InfoRow label={t.settings.phone} value={settings.phone} />
                 <InfoRow label={t.settings.email} value={settings.email} />
                 <InfoRow label={t.settings.footer} value={settings.footer} />
-                {settings.logo && <img src={settings.logo} alt="Logo" style={{ maxHeight: 64, marginTop: 12, borderRadius: 8 }} />}
+                {settings.logo && <img src={settings.logo} alt="Logo" loading="lazy" decoding="async" style={{ maxHeight: 64, marginTop: 12, borderRadius: 8 }} />}
               </div>
             )}
             <div style={{ display: editInfo ? "flex" : "none", flexDirection: "column", gap: 14 }}>
@@ -446,23 +455,13 @@ export function Settings() {
               {restorePreview && (
                 <div style={{ marginTop: 14, padding: 14, background: "#FEF3F2", border: `1px solid ${C.rose}`, borderRadius: 8 }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: "0 0 8px" }}>
-Confirm restore{restorePreview.source.kind === "drive" ? `: "${restorePreview.source.file.name}"` : ""}
+                    Confirm restore{restorePreview.source.kind === "drive" ? `: "${restorePreview.source.file.name}"` : ""}
                   </p>
                   {restorePreview.exportedAt && (
                     <p style={{ fontSize: 12, color: C.muted, margin: "0 0 8px" }}>
                       Backup taken: {new Date(restorePreview.exportedAt).toLocaleString()}
                     </p>
                   )}
-                  <p style={{ fontSize: 12, color: C.muted, margin: "0 0 8px" }}>
-                    Format: {restorePreview.format || "unknown"} · Version: {restorePreview.version ?? "n/a"}
-                  </p>
-                  {restorePreview.warnings?.length ? (
-                    <div style={{ marginBottom: 10, padding: 10, background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 8 }}>
-                      {restorePreview.warnings.map((w) => (
-                        <p key={w} style={{ fontSize: 12, color: "#9a3412", margin: "0 0 4px" }}>{w}</p>
-                      ))}
-                    </div>
-                  ) : null}
                   <div style={{ fontSize: 12, color: C.text, marginBottom: 10 }}>
                     {Object.keys(restorePreview.backupCounts).map((table) => {
                       const backupCount = restorePreview.backupCounts[table];
@@ -479,7 +478,7 @@ Confirm restore{restorePreview.source.kind === "drive" ? `: "${restorePreview.so
                     })}
                   </div>
                   <p style={{ fontSize: 12, color: C.rose, margin: "0 0 10px", fontWeight: 600 }}>
-                    This will permanently replace all current data in the tables above with the numbers on the right. A safety backup is created first, and the restore runs inside a single transaction.
+                    This will permanently replace all current data in the tables above with the numbers on the right. This cannot be undone from the app (a safety backup of the current data is taken automatically, but restoring it requires repeating this process).
                   </p>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button

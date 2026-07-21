@@ -10,7 +10,7 @@ export function Layout() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
   const [sidebarOpen, setSidebarOpen] = useState(() => !window.matchMedia("(max-width: 768px)").matches);
   const { user, logout } = useAuth();
-  const { settings, refreshSettings, refreshUsers } = useAppSettings();
+  const { settings } = useAppSettings();
   useMadrasaBranding();
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,12 +27,6 @@ export function Layout() {
     document.documentElement.setAttribute("data-theme", settings.theme === "dark" ? "dark" : "light");
   }, [settings.theme]);
 
-  useEffect(() => {
-    if (user) {
-      refreshSettings();
-      refreshUsers();
-    }
-  }, [user, refreshSettings, refreshUsers]);
 
   useEffect(() => {
     if (isMobile) {

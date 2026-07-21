@@ -53,7 +53,7 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {settings.logo ? (
-            <img src={settings.logo} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover" }} />
+            <img src={settings.logo} alt="" loading="lazy" decoding="async" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover" }} />
           ) : (
             <span style={{ fontSize: 26, flexShrink: 0 }}>🕌</span>
           )}

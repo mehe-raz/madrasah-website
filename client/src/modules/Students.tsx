@@ -480,7 +480,7 @@ export function Students() {
                 <td style={{ padding: "10px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                     {student.studentPhoto ? (
-                      <img src={student.studentPhoto} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover" }} />
+                      <img src={student.studentPhoto} alt="" loading="lazy" decoding="async" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover" }} />
                     ) : (
                       <span style={{ width: 34, height: 34, borderRadius: "50%", background: C.tealL, color: C.tealD, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>
                         {(student.name || "?").slice(0, 1)}
@@ -513,7 +513,7 @@ export function Students() {
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewing(null)}>
           <div className="modal-content" style={{ background: C.card, borderRadius: 8, padding: 24, width: 720, maxWidth: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={(event) => event.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
-              {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} /> : null}
+              {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" loading="lazy" decoding="async" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} /> : null}
               <div>
                 <h3 style={{ margin: 0, color: C.text, fontSize: 20 }}>{viewing.name}</h3>
                 <div style={{ color: C.muted, fontSize: 13 }}>{viewing.nameEn} | {viewing.admissionNumber || t.students.noAdmissionNumber}</div>

@@ -89,9 +89,27 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refreshSettings();
-    refreshUsers();
-  }, [refreshSettings, refreshUsers]);
+    let cancelled = false;
+    const run = () => {
+      if (cancelled) return;
+      refreshSettings();
+    };
+
+    const win = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const handle = win.requestIdleCallback
+      ? win.requestIdleCallback(run, { timeout: 2000 })
+      : window.setTimeout(run, 0);
+
+    return () => {
+      cancelled = true;
+      if (win.cancelIdleCallback && typeof handle === "number") win.cancelIdleCallback(handle);
+      else window.clearTimeout(handle);
+    };
+  }, [refreshSettings]);
 
   useEffect(() => {
     applyTheme(theme);

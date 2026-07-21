@@ -78,7 +78,7 @@ export function Login() {
       <div style={{ width: "100%", maxWidth: 400, background: C.card, borderRadius: 16, border: `1px solid ${C.border}`, padding: 28, boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           {settings.logo ? (
-            <img src={settings.logo} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", marginBottom: 4 }} />
+            <img src={settings.logo} alt="" loading="eager" decoding="async" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", marginBottom: 4 }} />
           ) : (
             <span style={{ fontSize: 40 }}>🕌</span>
           )}
