@@ -1,7 +1,6 @@
 import type {
   AttendanceResponse,
   AuthUser,
-  AuditLog,
   BackupConfig,
   DashboardData,
   DeleteRequest,
@@ -240,8 +239,6 @@ export const api = {
   deleteUser: (id: number) =>
     request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/users/${id}`, { method: "DELETE" }),
 
-  getAuditLogs: (limit = 50) => request<AuditLog[]>(`/audit-logs?limit=${limit}`),
-
   downloadBackup: async () => {
     const token = getToken();
     const res = await fetch(`${API}/backup`, {
@@ -283,13 +280,31 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    return (await res.json()) as { exportedAt: string | null; backupCounts: Record<string, number>; currentCounts: Record<string, number> };
+    return (await res.json()) as { exportedAt: string | null; version: number | null; format: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number> };
   },
 
   previewGoogleDriveBackup: (fileId: string) =>
-    request<{ exportedAt: string | null; backupCounts: Record<string, number>; currentCounts: Record<string, number> }>(
+    request<{ exportedAt: string | null; version: number | null; format: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number> }>(
       `/backup/google/preview/${fileId}`
     ),
+
+  dryRunBackup: async (file: File) => {
+    const token = getToken();
+    const res = await fetch(`${API}/backup/dry-run`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...(token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: await file.arrayBuffer(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return (await res.json()) as { exportedAt: string | null; version: number | null; format: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number> };
+  },
 
   restoreBackup: async (file: File) => {
     const token = getToken();
@@ -306,7 +321,7 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    return (await res.json()) as { ok: boolean; message: string };
+    return (await res.json()) as { ok: boolean; message: string; safetyBackup?: string; report?: { version: number | null; format: string | null; exportedAt: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number>; restoredRows: Record<string, number>; beforeCounts: Record<string, number>; afterCounts: Record<string, number>; tables: string[] } };
   },
 
   getGoogleDriveStatus: () => request<GoogleDriveStatus>("/backup/google/status"),
@@ -318,5 +333,7 @@ export const api = {
   listGoogleDriveFiles: () => request<GoogleDriveFile[]>("/backup/google/files"),
 
   restoreFromGoogleDrive: (fileId: string) =>
-    request<{ ok: boolean; message: string }>(`/backup/google/restore/${fileId}`, { method: "POST" }),
+    request<{ ok: boolean; message: string; safetyBackup?: string; report?: { version: number | null; format: string | null; exportedAt: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number>; restoredRows: Record<string, number>; beforeCounts: Record<string, number>; afterCounts: Record<string, number>; tables: string[] } }>(`/backup/google/restore/${fileId}`, { method: "POST" }),
+
+  listRestoreEvents: () => request<any[]>("/backup/restores"),
 };

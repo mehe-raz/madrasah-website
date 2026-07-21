@@ -114,6 +114,34 @@ export interface BackupConfig {
   driveEncryptionEnabled?: boolean;
 }
 
+export interface BackupRestorePreview {
+  exportedAt: string | null;
+  version: number | null;
+  format: string | null;
+  warnings: string[];
+  backupCounts: Record<string, number>;
+  currentCounts: Record<string, number>;
+}
+
+export interface BackupRestoreReport extends BackupRestorePreview {
+  restoredRows: Record<string, number>;
+  beforeCounts: Record<string, number>;
+  afterCounts: Record<string, number>;
+  tables: string[];
+}
+
+export interface BackupRestoreEvent {
+  id: number;
+  event: string;
+  status: string;
+  requestedByName: string;
+  backupVersion: number | null;
+  backupFormat: string;
+  report: Record<string, unknown>;
+  error: string;
+  createdAt: string;
+}
+
 export interface GoogleDriveStatus {
   configured: boolean;
   connected: boolean;
@@ -157,19 +185,6 @@ export interface User {
   email?: string;
   role: string;
   isProtected?: boolean;
-}
-
-export interface AuditLog {
-  id: number;
-  action: string;
-  actorId?: number | null;
-  actorName: string;
-  actorRole: string;
-  entityType?: string;
-  entityId?: number | null;
-  label: string;
-  details: string;
-  createdAt: string;
 }
 
 export const USER_ROLES = [

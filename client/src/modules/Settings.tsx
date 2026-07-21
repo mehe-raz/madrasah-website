@@ -3,9 +3,9 @@ import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
-import { canBackup, canManageUsers, canViewAuditLogs } from "../lib/permissions";
+import { canBackup, canManageUsers } from "../lib/permissions";
 import { C } from "../theme/colors";
-import { USER_ROLES, type AuditLog, type BackupConfig, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
+import { USER_ROLES, type BackupConfig, type BackupRestoreEvent, type BackupRestorePreview, type BackupRestoreReport, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
 // Formats a byte count like "1.2 MB" the way the Drive backup list shows it.
 function formatFileSize(bytes: number): string {
@@ -89,17 +89,11 @@ export function Settings() {
   const [driveConnecting, setDriveConnecting] = useState(false);
   const [driveFiles, setDriveFiles] = useState<GoogleDriveFile[] | null>(null);
   const [driveFilesLoading, setDriveFilesLoading] = useState(false);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [auditLoading, setAuditLoading] = useState(false);
   const [restoringFileId, setRestoringFileId] = useState<string | null>(null);
-  const [restorePreview, setRestorePreview] = useState<{
-    source: { kind: "file"; file: File } | { kind: "drive"; file: GoogleDriveFile };
-    exportedAt: string | null;
-    backupCounts: Record<string, number>;
-    currentCounts: Record<string, number>;
-  } | null>(null);
+  const [restorePreview, setRestorePreview] = useState<(BackupRestorePreview & { source: { kind: "file"; file: File } | { kind: "drive"; file: GoogleDriveFile } }) | null>(null);
   const [restorePreviewLoading, setRestorePreviewLoading] = useState(false);
   const [restoreConfirming, setRestoreConfirming] = useState(false);
+  const [restoreEvents, setRestoreEvents] = useState<BackupRestoreEvent[]>([]);
   const [msg, setMsg] = useState("");
   const [editInfo, setEditInfo] = useState(false);
   const [editSystem, setEditSystem] = useState(false);
@@ -125,22 +119,12 @@ export function Settings() {
       .finally(() => setDriveFilesLoading(false));
   };
 
-  const refreshAuditLogs = () => {
-    if (!authUser || !canViewAuditLogs(authUser.role)) return;
-    setAuditLoading(true);
-    api
-      .getAuditLogs(40)
-      .then(setAuditLogs)
-      .catch(() => setAuditLogs([]))
-      .finally(() => setAuditLoading(false));
-  };
-
   useEffect(() => {
     if (allowBackup) {
       api.getBackupConfig().then(setBackupConfig).catch(() => {});
+      api.listRestoreEvents().then(setRestoreEvents).catch(() => {});
       refreshDriveStatus();
     }
-    refreshAuditLogs();
   }, [allowBackup]);
 
   // Once we know Drive is connected, pull the list of backup files sitting
@@ -175,7 +159,6 @@ export function Settings() {
       await saveSettings(settings);
       setSaved(true);
       setMsg("");
-      refreshAuditLogs();
     } catch (e) {
       setSaved(false);
       setMsg(e instanceof Error ? e.message : "Settings could not be saved. Please try again.");
@@ -215,7 +198,6 @@ export function Settings() {
       const savedConfig = await api.saveBackupConfig(backupConfig);
       setBackupConfig(savedConfig);
       setMsg("Backup settings saved");
-      refreshAuditLogs();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Backup settings failed");
     }
@@ -226,7 +208,6 @@ export function Settings() {
       const result = await api.runBackupNow();
       setBackupConfig(result.config);
       setMsg("Backup created");
-      refreshAuditLogs();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Backup failed");
     }
@@ -251,7 +232,6 @@ export function Settings() {
           window.clearInterval(poll);
           setDriveConnecting(false);
           refreshDriveStatus();
-          refreshAuditLogs();
         }
       }, 800);
     } catch (e) {
@@ -270,7 +250,6 @@ export function Settings() {
       const status = await api.disconnectGoogleDrive();
       setDriveStatus(status);
       setMsg(t.settings.googleDriveDisconnectedMsg);
-      refreshAuditLogs();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
     }
@@ -287,7 +266,7 @@ export function Settings() {
     setRestorePreviewLoading(true);
     setMsg("");
     try {
-      const preview = await api.previewBackup(file);
+      const preview = await api.dryRunBackup(file);
       setRestorePreview({ source: { kind: "file", file }, ...preview });
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Could not read backup file");
@@ -326,7 +305,6 @@ export function Settings() {
         await api.restoreFromGoogleDrive(restorePreview.source.file.id);
       }
       setMsg("Backup restored successfully. Refresh the page (and log in again if needed) to see the restored data.");
-      refreshAuditLogs();
       setRestorePreview(null);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Restore failed");
@@ -342,7 +320,6 @@ export function Settings() {
     try {
       await api.createUser(userForm);
       await refreshUsers();
-      refreshAuditLogs();
       setUserForm({ name: "", role: "Teacher", email: "", password: "" });
       setMsg("User added");
     } catch (e) {
@@ -363,7 +340,6 @@ export function Settings() {
       }
       const result = await api.updateUser(editDraft.id, body);
       await refreshUsers();
-      refreshAuditLogs();
       setEditDraft(null);
       setMsg("pendingApproval" in result && result.pendingApproval ? "Permission request sent for approval" : "User updated");
     } catch (e) {
@@ -385,7 +361,6 @@ export function Settings() {
     try {
       const result = await api.deleteUser(u.id);
       await refreshUsers();
-      refreshAuditLogs();
       setMsg(result.pendingApproval ? "Permission request sent for approval" : "User deleted");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Cannot delete");
@@ -471,13 +446,23 @@ export function Settings() {
               {restorePreview && (
                 <div style={{ marginTop: 14, padding: 14, background: "#FEF3F2", border: `1px solid ${C.rose}`, borderRadius: 8 }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: "0 0 8px" }}>
-                    Confirm restore{restorePreview.source.kind === "drive" ? `: "${restorePreview.source.file.name}"` : ""}
+Confirm restore{restorePreview.source.kind === "drive" ? `: "${restorePreview.source.file.name}"` : ""}
                   </p>
                   {restorePreview.exportedAt && (
                     <p style={{ fontSize: 12, color: C.muted, margin: "0 0 8px" }}>
                       Backup taken: {new Date(restorePreview.exportedAt).toLocaleString()}
                     </p>
                   )}
+                  <p style={{ fontSize: 12, color: C.muted, margin: "0 0 8px" }}>
+                    Format: {restorePreview.format || "unknown"} · Version: {restorePreview.version ?? "n/a"}
+                  </p>
+                  {restorePreview.warnings?.length ? (
+                    <div style={{ marginBottom: 10, padding: 10, background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 8 }}>
+                      {restorePreview.warnings.map((w) => (
+                        <p key={w} style={{ fontSize: 12, color: "#9a3412", margin: "0 0 4px" }}>{w}</p>
+                      ))}
+                    </div>
+                  ) : null}
                   <div style={{ fontSize: 12, color: C.text, marginBottom: 10 }}>
                     {Object.keys(restorePreview.backupCounts).map((table) => {
                       const backupCount = restorePreview.backupCounts[table];
@@ -494,7 +479,7 @@ export function Settings() {
                     })}
                   </div>
                   <p style={{ fontSize: 12, color: C.rose, margin: "0 0 10px", fontWeight: 600 }}>
-                    This will permanently replace all current data in the tables above with the numbers on the right. This cannot be undone from the app (a safety backup of the current data is taken automatically, but restoring it requires repeating this process).
+                    This will permanently replace all current data in the tables above with the numbers on the right. A safety backup is created first, and the restore runs inside a single transaction.
                   </p>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
@@ -753,30 +738,6 @@ export function Settings() {
                   );
                 })}
               </div>
-            </div>
-          )}
-          {canViewAuditLogs(authUser?.role || "") && (
-            <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24, marginTop: 16 }}>
-              <SectionHeader title="Audit logs" open={true} onToggle={() => {}} />
-              {auditLoading ? (
-                <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>Loading audit logs...</p>
-              ) : auditLogs.length === 0 ? (
-                <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>No audit logs yet.</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 360, overflow: "auto" }}>
-                  {auditLogs.map((log) => (
-                    <div key={log.id} style={{ padding: "10px 12px", border: `1px solid ${C.border}`, borderRadius: 8, background: C.slateL }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{log.action}</div>
-                        <div style={{ fontSize: 11, color: C.muted }}>{new Date(log.createdAt).toLocaleString()}</div>
-                      </div>
-                      <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
-                        {log.actorName || "—"} · {log.actorRole || "—"} · {log.label || "—"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>

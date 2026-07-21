@@ -3,9 +3,10 @@ const path = require("path");
 const fs = require("fs");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
-const { recordAudit } = require("../lib/auditLog");
 const googleDrive = require("../lib/googleDrive");
 const backupEncryption = require("../lib/backupEncryption");
+const { withRestoreLock, RestoreLockError } = require("../lib/restoreLock");
+const { recordBackupEvent } = require("../lib/backupAudit");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -15,6 +16,9 @@ const router = express.Router();
 router.use(requirePermission("settings"));
 const backupDir = path.join(__dirname, "..", "..", "backups");
 const CONFIG_KEY = "backupConfig";
+const BACKUP_FORMAT = "madrasah-pg-json";
+const BACKUP_VERSION = 2;
+const RESTORE_REQUIRED_TABLES = ["users", "students", "settings"];
 
 const BACKUP_TABLES = [
   "students",
@@ -85,15 +89,75 @@ function stamp() {
 
 async function exportJsonBackup() {
   const tables = {};
+  const counts = {};
   for (const table of BACKUP_TABLES) {
     tables[table] = await db.all(`SELECT * FROM ${table}`);
+    counts[table] = Array.isArray(tables[table]) ? tables[table].length : 0;
   }
   return {
-    version: 1,
-    format: "madrasah-pg-json",
+    version: BACKUP_VERSION,
+    format: BACKUP_FORMAT,
     exportedAt: new Date().toISOString(),
     tables,
+    counts,
   };
+}
+
+function normalizeBackupDocument(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Invalid madrasah backup file");
+  }
+  if (data.format && data.format !== BACKUP_FORMAT) {
+    throw new Error(`Unsupported backup format: ${data.format}`);
+  }
+  const version = Number.isInteger(data.version) ? data.version : 1;
+  if (version > BACKUP_VERSION) {
+    throw new Error(`Backup version ${version} is newer than this server can restore`);
+  }
+  if (!data.tables || typeof data.tables !== "object" || Array.isArray(data.tables)) {
+    throw new Error("Invalid madrasah backup file");
+  }
+
+  const missing = RESTORE_REQUIRED_TABLES.filter((t) => !Array.isArray(data.tables[t]));
+  if (missing.length) {
+    throw new Error(`Backup is missing required tables: ${missing.join(', ')}`);
+  }
+
+  const unsupported = Object.keys(data.tables).filter((table) => !BACKUP_TABLES.includes(table));
+  const warnings = [];
+  if (version < BACKUP_VERSION) warnings.push(`Older backup version ${version}; restore will still proceed.`);
+  if (unsupported.length) warnings.push(`Ignoring unsupported tables: ${unsupported.join(', ')}`);
+
+  return { data, version, warnings, unsupported };
+}
+
+async function getTableColumns(tx, table) {
+  const rows = await tx.all(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1
+     ORDER BY ordinal_position`,
+    [table]
+  );
+  return rows.map((r) => r.column_name);
+}
+
+function toRestoreRow(row, allowedColumns) {
+  const allowed = new Set(allowedColumns);
+  const cleaned = {};
+  for (const [key, value] of Object.entries(row || {})) {
+    if (allowed.has(key)) cleaned[key] = value;
+  }
+  return cleaned;
+}
+
+async function getCounts(tx, tables) {
+  const counts = {};
+  for (const table of tables) {
+    const row = await tx.get(`SELECT COUNT(*)::int AS c FROM ${table}`);
+    counts[table] = row?.c || 0;
+  }
+  return counts;
 }
 
 // NOTE: backups are JSON-only, on purpose. An earlier version also produced a
@@ -162,23 +226,71 @@ async function createBackup(config = null) {
 }
 
 async function restoreJsonBackup(data) {
-  if (!data?.tables?.users || !data?.tables?.students || !data?.tables?.settings) {
-    throw new Error("Invalid madrasah backup file");
-  }
+  const { data: backup, version, warnings } = normalizeBackupDocument(data);
+  const tablesToRestore = BACKUP_TABLES.filter((table) => Array.isArray(backup.tables[table]));
 
-  await db.withTransaction(async (tx) => {
-    for (const table of [...BACKUP_TABLES].reverse()) {
+  return await db.withTransaction(async (tx) => {
+    const beforeCounts = await getCounts(tx, tablesToRestore);
+
+    for (const table of [...tablesToRestore].reverse()) {
       await tx.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
     }
-    for (const table of BACKUP_TABLES) {
-      const rows = data.tables[table] || [];
+
+    const inserted = {};
+    for (const table of tablesToRestore) {
+      const rows = backup.tables[table] || [];
+      const allowedColumns = await getTableColumns(tx, table);
+      inserted[table] = 0;
       for (const row of rows) {
-        const cols = Object.keys(row);
-        const values = Object.values(row);
+        const cleaned = toRestoreRow(row, allowedColumns);
+        const cols = Object.keys(cleaned);
+        if (!cols.length) continue;
+        const values = cols.map((col) => cleaned[col]);
         const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
         const quotedCols = cols.map((c) => `"${c}"`).join(", ");
         await tx.run(`INSERT INTO ${table} (${quotedCols}) VALUES (${placeholders})`, values);
+        inserted[table] += 1;
       }
+    }
+
+    const afterCounts = await getCounts(tx, tablesToRestore);
+    const report = {
+      version,
+      format: backup.format || BACKUP_FORMAT,
+      exportedAt: backup.exportedAt || null,
+      warnings,
+      beforeCounts,
+      afterCounts,
+      restoredRows: inserted,
+      tables: tablesToRestore,
+    };
+    return report;
+  });
+}
+
+async function getRestoreReport(buffer) {
+  const data = decodeBackupToJson(buffer);
+  const { data: backup, version, warnings, unsupported } = normalizeBackupDocument(data);
+  const backupCounts = {};
+  const currentCounts = {};
+  for (const table of BACKUP_TABLES) {
+    backupCounts[table] = Array.isArray(backup.tables[table]) ? backup.tables[table].length : 0;
+    const row = await db.get(`SELECT COUNT(*)::int AS c FROM ${table}`);
+    currentCounts[table] = row?.c || 0;
+  }
+  return { exportedAt: backup.exportedAt || null, version, format: backup.format || BACKUP_FORMAT, warnings, unsupportedTables: unsupported, backupCounts, currentCounts };
+}
+
+async function performRestore(buffer, user = null) {
+  return await withRestoreLock(async () => {
+    const beforeBackup = await createBackup();
+    try {
+      const report = await restoreJsonBackup(decodeBackupToJson(buffer));
+      await recordBackupEvent({ event: 'restore', status: 'success', user, backupVersion: report.version, backupFormat: report.format, report: { ...report, safetyBackup: beforeBackup.filename } });
+      return { beforeBackup, report };
+    } catch (e) {
+      await recordBackupEvent({ event: 'restore', status: 'failed', user, error: e.message || 'Restore failed', report: { safetyBackup: beforeBackup.filename } });
+      throw e;
     }
   });
 }
@@ -212,21 +324,7 @@ router.put("/config", async (req, res) => {
   if (req.user?.role !== "Super Admin") {
     return res.status(403).json({ error: "Only Super Admin can change backup settings" });
   }
-  const config = await saveConfig(req.body || {});
-  await recordAudit({
-    action: "backup.config.updated",
-    actor: req.user,
-    entityType: "backup",
-    entityId: 0,
-    label: "Updated backup settings",
-    details: {
-      enabled: !!config.enabled,
-      intervalHours: config.intervalHours,
-      keepLocalCopies: config.keepLocalCopies,
-      destinations: Array.isArray(config.destinations) ? config.destinations.length : 0,
-    },
-  });
-  res.json(config);
+  res.json(await saveConfig(req.body || {}));
 });
 
 router.post("/run", async (req, res) => {
@@ -234,16 +332,7 @@ router.post("/run", async (req, res) => {
     return res.status(403).json({ error: "Only Super Admin can run a backup" });
   }
   try {
-    const result = await createBackup();
-    await recordAudit({
-      action: "backup.run",
-      actor: req.user,
-      entityType: "backup",
-      entityId: 0,
-      label: "Ran backup now",
-      details: { filename: result.filename, localPath: result.localPath },
-    });
-    res.json(result);
+    res.json(await createBackup());
   } catch (e) {
     res.status(500).json({ error: e.message || "Backup failed" });
   }
@@ -276,39 +365,25 @@ function decodeBackupToJson(buffer) {
   return JSON.parse(text);
 }
 
-// Counts rows per table in a backup file WITHOUT touching the database, so
-// the UI can show "this will replace X students / Y income rows / ..." and
-// let the Super Admin confirm before anything is actually restored.
-async function previewBackup(buffer) {
-  const data = decodeBackupToJson(buffer);
-  if (!data?.tables) throw new Error("Invalid madrasah backup file");
-  const backupCounts = {};
-  const currentCounts = {};
-  for (const table of BACKUP_TABLES) {
-    backupCounts[table] = Array.isArray(data.tables[table]) ? data.tables[table].length : 0;
-    const row = await db.get(`SELECT COUNT(*)::int AS c FROM ${table}`);
-    currentCounts[table] = row?.c || 0;
-  }
-  return { exportedAt: data.exportedAt || null, backupCounts, currentCounts };
-}
-
-// Shared by both "upload a file" restore and "pick a Drive backup" restore:
-// takes the raw backup bytes, restores it, and always takes a safety backup
-// first so a bad restore can be undone.
-async function performRestore(buffer) {
-  const data = decodeBackupToJson(buffer);
-  const beforeBackup = await createBackup();
-  await restoreJsonBackup(data);
-  return beforeBackup;
-}
-
 router.post("/preview", express.raw({ type: ["application/octet-stream", "application/json"], limit: "100mb" }), async (req, res) => {
   if (req.user?.role !== "Super Admin") {
     return res.status(403).json({ error: "Only Super Admin can preview a backup" });
   }
   if (!req.body?.length) return res.status(400).json({ error: "Backup file required" });
   try {
-    res.json(await previewBackup(req.body));
+    res.json(await getRestoreReport(req.body));
+  } catch (e) {
+    res.status(400).json({ error: e.message || "Could not read backup file" });
+  }
+});
+
+router.post("/dry-run", express.raw({ type: ["application/octet-stream", "application/json"], limit: "100mb" }), async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can preview a backup" });
+  }
+  if (!req.body?.length) return res.status(400).json({ error: "Backup file required" });
+  try {
+    res.json(await getRestoreReport(req.body));
   } catch (e) {
     res.status(400).json({ error: e.message || "Could not read backup file" });
   }
@@ -321,21 +396,17 @@ router.post("/restore", express.raw({ type: ["application/octet-stream", "applic
   if (!req.body?.length) return res.status(400).json({ error: "Backup file required" });
 
   try {
-    const beforeBackup = await performRestore(req.body);
-    await recordAudit({
-      action: "backup.restored",
-      actor: req.user,
-      entityType: "backup",
-      entityId: 0,
-      label: "Restored backup from upload",
-      details: { safetyBackup: beforeBackup.filename },
-    });
+    const { beforeBackup, report } = await performRestore(req.body, req.user);
     res.json({
       ok: true,
       message: "Backup restored successfully.",
       safetyBackup: beforeBackup.filename,
+      report,
     });
   } catch (e) {
+    if (e instanceof RestoreLockError) {
+      return res.status(409).json({ error: e.message });
+    }
     res.status(500).json({ error: e.message || "Restore failed" });
   }
 });
@@ -380,13 +451,6 @@ router.get("/google/callback", async (req, res) => {
     if (req.user?.role !== "Super Admin") throw new Error("Only Super Admin can connect Google Drive");
     if (!code || !state) throw new Error("Missing Google authorization code");
     await googleDrive.handleCallback(String(code), String(state), req.user.id);
-    await recordAudit({
-      action: "backup.drive.connected",
-      actor: req.user,
-      entityType: "backup",
-      entityId: 0,
-      label: "Connected Google Drive",
-    });
     res.redirect(`${clientOrigin}/settings?googleDrive=connected`);
   } catch (e) {
     res.redirect(`${clientOrigin}/settings?googleDrive=error&message=${encodeURIComponent(e.message || "Google Drive connection failed")}`);
@@ -407,7 +471,7 @@ router.get("/google/preview/:fileId", async (req, res) => {
   }
   try {
     const buffer = await googleDrive.downloadBackupFile(req.params.fileId);
-    res.json(await previewBackup(buffer));
+    res.json(await getRestoreReport(buffer));
   } catch (e) {
     res.status(400).json({ error: e.message || "Could not read backup file" });
   }
@@ -419,22 +483,30 @@ router.post("/google/restore/:fileId", async (req, res) => {
   }
   try {
     const buffer = await googleDrive.downloadBackupFile(req.params.fileId);
-    const beforeBackup = await performRestore(buffer);
-    await recordAudit({
-      action: "backup.drive.restored",
-      actor: req.user,
-      entityType: "backup",
-      entityId: 0,
-      label: "Restored backup from Google Drive",
-      details: { fileId: req.params.fileId, safetyBackup: beforeBackup.filename },
-    });
+    const { beforeBackup, report } = await performRestore(buffer, req.user);
     res.json({
       ok: true,
       message: "Backup restored successfully.",
       safetyBackup: beforeBackup.filename,
+      report,
     });
   } catch (e) {
+    if (e instanceof RestoreLockError) {
+      return res.status(409).json({ error: e.message });
+    }
     res.status(500).json({ error: e.message || "Restore failed" });
+  }
+});
+
+router.post("/google/dry-run/:fileId", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can preview a backup" });
+  }
+  try {
+    const buffer = await googleDrive.downloadBackupFile(req.params.fileId);
+    res.json(await getRestoreReport(buffer));
+  } catch (e) {
+    res.status(400).json({ error: e.message || "Could not read backup file" });
   }
 });
 
@@ -444,16 +516,26 @@ router.post("/google/disconnect", async (req, res) => {
   }
   try {
     await googleDrive.disconnect();
-    await recordAudit({
-      action: "backup.drive.disconnected",
-      actor: req.user,
-      entityType: "backup",
-      entityId: 0,
-      label: "Disconnected Google Drive",
-    });
     res.json(await googleDrive.getStatus());
   } catch (e) {
     res.status(500).json({ error: e.message || "Failed to disconnect Google Drive" });
+  }
+});
+
+router.get("/restores", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can view restore logs" });
+  }
+  try {
+    const rows = await db.all(
+      `SELECT id, event, status, "requestedByName" AS "requestedByName", "backupVersion" AS "backupVersion", "backupFormat" AS "backupFormat", report, error, "createdAt"
+       FROM backup_restore_events
+       ORDER BY id DESC
+       LIMIT 20`
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Failed to load restore logs" });
   }
 });
 
