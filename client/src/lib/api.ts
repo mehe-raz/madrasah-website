@@ -54,6 +54,28 @@ function buildQuery(params: Record<string, string | number | undefined | null>) 
   return q ? `?${q}` : "";
 }
 
+
+function normalizePagedResponse<T>(value: unknown): PaginatedResult<T> {
+  if (Array.isArray(value)) {
+    return {
+      items: value as T[],
+      page: 1,
+      limit: value.length,
+      total: value.length,
+      totalPages: 1,
+    };
+  }
+
+  const obj = (value && typeof value === "object" ? value as Record<string, unknown> : {});
+  const items = Array.isArray(obj.items) ? (obj.items as T[]) : Array.isArray(obj.data) ? (obj.data as T[]) : [];
+  const page = Number(obj.page) || 1;
+  const limit = Number(obj.limit) || (items.length || 1);
+  const total = Number(obj.total) || items.length;
+  const totalPages = Number(obj.totalPages) || Math.max(1, Math.ceil(total / Math.max(1, limit)));
+
+  return { items, page, limit, total, totalPages };
+}
+
 export const api = {
   health: () => request<{ ok: boolean }>("/health"),
 
@@ -94,12 +116,12 @@ export const api = {
 
   getStudentsPage: (params?: { dept?: string; search?: string; status?: string; class?: string; page?: number; limit?: number; fields?: "basic" | "full" }) => {
     const q = buildQuery({ dept: params?.dept, search: params?.search, status: params?.status, class: params?.class, page: params?.page, limit: params?.limit, fields: params?.fields });
-    return request<PaginatedResult<Student>>(`/students${q}`);
+    return request<unknown>(`/students${q}`).then((value) => normalizePagedResponse<Student>(value));
   },
 
   getStudentsBasic: (params?: { dept?: string; search?: string; status?: string; class?: string }) => {
     const q = buildQuery({ dept: params?.dept, search: params?.search, status: params?.status, class: params?.class, page: 1, limit: 1000, fields: "basic" });
-    return request<PaginatedResult<Student>>(`/students${q}`);
+    return request<unknown>(`/students${q}`).then((value) => normalizePagedResponse<Student>(value));
   },
 
   getClasses: () => request<string[]>("/students/classes/list"),
@@ -166,7 +188,7 @@ export const api = {
 
   getPaymentsPage: (params?: { page?: number; limit?: number }) => {
     const q = buildQuery({ page: params?.page, limit: params?.limit });
-    return request<PaginatedResult<Payment>>(`/payments${q}`);
+    return request<unknown>(`/payments${q}`).then((value) => normalizePagedResponse<Payment>(value));
   },
 
   createPayment: (body: { studentId: number; amount: number; method: string }) =>
@@ -184,7 +206,7 @@ export const api = {
 
   getIncomePage: (params?: { from?: string; to?: string; category?: string; page?: number; limit?: number }) => {
     const q = buildQuery({ from: params?.from, to: params?.to, category: params?.category, page: params?.page, limit: params?.limit });
-    return request<PaginatedResult<IncomeEntry>>(`/income${q}`);
+    return request<unknown>(`/income${q}`).then((value) => normalizePagedResponse<IncomeEntry>(value));
   },
 
   getIncomeSummary: (params?: { from?: string; to?: string }) => {

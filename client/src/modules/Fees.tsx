@@ -23,11 +23,31 @@ export function Fees() {
   const [method, setMethod] = useState("নগদ");
 
   useEffect(() => {
-    api.getStudentsBasic({ status: "Active" }).then((r) => setStudents(r.items));
-    api.getPaymentsPage({ page: payPage, limit: payPageSize }).then((r) => {
-      setPayments(r.items);
-      setPayTotal(r.total);
-    });
+    let alive = true;
+
+    const load = async () => {
+      try {
+        const [studentData, paymentData] = await Promise.all([
+          api.getStudentsBasic({ status: "Active" }),
+          api.getPaymentsPage({ page: payPage, limit: payPageSize }),
+        ]);
+        if (!alive) return;
+        setStudents(Array.isArray(studentData?.items) ? studentData.items : []);
+        setPayments(Array.isArray(paymentData?.items) ? paymentData.items : []);
+        setPayTotal(Number(paymentData?.total) || 0);
+      } catch (err) {
+        if (!alive) return;
+        console.error("Failed to load fees screen", err);
+        setStudents([]);
+        setPayments([]);
+        setPayTotal(0);
+      }
+    };
+
+    void load();
+    return () => {
+      alive = false;
+    };
   }, [payPage, payPageSize]);
 
   const dueStudents = students.filter((s) => s.due > 0);

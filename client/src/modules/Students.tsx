@@ -177,15 +177,21 @@ export function Students() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const data = await api.getStudentsPage({
-      dept: department !== "All" ? department : undefined,
-      search: search.trim() || undefined,
-      status: status !== "All" ? status : undefined,
-      page,
-      limit: pageSize,
-    });
-    setStudents(data.items);
-    setTotalStudents(data.total);
+    try {
+      const data = await api.getStudentsPage({
+        dept: department !== "All" ? department : undefined,
+        search: search.trim() || undefined,
+        status: status !== "All" ? status : undefined,
+        page,
+        limit: pageSize,
+      });
+      setStudents(Array.isArray(data?.items) ? data.items : []);
+      setTotalStudents(Number(data?.total) || 0);
+    } catch (err) {
+      console.error("Failed to load students", err);
+      setStudents([]);
+      setTotalStudents(0);
+    }
   }, [department, page, pageSize, search, status]);
 
   useEffect(() => {

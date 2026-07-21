@@ -47,36 +47,43 @@ export function Income() {
     method: "Cash",
   });
 
-  const load = () => {
-    api.getIncomeSummary().then((s) => {
-      setSummaryTotal(s.total);
-      setSummaryByCategory(s.byCategory);
-    }).catch(() => {
-      setSummaryTotal(0);
-      setSummaryByCategory([]);
-    });
-    api.getIncomePage({ page, limit: pageSize, category: filterCat !== "All" ? filterCat : undefined }).then((r) => {
-      setEntries(r.items);
-      setTotalEntries(r.total);
-    }).catch(() => {
-      setEntries([]);
-      setTotalEntries(0);
-    });
-    api.getIncomeCategories().then((c) => {
-      setCategories(c);
-      setCatEdit(c);
-      if (c.length) {
-        setForm((f) => (c.includes(f.category) ? f : { ...f, category: c.find((x) => x !== "Student Fee") || c[0] }));
+  const load = async () => {
+    try {
+      const [summary, pageData, categoryData, studentData] = await Promise.all([
+        api.getIncomeSummary(),
+        api.getIncomePage({ page, limit: pageSize, category: filterCat !== "All" ? filterCat : undefined }),
+        api.getIncomeCategories(),
+        api.getStudentsBasic({ status: "Active" }),
+      ]);
+
+      setSummaryTotal(Number(summary?.total) || 0);
+      setSummaryByCategory(Array.isArray(summary?.byCategory) ? summary.byCategory : []);
+      setEntries(Array.isArray(pageData?.items) ? pageData.items : []);
+      setTotalEntries(Number(pageData?.total) || 0);
+
+      const safeCategories = Array.isArray(categoryData) ? categoryData : [];
+      setCategories(safeCategories);
+      setCatEdit(safeCategories);
+      if (safeCategories.length) {
+        setForm((f) => (safeCategories.includes(f.category) ? f : { ...f, category: safeCategories.find((x) => x !== "Student Fee") || safeCategories[0] }));
       }
-    });
-    api.getStudentsBasic({ status: "Active" }).then((r) => {
-      const s = r.items;
+
+      const s = Array.isArray(studentData?.items) ? studentData.items : [];
       setStudents(s);
       const classes = [...new Set(s.map((x) => x.class).filter(Boolean))];
       if (classes.length && !studentForm.className) {
         setStudentForm((f) => ({ ...f, className: classes[0], studentId: s.find((st) => st.class === classes[0])?.id || 0 }));
       }
-    });
+    } catch (err) {
+      console.error("Failed to load income screen", err);
+      setSummaryTotal(0);
+      setSummaryByCategory([]);
+      setEntries([]);
+      setTotalEntries(0);
+      setCategories([]);
+      setCatEdit([]);
+      setStudents([]);
+    }
   };
 
   const searchText = studentSearch.trim().toLowerCase();
@@ -105,7 +112,7 @@ export function Income() {
   };
 
   useEffect(() => {
-    load();
+    void load();
   }, [page, filterCat]);
 
   const totalIncome = summaryTotal;
