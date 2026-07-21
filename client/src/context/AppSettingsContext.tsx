@@ -101,16 +101,17 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const saveSettings = useCallback(
     async (next?: Settings) => {
       const payload = next ?? settings;
-      try {
-        const updated = { ...DEFAULT_SETTINGS, ...(await api.saveSettings(payload)) } as Settings;
-        setSettings(updated);
-        applyTheme(updated.theme);
-        localStorage.setItem("madrasah-settings", JSON.stringify(updated));
-      } catch {
-        setSettings(payload);
-        applyTheme(payload.theme);
-        localStorage.setItem("madrasah-settings", JSON.stringify(payload));
-      }
+      // Previously a failed save (network error, permission denied, etc.)
+      // still applied `payload` to local state/localStorage in the catch
+      // branch below, so the UI showed "Saved" even though the server
+      // never persisted it — the real settings would then silently
+      // reappear on the next refresh/login with no explanation. Now a
+      // failure is rethrown so the caller (Settings.tsx) can show an
+      // actual error instead of a false "Saved" message.
+      const updated = { ...DEFAULT_SETTINGS, ...(await api.saveSettings(payload)) } as Settings;
+      setSettings(updated);
+      applyTheme(updated.theme);
+      localStorage.setItem("madrasah-settings", JSON.stringify(updated));
     },
     [settings]
   );

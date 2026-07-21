@@ -150,8 +150,14 @@ export function Settings() {
   }, []);
 
   const handleSave = async () => {
-    await saveSettings(settings);
-    setSaved(true);
+    try {
+      await saveSettings(settings);
+      setSaved(true);
+      setMsg("");
+    } catch (e) {
+      setSaved(false);
+      setMsg(e instanceof Error ? e.message : "Settings could not be saved. Please try again.");
+    }
   };
 
   const handleLogo = (file: File | null) => {
@@ -367,7 +373,7 @@ export function Settings() {
           {allowBackup && (
             <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
               <SectionHeader title={t.settings.backup} open={editBackup} onToggle={() => setEditBackup((v) => !v)} />
-                            <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Download full SQLite database backup.</p>
+                            <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Download a full database backup (PostgreSQL dump, or JSON if pg_dump isn't available).</p>
               {!editBackup && backupConfig && (
                 <div style={{ marginTop: 12 }}>
                   <InfoRow label="Automatic backup" value={backupConfig.enabled ? "Enabled" : "Disabled"} />

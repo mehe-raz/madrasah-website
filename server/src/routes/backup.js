@@ -8,7 +8,9 @@ const googleDrive = require("../lib/googleDrive");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
-// (The /restore route below additionally requires Super Admin specifically.)
+// (Every route below additionally requires Super Admin specifically — backup
+// data includes password hashes and full financial records, so the broader
+// "settings" permission that Admin also holds isn't enough on its own.)
 router.use(requirePermission("settings"));
 const backupDir = path.join(__dirname, "..", "..", "backups");
 const CONFIG_KEY = "backupConfig";
@@ -47,12 +49,23 @@ async function getConfig() {
 }
 
 async function saveConfig(config) {
+  const destinations = (Array.isArray(config.destinations) ? config.destinations.slice(0, 3) : ["", "", ""]).map(
+    (d) => {
+      const trimmed = String(d || "").trim();
+      // Reject relative segments so a typo like "../.." can't walk the
+      // destination outside of wherever the admin intended. Now that this
+      // route requires Super Admin, this is a safety net against mistakes
+      // more than an attack defense, but it's cheap to keep.
+      if (trimmed && trimmed.includes("..")) return "";
+      return trimmed;
+    }
+  );
   const clean = {
     ...defaultConfig(),
     ...config,
     intervalHours: Math.max(1, Number(config.intervalHours) || 24),
     keepLocalCopies: Math.max(1, Number(config.keepLocalCopies) || 14),
-    destinations: Array.isArray(config.destinations) ? config.destinations.slice(0, 3) : ["", "", ""],
+    destinations,
   };
   await db.run(
     "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
@@ -216,7 +229,16 @@ async function restoreSqlBackup(buffer) {
   });
 }
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
+  // Was previously guarded only by the generic "settings" permission, which
+  // Admin also holds — meaning an Admin could call this directly (bypassing
+  // the UI, which only shows the backup section to Super Admin) and download
+  // a full database dump including every user's password hash. /restore and
+  // the /google/* routes below already required Super Admin explicitly; this
+  // brings download/config/run in line with them.
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can download backups" });
+  }
   try {
     const { localPath, filename } = await createBackup();
     res.download(localPath, filename);
@@ -225,15 +247,24 @@ router.get("/", async (_req, res) => {
   }
 });
 
-router.get("/config", async (_req, res) => {
+router.get("/config", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can view backup settings" });
+  }
   res.json(await getConfig());
 });
 
 router.put("/config", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can change backup settings" });
+  }
   res.json(await saveConfig(req.body || {}));
 });
 
-router.post("/run", async (_req, res) => {
+router.post("/run", async (req, res) => {
+  if (req.user?.role !== "Super Admin") {
+    return res.status(403).json({ error: "Only Super Admin can run a backup" });
+  }
   try {
     res.json(await createBackup());
   } catch (e) {
