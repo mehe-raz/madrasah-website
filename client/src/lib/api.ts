@@ -8,6 +8,8 @@ import type {
   GoogleDriveFile,
   GoogleDriveStatus,
   IncomeEntry,
+  IncomeSummary,
+  PaginatedResult,
   Payment,
   Settings,
   Student,
@@ -41,6 +43,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+function buildQuery(params: Record<string, string | number | undefined | null>) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).length) qs.set(key, String(value));
+  });
+  const q = qs.toString();
+  return q ? `?${q}` : "";
 }
 
 export const api = {
@@ -77,13 +88,18 @@ export const api = {
   getDashboard: () => request<DashboardData>("/dashboard"),
 
   getStudents: (params?: { dept?: string; search?: string; status?: string; class?: string }) => {
-    const qs = new URLSearchParams();
-    if (params?.dept) qs.set("dept", params.dept);
-    if (params?.search) qs.set("search", params.search);
-    if (params?.status) qs.set("status", params.status);
-    if (params?.class) qs.set("class", params.class);
-    const q = qs.toString();
-    return request<Student[]>(`/students${q ? `?${q}` : ""}`);
+    const q = buildQuery({ dept: params?.dept, search: params?.search, status: params?.status, class: params?.class });
+    return request<Student[]>(`/students${q}`);
+  },
+
+  getStudentsPage: (params?: { dept?: string; search?: string; status?: string; class?: string; page?: number; limit?: number; fields?: "basic" | "full" }) => {
+    const q = buildQuery({ dept: params?.dept, search: params?.search, status: params?.status, class: params?.class, page: params?.page, limit: params?.limit, fields: params?.fields });
+    return request<PaginatedResult<Student>>(`/students${q}`);
+  },
+
+  getStudentsBasic: (params?: { dept?: string; search?: string; status?: string; class?: string }) => {
+    const q = buildQuery({ dept: params?.dept, search: params?.search, status: params?.status, class: params?.class, page: 1, limit: 1000, fields: "basic" });
+    return request<PaginatedResult<Student>>(`/students${q}`);
   },
 
   getClasses: () => request<string[]>("/students/classes/list"),
@@ -148,6 +164,11 @@ export const api = {
 
   getPayments: () => request<Payment[]>("/payments"),
 
+  getPaymentsPage: (params?: { page?: number; limit?: number }) => {
+    const q = buildQuery({ page: params?.page, limit: params?.limit });
+    return request<PaginatedResult<Payment>>(`/payments${q}`);
+  },
+
   createPayment: (body: { studentId: number; amount: number; method: string }) =>
     request<Payment>("/payments", { method: "POST", body: JSON.stringify(body) }),
 
@@ -157,11 +178,18 @@ export const api = {
     request<string[]>("/income/categories", { method: "PUT", body: JSON.stringify({ categories }) }),
 
   getIncome: (params?: { from?: string; to?: string }) => {
-    const qs = new URLSearchParams();
-    if (params?.from) qs.set("from", params.from);
-    if (params?.to) qs.set("to", params.to);
-    const q = qs.toString();
-    return request<IncomeEntry[]>(`/income${q ? `?${q}` : ""}`);
+    const q = buildQuery({ from: params?.from, to: params?.to });
+    return request<IncomeEntry[]>(`/income${q}`);
+  },
+
+  getIncomePage: (params?: { from?: string; to?: string; category?: string; page?: number; limit?: number }) => {
+    const q = buildQuery({ from: params?.from, to: params?.to, category: params?.category, page: params?.page, limit: params?.limit });
+    return request<PaginatedResult<IncomeEntry>>(`/income${q}`);
+  },
+
+  getIncomeSummary: (params?: { from?: string; to?: string }) => {
+    const q = buildQuery({ from: params?.from, to: params?.to });
+    return request<IncomeSummary>(`/income/summary${q}`);
   },
 
   createIncome: (body: {
@@ -180,11 +208,13 @@ export const api = {
     request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/income/${id}`, { method: "DELETE" }),
 
   getExpenses: (params?: { from?: string; to?: string }) => {
-    const qs = new URLSearchParams();
-    if (params?.from) qs.set("from", params.from);
-    if (params?.to) qs.set("to", params.to);
-    const q = qs.toString();
-    return request<Expense[]>(`/expenses${q ? `?${q}` : ""}`);
+    const q = buildQuery({ from: params?.from, to: params?.to });
+    return request<Expense[]>(`/expenses${q}`);
+  },
+
+  getExpensesPage: (params?: { from?: string; to?: string; page?: number; limit?: number }) => {
+    const q = buildQuery({ from: params?.from, to: params?.to, page: params?.page, limit: params?.limit });
+    return request<PaginatedResult<Expense>>(`/expenses${q}`);
   },
 
   getReportAttendance: (from: string, to: string) =>
@@ -280,31 +310,13 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    return (await res.json()) as { exportedAt: string | null; version: number | null; format: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number> };
+    return (await res.json()) as { exportedAt: string | null; backupCounts: Record<string, number>; currentCounts: Record<string, number> };
   },
 
   previewGoogleDriveBackup: (fileId: string) =>
-    request<{ exportedAt: string | null; version: number | null; format: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number> }>(
+    request<{ exportedAt: string | null; backupCounts: Record<string, number>; currentCounts: Record<string, number> }>(
       `/backup/google/preview/${fileId}`
     ),
-
-  dryRunBackup: async (file: File) => {
-    const token = getToken();
-    const res = await fetch(`${API}/backup/dry-run`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/octet-stream",
-        ...(token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: await file.arrayBuffer(),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
-    return (await res.json()) as { exportedAt: string | null; version: number | null; format: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number> };
-  },
 
   restoreBackup: async (file: File) => {
     const token = getToken();
@@ -321,7 +333,7 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    return (await res.json()) as { ok: boolean; message: string; safetyBackup?: string; report?: { version: number | null; format: string | null; exportedAt: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number>; restoredRows: Record<string, number>; beforeCounts: Record<string, number>; afterCounts: Record<string, number>; tables: string[] } };
+    return (await res.json()) as { ok: boolean; message: string };
   },
 
   getGoogleDriveStatus: () => request<GoogleDriveStatus>("/backup/google/status"),
@@ -333,7 +345,5 @@ export const api = {
   listGoogleDriveFiles: () => request<GoogleDriveFile[]>("/backup/google/files"),
 
   restoreFromGoogleDrive: (fileId: string) =>
-    request<{ ok: boolean; message: string; safetyBackup?: string; report?: { version: number | null; format: string | null; exportedAt: string | null; warnings: string[]; backupCounts: Record<string, number>; currentCounts: Record<string, number>; restoredRows: Record<string, number>; beforeCounts: Record<string, number>; afterCounts: Record<string, number>; tables: string[] } }>(`/backup/google/restore/${fileId}`, { method: "POST" }),
-
-  listRestoreEvents: () => request<any[]>("/backup/restores"),
+    request<{ ok: boolean; message: string }>(`/backup/google/restore/${fileId}`, { method: "POST" }),
 };

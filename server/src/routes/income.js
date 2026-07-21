@@ -3,7 +3,6 @@ const db = require("../db");
 const { getIncomeCategories, setIncomeCategories } = require("../lib/incomeCategories");
 const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests");
 const { requirePermission } = require("../middleware/rbac");
-const { nextReceipt } = require("../lib/receiptCounter");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -11,6 +10,25 @@ router.use(requirePermission("income"));
 
 router.get("/categories", async (_req, res) => {
   res.json(await getIncomeCategories());
+});
+
+router.get("/summary", async (req, res) => {
+  const { from, to } = req.query;
+  const params = [];
+  let where = "";
+  if (from && to) {
+    params.push(from, to);
+    where = `WHERE date >= $1 AND date <= $2`;
+  }
+  const [totalRow, catRows] = await Promise.all([
+    db.get(`SELECT COUNT(*)::int AS count, COALESCE(SUM(amount), 0)::int AS total FROM income ${where}`, params),
+    db.all(`SELECT category, COALESCE(SUM(amount), 0)::int AS total FROM income ${where} GROUP BY category ORDER BY total DESC`, params),
+  ]);
+  res.json({
+    total: totalRow?.total || 0,
+    count: totalRow?.count || 0,
+    byCategory: catRows.map((r) => ({ cat: r.category, total: r.total })),
+  });
 });
 
 router.put("/categories", async (req, res) => {
@@ -23,16 +41,63 @@ router.put("/categories", async (req, res) => {
   }
 });
 
+function clampInt(value, fallback, min, max) {
+  const n = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function parseListOptions(query) {
+  const limit = clampInt(query.limit, 25, 1, 100);
+  const page = clampInt(query.page, 1, 1, 100000);
+  const paginate = query.paginate === "1" || query.paginate === "true" || query.page != null || query.limit != null;
+  return { limit, page, paginate };
+}
+
 router.get("/", async (req, res) => {
-  const { from, to } = req.query;
-  let sql = `SELECT i.*, s.name as "studentName", s.roll as "studentRoll"
+  const { from, to, category } = req.query;
+  const { limit, page, paginate } = parseListOptions(req.query);
+  let sql = `SELECT i.id, i.category, i.amount, i.date, i.note, i.method, i.receipt, i."studentId", i.status, s.name as "studentName", s.roll as "studentRoll"
        FROM income i LEFT JOIN students s ON s.id = i."studentId"`;
+  const conditions = [];
   const params = [];
   if (from && to) {
-    sql += " WHERE i.date >= $1 AND i.date <= $2";
     params.push(from, to);
+    conditions.push(`i.date >= $${params.length - 1} AND i.date <= $${params.length}`);
   }
+  if (category) {
+    params.push(category);
+    conditions.push(`i.category = $${params.length}`);
+  }
+  if (conditions.length) sql += ` WHERE ${conditions.join(" AND ")}`;
   sql += " ORDER BY i.id DESC";
+
+  if (paginate) {
+    const totalRow = await db.get(`SELECT COUNT(*)::int AS total FROM income i ${conditions.length ? `WHERE ${conditions.join(" AND ")}` : ""}`, params);
+    const total = totalRow?.total || 0;
+    const offset = (page - 1) * limit;
+    const rows = await db.all(`${sql} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset]);
+    return res.json({
+      items: rows.map((r) => ({
+        id: r.id,
+        category: r.category,
+        amount: r.amount,
+        date: r.date,
+        note: r.note,
+        method: r.method,
+        receipt: r.receipt,
+        studentId: r.studentId,
+        student: r.studentName,
+        roll: r.studentRoll,
+        status: r.status,
+      })),
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    });
+  }
+
   const rows = await db.all(sql, params);
   res.json(
     rows.map((r) => ({
@@ -50,6 +115,12 @@ router.get("/", async (req, res) => {
     }))
   );
 });
+
+async function nextReceipt(tx, table, prefix, pad) {
+  const maxRow = await tx.get(`SELECT MAX(id) as m FROM ${table}`);
+  const maxId = maxRow?.m || 0;
+  return `${prefix}${String(maxId + 1).padStart(pad, "0")}`;
+}
 
 router.post("/", async (req, res) => {
   const { category, amount, note, method, studentId, date } = req.body;
@@ -69,39 +140,38 @@ router.post("/", async (req, res) => {
   const entryDate = date || new Date().toISOString().slice(0, 10);
   const year = new Date().getFullYear();
 
-  const insertId = await db.withTransaction(async (tx) => {
-    const receipt = await nextReceipt(tx, {
-      table: "income",
-      key: "income_receipt",
-      prefix: `INC-${year}-`,
-      pad: 4,
-    });
+  const ATTEMPTS = 5;
+  let insertId;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    try {
+      insertId = await db.withTransaction(async (tx) => {
+        const receipt = await nextReceipt(tx, "income", `INC-${year}-`, 4);
+        const result = await tx.run(
+          `INSERT INTO income (category, amount, date, note, method, receipt, "studentId", status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+          [category, amt, entryDate, note || "", method || "Cash", receipt, studentId || null, "Completed"]
+        );
 
-    const result = await tx.run(
-      `INSERT INTO income (category, amount, date, note, method, receipt, "studentId", status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [category, amt, entryDate, note || "", method || "Cash", receipt, studentId || null, "Completed"]
-    );
+        if (student && category === "Student Fee") {
+          const newDue = Math.max(0, student.due - amt);
+          await tx.run("UPDATE students SET due = $1 WHERE id = $2", [newDue, studentId]);
 
-    if (student && category === "Student Fee") {
-      const newDue = Math.max(0, student.due - amt);
-      await tx.run("UPDATE students SET due = $1 WHERE id = $2", [newDue, studentId]);
+          const payReceipt = await nextReceipt(tx, "payments", `RCP-${year}-`, 3);
+          await tx.run(
+            `INSERT INTO payments ("studentId", student, roll, amount, date, receipt, method, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [studentId, student.name, student.roll, amt, entryDate, payReceipt, method || "Cash", newDue === 0 ? "Completed" : "Partial"]
+          );
+        }
 
-      const payReceipt = await nextReceipt(tx, {
-        table: "payments",
-        key: "payment_receipt",
-        prefix: `RCP-${year}-`,
-        pad: 4,
+        return result.insertId;
       });
-      await tx.run(
-        `INSERT INTO payments ("studentId", student, roll, amount, date, receipt, method, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [studentId, student.name, student.roll, amt, entryDate, payReceipt, method || "Cash", newDue === 0 ? "Completed" : "Partial"]
-      );
+      break;
+    } catch (err) {
+      if (db.isUniqueViolation(err) && attempt < ATTEMPTS) continue;
+      throw err;
     }
-
-    return result.insertId;
-  });
+  }
 
   const row = await db.get("SELECT * FROM income WHERE id = $1", [insertId]);
   res.status(201).json(row);

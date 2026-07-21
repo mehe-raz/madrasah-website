@@ -114,34 +114,6 @@ export interface BackupConfig {
   driveEncryptionEnabled?: boolean;
 }
 
-export interface BackupRestorePreview {
-  exportedAt: string | null;
-  version: number | null;
-  format: string | null;
-  warnings: string[];
-  backupCounts: Record<string, number>;
-  currentCounts: Record<string, number>;
-}
-
-export interface BackupRestoreReport extends BackupRestorePreview {
-  restoredRows: Record<string, number>;
-  beforeCounts: Record<string, number>;
-  afterCounts: Record<string, number>;
-  tables: string[];
-}
-
-export interface BackupRestoreEvent {
-  id: number;
-  event: string;
-  status: string;
-  requestedByName: string;
-  backupVersion: number | null;
-  backupFormat: string;
-  report: Record<string, unknown>;
-  error: string;
-  createdAt: string;
-}
-
 export interface GoogleDriveStatus {
   configured: boolean;
   connected: boolean;
@@ -150,6 +122,12 @@ export interface GoogleDriveStatus {
   connectedAt: string;
   lastUploadAt: string;
   lastUploadError: string;
+}
+
+export interface IncomeSummary {
+  total: number;
+  count: number;
+  byCategory: { cat: string; total: number }[];
 }
 
 export interface GoogleDriveFile {
@@ -204,6 +182,14 @@ export const INCOME_CATEGORIES = [
   "Event Income",
   "Other",
 ] as const;
+
+export interface PaginatedResult<T> {
+  items: T[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
 
 export interface DashboardData {
   stats: {

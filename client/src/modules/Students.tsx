@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { Badge } from "../components/Badge";
 import { api } from "../lib/api";
@@ -165,6 +165,9 @@ export function Students() {
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("All");
   const [status, setStatus] = useState("All");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(25);
+  const [totalStudents, setTotalStudents] = useState(0);
   const [form, setForm] = useState<AdmissionForm>(emptyForm);
   const [editing, setEditing] = useState<Student | null>(null);
   const [viewing, setViewing] = useState<Student | null>(null);
@@ -174,38 +177,21 @@ export function Students() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const data = await api.getStudents({
+    const data = await api.getStudentsPage({
       dept: department !== "All" ? department : undefined,
-      search: search || undefined,
+      search: search.trim() || undefined,
       status: status !== "All" ? status : undefined,
+      page,
+      limit: pageSize,
     });
-    setStudents(data);
-  }, [department, search, status]);
+    setStudents(data.items);
+    setTotalStudents(data.total);
+  }, [department, page, pageSize, search, status]);
 
   useEffect(() => {
     const timer = window.setTimeout(load, 250);
     return () => window.clearTimeout(timer);
   }, [load]);
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return students.filter((student) => {
-      const matchesDepartment = department === "All" || student.dept === department;
-      const matchesStatus = status === "All" || student.status === status;
-      const haystack = [
-        student.name,
-        student.nameEn,
-        student.roll,
-        student.admissionNumber,
-        student.birthRegistrationNumber,
-        student.fatherMobile,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return matchesDepartment && matchesStatus && haystack.includes(q);
-    });
-  }, [department, search, status, students]);
 
   const setField = (field: keyof AdmissionForm, value: string | number | StudentDocuments) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -361,13 +347,13 @@ export function Students() {
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t.students.admissionSearch} style={{ ...fieldStyle(), flex: 1, minWidth: 240 }} />
-        <select value={department} onChange={(event) => setDepartment(event.target.value)} style={{ ...fieldStyle(), width: 150 }}>
+        <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder={t.students.admissionSearch} style={{ ...fieldStyle(), flex: 1, minWidth: 240 }} />
+        <select value={department} onChange={(event) => { setDepartment(event.target.value); setPage(1); }} style={{ ...fieldStyle(), width: 150 }}>
           {["All", ...departmentOptions].map((option) => (
             <option key={option} value={option}>{option === "All" ? t.common.all : option}</option>
           ))}
         </select>
-        <select value={status} onChange={(event) => setStatus(event.target.value)} style={{ ...fieldStyle(), width: 130 }}>
+        <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} style={{ ...fieldStyle(), width: 130 }}>
           <option value="All">{t.common.all}</option>
           <option value="Active">{t.students.active}</option>
           <option value="Inactive">{t.students.inactive}</option>
@@ -473,14 +459,14 @@ export function Students() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((student, index) => (
+            {students.map((student, index) => (
               <tr key={student.id} style={{ borderBottom: `1px solid ${C.border}`, background: index % 2 === 0 ? C.card : "var(--row-alt)" }}>
                 <td style={{ padding: "10px 12px", fontWeight: 700, color: C.text }}>{textValue(student.admissionNumber)}</td>
                 <td style={{ padding: "10px 12px", color: C.muted }}>{student.roll}</td>
                 <td style={{ padding: "10px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                     {student.studentPhoto ? (
-                      <img src={student.studentPhoto} alt="" loading="lazy" decoding="async" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover" }} />
+                      <img src={student.studentPhoto} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover" }} />
                     ) : (
                       <span style={{ width: 34, height: 34, borderRadius: "50%", background: C.tealL, color: C.tealD, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>
                         {(student.name || "?").slice(0, 1)}
@@ -506,14 +492,25 @@ export function Students() {
             ))}
           </tbody>
         </table>
-        <div style={{ padding: "10px 12px", color: C.muted, fontSize: 12, borderTop: `1px solid ${C.border}` }}>{tr("students.totalStudentsLine", { count: filtered.length })}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 12px", flexWrap: "wrap", borderTop: `1px solid ${C.border}` }}>
+          <div style={{ color: C.muted, fontSize: 12 }}>{tr("students.totalStudentsLine", { count: totalStudents })}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ border: `1px solid ${C.border}`, background: C.card, color: page <= 1 ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: 12 }}>
+              Prev
+            </button>
+            <span style={{ color: C.muted, fontSize: 12 }}>{page} / {Math.max(1, Math.ceil(totalStudents / pageSize))}</span>
+            <button type="button" onClick={() => setPage((p) => p + 1)} disabled={page >= Math.max(1, Math.ceil(totalStudents / pageSize))} style={{ border: `1px solid ${C.border}`, background: C.card, color: page >= Math.max(1, Math.ceil(totalStudents / pageSize)) ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page >= Math.max(1, Math.ceil(totalStudents / pageSize)) ? "not-allowed" : "pointer", fontSize: 12 }}>
+              Next
+            </button>
+          </div>
+        </div>
       </div>
 
       {viewing && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewing(null)}>
           <div className="modal-content" style={{ background: C.card, borderRadius: 8, padding: 24, width: 720, maxWidth: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={(event) => event.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
-              {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" loading="lazy" decoding="async" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} /> : null}
+              {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} /> : null}
               <div>
                 <h3 style={{ margin: 0, color: C.text, fontSize: 20 }}>{viewing.name}</h3>
                 <div style={{ color: C.muted, fontSize: 13 }}>{viewing.nameEn} | {viewing.admissionNumber || t.students.noAdmissionNumber}</div>

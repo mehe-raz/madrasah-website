@@ -16,6 +16,11 @@ export function Income() {
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [filterCat, setFilterCat] = useState("All");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(25);
+  const [totalEntries, setTotalEntries] = useState(0);
+  const [summaryTotal, setSummaryTotal] = useState(0);
+  const [summaryByCategory, setSummaryByCategory] = useState<{ cat: string; total: number }[]>([]);
   const [showReceipt, setShowReceipt] = useState<Payment | null>(null);
   const [editRow, setEditRow] = useState<IncomeEntry | null>(null);
   const [msg, setMsg] = useState("");
@@ -43,7 +48,20 @@ export function Income() {
   });
 
   const load = () => {
-    api.getIncome().then(setEntries).catch(() => setEntries([]));
+    api.getIncomeSummary().then((s) => {
+      setSummaryTotal(s.total);
+      setSummaryByCategory(s.byCategory);
+    }).catch(() => {
+      setSummaryTotal(0);
+      setSummaryByCategory([]);
+    });
+    api.getIncomePage({ page, limit: pageSize, category: filterCat !== "All" ? filterCat : undefined }).then((r) => {
+      setEntries(r.items);
+      setTotalEntries(r.total);
+    }).catch(() => {
+      setEntries([]);
+      setTotalEntries(0);
+    });
     api.getIncomeCategories().then((c) => {
       setCategories(c);
       setCatEdit(c);
@@ -51,7 +69,8 @@ export function Income() {
         setForm((f) => (c.includes(f.category) ? f : { ...f, category: c.find((x) => x !== "Student Fee") || c[0] }));
       }
     });
-    api.getStudents({ status: "Active" }).then((s) => {
+    api.getStudentsBasic({ status: "Active" }).then((r) => {
+      const s = r.items;
       setStudents(s);
       const classes = [...new Set(s.map((x) => x.class).filter(Boolean))];
       if (classes.length && !studentForm.className) {
@@ -87,15 +106,12 @@ export function Income() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [page, filterCat]);
 
-  const filtered =
-    filterCat === "All" ? entries : entries.filter((e) => e.category === filterCat);
-
-  const totalIncome = entries.reduce((s, e) => s + e.amount, 0);
-  const byCategory = categories.map((cat) => ({
+  const totalIncome = summaryTotal;
+  const byCategory = summaryByCategory.length ? summaryByCategory : categories.map((cat) => ({
     cat,
-    total: entries.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0),
+    total: 0,
   }));
 
   const handleAdd = async () => {
@@ -233,7 +249,7 @@ export function Income() {
         <>
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
             {["All", ...categories].map((c) => (
-              <button key={c} type="button" onClick={() => setFilterCat(c)} style={{ border: `1px solid ${filterCat === c ? C.teal : C.border}`, background: filterCat === c ? C.tealL : C.card, color: filterCat === c ? C.tealD : C.muted, borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
+              <button key={c} type="button" onClick={() => { setFilterCat(c); setPage(1); }} style={{ border: `1px solid ${filterCat === c ? C.teal : C.border}`, background: filterCat === c ? C.tealL : C.card, color: filterCat === c ? C.tealD : C.muted, borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
                 {c}
               </button>
             ))}
@@ -248,7 +264,7 @@ export function Income() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((e, i) => (
+                {entries.map((e, i) => (
                   <tr key={e.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
                     <td style={{ padding: "10px 14px", fontFamily: "monospace", color: C.teal, fontWeight: 600 }}>{e.receipt}</td>
                     <td style={{ padding: "10px 14px" }}><Badge label={e.category} color={C.emerald} /></td>
@@ -265,6 +281,14 @@ export function Income() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+            <div style={{ color: C.muted, fontSize: 12 }}>Showing {entries.length} of {totalEntries}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ border: `1px solid ${C.border}`, background: C.card, color: page <= 1 ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: 12 }}>Prev</button>
+              <span style={{ color: C.muted, fontSize: 12 }}>{page} / {Math.max(1, Math.ceil(totalEntries / pageSize))}</span>
+              <button type="button" onClick={() => setPage((p) => p + 1)} disabled={page >= Math.max(1, Math.ceil(totalEntries / pageSize))} style={{ border: `1px solid ${C.border}`, background: C.card, color: page >= Math.max(1, Math.ceil(totalEntries / pageSize)) ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page >= Math.max(1, Math.ceil(totalEntries / pageSize)) ? "not-allowed" : "pointer", fontSize: 12 }}>Next</button>
+            </div>
           </div>
         </>
       )}
