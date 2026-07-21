@@ -50,6 +50,12 @@ router.get("/", async (req, res) => {
   );
 });
 
+async function nextReceipt(tx, table, prefix, pad) {
+  const maxRow = await tx.get(`SELECT MAX(id) as m FROM ${table}`);
+  const maxId = maxRow?.m || 0;
+  return `${prefix}${String(maxId + 1).padStart(pad, "0")}`;
+}
+
 router.post("/", async (req, res) => {
   const { category, amount, note, method, studentId, date } = req.body;
   const CATEGORIES = await getIncomeCategories();
@@ -65,31 +71,43 @@ router.post("/", async (req, res) => {
     if (!student) return res.status(404).json({ error: "Student not found" });
   }
 
-  const maxRow = await db.get("SELECT MAX(id) as m FROM income");
-  const maxId = maxRow?.m || 0;
-  const receipt = `INC-${new Date().getFullYear()}-${String(maxId + 1).padStart(4, "0")}`;
   const entryDate = date || new Date().toISOString().slice(0, 10);
+  const year = new Date().getFullYear();
 
-  const result = await db.run(
-    `INSERT INTO income (category, amount, date, note, method, receipt, "studentId", status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-    [category, amt, entryDate, note || "", method || "Cash", receipt, studentId || null, "Completed"]
-  );
+  const ATTEMPTS = 5;
+  let insertId;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    try {
+      insertId = await db.withTransaction(async (tx) => {
+        const receipt = await nextReceipt(tx, "income", `INC-${year}-`, 4);
+        const result = await tx.run(
+          `INSERT INTO income (category, amount, date, note, method, receipt, "studentId", status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+          [category, amt, entryDate, note || "", method || "Cash", receipt, studentId || null, "Completed"]
+        );
 
-  if (student && category === "Student Fee") {
-    const newDue = Math.max(0, student.due - amt);
-    await db.run("UPDATE students SET due = $1 WHERE id = $2", [newDue, studentId]);
-    const payMaxRow = await db.get("SELECT MAX(id) as m FROM payments");
-    const payMax = payMaxRow?.m || 0;
-    const payReceipt = `RCP-${new Date().getFullYear()}-${String(payMax + 1).padStart(3, "0")}`;
-    await db.run(
-      `INSERT INTO payments ("studentId", student, roll, amount, date, receipt, method, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [studentId, student.name, student.roll, amt, entryDate, payReceipt, method || "Cash", newDue === 0 ? "Completed" : "Partial"]
-    );
+        if (student && category === "Student Fee") {
+          const newDue = Math.max(0, student.due - amt);
+          await tx.run("UPDATE students SET due = $1 WHERE id = $2", [newDue, studentId]);
+
+          const payReceipt = await nextReceipt(tx, "payments", `RCP-${year}-`, 3);
+          await tx.run(
+            `INSERT INTO payments ("studentId", student, roll, amount, date, receipt, method, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [studentId, student.name, student.roll, amt, entryDate, payReceipt, method || "Cash", newDue === 0 ? "Completed" : "Partial"]
+          );
+        }
+
+        return result.insertId;
+      });
+      break;
+    } catch (err) {
+      if (db.isUniqueViolation(err) && attempt < ATTEMPTS) continue;
+      throw err;
+    }
   }
 
-  const row = await db.get("SELECT * FROM income WHERE id = $1", [result.insertId]);
+  const row = await db.get("SELECT * FROM income WHERE id = $1", [insertId]);
   res.status(201).json(row);
 });
 
@@ -103,16 +121,36 @@ router.patch("/:id", async (req, res) => {
   if (category && !CATEGORIES.includes(category)) {
     return res.status(400).json({ error: "Invalid category" });
   }
-  await db.run(
-    `UPDATE income SET
-      category = COALESCE($1, category),
-      amount = COALESCE($2, amount),
-      note = COALESCE($3, note),
-      method = COALESCE($4, method),
-      date = COALESCE($5, date)
-     WHERE id = $6`,
-    [category ?? null, amount != null ? Number(amount) : null, note ?? null, method ?? null, date ?? null, id]
-  );
+
+  const nextCategory = category ?? existing.category;
+  const nextAmount = amount != null ? Number(amount) : existing.amount;
+
+  await db.withTransaction(async (tx) => {
+    await tx.run(
+      `UPDATE income SET
+        category = COALESCE($1, category),
+        amount = COALESCE($2, amount),
+        note = COALESCE($3, note),
+        method = COALESCE($4, method),
+        date = COALESCE($5, date)
+       WHERE id = $6`,
+      [category ?? null, amount != null ? Number(amount) : null, note ?? null, method ?? null, date ?? null, id]
+    );
+
+    // Keep the linked student's due balance correct: undo the old effect on
+    // due (if this entry used to count as a Student Fee payment) and apply
+    // the new effect (if it still does / now does), so editing an entry
+    // can't silently leave the student's balance out of sync.
+    if (existing.studentId) {
+      const wasFee = existing.category === "Student Fee";
+      const isFee = nextCategory === "Student Fee";
+      const delta = (wasFee ? existing.amount : 0) - (isFee ? nextAmount : 0);
+      if (delta !== 0) {
+        await tx.run("UPDATE students SET due = GREATEST(0, due + $1) WHERE id = $2", [delta, existing.studentId]);
+      }
+    }
+  });
+
   res.json(await db.get("SELECT * FROM income WHERE id = $1", [id]));
 });
 
@@ -134,6 +172,9 @@ router.delete("/:id", async (req, res) => {
 
   const result = await db.run("DELETE FROM income WHERE id = $1", [id]);
   if (result.rowCount === 0) return res.status(404).json({ error: "Not found" });
+  if (existing.category === "Student Fee" && existing.studentId) {
+    await db.run("UPDATE students SET due = due + $1 WHERE id = $2", [existing.amount, existing.studentId]);
+  }
   res.json({ ok: true });
 });
 

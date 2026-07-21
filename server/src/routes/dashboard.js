@@ -8,6 +8,7 @@ router.use(requirePermission("dashboard"));
 
 router.get("/", async (_req, res) => {
   const today = new Date().toISOString().slice(0, 10);
+  const monthStart = `${today.slice(0, 7)}-01`;
 
   // All student aggregates computed in one SQL round trip instead of
   // downloading every column (photo URLs, documents JSONB, addresses, etc)
@@ -23,8 +24,8 @@ router.get("/", async (_req, res) => {
          FROM students`
       ),
       db.all(`SELECT dept AS name, COUNT(*)::int AS value FROM students GROUP BY dept`),
-      db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM income"),
-      db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM expenses"),
+      db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM income WHERE date >= $1 AND date <= $2", [monthStart, today]),
+      db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM expenses WHERE date >= $1 AND date <= $2", [monthStart, today]),
       db.all("SELECT category, SUM(amount)::int AS total FROM income GROUP BY category"),
       db.all("SELECT status FROM attendance WHERE date = $1", [today]),
       db.all("SELECT * FROM income ORDER BY id DESC LIMIT 3"),

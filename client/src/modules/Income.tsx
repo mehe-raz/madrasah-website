@@ -51,7 +51,7 @@ export function Income() {
         setForm((f) => (c.includes(f.category) ? f : { ...f, category: c.find((x) => x !== "Student Fee") || c[0] }));
       }
     });
-    api.getStudents({ status: "সক্রিয়" }).then((s) => {
+    api.getStudents({ status: "Active" }).then((s) => {
       setStudents(s);
       const classes = [...new Set(s.map((x) => x.class).filter(Boolean))];
       if (classes.length && !studentForm.className) {
@@ -63,7 +63,7 @@ export function Income() {
   const searchText = studentSearch.trim().toLowerCase();
   const studentsInClass = students.filter((s) => {
     const classMatch = !studentForm.className || s.class === studentForm.className;
-    const activeMatch = s.status === "সক্রিয়";
+    const activeMatch = s.status === "Active";
     const searchMatch =
       !searchText ||
       s.name.toLowerCase().includes(searchText) ||

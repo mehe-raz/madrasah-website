@@ -18,7 +18,7 @@ router.get("/", async (req, res) => {
        LEFT JOIN attendance a ON a."studentId" = s.id AND a.date = $1
        WHERE s.status = 'Active'`;
   const params = [date];
-  if (dept && dept !== "সব") {
+  if (dept && dept !== "সব" && dept !== "All") {
     sql += " AND s.dept = $2";
     params.push(dept);
   }

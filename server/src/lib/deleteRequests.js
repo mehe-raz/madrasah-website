@@ -49,7 +49,12 @@ async function createDeleteRequest({ entityType, entityId, label, amount, user, 
 
 async function deleteEntity(entityType, entityId) {
   if (entityType === "income") {
+    const income = await db.get("SELECT * FROM income WHERE id = $1", [entityId]);
+    if (!income) return false;
     const result = await db.run("DELETE FROM income WHERE id = $1", [entityId]);
+    if (result.rowCount > 0 && income.category === "Student Fee" && income.studentId) {
+      await db.run("UPDATE students SET due = due + $1 WHERE id = $2", [income.amount, income.studentId]);
+    }
     return result.rowCount > 0;
   }
   if (entityType === "expense") {

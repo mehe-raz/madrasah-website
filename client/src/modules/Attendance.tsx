@@ -3,16 +3,13 @@ import { Badge } from "../components/Badge";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
-import { DEPT_OPTIONS, deptLabel } from "../lib/labels";
 import type { Student } from "../types";
 
-// মান (value) সবসময় ইংরেজি কোড, যা admission form-এর সাথে মেলে।
-// লেবেল শুধু বাটনে দেখানোর জন্য বাংলায় (deptLabel দিয়ে)।
-const DEPTS = [...DEPT_OPTIONS.filter((d) => d !== "General"), "সব"] as const;
+const DEPTS = ["Hifz", "Kitab", "Nazera", "General", "All"] as const;
 
 export function Attendance() {
   const { t } = useLanguage();
-  const [dept, setDept] = useState<string>("Hifz");
+  const [dept, setDept] = useState<string>("All");
   const [att, setAtt] = useState<Student[]>([]);
   const [saved, setSaved] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -85,7 +82,7 @@ export function Attendance() {
               fontSize: 13,
             }}
           >
-            {deptLabel(d)}
+            {d}
           </button>
         ))}
       </div>
@@ -124,7 +121,7 @@ export function Attendance() {
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: C.muted }}>{s.roll}</td>
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text }}>{s.name}</td>
                 <td style={{ padding: "10px 14px", color: C.muted }}>{s.class}</td>
-                <td style={{ padding: "10px 14px" }}><Badge label={deptLabel(s.dept)} color={C.teal} /></td>
+                <td style={{ padding: "10px 14px" }}><Badge label={s.dept} color={C.teal} /></td>
                 <td style={{ padding: "10px 14px" }}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {["উপস্থিত", "অনুপস্থিত", "দেরিতে"].map((v) => {

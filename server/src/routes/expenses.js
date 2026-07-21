@@ -19,13 +19,14 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   const { cat, amount, note } = req.body;
-  if (!cat || !amount) return res.status(400).json({ error: "ক্যাটাগরি ও পরিমাণ আবশ্যক" });
-  const date = new Date().toLocaleDateString("bn-BD");
+  const amt = Number(amount);
+  if (!cat || !amt || amt <= 0) return res.status(400).json({ error: "ক্যাটাগরি ও সঠিক পরিমাণ আবশ্যক" });
+  const date = new Date().toISOString().slice(0, 10);
   const result = await db.run(
     "INSERT INTO expenses (cat, amount, date, note) VALUES ($1, $2, $3, $4) RETURNING id",
-    [cat, Number(amount), date, note || ""]
+    [cat, amt, date, note || ""]
   );
-  res.status(201).json({ id: result.insertId, cat, amount: Number(amount), date, note: note || "" });
+  res.status(201).json({ id: result.insertId, cat, amount: amt, date, note: note || "" });
 });
 
 router.delete("/:id", async (req, res) => {
