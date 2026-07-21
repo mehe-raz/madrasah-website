@@ -393,7 +393,7 @@ export function Settings() {
               {editBackup && authUser?.role === "Super Admin" && (
                 <div style={{ marginTop: 14, padding: 12, background: C.slateL, borderRadius: 8 }}>
                   <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Restore backup database (.sql / .json)</label>
-                  <input type="file" accept=".sql,.json,application/octet-stream,application/json" onChange={(e) => handleRestore(e.target.files?.[0] || null)} style={{ fontSize: 13, maxWidth: "100%" }} />
+                  <input type="file" accept=".sql,.json,.enc,application/octet-stream,application/json" onChange={(e) => handleRestore(e.target.files?.[0] || null)} style={{ fontSize: 13, maxWidth: "100%" }} />
                   <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>Upload a downloaded madrasah backup to restore old students, income, users and settings.</p>
                 </div>
               )}
@@ -432,6 +432,11 @@ export function Settings() {
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
                             {t.settings.googleDriveConnected.replace("{email}", driveStatus.accountEmail)}
+                          </p>
+                          <p style={{ fontSize: 12, margin: 0, color: backupConfig?.driveEncryptionEnabled ? C.emerald : "#dc2626", fontWeight: 600 }}>
+                            {backupConfig?.driveEncryptionEnabled
+                              ? "🔒 Drive backups are encrypted (BACKUP_ENCRYPTION_KEY is set)"
+                              : "⚠️ Drive backups are NOT encrypted — set BACKUP_ENCRYPTION_KEY on the server to protect them"}
                           </p>
                           {driveStatus.lastUploadAt && (
                             <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>

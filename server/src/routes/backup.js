@@ -5,6 +5,7 @@ const { spawn } = require("child_process");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const googleDrive = require("../lib/googleDrive");
+const backupEncryption = require("../lib/backupEncryption");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -161,14 +162,33 @@ async function createBackup(config = null) {
     .reverse();
   copies.slice(activeConfig.keepLocalCopies).forEach((f) => fs.unlinkSync(path.join(backupDir, f)));
 
+  let tempEncPath = null;
   try {
     const mimeType = format === "sql" ? "application/sql" : "application/json";
-    const uploaded = await googleDrive.uploadBackupFile(localPath, filename, mimeType);
-    if (uploaded) console.log(`Backup uploaded to Google Drive: ${filename}`);
+    let uploadPath = localPath;
+    let uploadFilename = filename;
+    let uploadMimeType = mimeType;
+
+    if (backupEncryption.isConfigured()) {
+      tempEncPath = `${localPath}.enc`;
+      backupEncryption.encryptFile(localPath, tempEncPath);
+      uploadPath = tempEncPath;
+      uploadFilename = `${filename}.enc`;
+      uploadMimeType = "application/octet-stream";
+    } else {
+      console.warn(
+        "BACKUP_ENCRYPTION_KEY is not set — backups uploaded to Google Drive will be plain, readable JSON/SQL."
+      );
+    }
+
+    const uploaded = await googleDrive.uploadBackupFile(uploadPath, uploadFilename, uploadMimeType);
+    if (uploaded) console.log(`Backup uploaded to Google Drive: ${uploadFilename}`);
   } catch (err) {
     // Google Drive upload is best-effort, same as the local folder destinations above:
     // a failed upload should never block the backup itself from completing.
     console.warn("Google Drive backup upload failed:", err.message);
+  } finally {
+    if (tempEncPath && fs.existsSync(tempEncPath)) fs.unlinkSync(tempEncPath);
   }
 
   const saved = await saveConfig({ ...activeConfig, lastRunAt: new Date().toISOString() });
@@ -251,7 +271,7 @@ router.get("/config", async (req, res) => {
   if (req.user?.role !== "Super Admin") {
     return res.status(403).json({ error: "Only Super Admin can view backup settings" });
   }
-  res.json(await getConfig());
+  res.json({ ...(await getConfig()), driveEncryptionEnabled: backupEncryption.isConfigured() });
 });
 
 router.put("/config", async (req, res) => {
@@ -282,14 +302,36 @@ async function performRestore(buffer) {
 
   fs.writeFileSync(tempPath, buffer);
   try {
-    const text = buffer.toString("utf8");
+    let plain = buffer;
+    let text = plain.toString("utf8");
+
+    // An encrypted backup (see lib/backupEncryption.js) is binary and won't
+    // match either marker below, whether it arrived via the "restore from
+    // Drive" button or was manually re-uploaded as a .enc file someone
+    // downloaded from the Drive folder. Try decrypting first so both paths
+    // restore the same way a plain backup does.
+    if (
+      !text.trimStart().startsWith("{") &&
+      !text.includes("PostgreSQL database dump") &&
+      !text.includes("CREATE TABLE") &&
+      backupEncryption.isConfigured()
+    ) {
+      try {
+        plain = backupEncryption.decryptBuffer(buffer);
+        text = plain.toString("utf8");
+      } catch {
+        // Not an encrypted backup either — fall through to the
+        // "Unsupported backup format" error below with the original bytes.
+      }
+    }
+
     const beforeBackup = await createBackup();
 
     if (text.trimStart().startsWith("{")) {
       const data = JSON.parse(text);
       await restoreJsonBackup(data);
     } else if (text.includes("PostgreSQL database dump") || text.includes("CREATE TABLE")) {
-      await restoreSqlBackup(buffer);
+      await restoreSqlBackup(plain);
     } else {
       throw new Error("Unsupported backup format. Upload JSON or pg_dump SQL.");
     }

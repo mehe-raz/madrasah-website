@@ -111,6 +111,7 @@ export interface BackupConfig {
   keepLocalCopies: number;
   destinations: string[];
   lastRunAt?: string;
+  driveEncryptionEnabled?: boolean;
 }
 
 export interface GoogleDriveStatus {
