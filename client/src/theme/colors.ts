@@ -1,24 +1,31 @@
 export const C = {
-  emerald: "#059669",
+  emerald: "#10b981",
   emeraldL: "#d1fae5",
   emeraldD: "#065f46",
-  teal: "#0891b2",
-  tealL: "#cffafe",
-  tealD: "#164e63",
-  amber: "#d97706",
+
+  teal: "#14b8a6",
+  tealL: "#ccfbf1",
+  tealD: "#0f766e",
+
+  amber: "#f59e0b",
   amberL: "#fef3c7",
-  amberD: "#92400e",
-  rose: "#e11d48",
+  amberD: "#b45309",
+
+  rose: "#fb7185",
   roseL: "#ffe4e6",
-  roseD: "#9f1239",
-  violet: "#7c3aed",
+  roseD: "#be123c",
+
+  violet: "#8b5cf6",
   violetL: "#ede9fe",
-  violetD: "#4c1d95",
-  sky: "#0284c7",
+  violetD: "#6d28d9",
+
+  sky: "#0ea5e9",
   skyL: "#e0f2fe",
-  skyD: "#0c4a6e",
+  skyD: "#075985",
+
   slate: "#475569",
   slateD: "#0f172a",
+
   bg: "var(--bg)",
   card: "var(--card)",
   border: "var(--border)",
@@ -28,4 +35,4 @@ export const C = {
   link: "#0ea5e9",
 } as const;
 
-export const PIE_COLORS = [C.emerald, C.teal, C.amber, C.violet];
+export const PIE_COLORS = [C.sky, C.emerald, C.amber, C.violet];
