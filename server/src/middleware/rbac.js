@@ -21,6 +21,7 @@ const ROUTE_PERMISSION = {
   "/api/reports": "reports",
   "/api/audit-logs": "settings",
   "/api/site-content": "website",
+  "/api/admissions": "website",
 };
 
 function canAccess(role, permission) {

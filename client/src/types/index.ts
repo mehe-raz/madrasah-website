@@ -172,11 +172,47 @@ export interface SiteDepartment {
   desc: string;
 }
 
+export interface SiteClassItem {
+  icon: string;
+  title: string;
+  desc: string;
+}
+
+export interface SiteNotice {
+  title: string;
+  date: string; // ISO yyyy-mm-dd
+  body: string;
+}
+
 export interface SiteContent {
   badge: string;
   heroSubtitle: string;
   highlights: SiteHighlight[];
   departments: SiteDepartment[];
+  classes: SiteClassItem[];
+  notices: SiteNotice[];
+}
+
+// What the public "ভর্তি" (admission) form submits. Stored server-side in
+// the `admissions` table for staff to review later — this is new inbound
+// data, not something pulled from existing records.
+export interface AdmissionApplicationInput {
+  studentName: string;
+  studentNameEn?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  className: string;
+  guardianName: string;
+  guardianPhone: string;
+  presentAddress?: string;
+  previousInstitution?: string;
+  note?: string;
+}
+
+export interface AdmissionApplication extends AdmissionApplicationInput {
+  id: number;
+  status: string;
+  createdAt: string;
 }
 
 export interface AuthUser {

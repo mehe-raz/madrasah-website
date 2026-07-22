@@ -91,6 +91,14 @@ const apiLimiter = rateLimit({
   max: 200,
 });
 
+// Tighter than apiLimiter: this endpoint is public and unauthenticated, so
+// it's the one most exposed to spam/abuse from the open internet.
+const admissionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  message: { error: "একটু পরে আবার চেষ্টা করুন" },
+});
+
 app.use("/api/auth", authLimiter, require("./routes/auth"));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -112,6 +120,20 @@ app.get("/api/public/settings", async (_req, res) => {
   res.json(await getPublicSettings());
 });
 
+// Public, unauthenticated: the "ভর্তি" (admission) form on the marketing
+// site submits here directly — no login exists yet at that point in the
+// visitor's journey. Rate-limited harder than the general API since it's
+// a write endpoint reachable by anyone.
+app.post("/api/public/admissions", admissionLimiter, async (req, res) => {
+  const { createAdmission } = require("./lib/admissions");
+  try {
+    const row = await createAdmission(req.body);
+    res.status(201).json(row);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || "Submission failed" });
+  }
+});
+
 app.use("/api", apiLimiter, requireAuth, rbacMiddleware);
 
 app.use("/api/students", require("./routes/students"));
@@ -129,6 +151,7 @@ app.use("/api/audit-logs", require("./routes/auditLogs"));
 app.use("/api/backup", require("./routes/backup"));
 app.use("/api/uploads", require("./routes/uploads"));
 app.use("/api/site-content", require("./routes/siteContent"));
+app.use("/api/admissions", require("./routes/admissions"));
 
 if (process.env.NODE_ENV === "production") {
   app.use(

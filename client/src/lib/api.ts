@@ -1,4 +1,6 @@
 import type {
+  AdmissionApplication,
+  AdmissionApplicationInput,
   AttendanceResponse,
   AuthUser,
   BackupConfig,
@@ -239,6 +241,11 @@ export const api = {
   // Admin / Super Admin only (enforced server-side by the "website" permission).
   saveSiteContent: (content: SiteContent) =>
     request<SiteContent>("/site-content", { method: "PUT", body: JSON.stringify(content) }),
+
+  // Public: no login required. Submits the "ভর্তি" (admission) form from
+  // the marketing site. Server enforces its own rate limit + validation.
+  submitAdmission: (body: AdmissionApplicationInput) =>
+    request<AdmissionApplication>("/public/admissions", { method: "POST", body: JSON.stringify(body) }),
 
   getUsers: () => request<User[]>("/users"),
 

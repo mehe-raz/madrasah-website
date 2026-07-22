@@ -5,6 +5,8 @@ const db = require("./../db");
 // own key, same pattern as backupConfig.
 const SETTINGS_KEY = "siteContent";
 const MAX_LIST = 8;
+const MAX_CLASSES = 24;
+const MAX_NOTICES = 60;
 
 const DEFAULT_CONTENT = {
   badge: "ডেমো ওয়েবসাইট — শীঘ্রই সম্পূর্ণ চালু হচ্ছে",
@@ -21,6 +23,12 @@ const DEFAULT_CONTENT = {
     { icon: "📚", title: "কিতাব বিভাগ", desc: "দাওরায়ে হাদীস পর্যন্ত ইসলামী শিক্ষার ধারাবাহিক পাঠ্যক্রম।" },
     { icon: "🎓", title: "জেনারেল বিভাগ", desc: "দ্বীনি শিক্ষার পাশাপাশি জাতীয় শিক্ষাক্রম অনুসরণ।" },
   ],
+  // Public "ক্লাস ও কোর্সসমূহ" / "ভর্তি" pages read from this list — admin
+  // manages it from the Website module, same pattern as departments above.
+  classes: [],
+  // Public "নোটিসেস" page. Empty by default; admin adds real notices from
+  // the Website module. Sorted newest-first on the client.
+  notices: [],
 };
 
 function cleanText(value, maxLen) {
@@ -28,9 +36,9 @@ function cleanText(value, maxLen) {
   return maxLen ? s.slice(0, maxLen) : s;
 }
 
-function sanitizeList(list, fields) {
+function sanitizeList(list, fields, max = MAX_LIST) {
   if (!Array.isArray(list)) return [];
-  return list.slice(0, MAX_LIST).map((item) => {
+  return list.slice(0, max).map((item) => {
     const out = {};
     for (const [key, len] of fields) out[key] = cleanText(item && item[key], len);
     return out;
@@ -51,6 +59,24 @@ function sanitizeContent(input) {
       ["title", 60],
       ["desc", 220],
     ]),
+    classes: sanitizeList(
+      body.classes,
+      [
+        ["icon", 8],
+        ["title", 60],
+        ["desc", 160],
+      ],
+      MAX_CLASSES
+    ),
+    notices: sanitizeList(
+      body.notices,
+      [
+        ["title", 140],
+        ["date", 10],
+        ["body", 600],
+      ],
+      MAX_NOTICES
+    ),
   };
 }
 
