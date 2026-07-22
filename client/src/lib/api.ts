@@ -10,6 +10,7 @@ import type {
   IncomeEntry,
   Payment,
   Settings,
+  SiteContent,
   Student,
   User,
 } from "../types";
@@ -225,6 +226,14 @@ export const api = {
 
   saveSettings: (settings: Settings) =>
     request<Settings>("/settings", { method: "PUT", body: JSON.stringify(settings) }),
+
+  // Public: no login required. Powers both the logged-out visitor page and
+  // the admin website-control form's initial load.
+  getPublicSiteContent: () => request<SiteContent>("/public/site-content"),
+
+  // Admin / Super Admin only (enforced server-side by the "website" permission).
+  saveSiteContent: (content: SiteContent) =>
+    request<SiteContent>("/site-content", { method: "PUT", body: JSON.stringify(content) }),
 
   getUsers: () => request<User[]>("/users"),
 

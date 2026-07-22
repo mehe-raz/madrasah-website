@@ -6,11 +6,12 @@ export type Permission =
   | "expenses"
   | "hifz"
   | "reports"
-  | "settings";
+  | "settings"
+  | "website";
 
 const ROLE_PERMISSIONS: Record<string, Permission[] | ["*"]> = {
   "Super Admin": ["*"],
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings"],
+  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
   Teacher: ["attendance", "hifz"],
   "Hostel Manager": ["dashboard", "students", "attendance"],

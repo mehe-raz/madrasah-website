@@ -8,6 +8,7 @@ export const bn = {
     expenses: "ব্যয়",
     hifz: "হিফজ ট্র্যাকিং",
     reports: "রিপোর্ট",
+    website: "ওয়েবসাইট",
     settings: "সেটিংস",
   },
   common: {

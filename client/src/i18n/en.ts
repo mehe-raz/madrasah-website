@@ -10,6 +10,7 @@ export const en = {
     expenses: "Expenses",
     hifz: "Hifz Tracking",
     reports: "Reports",
+    website: "Website",
     settings: "Settings",
   },
   common: {

@@ -13,6 +13,7 @@ const PATH_PERMISSION: Record<string, Permission> = {
   "/expenses": "expenses",
   "/hifz": "hifz",
   "/reports": "reports",
+  "/website": "website",
   "/settings": "settings",
 };
 

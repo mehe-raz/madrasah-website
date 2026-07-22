@@ -1,6 +1,6 @@
 const ROLE_PERMISSIONS = {
   "Super Admin": ["*"],
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings"],
+  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
   Teacher: ["attendance", "hifz"],
   "Hostel Manager": ["dashboard", "students", "attendance"],
@@ -20,6 +20,7 @@ const ROUTE_PERMISSION = {
   "/api/backup": "settings",
   "/api/reports": "reports",
   "/api/audit-logs": "settings",
+  "/api/site-content": "website",
 };
 
 function canAccess(role, permission) {

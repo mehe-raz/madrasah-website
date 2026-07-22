@@ -13,6 +13,7 @@ const Income = lazy(() => import("./modules/Income").then((m) => ({ default: m.I
 const Reports = lazy(() => import("./modules/Reports").then((m) => ({ default: m.Reports })));
 const Settings = lazy(() => import("./modules/Settings").then((m) => ({ default: m.Settings })));
 const Students = lazy(() => import("./modules/Students").then((m) => ({ default: m.Students })));
+const Website = lazy(() => import("./modules/Website").then((m) => ({ default: m.Website })));
 const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })));
 const ResetPassword = lazy(() => import("./pages/ResetPassword").then((m) => ({ default: m.ResetPassword })));
 
@@ -39,6 +40,7 @@ export default function App() {
                 <Route path="expenses" element={<Expenses />} />
                 <Route path="hifz" element={<HifzTracking />} />
                 <Route path="reports" element={<Reports />} />
+                <Route path="website" element={<Website />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>

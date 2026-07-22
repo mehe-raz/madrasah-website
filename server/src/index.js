@@ -95,6 +95,13 @@ app.use("/api/auth", authLimiter, require("./routes/auth"));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
+// Public, unauthenticated: powers the logged-out visitor landing page.
+// Must be registered before the requireAuth chain below, same as /api/health.
+app.get("/api/public/site-content", async (_req, res) => {
+  const { getSiteContent } = require("./lib/siteContent");
+  res.json(await getSiteContent());
+});
+
 app.use("/api", apiLimiter, requireAuth, rbacMiddleware);
 
 app.use("/api/students", require("./routes/students"));
@@ -111,6 +118,7 @@ app.use("/api/reports", require("./routes/reports"));
 app.use("/api/audit-logs", require("./routes/auditLogs"));
 app.use("/api/backup", require("./routes/backup"));
 app.use("/api/uploads", require("./routes/uploads"));
+app.use("/api/site-content", require("./routes/siteContent"));
 
 if (process.env.NODE_ENV === "production") {
   app.use(

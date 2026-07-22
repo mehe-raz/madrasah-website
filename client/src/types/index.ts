@@ -150,6 +150,24 @@ export interface Settings {
   backupConfig?: string;
 }
 
+export interface SiteHighlight {
+  icon: string;
+  label: string;
+}
+
+export interface SiteDepartment {
+  icon: string;
+  title: string;
+  desc: string;
+}
+
+export interface SiteContent {
+  badge: string;
+  heroSubtitle: string;
+  highlights: SiteHighlight[];
+  departments: SiteDepartment[];
+}
+
 export interface AuthUser {
   id: number;
   name: string;

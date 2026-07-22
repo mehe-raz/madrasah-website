@@ -13,6 +13,7 @@ const NAV_IDS: { id: string; path: string; icon: string; key: Permission }[] = [
   { id: "expenses", path: "/expenses", icon: "💸", key: "expenses" },
   { id: "hifz", path: "/hifz", icon: "📖", key: "hifz" },
   { id: "reports", path: "/reports", icon: "📊", key: "reports" },
+  { id: "website", path: "/website", icon: "🌐", key: "website" },
   { id: "settings", path: "/settings", icon: "⚙️", key: "settings" },
 ];
 
