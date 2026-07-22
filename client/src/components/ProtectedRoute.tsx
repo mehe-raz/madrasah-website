@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
 import { canAccess, firstAllowedPath, type Permission } from "../lib/permissions";
 import { C } from "../theme/colors";
+import { Home } from "../pages/Home";
 
 const PATH_PERMISSION: Record<string, Permission> = {
   "/": "dashboard",
@@ -29,6 +30,10 @@ export function ProtectedRoute() {
   }
 
   if (!user) {
+    // Visitors landing on the site itself see the public institution page
+    // instead of being bounced straight to the login form. Deep links into
+    // other protected sections still redirect to login as before.
+    if (location.pathname === "/") return <Home />;
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
