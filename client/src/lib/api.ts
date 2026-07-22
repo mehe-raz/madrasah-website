@@ -9,6 +9,7 @@ import type {
   GoogleDriveStatus,
   IncomeEntry,
   Payment,
+  PublicSettings,
   Settings,
   SiteContent,
   Student,
@@ -230,6 +231,10 @@ export const api = {
   // Public: no login required. Powers both the logged-out visitor page and
   // the admin website-control form's initial load.
   getPublicSiteContent: () => request<SiteContent>("/public/site-content"),
+
+  // Public: no login required. Institution name/logo/address/phone/email/
+  // footer for the logged-out visitor page — see PublicSettings type.
+  getPublicSettings: () => request<PublicSettings>("/public/settings"),
 
   // Admin / Super Admin only (enforced server-side by the "website" permission).
   saveSiteContent: (content: SiteContent) =>

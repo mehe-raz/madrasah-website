@@ -102,6 +102,16 @@ app.get("/api/public/site-content", async (_req, res) => {
   res.json(await getSiteContent());
 });
 
+// Public, unauthenticated: institution identity/contact info (name, logo,
+// address, phone, email, footer text) for the same logged-out landing page.
+// Deliberately a separate, whitelisted endpoint rather than opening up
+// /api/settings — see lib/publicSettings.js for exactly which keys this
+// exposes.
+app.get("/api/public/settings", async (_req, res) => {
+  const { getPublicSettings } = require("./lib/publicSettings");
+  res.json(await getPublicSettings());
+});
+
 app.use("/api", apiLimiter, requireAuth, rbacMiddleware);
 
 app.use("/api/students", require("./routes/students"));

@@ -150,6 +150,17 @@ export interface Settings {
   backupConfig?: string;
 }
 
+// The small, whitelisted subset of Settings that /api/public/settings
+// exposes to logged-out visitors (see server/src/lib/publicSettings.js).
+export interface PublicSettings {
+  name: string;
+  logo: string;
+  address: string;
+  phone: string;
+  email: string;
+  footer: string;
+}
+
 export interface SiteHighlight {
   icon: string;
   label: string;

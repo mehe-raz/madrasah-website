@@ -1,21 +1,33 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAppSettings } from "../context/AppSettingsContext";
-import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
-import type { SiteContent } from "../types";
+import type { PublicSettings, SiteContent } from "../types";
 import heroImage from "../assets/hero.png";
 
 /**
  * Public-facing institution page shown to visitors who are not logged in.
- * The editable parts (badge, hero text, highlights, departments) are loaded
- * from /api/public/site-content, which Admin/Super Admin update from the
- * "ওয়েবসাইট" control panel — so changes there show up here immediately on
- * the next load, no redeploy needed. Everything else (form submissions,
- * gallery, notices) is still a later pass; every action here just routes to
+ * Everything it loads comes from public, unauthenticated endpoints:
+ * - /api/public/site-content — badge, hero text, highlights, departments
+ * - /api/public/settings — institution name, logo, address, phone, email,
+ *   footer text
+ * Both are updated by Admin/Super Admin from the admin panel, so changes
+ * there show up here on next load with no redeploy needed. This page
+ * intentionally never reads the auth-protected /api/settings — that
+ * endpoint 401s for logged-out visitors, which previously left this page
+ * stuck on placeholder name/address/phone/email. Form submissions, gallery,
+ * and notices are still a later pass; every action here just routes to
  * /login for now.
  */
+
+const FALLBACK_SETTINGS: PublicSettings = {
+  name: "Madrasah ERP",
+  logo: "",
+  address: "",
+  phone: "",
+  email: "",
+  footer: "",
+};
 
 const FALLBACK_CONTENT: SiteContent = {
   badge: "ডেমো ওয়েবসাইট — শীঘ্রই সম্পূর্ণ চালু হচ্ছে",
@@ -53,9 +65,13 @@ function DividerPattern() {
 }
 
 export function Home() {
-  const { settings } = useAppSettings();
-  const { name: madrasaName } = useMadrasaBranding();
   const [content, setContent] = useState<SiteContent>(FALLBACK_CONTENT);
+  const [site, setSite] = useState<PublicSettings>(FALLBACK_SETTINGS);
+  const madrasaName = site.name || FALLBACK_SETTINGS.name;
+
+  useEffect(() => {
+    document.title = `${madrasaName} — স্বাগতম`;
+  }, [madrasaName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +88,15 @@ export function Home() {
       })
       .catch(() => {
         /* keep fallback content */
+      });
+    api
+      .getPublicSettings()
+      .then((data) => {
+        if (cancelled) return;
+        setSite({ ...FALLBACK_SETTINGS, ...data });
+      })
+      .catch(() => {
+        /* keep fallback settings */
       });
     return () => {
       cancelled = true;
@@ -102,8 +127,8 @@ export function Home() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            {settings.logo ? (
-              <img src={settings.logo} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+            {site.logo ? (
+              <img src={site.logo} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
             ) : (
               <span style={{ fontSize: 28, flexShrink: 0 }}>🕌</span>
             )}
@@ -292,13 +317,13 @@ export function Home() {
           <div>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>{madrasaName}</h3>
             <p style={{ fontSize: 13, color: C.muted, margin: 0, lineHeight: 1.7 }}>
-              {settings.address || "ঠিকানা এখনো যুক্ত করা হয়নি"}
+              {site.address || "ঠিকানা এখনো যুক্ত করা হয়নি"}
             </p>
           </div>
           <div>
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>যোগাযোগ</div>
-            <div style={{ fontSize: 13, color: C.text, fontWeight: 700, marginBottom: 4 }}>{settings.phone || "—"}</div>
-            <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>{settings.email || "—"}</div>
+            <div style={{ fontSize: 13, color: C.text, fontWeight: 700, marginBottom: 4 }}>{site.phone || "—"}</div>
+            <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>{site.email || "—"}</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
             <div style={{ fontSize: 12, color: C.muted }}>প্রতিষ্ঠান ব্যবস্থাপনার অংশ?</div>
@@ -319,7 +344,10 @@ export function Home() {
             </Link>
           </div>
         </div>
-        <p style={{ textAlign: "center", fontSize: 12, color: C.muted, marginTop: 20 }}>
+        {site.footer && (
+          <p style={{ textAlign: "center", fontSize: 13, color: C.text, fontWeight: 700, marginTop: 24, marginBottom: 0 }}>{site.footer}</p>
+        )}
+        <p style={{ textAlign: "center", fontSize: 12, color: C.muted, marginTop: 8 }}>
           © {new Date().getFullYear()} {madrasaName} • এটি একটি প্রিভিউ/ডেমো পেজ, ধীরে ধীরে হালনাগাদ করা হবে
         </p>
       </footer>
