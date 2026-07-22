@@ -5,7 +5,7 @@ import { api } from "../lib/api";
 import { C } from "../theme/colors";
 import type { Student } from "../types";
 
-const DEPTS = ["Hifz", "Kitab", "Nazera", "General", "All"] as const;
+const DEPTS = ["Hifz", "Kitab", "Nazera", "Nurani", "General", "All"] as const;
 
 export function Attendance() {
   const { t } = useLanguage();

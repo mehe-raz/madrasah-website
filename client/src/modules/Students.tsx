@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { Badge } from "../components/Badge";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
+import { deptLabel, statusLabel, typeLabel } from "../lib/labels";
 import { printAdmissionForm, printReportTable } from "../lib/printReport";
 import { C } from "../theme/colors";
 import type { Student, StudentDocuments } from "../types";
@@ -95,7 +96,7 @@ const step3Required: AdmissionField[] = ["dept", "admissionFee", "fee"];
 const allRequired: AdmissionField[] = [...step1Required, ...step2Required, ...step3Required];
 const wizardSteps = ["ভর্তি তথ্য", "অভিভাবক ও ঠিকানা", "শিক্ষা / ফি / ডকুমেন্ট"];
 
-const departmentOptions = ["Hifz", "Nazera", "Kitab", "General"];
+const departmentOptions = ["Hifz", "Nazera", "Kitab", "Nurani", "General"];
 const bloodOptions = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const genderOptions = ["Male", "Female", "Other"];
 const religionOptions = ["Islam", "Hinduism", "Christianity", "Buddhism", "Other"];
@@ -359,13 +360,18 @@ export function Students() {
     </label>
   );
 
-  const renderSelect = (label: string, field: AdmissionField, options: string[]) => (
+  const renderSelect = (
+    label: string,
+    field: AdmissionField,
+    options: string[],
+    labelFor?: (option: string) => string
+  ) => (
     <label style={{ display: "block" }}>
       <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}</span>
       <select value={String(form[field] ?? "")} onChange={(event) => setField(field, event.target.value)} style={fieldStyle(errors[String(field)])}>
         {options.map((option) => (
           <option key={option} value={option}>
-            {option || t.common.select}
+            {(option && labelFor ? labelFor(option) : option) || t.common.select}
           </option>
         ))}
       </select>
@@ -409,7 +415,7 @@ export function Students() {
             [t.students.classJamaat, viewing.class],
             [t.students.section, viewing.section],
             [t.students.rollNumber, viewing.roll],
-            [t.students.studentType, viewing.type],
+            [t.students.studentType, typeLabel(viewing.type)],
           ],
         },
         {
@@ -455,7 +461,7 @@ export function Students() {
           rows: [
             [t.students.previousInstitution, viewing.previousInstitution],
             [t.students.previousClass, viewing.previousClass],
-            [t.students.department, viewing.dept],
+            [t.students.department, deptLabel(viewing.dept)],
             [t.students.memorizedQuran, viewing.para],
             [t.students.admissionFee, fmt(viewing.admissionFee || 0)],
             [t.students.monthlyFee, fmt(viewing.fee || 0)],
@@ -492,7 +498,7 @@ export function Students() {
         <select value={department} onChange={(event) => setDepartment(event.target.value)} style={{ ...fieldStyle(), width: 150 }}>
           {(["All", ...departmentOptions] as string[]).map((option) => (
             <option key={option} value={option}>
-              {option === "All" ? t.common.all : option}
+              {option === "All" ? t.common.all : deptLabel(option)}
             </option>
           ))}
         </select>
@@ -534,7 +540,7 @@ export function Students() {
                 {renderInput(t.students.classJamaat, "class")}
                 {renderInput(t.students.section, "section")}
                 {renderInput(t.students.rollNumber, "roll")}
-                {renderSelect(t.students.studentType, "type", ["Day", "Residential"])}
+                {renderSelect(t.students.studentType, "type", ["Day", "Residential"], typeLabel)}
               </div>
 
               {sectionTitle(t.students.studentInfo)}
@@ -588,7 +594,7 @@ export function Students() {
 
               {sectionTitle(t.students.madrasaInfo)}
               <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
-                {renderSelect(t.students.department, "dept", departmentOptions)}
+                {renderSelect(t.students.department, "dept", departmentOptions, deptLabel)}
                 {renderInput(t.students.memorizedQuran, "para", "number")}
               </div>
 

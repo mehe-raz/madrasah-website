@@ -175,6 +175,12 @@ router.get("/:id/attendance", async (req, res) => {
   res.json({ from: isAll ? "" : f, to: isAll ? "" : t, records: rows, summary });
 });
 
+function clampInt(value, fallback, min, max) {
+  const n = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 router.get("/", async (req, res) => {
   const { dept, search, status, class: cls } = req.query;
   const conditions = [];
@@ -204,6 +210,27 @@ router.get("/", async (req, res) => {
         (s.birthRegistrationNumber || "").includes(search)
     );
   }
+
+  // Pagination: only kicks in when the client asks for it (page/limit/paginate
+  // present in the query string), so the existing plain-array callers
+  // (getStudents) keep working unchanged. This is what backs the client's
+  // getStudentsBasic(), same opt-in pattern as /income and /payments.
+  const paginate = req.query.paginate === "1" || req.query.paginate === "true" || req.query.page != null || req.query.limit != null;
+  if (paginate) {
+    const limit = clampInt(req.query.limit, 25, 1, 200);
+    const page = clampInt(req.query.page, 1, 1, 100000);
+    const total = rows.length;
+    const start = (page - 1) * limit;
+    const items = rows.slice(start, start + limit);
+    return res.json({
+      items,
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    });
+  }
+
   res.json(rows);
 });
 

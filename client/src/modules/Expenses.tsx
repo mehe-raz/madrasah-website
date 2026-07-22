@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { StatCard } from "../components/StatCard";
 import { useLanguage } from "../context/AppSettingsContext";
-import { EXPENSES } from "../data/mockData";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
@@ -27,14 +26,24 @@ const QUICK_ICONS: Record<string, string> = {
 
 export function Expenses() {
   const { t } = useLanguage();
-  const [expenses, setExpenses] = useState<Expense[]>(EXPENSES);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ cat: "", amount: "", note: "" });
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.getExpenses().then(setExpenses);
+    // Previously `.then(setExpenses)` had no `.catch()` — a failed load
+    // left the (originally fake mock) expense list on screen with no
+    // indication real data never arrived.
+    api
+      .getExpenses()
+      .then((list) => {
+        setExpenses(list);
+        setLoadError(false);
+      })
+      .catch(() => setLoadError(true));
   }, []);
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
@@ -47,6 +56,7 @@ export function Expenses() {
     });
     return map;
   }, [expenses]);
+
 
   const openAdd = (cat?: string) => {
     setForm({ cat: cat || "", amount: "", note: "" });
@@ -96,6 +106,10 @@ export function Expenses() {
         <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text }}>{t.expenses.title}</h2>
         <button type="button" onClick={() => openAdd()} style={{ background: C.amber, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>+ {t.expenses.addNew}</button>
       </div>
+
+      {loadError && (
+        <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>{t.common.requestFailed}</div>
+      )}
 
       {error && (
         <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>{error}</div>

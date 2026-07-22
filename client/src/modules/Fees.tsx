@@ -3,7 +3,6 @@ import { Badge } from "../components/Badge";
 import { ReceiptModal } from "../components/ReceiptModal";
 import { StatCard } from "../components/StatCard";
 import { useLanguage } from "../context/AppSettingsContext";
-import { PAYMENTS, STUDENTS } from "../data/mockData";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
@@ -14,12 +13,13 @@ export function Fees() {
   const [tab, setTab] = useState("payments");
   const [showReceipt, setShowReceipt] = useState<Payment | null>(null);
   const [payAmount, setPayAmount] = useState("");
-  const [payStudent, setPayStudent] = useState<Student>(STUDENTS[1]);
-  const [students, setStudents] = useState<Student[]>(STUDENTS);
-  const [payments, setPayments] = useState<Payment[]>(PAYMENTS);
+  const [payStudent, setPayStudent] = useState<Student | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [payPage, setPayPage] = useState(1);
   const [payPageSize] = useState(25);
   const [payTotal, setPayTotal] = useState(0);
+  const [loadError, setLoadError] = useState(false);
   const [method, setMethod] = useState("নগদ");
 
   useEffect(() => {
@@ -32,15 +32,19 @@ export function Fees() {
           api.getPaymentsPage({ page: payPage, limit: payPageSize }),
         ]);
         if (!alive) return;
-        setStudents(Array.isArray(studentData?.items) ? studentData.items : []);
+        const loadedStudents = Array.isArray(studentData?.items) ? studentData.items : [];
+        setStudents(loadedStudents);
         setPayments(Array.isArray(paymentData?.items) ? paymentData.items : []);
         setPayTotal(Number(paymentData?.total) || 0);
+        setLoadError(false);
+        setPayStudent((prev) => prev || loadedStudents.find((s) => s.due > 0) || loadedStudents[0] || null);
       } catch (err) {
         if (!alive) return;
         console.error("Failed to load fees screen", err);
         setStudents([]);
         setPayments([]);
         setPayTotal(0);
+        setLoadError(true);
       }
     };
 
@@ -51,8 +55,10 @@ export function Fees() {
   }, [payPage, payPageSize]);
 
   const dueStudents = students.filter((s) => s.due > 0);
+  const totalCollected = payments.reduce((s, p) => s + (p.amount || 0), 0);
 
   const handlePayment = async () => {
+    if (!payStudent) return;
     const amount = Number(payAmount) || payStudent.fee;
     try {
       const p = await api.createPayment({ studentId: payStudent.id, amount, method });
@@ -79,12 +85,17 @@ export function Fees() {
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.fees.title}</h2>
 
+      {loadError && (
+        <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>{t.common.requestFailed}</div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 24 }}>
-        <StatCard label="মোট আয় (জুন)" value={fmt(72000)} icon="💰" color={C.emerald} />
+        <StatCard label="এই তালিকার মোট আদায়" value={fmt(totalCollected)} icon="💰" color={C.emerald} />
         <StatCard label="মোট বকেয়া" value={fmt(dueStudents.reduce((s, st) => s + st.due, 0))} icon="⚠️" color={C.rose} />
         <StatCard label="এই মাসে পেমেন্ট" value={`${payments.length} টি`} icon="✅" color={C.teal} />
         <StatCard label="বকেয়া ছাত্র" value={`${dueStudents.length} জন`} icon="📋" color={C.amber} />
       </div>
+
 
       <div style={{ display: "flex", gap: 4, background: C.slateL, borderRadius: 10, padding: 4, marginBottom: 20, width: "fit-content", flexWrap: "wrap" }}>
         {([["payments", t.fees.payments], ["due", t.fees.due], ["collect", t.fees.collect]] as const).map(([id, lbl]) => (
@@ -154,7 +165,7 @@ export function Fees() {
         </div>
       )}
 
-      {tab === "collect" && (
+      {tab === "collect" && payStudent && (
         <div style={{ maxWidth: 480 }}>
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 18 }}>বেতন গ্রহণ</h3>
@@ -188,6 +199,12 @@ export function Fees() {
               ✅ বেতন গ্রহণ করুন ও রসিদ তৈরি করুন
             </button>
           </div>
+        </div>
+      )}
+
+      {tab === "collect" && !payStudent && (
+        <div style={{ maxWidth: 480, background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24, color: C.muted, fontSize: 13 }}>
+          কোনো সক্রিয় ছাত্র পাওয়া যায়নি।
         </div>
       )}
 

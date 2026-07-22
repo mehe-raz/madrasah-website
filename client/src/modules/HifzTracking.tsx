@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PARA_NAMES, STUDENTS } from "../data/mockData";
+import { PARA_NAMES } from "../data/mockData";
 import { api } from "../lib/api";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useLanguage } from "../context/AppSettingsContext";
@@ -10,23 +10,32 @@ const TOTAL_PARAS = 30;
 
 export function HifzTracking() {
   const { t } = useLanguage();
-  const [hifzStudents, setHifzStudents] = useState<Student[]>(STUDENTS.filter((s) => s.dept === "হিফজ"));
+  const [hifzStudents, setHifzStudents] = useState<Student[]>([]);
   const [selected, setSelected] = useState<Student | null>(null);
   const [sabaq, setSabaq] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [paraSaving, setParaSaving] = useState(false);
   const [paraError, setParaError] = useState("");
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
-    api.getHifzStudents().then((list) => {
-      setHifzStudents(list);
-      setSelected((prev) => prev || list[0] || null);
-    });
+    // Previously this had no .catch() at all — a failed load left the
+    // (originally fake mock) student list on screen forever with no way
+    // for a teacher to know the real data never arrived.
+    api
+      .getHifzStudents()
+      .then((list) => {
+        setHifzStudents(list);
+        setSelected((prev) => prev || list[0] || null);
+        setLoadError(false);
+      })
+      .catch(() => setLoadError(true));
   }, []);
 
+  if (loadError) return <p style={{ color: C.rose }}>{t.common.requestFailed}</p>;
   if (!selected) return <p style={{ color: C.muted }}>{t.hifz.noStudents}</p>;
 
   const progress = (selected.para / TOTAL_PARAS) * 100;

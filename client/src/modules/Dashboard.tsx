@@ -22,7 +22,24 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
 import type { DashboardData, DeleteRequest } from "../types";
-import { MOCK_DASHBOARD } from "../data/mockData";
+
+const EMPTY_DASHBOARD: DashboardData = {
+  stats: {
+    total: 0,
+    residential: 0,
+    monthlyIncome: 0,
+    totalDue: 0,
+    dueCount: 0,
+    monthlyExpense: 0,
+    attendance: "0/0",
+    attendancePct: "0",
+  },
+  incomeData: [],
+  incomeByCategory: [],
+  attendanceData: [],
+  deptData: [],
+  logs: [],
+};
 
 const logIcon = (icon: string) =>
   icon === "add" ? "➕" : icon === "payment" ? "💳" : icon === "attendance" ? "📋" : "📉";
@@ -30,7 +47,8 @@ const logIcon = (icon: string) =>
 export function Dashboard() {
   const { user } = useAuth();
   const { t, tr } = useLanguage();
-  const [data, setData] = useState<DashboardData>(MOCK_DASHBOARD);
+  const [data, setData] = useState<DashboardData>(EMPTY_DASHBOARD);
+  const [loadError, setLoadError] = useState(false);
   const [deleteRequests, setDeleteRequests] = useState<DeleteRequest[]>([]);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const canApproveDeletes = user?.role === "Super Admin" || user?.role === "Admin";
@@ -46,7 +64,14 @@ export function Dashboard() {
       : t.dashboard.userDelete;
 
   useEffect(() => {
-    api.getDashboard().then(setData).catch(() => {});
+    // Previously this was `.catch(() => {})` — a failed load silently kept
+    // whatever was already on screen (originally fake mock data) with no
+    // indication anything went wrong. Now a real failure surfaces as a
+    // visible error instead of pretending the numbers are current.
+    api.getDashboard().then((d) => {
+      setData(d);
+      setLoadError(false);
+    }).catch(() => setLoadError(true));
     if (canApproveDeletes) api.getDeleteRequests().then(setDeleteRequests).catch(() => setDeleteRequests([]));
   }, [canApproveDeletes]);
 
@@ -54,7 +79,10 @@ export function Dashboard() {
     if (action === "approve") await api.approveDeleteRequest(id);
     else await api.rejectDeleteRequest(id);
     setDeleteRequests((prev) => prev.filter((r) => r.id !== id));
-    api.getDashboard().then(setData).catch(() => {});
+    api.getDashboard().then((d) => {
+      setData(d);
+      setLoadError(false);
+    }).catch(() => setLoadError(true));
   };
 
   const { stats } = data;
@@ -62,6 +90,12 @@ export function Dashboard() {
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.dashboard.title}</h2>
+
+      {loadError && (
+        <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>
+          {t.common.requestFailed}
+        </div>
+      )}
 
       {canApproveDeletes && deleteRequests.length > 0 && (
         <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 18, marginBottom: 20 }}>
@@ -83,7 +117,7 @@ export function Dashboard() {
 
       <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 }}>
         <StatCard label={t.dashboard.totalStudents} value={String(stats.total)} icon="👨‍🎓" color={C.teal} sub={tr("dashboard.residentialSub", { count: stats.residential })} />
-        <StatCard label={t.dashboard.residential} value={String(stats.residential)} icon="🏠" color={C.emerald} sub={tr("dashboard.totalPercent", { percent: Math.round((stats.residential / stats.total) * 100) })} />
+        <StatCard label={t.dashboard.residential} value={String(stats.residential)} icon="🏠" color={C.emerald} sub={tr("dashboard.totalPercent", { percent: stats.total ? Math.round((stats.residential / stats.total) * 100) : 0 })} />
         <StatCard label={t.dashboard.monthlyIncome} value={fmt(stats.monthlyIncome)} icon="💰" color={C.sky} sub={t.dashboard.monthLabel} />
         <StatCard label={t.dashboard.totalDue} value={fmt(stats.totalDue)} icon="⚠️" color={C.rose} sub={tr("dashboard.dueStudents", { count: stats.dueCount })} />
         <StatCard label={t.dashboard.monthlyExpense} value={fmt(stats.monthlyExpense)} icon="💸" color={C.amber} sub={t.dashboard.monthLabel} />

@@ -10,6 +10,8 @@ import type {
   GoogleDriveFile,
   GoogleDriveStatus,
   IncomeEntry,
+  IncomeSummary,
+  PaginatedResult,
   Payment,
   PublicResult,
   PublicSettings,
@@ -96,6 +98,20 @@ export const api = {
 
   getClasses: () => request<string[]>("/students/classes/list"),
 
+  // Lightweight, paginated student list (LIST_COLUMNS only, no documents
+  // JSONB) for screens like Fees/Income that just need id/name/roll/class
+  // for a dropdown rather than the full admission record.
+  getStudentsBasic: (params?: { dept?: string; search?: string; status?: string; class?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.dept) qs.set("dept", params.dept);
+    if (params?.search) qs.set("search", params.search);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.class) qs.set("class", params.class);
+    qs.set("page", String(params?.page ?? 1));
+    qs.set("limit", String(params?.limit ?? 100));
+    return request<PaginatedResult<Student>>(`/students?${qs.toString()}`);
+  },
+
   getStudent: (id: number) => request<Student>(`/students/${id}`),
 
   getStudentAttendance: (id: number, params?: { month?: string; from?: string; to?: string; all?: boolean }) => {
@@ -157,6 +173,14 @@ export const api = {
 
   getPayments: () => request<Payment[]>("/payments"),
 
+  // Paginated payments list for the Fees screen's history table.
+  getPaymentsPage: (params?: { page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(params?.page ?? 1));
+    qs.set("limit", String(params?.limit ?? 25));
+    return request<PaginatedResult<Payment>>(`/payments?${qs.toString()}`);
+  },
+
   createPayment: (body: { studentId: number; amount: number; method: string }) =>
     request<Payment>("/payments", { method: "POST", body: JSON.stringify(body) }),
 
@@ -171,6 +195,27 @@ export const api = {
     if (params?.to) qs.set("to", params.to);
     const q = qs.toString();
     return request<IncomeEntry[]>(`/income${q ? `?${q}` : ""}`);
+  },
+
+  // Totals + by-category breakdown for the Income screen's summary cards.
+  getIncomeSummary: (params?: { from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    const q = qs.toString();
+    return request<IncomeSummary>(`/income/summary${q ? `?${q}` : ""}`);
+  },
+
+  // Paginated income list for the Income screen's table (supports the same
+  // category filter as getIncome, plus page/limit).
+  getIncomePage: (params?: { page?: number; limit?: number; category?: string; from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(params?.page ?? 1));
+    qs.set("limit", String(params?.limit ?? 25));
+    if (params?.category) qs.set("category", params.category);
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    return request<PaginatedResult<IncomeEntry>>(`/income?${qs.toString()}`);
   },
 
   createIncome: (body: {
