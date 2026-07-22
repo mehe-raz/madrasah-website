@@ -28,7 +28,7 @@ router.get("/", async (_req, res) => {
       db.get("SELECT COALESCE(SUM(amount), 0)::int AS t FROM expenses WHERE date >= $1 AND date <= $2", [monthStart, today]),
       db.all("SELECT category, SUM(amount)::int AS total FROM income GROUP BY category"),
       db.all("SELECT status FROM attendance WHERE date = $1", [today]),
-      db.all("SELECT id, category, amount, date, receipt, method, status, student, note, roll FROM income ORDER BY id DESC LIMIT 3"),
+      db.all("SELECT id, category, amount, date, receipt, method, status, note FROM income ORDER BY id DESC LIMIT 3"),
     ]);
 
   const total = statsRow?.total || 0;
