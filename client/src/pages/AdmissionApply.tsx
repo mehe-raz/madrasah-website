@@ -91,28 +91,28 @@ export function AdmissionApply() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
             <div>
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
-                Application Form
+                আবেদন ফর্ম
               </span>
-              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>Apply in a clean, guided form</h1>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>সহজ ও সুশৃঙ্খল আবেদন ফর্ম</h1>
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
-                The application keeps the same premium visual language while staying simple enough for mobile users.
+                একই সুন্দর ডিজাইন বজায় রেখে ফর্মটি মোবাইল ব্যবহারকারীদের জন্যও সহজ রাখা হয়েছে।
               </p>
             </div>
 
             <div className="soft-panel hero-visual" style={{ padding: 18 }}>
               <div style={{ borderRadius: 24, minHeight: 250, padding: 18, background: "linear-gradient(180deg, rgba(240,253,244,0.92), rgba(255,255,255,0.68))", display: "grid", gap: 12 }}>
                 <div className="soft-panel" style={{ padding: 14 }}>
-                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>Tips</div>
-                  <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>Fill the starred fields carefully.</div>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>পরামর্শ</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>তারকা (*) চিহ্নিত ঘরগুলো সতর্কতার সাথে পূরণ করুন।</div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
                   <div className="soft-panel" style={{ padding: 14 }}>
-                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Fast</div>
-                    <div style={{ fontSize: 18, fontWeight: 900 }}>1 minute</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>দ্রুত</div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>১ মিনিট</div>
                   </div>
                   <div className="soft-panel" style={{ padding: 14 }}>
-                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Status</div>
-                    <div style={{ fontSize: 18, fontWeight: 900 }}>Online</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>অবস্থা</div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>অনলাইন</div>
                   </div>
                 </div>
               </div>
@@ -158,7 +158,7 @@ export function AdmissionApply() {
                     <input value={form.studentName} onChange={(e) => update({ studentName: e.target.value })} style={inputStyle} placeholder="পূর্ণ নাম" />
                   </Field>
                   <Field label="শিক্ষার্থীর নাম (ইংরেজিতে)">
-                    <input value={form.studentNameEn} onChange={(e) => update({ studentNameEn: e.target.value })} style={inputStyle} placeholder="Full name in English" />
+                    <input value={form.studentNameEn} onChange={(e) => update({ studentNameEn: e.target.value })} style={inputStyle} placeholder="ইংরেজিতে পূর্ণ নাম লিখুন" />
                   </Field>
                 </div>
 
@@ -169,9 +169,9 @@ export function AdmissionApply() {
                   <Field label="লিঙ্গ">
                     <select value={form.gender} onChange={(e) => update({ gender: e.target.value })} style={inputStyle}>
                       <option value="">নির্বাচন করুন</option>
-                      <option>Male</option>
-                      <option>Female</option>
-                      <option>Other</option>
+                      <option value="Male">পুরুষ</option>
+                      <option value="Female">মহিলা</option>
+                      <option value="Other">অন্যান্য</option>
                     </select>
                   </Field>
                 </div>

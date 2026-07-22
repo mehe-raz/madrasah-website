@@ -26,20 +26,20 @@ export function ClassesCourses() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
             <div>
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.skyL, color: C.skyD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
-                Classes
+                ক্লাস
               </span>
-              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>Explore available classes and courses</h1>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>উপলব্ধ ক্লাস ও কোর্সসমূহ দেখুন</h1>
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
-                Pick a program to open the admission form with one tap. The layout is clean, fast, and touch-friendly.
+                এক ট্যাপে প্রোগ্রাম বেছে নিয়ে ভর্তি ফর্ম খুলুন। ডিজাইনটি সহজ, দ্রুত এবং মোবাইল-বান্ধব।
               </p>
             </div>
 
             <div className="soft-panel hero-visual" style={{ padding: 18 }}>
               <div style={{ borderRadius: 24, minHeight: 260, display: "grid", placeItems: "center", background: "linear-gradient(180deg, rgba(240,249,255,0.94), rgba(255,255,255,0.68))" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, width: "100%" }}>
-                  {["Playgroup", "Nursery", "KG", "Primary"].map((item, i) => (
+                  {["হিফজ", "নাজেরা", "কিতাব", "জেনারেল"].map((item, i) => (
                     <div key={item} className="soft-panel" style={{ padding: 16, minHeight: 84 }}>
-                      <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, marginBottom: 8 }}>Program</div>
+                      <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, marginBottom: 8 }}>বিভাগ</div>
                       <div style={{ fontSize: 16, fontWeight: 900 }}>{item}</div>
                     </div>
                   ))}
@@ -53,10 +53,10 @@ export function ClassesCourses() {
       <section className="section-shell page-section section-pop">
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
-            Class list
+            ক্লাস তালিকা
           </span>
-          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>Tap a class to continue</h2>
-          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>The same visual language stays consistent across home, about, admission, and result pages.</p>
+          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>এগিয়ে যেতে একটি ক্লাসে ট্যাপ করুন</h2>
+          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>হোম, পরিচিতি, ভর্তি ও ফলাফল পেজেও একই ডিজাইন বজায় রাখা হয়েছে।</p>
         </div>
 
         {loading ? (
@@ -76,13 +76,13 @@ export function ClassesCourses() {
                 </div>
                 <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{c.title}</h3>
                 {c.desc && <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{c.desc}</p>}
-                <div style={{ marginTop: 14, fontSize: 12, fontWeight: 900, color: C.emeraldD }}>Continue to admission →</div>
+                <div style={{ marginTop: 14, fontSize: 12, fontWeight: 900, color: C.emeraldD }}>ভর্তিতে এগিয়ে যান →</div>
               </button>
             ))}
           </div>
         ) : (
           <div className="soft-panel" style={{ padding: 20, textAlign: "center", color: C.muted }}>
-            No classes have been configured yet.
+            এখনো কোনো ক্লাস যুক্ত করা হয়নি।
           </div>
         )}
       </section>

@@ -6,9 +6,9 @@ import { PublicFooter } from "../components/PublicFooter";
 import { C } from "../theme/colors";
 
 const steps = [
-  { icon: "①", title: "Choose a class", desc: "Select the class that matches your child’s age and learning stage." },
-  { icon: "②", title: "Fill the form", desc: "Open the admission form and complete the required information." },
-  { icon: "③", title: "Wait for contact", desc: "Our team reviews the application and reaches out quickly." },
+  { icon: "①", title: "ক্লাস নির্বাচন করুন", desc: "শিক্ষার্থীর বয়স ও পর্যায় অনুযায়ী উপযুক্ত ক্লাস বেছে নিন।" },
+  { icon: "②", title: "ফর্ম পূরণ করুন", desc: "ভর্তি ফর্ম খুলে প্রয়োজনীয় তথ্য দিয়ে পূরণ করুন।" },
+  { icon: "③", title: "যোগাযোগের অপেক্ষা করুন", desc: "আমাদের দল আবেদন পর্যালোচনা করে দ্রুত যোগাযোগ করবে।" },
 ];
 
 export function Admission() {
@@ -30,22 +30,22 @@ export function Admission() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
             <div>
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.amberL, color: C.amberD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
-                Admission
+                ভর্তি
               </span>
-              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>A fast, elegant admission experience</h1>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>দ্রুত ও সহজ ভর্তি প্রক্রিয়া</h1>
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
-                Pick a class, review the options, and continue to the form. The flow stays clean and mobile-friendly, with no heavy loading.
+                একটি ক্লাস বেছে নিন, বিস্তারিত দেখুন এবং ফর্মে এগিয়ে যান — পুরো প্রক্রিয়াটি সহজ ও মোবাইল-বান্ধব।
               </p>
             </div>
 
             <div className="soft-panel hero-visual" style={{ padding: 18 }}>
               <div style={{ borderRadius: 24, minHeight: 260, display: "grid", placeItems: "center", background: "linear-gradient(180deg, rgba(255,247,237,0.92), rgba(255,255,255,0.68))", padding: 18 }}>
                 <div className="soft-panel" style={{ width: "100%", padding: 18 }}>
-                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Quick summary</div>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>সংক্ষিপ্ত তথ্য</div>
                   <div style={{ display: "grid", gap: 8 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800 }}>✅ Easy application</div>
-                    <div style={{ fontSize: 14, fontWeight: 800 }}>✅ Smooth navigation</div>
-                    <div style={{ fontSize: 14, fontWeight: 800 }}>✅ Premium visual polish</div>
+                    <div style={{ fontSize: 14, fontWeight: 800 }}>✅ সহজ আবেদন প্রক্রিয়া</div>
+                    <div style={{ fontSize: 14, fontWeight: 800 }}>✅ ঝামেলাবিহীন নেভিগেশন</div>
+                    <div style={{ fontSize: 14, fontWeight: 800 }}>✅ পরিচ্ছন্ন ও গোছানো ডিজাইন</div>
                   </div>
                 </div>
               </div>
@@ -57,10 +57,10 @@ export function Admission() {
       <section className="section-shell page-section section-pop">
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.slateL, color: C.slateD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
-            How it works
+            কীভাবে কাজ করে
           </span>
-          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>Simple steps to apply</h2>
-          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>The same polished design language stays consistent across every page.</p>
+          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>আবেদনের সহজ ধাপসমূহ</h2>
+          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>প্রতিটি পেজেই একই সুশৃঙ্খল ডিজাইন বজায় রাখা হয়েছে।</p>
         </div>
 
         <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
@@ -78,9 +78,9 @@ export function Admission() {
         <div className="soft-panel" style={{ padding: 22 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 16 }}>
             <div>
-              <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 8px" }}>Available classes</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 8px" }}>উপলব্ধ ক্লাসসমূহ</h3>
               <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.8, margin: 0 }}>
-                Choose from the current program list and continue directly to the application form.
+                বর্তমান প্রোগ্রাম তালিকা থেকে বেছে নিয়ে সরাসরি আবেদন ফর্মে যান।
               </p>
             </div>
 
@@ -103,7 +103,7 @@ export function Admission() {
                 </button>
               ))}
               {!loading && !content.classes.length && (
-                <div style={{ fontSize: 13, color: C.muted }}>No classes configured yet.</div>
+                <div style={{ fontSize: 13, color: C.muted }}>এখনো কোনো ক্লাস যুক্ত করা হয়নি।</div>
               )}
             </div>
           </div>
@@ -114,13 +114,13 @@ export function Admission() {
         <div className="soft-panel-strong" style={{ padding: 22 }}>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
             <div>
-              <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 8px" }}>Ready to register?</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 8px" }}>ভর্তি হতে প্রস্তুত?</h3>
               <p style={{ margin: 0, fontSize: 13, color: C.muted, lineHeight: 1.8 }}>
-                Click any class to open the application page instantly.
+                যেকোনো ক্লাসে ক্লিক করলেই সরাসরি আবেদন ফর্ম খুলে যাবে।
               </p>
             </div>
             <button type="button" onClick={() => navigate("/classes")} className="pill hover-lift" style={{ background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", border: "none", padding: "12px 18px", fontWeight: 900 }}>
-              Browse all classes
+              সব ক্লাস দেখুন
             </button>
           </div>
         </div>

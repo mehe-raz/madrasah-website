@@ -7,6 +7,7 @@ const SETTINGS_KEY = "siteContent";
 const MAX_LIST = 8;
 const MAX_CLASSES = 24;
 const MAX_NOTICES = 60;
+const MAX_GALLERY = 24;
 
 const DEFAULT_CONTENT = {
   badge: "ডেমো ওয়েবসাইট — শীঘ্রই সম্পূর্ণ চালু হচ্ছে",
@@ -33,6 +34,9 @@ const DEFAULT_CONTENT = {
   // heroSubtitle/highlights above so About never mirrors the Home page.
   aboutIntro: "",
   aboutMission: "",
+  // Public "গ্যালারি" page. Empty by default — admin uploads real photos
+  // (Cloudinary URLs, via /api/uploads) from the Website module.
+  gallery: [],
 };
 
 function cleanText(value, maxLen) {
@@ -47,6 +51,22 @@ function sanitizeList(list, fields, max = MAX_LIST) {
     for (const [key, len] of fields) out[key] = cleanText(item && item[key], len);
     return out;
   });
+}
+
+// Gallery photos come from /api/uploads (Cloudinary), never typed in by
+// hand — but we still validate the shape server-side in case the request
+// body was crafted directly. Anything that isn't a plausible http(s) image
+// URL is dropped rather than stored, so the public page never renders a
+// javascript:/data: URL or similar.
+function sanitizeGallery(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .slice(0, MAX_GALLERY)
+    .map((item) => ({
+      url: cleanText(item && item.url, 500),
+      caption: cleanText(item && item.caption, 140),
+    }))
+    .filter((item) => /^https?:\/\//i.test(item.url));
 }
 
 function sanitizeContent(input) {
@@ -83,6 +103,7 @@ function sanitizeContent(input) {
     ),
     aboutIntro: cleanText(body.aboutIntro, 500),
     aboutMission: cleanText(body.aboutMission, 500),
+    gallery: sanitizeGallery(body.gallery),
   };
 }
 

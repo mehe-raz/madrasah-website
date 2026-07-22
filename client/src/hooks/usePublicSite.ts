@@ -29,6 +29,7 @@ export function usePublicSite() {
           notices: data.notices || [],
           aboutIntro: data.aboutIntro || FALLBACK_CONTENT.aboutIntro,
           aboutMission: data.aboutMission || FALLBACK_CONTENT.aboutMission,
+          gallery: data.gallery || [],
         });
       }
       if (settingsResult.status === "fulfilled") {

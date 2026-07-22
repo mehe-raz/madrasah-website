@@ -3,7 +3,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
-import type { SiteClassItem, SiteContent, SiteDepartment, SiteHighlight, SiteNotice } from "../types";
+import type { SiteClassItem, SiteContent, SiteDepartment, SiteGalleryItem, SiteHighlight, SiteNotice } from "../types";
 
 const EMPTY_CONTENT: SiteContent = {
   badge: "",
@@ -14,6 +14,7 @@ const EMPTY_CONTENT: SiteContent = {
   notices: [],
   aboutIntro: "",
   aboutMission: "",
+  gallery: [],
 };
 
 const SECTION_LIMITS = {
@@ -21,7 +22,10 @@ const SECTION_LIMITS = {
   departments: 8,
   classes: 24,
   notices: 60,
+  gallery: 24,
 } as const;
+
+const MAX_GALLERY_UPLOAD_BYTES = 750_000; // matches server's 1MB decoded limit with headroom
 
 const inputStyle = {
   width: "100%",
@@ -36,7 +40,7 @@ const inputStyle = {
 
 const iconInputStyle = { ...inputStyle, width: 72, textAlign: "center" as const, flexShrink: 0 };
 
-type SectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices";
+type SectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery";
 
 const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: string }> = {
   hero: {
@@ -68,6 +72,11 @@ const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: s
     title: "নোটিশ",
     subtitle: "পাবলিক নোটিশ বোর্ড",
     note: "শিরোনাম, তারিখ, এবং বিস্তারিত নোটিশ এখানে আপডেট হবে।",
+  },
+  gallery: {
+    title: "গ্যালারি",
+    subtitle: "পাবলিক গ্যালারি পেজ",
+    note: "ছবি আপলোড করুন এবং প্রতিটির সাথে সংক্ষিপ্ত ক্যাপশন যোগ করুন।",
   },
 };
 
@@ -124,6 +133,7 @@ export function WebsiteSectionEditor() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [galleryUploading, setGalleryUploading] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -181,6 +191,10 @@ export function WebsiteSectionEditor() {
     setContent((prev) => ({ ...prev, notices: prev.notices.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
   };
 
+  const updateGalleryItem = (index: number, patch: Partial<SiteGalleryItem>) => {
+    setContent((prev) => ({ ...prev, gallery: prev.gallery.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
+  };
+
   const addHighlight = () => {
     if (content.highlights.length >= SECTION_LIMITS.highlights) return;
     setContent((prev) => ({ ...prev, highlights: [...prev.highlights, { icon: "✨", label: "" }] }));
@@ -202,10 +216,42 @@ export function WebsiteSectionEditor() {
     setContent((prev) => ({ ...prev, notices: [{ title: "", date: today, body: "" }, ...prev.notices] }));
   };
 
+  const uploadGalleryPhoto = (file: File | null) => {
+    if (!file) return;
+    if (content.gallery.length >= SECTION_LIMITS.gallery) return;
+    if (!file.type.startsWith("image/")) {
+      setError("শুধু ছবি ফাইল আপলোড করা যাবে।");
+      return;
+    }
+    if (file.size > MAX_GALLERY_UPLOAD_BYTES) {
+      setError("ছবির আকার সর্বোচ্চ ৭৫০ কিলোবাইট হতে হবে।");
+      return;
+    }
+    setError("");
+    setGalleryUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const { url } = await api.uploadFile(String(reader.result), "gallery");
+        setContent((prev) => ({ ...prev, gallery: [...prev.gallery, { url, caption: "" }] }));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "ছবি আপলোড ব্যর্থ হয়েছে");
+      } finally {
+        setGalleryUploading(false);
+      }
+    };
+    reader.onerror = () => {
+      setGalleryUploading(false);
+      setError("ছবি পড়া যায়নি, আবার চেষ্টা করুন।");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const removeHighlight = (index: number) => setContent((prev) => ({ ...prev, highlights: prev.highlights.filter((_, i) => i !== index) }));
   const removeDepartment = (index: number) => setContent((prev) => ({ ...prev, departments: prev.departments.filter((_, i) => i !== index) }));
   const removeClassItem = (index: number) => setContent((prev) => ({ ...prev, classes: prev.classes.filter((_, i) => i !== index) }));
   const removeNotice = (index: number) => setContent((prev) => ({ ...prev, notices: prev.notices.filter((_, i) => i !== index) }));
+  const removeGalleryItem = (index: number) => setContent((prev) => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== index) }));
 
   const sectionContent = sectionId;
 
@@ -473,6 +519,76 @@ export function WebsiteSectionEditor() {
             >
               + নতুন নোটিশ
             </button>
+          </div>
+        </SectionCard>
+      )}
+
+      {sectionContent === "gallery" && (
+        <SectionCard title={meta.title} subtitle={meta.subtitle}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                gap: 14,
+              }}
+            >
+              {content.gallery.map((item, index) => (
+                <div key={index} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: 10, display: "grid", gap: 8 }}>
+                  <img
+                    src={item.url}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 8, background: C.slateL }}
+                  />
+                  <input
+                    value={item.caption}
+                    maxLength={140}
+                    onChange={(e) => updateGalleryItem(index, { caption: e.target.value })}
+                    style={{ ...inputStyle, fontSize: 12, padding: "8px 10px" }}
+                    placeholder="ক্যাপশন (ঐচ্ছিক)"
+                  />
+                  <ListEntryButtons onRemove={() => removeGalleryItem(index)} />
+                </div>
+              ))}
+
+              <label
+                style={{
+                  border: `1px dashed ${C.border}`,
+                  borderRadius: 12,
+                  minHeight: 160,
+                  display: "grid",
+                  placeItems: "center",
+                  gap: 8,
+                  cursor: content.gallery.length >= SECTION_LIMITS.gallery || galleryUploading ? "not-allowed" : "pointer",
+                  color: content.gallery.length >= SECTION_LIMITS.gallery ? C.muted : C.emerald,
+                  textAlign: "center",
+                  padding: 12,
+                }}
+              >
+                <span style={{ fontSize: 24 }}>{galleryUploading ? "…" : "＋"}</span>
+                <span style={{ fontSize: 12, fontWeight: 800 }}>
+                  {galleryUploading
+                    ? "আপলোড হচ্ছে…"
+                    : content.gallery.length >= SECTION_LIMITS.gallery
+                      ? `সর্বোচ্চ ${SECTION_LIMITS.gallery}টি ছবি`
+                      : "ছবি আপলোড করুন"}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={content.gallery.length >= SECTION_LIMITS.gallery || galleryUploading}
+                  onChange={(e) => {
+                    uploadGalleryPhoto(e.target.files?.[0] || null);
+                    e.target.value = "";
+                  }}
+                  style={{ display: "none" }}
+                />
+              </label>
+            </div>
+            {!content.gallery.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো ছবি আপলোড করা হয়নি। ছবি যোগ করলে সেটি সরাসরি পাবলিক গ্যালারি পেজে দেখা যাবে।</p>}
+            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>প্রতিটি ছবি সর্বোচ্চ ৭৫০ কিলোবাইট, সর্বোচ্চ {SECTION_LIMITS.gallery}টি ছবি।</p>
           </div>
         </SectionCard>
       )}

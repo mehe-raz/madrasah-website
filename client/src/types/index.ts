@@ -184,6 +184,14 @@ export interface SiteNotice {
   body: string;
 }
 
+// One uploaded photo on the public Gallery page. `url` comes back from
+// POST /api/uploads (Cloudinary secure_url) — the editor never lets the
+// admin type an arbitrary URL by hand, only upload a file.
+export interface SiteGalleryItem {
+  url: string;
+  caption: string;
+}
+
 export interface SiteContent {
   badge: string;
   heroSubtitle: string;
@@ -195,6 +203,9 @@ export interface SiteContent {
   // so the "এবাউট" page never shows Home-page content — it has its own copy.
   aboutIntro: string;
   aboutMission: string;
+  // Public "গ্যালারি" page. Empty by default; admin uploads real campus
+  // photos from the Website module. Same pattern as classes/notices above.
+  gallery: SiteGalleryItem[];
 }
 
 // What the public "ভর্তি" (admission) form submits. Stored server-side in

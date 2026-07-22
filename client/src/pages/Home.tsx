@@ -12,11 +12,11 @@ function formatNoticeDate(iso: string) {
   return d.toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" });
 }
 
-const defaultBadges = ["Playgroup", "Nursery", "KG", "Primary"];
+const defaultBadges = ["হিফজ", "নাজেরা", "কিতাব", "জেনারেল"];
 
 export function Home() {
   const { site, content } = usePublicSite();
-  const fallbackName = site.name || "Little Learners Academy";
+  const fallbackName = site.name || "মাদ্রাসা";
 
   useEffect(() => {
     document.title = `${fallbackName} — স্বাগতম`;
@@ -29,27 +29,27 @@ export function Home() {
   }, [content.notices]);
 
   const stats = [
-    { value: `${content.departments.length || 4}`, label: "Programs" },
-    { value: `${content.highlights.length || 4}`, label: "Highlights" },
-    { value: `${content.notices.length || 0}`, label: "News" },
+    { value: `${content.departments.length || 4}`, label: "বিভাগ" },
+    { value: `${content.highlights.length || 4}`, label: "বৈশিষ্ট্য" },
+    { value: `${content.notices.length || 0}`, label: "নোটিশ" },
   ];
 
   const features = content.highlights.length
     ? content.highlights
     : [
-        { icon: "🏡", label: "Safe, welcoming campus" },
-        { icon: "👩‍🏫", label: "Caring teachers" },
-        { icon: "🎨", label: "Play-based learning" },
-        { icon: "💬", label: "Strong parent connection" },
+        { icon: "🏛️", label: "প্রতিষ্ঠাকাল থেকে সুনামের সাথে পরিচালিত" },
+        { icon: "🏠", label: "আবাসিক ও অনাবাসিক উভয় ব্যবস্থা" },
+        { icon: "👳", label: "অভিজ্ঞ ও যোগ্য শিক্ষক পরিষদ" },
+        { icon: "📞", label: "নিয়মিত অভিভাবক যোগাযোগ ব্যবস্থা" },
       ];
 
   const programs = content.departments.length
     ? content.departments
     : [
-        { icon: "🧸", title: "Playgroup", desc: "A warm first step into learning." },
-        { icon: "📘", title: "Nursery", desc: "Language, numeracy, and creative discovery." },
-        { icon: "🌈", title: "Kindergarten", desc: "Balanced growth in a joyful atmosphere." },
-        { icon: "🎓", title: "Primary", desc: "Confident foundation for the next stage." },
+        { icon: "📖", title: "হিফজ বিভাগ", desc: "পূর্ণাঙ্গ কুরআন মুখস্থকরণ প্রোগ্রাম।" },
+        { icon: "🕌", title: "নাজেরা বিভাগ", desc: "শুদ্ধভাবে কুরআন তিলাওয়াত শিক্ষা।" },
+        { icon: "📚", title: "কিতাব বিভাগ", desc: "ইসলামী শিক্ষার ধারাবাহিক পাঠ্যক্রম।" },
+        { icon: "🎓", title: "জেনারেল বিভাগ", desc: "জাতীয় শিক্ষাক্রম অনুসরণে সাধারণ শিক্ষা।" },
       ];
 
   return (
@@ -62,7 +62,7 @@ export function Home() {
           <div className="soft-panel hover-lift" style={{ padding: 22, display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <span className="pill" style={{ display: "inline-flex", padding: "5px 11px", background: C.emeraldL, color: C.emeraldD, fontSize: 11, fontWeight: 900, marginBottom: 10 }}>
-                Notice
+                নোটিশ
               </span>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.text }}>{latestNotice.title}</h3>
@@ -75,7 +75,7 @@ export function Home() {
               )}
             </div>
             <Link to="/notices" className="pill hover-lift" style={{ background: C.slateL, border: `1px solid ${C.border}`, color: C.text, textDecoration: "none", padding: "11px 18px", fontSize: 13, fontWeight: 900 }}>
-              All notices →
+              সব নোটিশ →
             </Link>
           </div>
         </section>
@@ -89,7 +89,7 @@ export function Home() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 28, alignItems: "center" }}>
             <div style={{ position: "relative", zIndex: 1 }}>
               <span className="pill" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 12px", background: C.amberL, color: C.amberD, fontSize: 12, fontWeight: 900, marginBottom: 16 }}>
-                ✨ {content.badge || "Inspiring curious little minds"}
+                ✨ {content.badge || "দ্বীনি ও আধুনিক শিক্ষার সমন্বয়"}
               </span>
 
               <h1 className="text-balance" style={{ fontSize: "clamp(34px, 5vw, 60px)", lineHeight: 1.02, letterSpacing: "-0.04em", fontWeight: 900, margin: "0 0 14px" }}>
@@ -125,16 +125,16 @@ export function Home() {
                 <div className="soft-panel floaty" style={{ position: "absolute", left: 18, bottom: 18, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, maxWidth: 240 }}>
                   <div style={{ width: 38, height: 38, borderRadius: 12, background: C.emeraldL, display: "grid", placeItems: "center", fontSize: 18 }}>📚</div>
                   <div>
-                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Easy enrollment</div>
-                    <div style={{ fontSize: 13, color: C.text, fontWeight: 900 }}>Quick application flow</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>সহজ ভর্তি</div>
+                    <div style={{ fontSize: 13, color: C.text, fontWeight: 900 }}>দ্রুত আবেদন প্রক্রিয়া</div>
                   </div>
                 </div>
 
                 <div className="soft-panel floaty-slow" style={{ position: "absolute", right: 18, top: 18, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, maxWidth: 200 }}>
                   <div style={{ width: 38, height: 38, borderRadius: 12, background: C.amberL, display: "grid", placeItems: "center", fontSize: 18 }}>⭐</div>
                   <div>
-                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Premium look</div>
-                    <div style={{ fontSize: 13, color: C.text, fontWeight: 900 }}>Fast, clean, modern</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>মানসম্মত অভিজ্ঞতা</div>
+                    <div style={{ fontSize: 13, color: C.text, fontWeight: 900 }}>দ্রুত, পরিচ্ছন্ন, আধুনিক</div>
                   </div>
                 </div>
               </div>
@@ -154,10 +154,10 @@ export function Home() {
       <section className="section-shell page-section section-pop">
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.amberL, color: C.amberD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
-            Programs
+            বিভাগসমূহ
           </span>
-          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>Programs and classes</h2>
-          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Flexible class structure with a smooth admission journey.</p>
+          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>বিভাগ ও ক্লাসসমূহ</h2>
+          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>সুবিন্যস্ত ক্লাস কাঠামো ও ঝামেলাবিহীন ভর্তি প্রক্রিয়া।</p>
         </div>
 
         <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(235px, 1fr))" }}>
@@ -183,11 +183,11 @@ export function Home() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18, alignItems: "center" }}>
             <div>
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
-                Admissions made simple
+                সহজ ভর্তি প্রক্রিয়া
               </span>
-              <h2 className="section-heading" style={{ margin: "0 0 10px" }}>A quick, premium admission flow</h2>
+              <h2 className="section-heading" style={{ margin: "0 0 10px" }}>দ্রুত ও সহজ ভর্তি প্রক্রিয়া</h2>
               <p style={{ margin: 0, color: C.muted, fontSize: 14, lineHeight: 1.8 }}>
-                Visitors can review class options, check notices, and open the application form in a few taps.
+                ভিজিটররা কয়েক ট্যাপেই ক্লাসের তথ্য দেখতে, নোটিশ চেক করতে এবং আবেদন ফর্ম খুলতে পারবেন।
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
                 <Link
@@ -202,7 +202,7 @@ export function Home() {
                     boxShadow: "0 16px 32px rgba(16, 185, 129, 0.18)",
                   }}
                 >
-                  Register Now
+                  ভর্তি হন
                 </Link>
                 <Link
                   to="/about"
@@ -216,16 +216,16 @@ export function Home() {
                     fontWeight: 900,
                   }}
                 >
-                  Learn More
+                  আরও জানুন
                 </Link>
               </div>
             </div>
             <div style={{ display: "grid", gap: 10 }}>
               <Link to="/admission" className="pill hover-lift" style={{ textDecoration: "none", background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", padding: "12px 18px", fontWeight: 900, textAlign: "center" }}>
-                Start admission
+                ভর্তি শুরু করুন
               </Link>
               <Link to="/gallery" className="pill hover-lift" style={{ textDecoration: "none", background: C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 18px", fontWeight: 900, textAlign: "center" }}>
-                Explore gallery
+                গ্যালারি দেখুন
               </Link>
             </div>
           </div>

@@ -6,10 +6,10 @@ import { PublicFooter } from "../components/PublicFooter";
 import { C } from "../theme/colors";
 
 const principles = [
-  { icon: "✨", title: "Warm & welcoming", desc: "A calm, child-friendly atmosphere with thoughtful details." },
-  { icon: "🎨", title: "Learning through play", desc: "Simple, hands-on activities that build curiosity and confidence." },
-  { icon: "👩‍🏫", title: "Caring teachers", desc: "Supportive guidance with modern classroom practices." },
-  { icon: "💬", title: "Parent partnership", desc: "Clear communication and easy access to school updates." },
+  { icon: "✨", title: "যত্নশীল পরিবেশ", desc: "শান্ত, শিক্ষার্থী-বান্ধব পরিবেশ ও যত্নের প্রতিটি খুঁটিনাটি।" },
+  { icon: "🎨", title: "কার্যকর শিক্ষাপদ্ধতি", desc: "সহজবোধ্য, হাতে-কলমে অনুশীলন যা কৌতূহল ও আত্মবিশ্বাস গড়ে তোলে।" },
+  { icon: "👳", title: "যত্নশীল শিক্ষকমণ্ডলী", desc: "আধুনিক শিক্ষণ পদ্ধতির পাশাপাশি সহায়ক তত্ত্বাবধান।" },
+  { icon: "💬", title: "অভিভাবক সংযোগ", desc: "স্পষ্ট যোগাযোগ ও প্রতিষ্ঠানের হালনাগাদ তথ্যে সহজ প্রবেশাধিকার।" },
 ];
 
 export function About() {
@@ -29,18 +29,18 @@ export function About() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
             <div>
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
-                About Us
+                আমাদের সম্পর্কে
               </span>
               <h1 className="section-heading" style={{ margin: "0 0 12px" }}>{site.name}</h1>
               <p style={{ fontSize: 15, lineHeight: 1.85, color: C.muted, margin: 0, maxWidth: 680 }}>
-                {content.aboutIntro || "A warm, community-rooted school built around care, structure, and steady growth for every child."}
+                {content.aboutIntro || "যত্ন, শৃঙ্খলা এবং প্রতিটি শিক্ষার্থীর ধারাবাহিক উন্নতিকে কেন্দ্র করে গড়ে ওঠা একটি প্রতিষ্ঠান।"}
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
                 <Link to="/admission" className="pill hover-lift" style={{ background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", textDecoration: "none", padding: "12px 18px", fontWeight: 900 }}>
-                  Register Now
+                  ভর্তি হন
                 </Link>
                 <Link to="/classes" className="pill hover-lift" style={{ background: C.card, color: C.text, textDecoration: "none", border: `1px solid ${C.border}`, padding: "12px 18px", fontWeight: 900 }}>
-                  View Classes
+                  ক্লাসসমূহ দেখুন
                 </Link>
               </div>
             </div>
@@ -49,10 +49,10 @@ export function About() {
               <div style={{ borderRadius: 24, padding: 20, minHeight: 260, background: "linear-gradient(180deg, rgba(224,242,254,0.9), rgba(255,255,255,0.65))" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
                   {[
-                    { value: "01", label: "Joyful start" },
-                    { value: "02", label: "Caring guidance" },
-                    { value: "03", label: "Strong foundation" },
-                    { value: "04", label: "Parent connection" },
+                    { value: "০১", label: "আনন্দময় সূচনা" },
+                    { value: "০২", label: "যত্নশীল দিকনির্দেশনা" },
+                    { value: "০৩", label: "মজবুত ভিত্তি" },
+                    { value: "০৪", label: "অভিভাবক সংযোগ" },
                   ].map((item) => (
                     <div key={item.value} className="soft-panel" style={{ padding: 16 }}>
                       <div style={{ fontSize: 24, fontWeight: 900, color: C.text, marginBottom: 6 }}>{item.value}</div>
@@ -69,10 +69,10 @@ export function About() {
       <section className="section-shell page-section section-pop">
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.slateL, color: C.slateD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
-            What makes us special
+            আমাদের বিশেষত্ব
           </span>
-          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>A premium school-style experience</h2>
-          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Clear structure, gentle colors, smooth spacing, and responsive motion.</p>
+          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>একটি সুশৃঙ্খল প্রাতিষ্ঠানিক অভিজ্ঞতা</h2>
+          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>স্পষ্ট কাঠামো, শান্ত রঙ ও গোছানো উপস্থাপনা।</p>
         </div>
 
         <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
@@ -90,9 +90,9 @@ export function About() {
 
       <section className="section-shell page-section section-pop">
         <div className="soft-panel" style={{ padding: 22 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 10px" }}>Our mission</h3>
+          <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 10px" }}>আমাদের লক্ষ্য</h3>
           <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.85, margin: 0, maxWidth: 780 }}>
-            {content.aboutMission || "Our mission is to give every family a safe, nurturing place to learn — where academic growth goes hand in hand with character and community."}
+            {content.aboutMission || "আমাদের লক্ষ্য প্রতিটি পরিবারকে একটি নিরাপদ ও যত্নশীল শিক্ষার পরিবেশ দেওয়া — যেখানে একাডেমিক উন্নতি চরিত্র গঠন ও সমাজের সাথে একসাথে এগিয়ে চলে।"}
           </p>
         </div>
       </section>
@@ -101,11 +101,11 @@ export function About() {
         <div className="soft-panel-strong" style={{ padding: 22 }}>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
             <div>
-              <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 8px" }}>Visit, explore, and apply</h3>
-              <p style={{ margin: 0, fontSize: 13, color: C.muted, lineHeight: 1.8 }}>{site.address || "Dhaka, Bangladesh"} • {site.phone || "—"}</p>
+              <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 8px" }}>ঘুরে দেখুন ও আবেদন করুন</h3>
+              <p style={{ margin: 0, fontSize: 13, color: C.muted, lineHeight: 1.8 }}>{site.address || "ঠিকানা এখনো যুক্ত করা হয়নি"} • {site.phone || "—"}</p>
             </div>
             <Link to="/admission" className="pill hover-lift" style={{ textDecoration: "none", background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", padding: "12px 18px", fontWeight: 900 }}>
-              Admission Open
+              ভর্তি চলছে
             </Link>
           </div>
         </div>

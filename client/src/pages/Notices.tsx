@@ -51,27 +51,27 @@ export function Notices() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 22, alignItems: "center" }}>
             <div>
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
-                Blog & Notices
+                নোটিশ বোর্ড
               </span>
-              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>Latest updates in a clean reading layout</h1>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>সর্বশেষ ঘোষণা, সাজানো ও পরিষ্কার আকারে</h1>
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
-                Recent notices appear first, while older items stay tucked behind a small expand action to keep the page fast and tidy.
+                সাম্প্রতিক নোটিশগুলো প্রথমে দেখা যাবে, আর পুরনো নোটিশগুলো একটি ছোট বাটনে চাপলে দেখা যাবে।
               </p>
             </div>
 
             <div className="soft-panel hero-visual" style={{ padding: 18 }}>
               <div style={{ borderRadius: 24, minHeight: 250, padding: 18, background: "linear-gradient(180deg, rgba(240,253,244,0.92), rgba(255,255,255,0.68))", display: "grid", gap: 12 }}>
                 <div className="soft-panel" style={{ padding: 14 }}>
-                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>Quick note</div>
-                  <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>Mobile-friendly updates with strong visual hierarchy.</div>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>সংক্ষিপ্ত তথ্য</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>মোবাইল-বান্ধব ও স্পষ্ট উপস্থাপনায় সর্বশেষ তথ্য।</div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
                   <div className="soft-panel" style={{ padding: 14 }}>
-                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Recent</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>সাম্প্রতিক</div>
                     <div style={{ fontSize: 18, fontWeight: 900 }}>{recent.length}</div>
                   </div>
                   <div className="soft-panel" style={{ padding: 14 }}>
-                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Older</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>পুরনো</div>
                     <div style={{ fontSize: 18, fontWeight: 900 }}>{older.length}</div>
                   </div>
                 </div>
@@ -84,10 +84,10 @@ export function Notices() {
       <section className="section-shell page-section section-pop">
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.slateL, color: C.slateD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
-            Recent first
+            নতুন আগে
           </span>
-          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>Notice board</h2>
-          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Only the last 6 months are shown to keep the page compact and relevant.</p>
+          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>নোটিশ বোর্ড</h2>
+          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>পেজটি সংক্ষিপ্ত রাখতে শুধু গত ৬ মাসের নোটিশ দেখানো হয়।</p>
         </div>
 
         {loading ? (
@@ -98,14 +98,14 @@ export function Notices() {
               {recent.length ? recent.map((n, i) => (
                 <article key={`${n.title}-${i}`} className="soft-panel hover-lift" style={{ padding: 18, display: "grid", gap: 10, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", minWidth: 0 }}>
-                    <span className="pill" style={{ padding: "5px 10px", background: i % 2 === 0 ? C.emeraldL : C.slateL, color: C.text, fontSize: 11, fontWeight: 900 }}>Notice</span>
+                    <span className="pill" style={{ padding: "5px 10px", background: i % 2 === 0 ? C.emeraldL : C.slateL, color: C.text, fontSize: 11, fontWeight: 900 }}>নোটিশ</span>
                     <span style={{ fontSize: 12, color: C.muted }}>{formatDate(n.date)}</span>
                   </div>
                   <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: C.text, lineHeight: 1.45, overflowWrap: "anywhere" }}>{n.title}</h3>
                   {n.body && <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.8, overflowWrap: "anywhere" }}>{n.body}</p>}
                 </article>
               )) : (
-                <div className="soft-panel" style={{ padding: 22, textAlign: "center", color: C.muted }}>No notices available yet.</div>
+                <div className="soft-panel" style={{ padding: 22, textAlign: "center", color: C.muted }}>এখনো কোনো নোটিশ যুক্ত করা হয়নি।</div>
               )}
 
               {!!older.length && (

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
 
-type WebsiteSectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices";
+type WebsiteSectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery";
 
 interface WebsiteSectionCard {
   id: WebsiteSectionId;
@@ -55,6 +55,13 @@ const SECTIONS: WebsiteSectionCard[] = [
     subtitle: "পাবলিক নোটিশ লিস্ট",
     summary: "সর্বশেষ ঘোষণা ও নোটিশগুলো যা ভিজিটররা দেখবে।",
     route: "/website/notices",
+  },
+  {
+    id: "gallery",
+    title: "গ্যালারি",
+    subtitle: "পাবলিক গ্যালারি পেজ",
+    summary: "ক্যাম্পাসের ছবি আপলোড করুন যা পাবলিক গ্যালারি পেজে দেখা যাবে।",
+    route: "/website/gallery",
   },
 ];
 

@@ -6,13 +6,13 @@ import { ConfirmModal } from "./ConfirmModal";
 import type { PublicSettings, SiteClassItem } from "../types";
 
 const NAV_LINKS = [
-  { to: "/", label: "Home" },
-  { to: "/about", label: "About Us" },
-  { to: "/classes", label: "Classes" },
-  { to: "/admission", label: "Admission" },
-  { to: "/gallery", label: "Gallery" },
-  { to: "/notices", label: "Blog & Notices" },
-  { to: "/result", label: "Result" },
+  { to: "/", label: "হোম" },
+  { to: "/about", label: "আমাদের সম্পর্কে" },
+  { to: "/classes", label: "ক্লাস" },
+  { to: "/admission", label: "ভর্তি" },
+  { to: "/gallery", label: "গ্যালারি" },
+  { to: "/notices", label: "নোটিশ" },
+  { to: "/result", label: "ফলাফল" },
 ];
 
 function ChipLink({ to, label, active }: { to: string; label: string; active: boolean }) {
@@ -78,7 +78,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
               <div style={{ fontWeight: 900, fontSize: 17, letterSpacing: "-0.02em", color: C.text, lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {site.name}
               </div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 3, fontWeight: 700 }}>Child-friendly learning • modern & premium</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 3, fontWeight: 700 }}>দ্বীনি ও আধুনিক শিক্ষার সমন্বয়</div>
             </div>
           </Link>
 
@@ -105,7 +105,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                           gap: 6,
                         }}
                       >
-                        Classes <span style={{ fontSize: 10 }}>▾</span>
+                        ক্লাস <span style={{ fontSize: 10 }}>▾</span>
                       </button>
 
                       {classesOpen && (
@@ -140,12 +140,12 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                             ))
                           ) : (
                             <Link to="/classes" style={{ display: "block", padding: "10px 12px", fontSize: 13, color: C.muted, textDecoration: "none" }}>
-                              All classes will appear here →
+                              সব ক্লাস এখানে দেখা যাবে →
                             </Link>
                           )}
                           <div style={{ padding: 8 }}>
                             <Link to="/classes" className="pill nav-chip" style={{ display: "block", background: C.emeraldL, color: C.emeraldD, padding: "10px 12px", textDecoration: "none", fontWeight: 800, fontSize: 12, textAlign: "center" }}>
-                              View all classes
+                              সব ক্লাস দেখুন
                             </Link>
                           </div>
                         </div>
@@ -171,7 +171,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                 fontSize: 14,
               }}
             >
-              ☰ Menu
+              ☰ মেনু
             </button>
           )}
         </div>
@@ -192,12 +192,12 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
             </div>
 
             <div style={{ display: "grid", gap: 8 }}>
-              <Link to="/" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>Home</Link>
-              <Link to="/about" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/about" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>About Us</Link>
-              <Link to="/admission" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname.startsWith("/admission") ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>Admission</Link>
-              <Link to="/gallery" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/gallery" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>Gallery</Link>
-              <Link to="/notices" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/notices" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>Blog & Notices</Link>
-              <Link to="/result" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/result" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>Result</Link>
+              <Link to="/" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>হোম</Link>
+              <Link to="/about" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/about" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>আমাদের সম্পর্কে</Link>
+              <Link to="/admission" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname.startsWith("/admission") ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>ভর্তি</Link>
+              <Link to="/gallery" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/gallery" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>গ্যালারি</Link>
+              <Link to="/notices" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/notices" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>নোটিশ</Link>
+              <Link to="/result" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/result" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>ফলাফল</Link>
             </div>
 
             <div style={{ marginTop: 6 }}>
@@ -207,7 +207,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                 className="pill nav-chip"
                 style={{ width: "100%", textAlign: "left", background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "space-between" }}
               >
-                <span>Classes</span>
+                <span>ক্লাস</span>
                 <span style={{ fontSize: 10 }}>{mobileClassesOpen ? "▴" : "▾"}</span>
               </button>
               {mobileClassesOpen && (
@@ -220,7 +220,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                     ))
                   ) : (
                     <Link to="/classes" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", textDecoration: "none", fontWeight: 700 }}>
-                      View all classes
+                      সব ক্লাস দেখুন
                     </Link>
                   )}
                 </div>

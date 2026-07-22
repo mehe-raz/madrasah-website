@@ -56,7 +56,7 @@ export function ResultLookup() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
             <div>
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.skyL, color: C.skyD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
-                Result
+                ফলাফল
               </span>
               <h1 className="section-heading" style={{ margin: "0 0 12px" }}>ফলাফল দ্রুত ও সহজে খুঁজুন</h1>
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
@@ -67,7 +67,7 @@ export function ResultLookup() {
             <div className="soft-panel hero-visual" style={{ padding: 18 }}>
               <div style={{ borderRadius: 24, minHeight: 250, padding: 18, background: "linear-gradient(180deg, rgba(240,249,255,0.94), rgba(255,255,255,0.68))", display: "grid", gap: 12 }}>
                 <div className="soft-panel" style={{ padding: 14 }}>
-                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>Fast lookup</div>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>দ্রুত অনুসন্ধান</div>
                   <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>ক্লাস + রোল দিয়ে সরাসরি ফলাফল</div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>

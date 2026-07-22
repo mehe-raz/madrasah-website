@@ -31,7 +31,10 @@ router.post("/", uploadLimiter, async (req, res) => {
 
   const { dataUrl, folder } = req.body || {};
   const folderName = String(folder || "misc").trim();
-  const requiredPermission = folderName.toLowerCase().startsWith("settings") ? "settings" : "students";
+  const folderLower = folderName.toLowerCase();
+  let requiredPermission = "students";
+  if (folderLower.startsWith("settings")) requiredPermission = "settings";
+  else if (folderLower.startsWith("website") || folderLower.startsWith("gallery")) requiredPermission = "website";
   if (!req.user) return res.status(401).json({ error: "Login required" });
   if (!canAccess(req.user.role, requiredPermission)) {
     return res.status(403).json({ error: "Access denied" });
