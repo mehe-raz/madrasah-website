@@ -8,6 +8,8 @@ const nodemailer = require("nodemailer");
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const cookieOptions = {
   httpOnly: true,
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
@@ -62,8 +64,35 @@ router.post("/login", async (req, res) => {
   }
   const row = await db.get('SELECT * FROM users WHERE email = $1', [email.trim().toLowerCase()]);
   if (!row?.passwordHash) return res.status(401).json({ error: "Invalid email or password" });
+
+  if (row.lockedUntil && new Date(row.lockedUntil).getTime() > Date.now()) {
+    const minutesLeft = Math.ceil((new Date(row.lockedUntil).getTime() - Date.now()) / 60000);
+    return res.status(423).json({
+      error: `Too many failed attempts. This account is temporarily locked. Try again in ${minutesLeft} minute(s).`,
+    });
+  }
+
   const ok = await bcrypt.compare(password, row.passwordHash);
-  if (!ok) return res.status(401).json({ error: "Invalid email or password" });
+  if (!ok) {
+    const attempts = (row.failedLoginAttempts || 0) + 1;
+    if (attempts >= MAX_FAILED_ATTEMPTS) {
+      const lockedUntil = new Date(Date.now() + LOCK_DURATION_MS).toISOString();
+      await db.run(
+        'UPDATE users SET "failedLoginAttempts" = 0, "lockedUntil" = $1 WHERE id = $2',
+        [lockedUntil, row.id]
+      );
+      return res.status(423).json({
+        error: `Too many failed attempts. This account is now locked for ${Math.round(LOCK_DURATION_MS / 60000)} minutes.`,
+      });
+    }
+    await db.run('UPDATE users SET "failedLoginAttempts" = $1 WHERE id = $2', [attempts, row.id]);
+    return res.status(401).json({ error: "Invalid email or password" });
+  }
+
+  if (row.failedLoginAttempts > 0 || row.lockedUntil) {
+    await db.run('UPDATE users SET "failedLoginAttempts" = 0, "lockedUntil" = NULL WHERE id = $1', [row.id]);
+  }
+
   const user = publicUser(row);
   const token = signToken(user);
   res.cookie("token", token, cookieOptions);
