@@ -51,13 +51,11 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
   return (
     <>
       <header
+        className="glass-header"
         style={{
           position: "sticky",
           top: 0,
           zIndex: 30,
-          background: "rgba(255,255,255,0.72)",
-          backdropFilter: "blur(16px)",
-          borderBottom: `1px solid ${C.border}`,
           boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)",
         }}
       >
@@ -80,6 +78,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
               <span style={{ fontSize: 30, flexShrink: 0 }}>🕌</span>
             )}
             <span
+              className="brand-badge"
               style={{
                 fontWeight: 900,
                 fontSize: 16,
@@ -120,7 +119,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                 </button>
                 {classesOpen && (
                   <div
-                    className="soft-panel"
+                    className="soft-panel section-pop"
                     style={{
                       position: "absolute",
                       top: "calc(100% + 10px)",
@@ -177,7 +176,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
 
               <Link
                 to="/result"
-                className="pill hover-lift"
+                className="pill hover-lift nav-chip"
                 style={{
                   background: C.amberL,
                   color: C.amberD,
@@ -192,7 +191,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
               </Link>
               <Link
                 to="/about"
-                className="pill hover-lift"
+                className="pill hover-lift nav-chip"
                 style={{ background: `linear-gradient(135deg, ${C.emerald}, ${C.teal})`, color: "#fff", padding: "10px 16px", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
               >
                 আমাদের সম্পর্কে
@@ -259,7 +258,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                 <Link
                   to="/result"
                   onClick={() => setMobileOpen(false)}
-                  className="pill"
+                  className="pill nav-chip"
                   style={{ background: C.amberL, color: C.amberD, padding: "12px", fontWeight: 800, fontSize: 14, textDecoration: "none", textAlign: "center" }}
                 >
                   ফলাফল
@@ -267,7 +266,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                 <Link
                   to="/about"
                   onClick={() => setMobileOpen(false)}
-                  className="pill"
+                  className="pill nav-chip"
                   style={{ background: `linear-gradient(135deg, ${C.emerald}, ${C.teal})`, color: "#fff", padding: "12px", fontWeight: 800, fontSize: 14, textDecoration: "none", textAlign: "center" }}
                 >
                   সম্পর্কে

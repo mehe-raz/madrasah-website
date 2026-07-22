@@ -60,24 +60,27 @@ export function Home() {
   ];
 
   return (
-    <div className="app-shell" style={{ background: "var(--bg)", minHeight: "100vh", color: C.text, position: "relative", overflow: "hidden" }}>
+    <div className="app-shell page-float" style={{ background: "var(--bg)", minHeight: "100vh", color: C.text, position: "relative", overflow: "hidden" }}>
       <div
         aria-hidden
+        className="pattern-divider"
         style={{
           position: "absolute",
           inset: 0,
           pointerEvents: "none",
           background:
             "radial-gradient(circle at 10% 8%, rgba(14, 165, 233, 0.14), transparent 24%), radial-gradient(circle at 90% 12%, rgba(245, 158, 11, 0.12), transparent 22%), radial-gradient(circle at 50% 0%, rgba(34, 197, 94, 0.08), transparent 18%)",
+          opacity: 0.18,
+          height: "100%",
         }}
       />
 
       <PublicHeader site={site} classes={content.classes} />
 
       {/* Hero */}
-      <section className="section-shell" style={{ position: "relative", paddingTop: 40, paddingBottom: 24 }}>
+      <section className="section-shell section-pop" style={{ position: "relative", paddingTop: 40, paddingBottom: 24 }}>
         <div
-          className="soft-panel-strong"
+          className="soft-panel-strong shine-on-hover"
           style={{
             position: "relative",
             overflow: "hidden",
@@ -200,7 +203,7 @@ export function Home() {
 
             <div style={{ position: "relative", zIndex: 1 }}>
               <div
-                className="gradient-border soft-panel"
+                className="gradient-border soft-panel hero-visual"
                 style={{
                   padding: 18,
                   position: "relative",
@@ -269,12 +272,12 @@ export function Home() {
         </div>
       </section>
 
-      <DividerPattern />
+      <div className="section-pop"><DividerPattern /></div>
 
       {/* Latest notice */}
       {latestNotice && (
         <section className="section-shell" style={{ paddingTop: 32, paddingBottom: 8 }}>
-          <div className="soft-panel hover-lift" style={{ padding: 22, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 18, justifyContent: "space-between" }}>
+          <div className="soft-panel hover-lift section-pop delay-1" style={{ padding: 22, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 18, justifyContent: "space-between" }}>
             <div style={{ minWidth: 0, flex: 1 }}>
               <span
                 className="pill"
@@ -313,7 +316,7 @@ export function Home() {
             </div>
             <Link
               to="/notices"
-              className="pill hover-lift"
+              className="pill hover-lift shine-on-hover"
               style={{ background: C.slateL, color: C.text, border: `1px solid ${C.border}`, padding: "10px 18px", fontWeight: 800, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap" }}
             >
               সব দেখুন →
@@ -328,7 +331,7 @@ export function Home() {
           {content.highlights.map((h, i) => (
             <div
               key={`${h.label}-${i}`}
-              className="soft-panel hover-lift"
+              className="soft-panel hover-lift section-pop delay-2"
               style={{
                 padding: "16px 15px",
                 display: "flex",
@@ -357,7 +360,7 @@ export function Home() {
       </section>
 
       {/* Departments */}
-      <section id="departments" className="section-shell" style={{ paddingTop: 12, paddingBottom: 42 }}>
+      <section id="departments" className="section-shell section-pop" style={{ paddingTop: 12, paddingBottom: 42 }}>
         <div style={{ textAlign: "center", marginBottom: 26 }}>
           <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.slateL, color: C.slateD, fontSize: 12, fontWeight: 800, marginBottom: 10 }}>
             শিক্ষার বিভাগসমূহ
@@ -391,7 +394,7 @@ export function Home() {
         </div>
       </section>
 
-      <DividerPattern />
+      <div className="section-pop"><DividerPattern /></div>
 
       <PublicFooter site={site} />
     </div>

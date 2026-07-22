@@ -6,8 +6,8 @@ export function PublicFooter({ site }: { site: PublicSettings }) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="section-shell" style={{ paddingTop: 10, paddingBottom: 34 }}>
-      <div className="soft-panel-strong" style={{ overflow: "hidden" }}>
+    <footer className="section-shell footer-glow section-pop" style={{ paddingTop: 10, paddingBottom: 34 }}>
+      <div className="soft-panel-strong shine-on-hover" style={{ overflow: "hidden" }}>
         <div style={{ height: 6, background: `linear-gradient(90deg, ${C.sky}, ${C.emerald}, ${C.amber})` }} />
         <div
           style={{
@@ -41,13 +41,13 @@ export function PublicFooter({ site }: { site: PublicSettings }) {
           <div>
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 8, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em" }}>দ্রুত লিংক</div>
             <div style={{ display: "grid", gap: 10 }}>
-              <Link to="/about" className="pill hover-lift" style={{ background: C.slateL, color: C.text, border: `1px solid ${C.border}`, padding: "11px 14px", fontWeight: 800, fontSize: 13, textDecoration: "none", textAlign: "center" }}>
+              <Link to="/about" className="pill hover-lift nav-chip" style={{ background: C.slateL, color: C.text, border: `1px solid ${C.border}`, padding: "11px 14px", fontWeight: 800, fontSize: 13, textDecoration: "none", textAlign: "center" }}>
                 আমাদের সম্পর্কে
               </Link>
-              <Link to="/admission" className="pill hover-lift" style={{ background: C.emeraldL, color: C.emeraldD, border: `1px solid ${C.border}`, padding: "11px 14px", fontWeight: 800, fontSize: 13, textDecoration: "none", textAlign: "center" }}>
+              <Link to="/admission" className="pill hover-lift nav-chip" style={{ background: C.emeraldL, color: C.emeraldD, border: `1px solid ${C.border}`, padding: "11px 14px", fontWeight: 800, fontSize: 13, textDecoration: "none", textAlign: "center" }}>
                 ভর্তি তথ্য
               </Link>
-              <Link to="/login" className="pill hover-lift" style={{ background: `linear-gradient(135deg, ${C.emerald}, ${C.teal})`, color: "#fff", padding: "11px 14px", fontWeight: 800, fontSize: 13, textDecoration: "none", textAlign: "center" }}>
+              <Link to="/login" className="pill hover-lift nav-chip" style={{ background: `linear-gradient(135deg, ${C.emerald}, ${C.teal})`, color: "#fff", padding: "11px 14px", fontWeight: 800, fontSize: 13, textDecoration: "none", textAlign: "center" }}>
                 লগইন করুন
               </Link>
             </div>
