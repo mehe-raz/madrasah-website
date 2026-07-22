@@ -75,37 +75,6 @@ export function Home() {
                 {content.heroSubtitle}
               </p>
 
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
-                <Link
-                  to="/admission"
-                  className="pill hover-lift shine-on-hover"
-                  style={{
-                    textDecoration: "none",
-                    background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`,
-                    color: "#fff",
-                    padding: "13px 22px",
-                    fontWeight: 900,
-                    boxShadow: "0 16px 32px rgba(16, 185, 129, 0.18)",
-                  }}
-                >
-                  Register Now
-                </Link>
-                <Link
-                  to="/about"
-                  className="pill hover-lift"
-                  style={{
-                    textDecoration: "none",
-                    background: C.card,
-                    color: C.text,
-                    border: `1px solid ${C.border}`,
-                    padding: "13px 22px",
-                    fontWeight: 900,
-                  }}
-                >
-                  Learn More
-                </Link>
-              </div>
-
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(122px, 1fr))", gap: 12, maxWidth: 480 }}>
                 {stats.map((stat) => (
                   <div key={stat.label} className="soft-panel hover-lift" style={{ padding: "15px 16px" }}>
@@ -240,6 +209,36 @@ export function Home() {
               <p style={{ margin: 0, color: C.muted, fontSize: 14, lineHeight: 1.8 }}>
                 Visitors can review class options, check notices, and open the application form in a few taps.
               </p>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
+                <Link
+                  to="/admission"
+                  className="pill hover-lift shine-on-hover"
+                  style={{
+                    textDecoration: "none",
+                    background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`,
+                    color: "#fff",
+                    padding: "13px 22px",
+                    fontWeight: 900,
+                    boxShadow: "0 16px 32px rgba(16, 185, 129, 0.18)",
+                  }}
+                >
+                  Register Now
+                </Link>
+                <Link
+                  to="/about"
+                  className="pill hover-lift"
+                  style={{
+                    textDecoration: "none",
+                    background: C.card,
+                    color: C.text,
+                    border: `1px solid ${C.border}`,
+                    padding: "13px 22px",
+                    fontWeight: 900,
+                  }}
+                >
+                  Learn More
+                </Link>
+              </div>
             </div>
             <div style={{ display: "grid", gap: 10 }}>
               <Link to="/admission" className="pill hover-lift" style={{ textDecoration: "none", background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", padding: "12px 18px", fontWeight: 900, textAlign: "center" }}>

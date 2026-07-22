@@ -93,16 +93,16 @@ export function Notices() {
         {loading ? (
           <div style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(260px, 0.9fr)", gap: 18, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 18, alignItems: "start" }}>
             <div style={{ display: "grid", gap: 12 }}>
               {recent.length ? recent.map((n, i) => (
-                <article key={`${n.title}-${i}`} className="soft-panel hover-lift" style={{ padding: 18, display: "grid", gap: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <article key={`${n.title}-${i}`} className="soft-panel hover-lift" style={{ padding: 18, display: "grid", gap: 10, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", minWidth: 0 }}>
                     <span className="pill" style={{ padding: "5px 10px", background: i % 2 === 0 ? C.emeraldL : C.slateL, color: C.text, fontSize: 11, fontWeight: 900 }}>Notice</span>
                     <span style={{ fontSize: 12, color: C.muted }}>{formatDate(n.date)}</span>
                   </div>
-                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: C.text }}>{n.title}</h3>
-                  {n.body && <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.8 }}>{n.body}</p>}
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: C.text, lineHeight: 1.45, overflowWrap: "anywhere" }}>{n.title}</h3>
+                  {n.body && <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.8, overflowWrap: "anywhere" }}>{n.body}</p>}
                 </article>
               )) : (
                 <div className="soft-panel" style={{ padding: 22, textAlign: "center", color: C.muted }}>No notices available yet.</div>
@@ -117,12 +117,12 @@ export function Notices() {
                   ) : (
                     <div style={{ display: "grid", gap: 12 }}>
                       {older.map((n, i) => (
-                        <article key={`${n.title}-${i}`} className="soft-panel" style={{ padding: 16, background: C.card }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                            <h4 style={{ margin: 0, fontSize: 14, fontWeight: 900 }}>{n.title}</h4>
+                        <article key={`${n.title}-${i}`} className="soft-panel" style={{ padding: 16, background: C.card, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", minWidth: 0 }}>
+                            <h4 style={{ margin: 0, fontSize: 14, fontWeight: 900, lineHeight: 1.45, overflowWrap: "anywhere" }}>{n.title}</h4>
                             <span style={{ fontSize: 12, color: C.muted }}>{formatDate(n.date)}</span>
                           </div>
-                          {n.body && <p style={{ margin: "8px 0 0", color: C.muted, fontSize: 13, lineHeight: 1.7 }}>{n.body}</p>}
+                          {n.body && <p style={{ margin: "8px 0 0", color: C.muted, fontSize: 13, lineHeight: 1.7, overflowWrap: "anywhere" }}>{n.body}</p>}
                         </article>
                       ))}
                     </div>
@@ -130,21 +130,6 @@ export function Notices() {
                 </div>
               )}
             </div>
-
-            <aside className="soft-panel" style={{ padding: 18, position: "sticky", top: 110 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 10px" }}>Quick links</h3>
-              <div style={{ display: "grid", gap: 10 }}>
-                <Link to="/result" className="pill nav-chip" style={{ background: C.slateL, border: `1px solid ${C.border}`, color: C.text, textDecoration: "none", padding: "11px 14px", textAlign: "center", fontWeight: 900 }}>
-                  Result lookup
-                </Link>
-                <Link to="/admission" className="pill nav-chip" style={{ background: C.emeraldL, border: `1px solid ${C.border}`, color: C.emeraldD, textDecoration: "none", padding: "11px 14px", textAlign: "center", fontWeight: 900 }}>
-                  Admission
-                </Link>
-                <Link to="/gallery" className="pill nav-chip" style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text, textDecoration: "none", padding: "11px 14px", textAlign: "center", fontWeight: 900 }}>
-                  Gallery
-                </Link>
-              </div>
-            </aside>
           </div>
         )}
       </section>
