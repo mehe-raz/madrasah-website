@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
+import { compressImageToLimit, dataUrlBytes } from "../lib/imageCompress";
 import { C } from "../theme/colors";
 import type { SiteClassItem, SiteContent, SiteDepartment, SiteGalleryItem, SiteHighlight, SiteNotice } from "../types";
 
@@ -25,7 +26,10 @@ const SECTION_LIMITS = {
   gallery: 24,
 } as const;
 
-const MAX_GALLERY_UPLOAD_BYTES = 750_000; // matches server's 1MB decoded limit with headroom
+const MAX_GALLERY_UPLOAD_BYTES = 950_000; // final upload size cap, under server's 1MB decoded limit
+const MAX_GALLERY_SOURCE_BYTES = 25 * 1024 * 1024; // 25MB — sanity check on the original phone photo
+const GALLERY_MAX_DIMENSION = 1600; // px — plenty for gallery cards/lightbox, invisible to the eye
+const GALLERY_JPEG_QUALITY = 0.85; // visually lossless, big size reduction
 
 const inputStyle = {
   width: "100%",
@@ -216,35 +220,39 @@ export function WebsiteSectionEditor() {
     setContent((prev) => ({ ...prev, notices: [{ title: "", date: today, body: "" }, ...prev.notices] }));
   };
 
-  const uploadGalleryPhoto = (file: File | null) => {
+  const uploadGalleryPhoto = async (file: File | null) => {
     if (!file) return;
     if (content.gallery.length >= SECTION_LIMITS.gallery) return;
     if (!file.type.startsWith("image/")) {
       setError("শুধু ছবি ফাইল আপলোড করা যাবে।");
       return;
     }
-    if (file.size > MAX_GALLERY_UPLOAD_BYTES) {
-      setError("ছবির আকার সর্বোচ্চ ৭৫০ কিলোবাইট হতে হবে।");
+    if (file.size > MAX_GALLERY_SOURCE_BYTES) {
+      setError("ছবির আকার সর্বোচ্চ ২৫ মেগাবাইট হতে হবে।");
       return;
     }
     setError("");
     setGalleryUploading(true);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const { url } = await api.uploadFile(String(reader.result), "gallery");
-        setContent((prev) => ({ ...prev, gallery: [...prev.gallery, { url, caption: "" }] }));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "ছবি আপলোড ব্যর্থ হয়েছে");
-      } finally {
-        setGalleryUploading(false);
+    try {
+      // Resize to a web-appropriate resolution and re-encode as JPEG in the
+      // browser — this shrinks typical phone photos (3-8MB) down to a few
+      // hundred KB with no visible quality loss before they ever leave the device.
+      const compressed = await compressImageToLimit(file, MAX_GALLERY_UPLOAD_BYTES, {
+        maxWidth: GALLERY_MAX_DIMENSION,
+        maxHeight: GALLERY_MAX_DIMENSION,
+        quality: GALLERY_JPEG_QUALITY,
+      });
+      if (dataUrlBytes(compressed) > MAX_GALLERY_UPLOAD_BYTES) {
+        setError("ছবিটি সংকুচিত করার পরও আকার বেশি বড়। অন্য একটি ছবি চেষ্টা করুন।");
+        return;
       }
-    };
-    reader.onerror = () => {
+      const { url } = await api.uploadFile(compressed, "gallery");
+      setContent((prev) => ({ ...prev, gallery: [...prev.gallery, { url, caption: "" }] }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ছবি আপলোড ব্যর্থ হয়েছে");
+    } finally {
       setGalleryUploading(false);
-      setError("ছবি পড়া যায়নি, আবার চেষ্টা করুন।");
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const removeHighlight = (index: number) => setContent((prev) => ({ ...prev, highlights: prev.highlights.filter((_, i) => i !== index) }));
@@ -588,7 +596,7 @@ export function WebsiteSectionEditor() {
               </label>
             </div>
             {!content.gallery.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো ছবি আপলোড করা হয়নি। ছবি যোগ করলে সেটি সরাসরি পাবলিক গ্যালারি পেজে দেখা যাবে।</p>}
-            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>প্রতিটি ছবি সর্বোচ্চ ৭৫০ কিলোবাইট, সর্বোচ্চ {SECTION_LIMITS.gallery}টি ছবি।</p>
+            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>ছবি আপলোডের সময় স্বয়ংক্রিয়ভাবে সংকুচিত হবে, সর্বোচ্চ {SECTION_LIMITS.gallery}টি ছবি।</p>
           </div>
         </SectionCard>
       )}
