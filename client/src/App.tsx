@@ -21,6 +21,7 @@ const Reports = lazy(() => import("./modules/Reports").then((m) => ({ default: m
 const Settings = lazy(() => import("./modules/Settings").then((m) => ({ default: m.Settings })));
 const Students = lazy(() => import("./modules/Students").then((m) => ({ default: m.Students })));
 const Website = lazy(() => import("./modules/Website").then((m) => ({ default: m.Website })));
+const WebsiteSectionEditor = lazy(() => import("./modules/WebsiteSectionEditor").then((m) => ({ default: m.WebsiteSectionEditor })));
 const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })));
 const ResetPassword = lazy(() => import("./pages/ResetPassword").then((m) => ({ default: m.ResetPassword })));
 
@@ -55,6 +56,7 @@ export default function App() {
                 <Route path="hifz" element={<HifzTracking />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="website" element={<Website />} />
+                <Route path="website/:sectionId" element={<WebsiteSectionEditor />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>

@@ -1,0 +1,504 @@
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, Navigate, useParams } from "react-router-dom";
+import { useLanguage } from "../context/AppSettingsContext";
+import { api } from "../lib/api";
+import { C } from "../theme/colors";
+import type { SiteClassItem, SiteContent, SiteDepartment, SiteHighlight, SiteNotice } from "../types";
+
+const EMPTY_CONTENT: SiteContent = {
+  badge: "",
+  heroSubtitle: "",
+  highlights: [],
+  departments: [],
+  classes: [],
+  notices: [],
+  aboutIntro: "",
+  aboutMission: "",
+};
+
+const SECTION_LIMITS = {
+  highlights: 8,
+  departments: 8,
+  classes: 24,
+  notices: 60,
+} as const;
+
+const inputStyle = {
+  width: "100%",
+  border: `1px solid ${C.border}`,
+  borderRadius: 10,
+  padding: "10px 12px",
+  fontSize: 14,
+  boxSizing: "border-box" as const,
+  color: C.text,
+  background: C.card,
+};
+
+const iconInputStyle = { ...inputStyle, width: 72, textAlign: "center" as const, flexShrink: 0 };
+
+type SectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices";
+
+const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: string }> = {
+  hero: {
+    title: "হিরো সেকশন",
+    subtitle: "পাবলিক হোমপেজের প্রথম ভিজিটর অভিজ্ঞতা",
+    note: "ব্যাজ এবং মূল বর্ণনা এখান থেকে সম্পাদনা করুন।",
+  },
+  about: {
+    title: "এবাউট পেজ",
+    subtitle: "শুধু About পেজে দেখা যাবে",
+    note: "পরিচিতি ও লক্ষ্য/মিশন অংশ আলাদা করে নিয়ন্ত্রণ করুন।",
+  },
+  highlights: {
+    title: "হাইলাইটস",
+    subtitle: "হোমপেজে ছোট বৈশিষ্ট্য",
+    note: "সংক্ষিপ্ত icon + text আইটেমগুলো এখানে আপডেট হবে।",
+  },
+  departments: {
+    title: "বিভাগসমূহ",
+    subtitle: "পাবলিক প্রোগ্রাম লিস্ট",
+    note: "প্রতিটি বিভাগের নাম, আইকন এবং সংক্ষিপ্ত বিবরণ দিন।",
+  },
+  classes: {
+    title: "ক্লাস ও কোর্স",
+    subtitle: "ভর্তি ও ক্লাস পেজ",
+    note: "ক্লাস/কোর্স লিস্ট আলাদাভাবে এডিট করা যাবে।",
+  },
+  notices: {
+    title: "নোটিশ",
+    subtitle: "পাবলিক নোটিশ বোর্ড",
+    note: "শিরোনাম, তারিখ, এবং বিস্তারিত নোটিশ এখানে আপডেট হবে।",
+  },
+};
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label style={{ display: "block" }}>
+      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6, fontWeight: 700 }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function SectionCard({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 18, marginBottom: 16, boxShadow: "0 8px 22px rgba(15,23,42,0.04)" }}>
+      <h3 style={{ fontSize: 16, fontWeight: 900, color: C.text, margin: "0 0 4px" }}>{title}</h3>
+      {subtitle && <p style={{ fontSize: 13, color: C.muted, margin: "0 0 14px", lineHeight: 1.6 }}>{subtitle}</p>}
+      {!subtitle && <div style={{ marginBottom: 6 }} />}
+      {children}
+    </div>
+  );
+}
+
+function ListEntryButtons({ onRemove, disabled }: { onRemove: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      disabled={disabled}
+      style={{
+        border: "none",
+        background: C.roseL,
+        color: C.roseD,
+        borderRadius: 10,
+        padding: "10px 12px",
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontWeight: 800,
+        flexShrink: 0,
+      }}
+    >
+      মুছুন
+    </button>
+  );
+}
+
+export function WebsiteSectionEditor() {
+  const { t } = useLanguage();
+  const params = useParams<{ sectionId: SectionId }>();
+  const sectionId = params.sectionId as SectionId | undefined;
+  const meta = sectionId ? SECTION_META[sectionId] : undefined;
+
+  const [content, setContent] = useState<SiteContent>(EMPTY_CONTENT);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api
+      .getPublicSiteContent()
+      .then((data) => {
+        if (cancelled) return;
+        setContent({ ...EMPTY_CONTENT, ...data });
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : t.common.requestFailed);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [t.common.requestFailed]);
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    setError("");
+    try {
+      const result = await api.saveSiteContent(content);
+      setContent(result);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.students.saveFailed);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateHighlight = (index: number, patch: Partial<SiteHighlight>) => {
+    setContent((prev) => ({ ...prev, highlights: prev.highlights.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
+  };
+
+  const updateDepartment = (index: number, patch: Partial<SiteDepartment>) => {
+    setContent((prev) => ({ ...prev, departments: prev.departments.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
+  };
+
+  const updateClassItem = (index: number, patch: Partial<SiteClassItem>) => {
+    setContent((prev) => ({ ...prev, classes: prev.classes.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
+  };
+
+  const updateNotice = (index: number, patch: Partial<SiteNotice>) => {
+    setContent((prev) => ({ ...prev, notices: prev.notices.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
+  };
+
+  const addHighlight = () => {
+    if (content.highlights.length >= SECTION_LIMITS.highlights) return;
+    setContent((prev) => ({ ...prev, highlights: [...prev.highlights, { icon: "✨", label: "" }] }));
+  };
+
+  const addDepartment = () => {
+    if (content.departments.length >= SECTION_LIMITS.departments) return;
+    setContent((prev) => ({ ...prev, departments: [...prev.departments, { icon: "📖", title: "", desc: "" }] }));
+  };
+
+  const addClassItem = () => {
+    if (content.classes.length >= SECTION_LIMITS.classes) return;
+    setContent((prev) => ({ ...prev, classes: [...prev.classes, { icon: "🎓", title: "", desc: "" }] }));
+  };
+
+  const addNotice = () => {
+    if (content.notices.length >= SECTION_LIMITS.notices) return;
+    const today = new Date().toISOString().slice(0, 10);
+    setContent((prev) => ({ ...prev, notices: [{ title: "", date: today, body: "" }, ...prev.notices] }));
+  };
+
+  const removeHighlight = (index: number) => setContent((prev) => ({ ...prev, highlights: prev.highlights.filter((_, i) => i !== index) }));
+  const removeDepartment = (index: number) => setContent((prev) => ({ ...prev, departments: prev.departments.filter((_, i) => i !== index) }));
+  const removeClassItem = (index: number) => setContent((prev) => ({ ...prev, classes: prev.classes.filter((_, i) => i !== index) }));
+  const removeNotice = (index: number) => setContent((prev) => ({ ...prev, notices: prev.notices.filter((_, i) => i !== index) }));
+
+  const sectionContent = sectionId;
+
+  if (!sectionId || !meta) {
+    return <Navigate to="/website" replace />;
+  }
+
+  if (loading) {
+    return <div style={{ color: C.muted, padding: 20 }}>{t.common.loading}</div>;
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+            <Link to="/website" style={{ color: C.teal, textDecoration: "none", fontSize: 13, fontWeight: 800 }}>
+              ← লিস্টে ফিরুন
+            </Link>
+            <span style={{ fontSize: 12, color: C.muted }}>/{sectionId}</span>
+          </div>
+          <h2 style={{ fontSize: 22, fontWeight: 900, color: C.text, margin: 0 }}>{meta.title}</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: "6px 0 0", lineHeight: 1.7, maxWidth: 760 }}>{meta.subtitle}</p>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ background: C.roseL, color: C.roseD, borderRadius: 10, padding: "10px 14px", fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ marginBottom: 16, padding: 14, borderRadius: 12, border: `1px solid ${C.border}`, background: C.slateL, color: C.muted, fontSize: 13, lineHeight: 1.7 }}>
+        {meta.note}
+      </div>
+
+      {sectionContent === "hero" && (
+        <SectionCard title={meta.title} subtitle={meta.subtitle}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <Field label={`ব্যাজ টেক্সট — ${content.badge.length}/120`}>
+              <input
+                value={content.badge}
+                maxLength={120}
+                onChange={(e) => setContent((prev) => ({ ...prev, badge: e.target.value }))}
+                style={inputStyle}
+                placeholder="যেমন: ডেমো ওয়েবসাইট — শীঘ্রই সম্পূর্ণ চালু হচ্ছে"
+              />
+            </Field>
+            <Field label={`মূল বর্ণনা — ${content.heroSubtitle.length}/300`}>
+              <textarea
+                value={content.heroSubtitle}
+                maxLength={300}
+                rows={4}
+                onChange={(e) => setContent((prev) => ({ ...prev, heroSubtitle: e.target.value }))}
+                style={{ ...inputStyle, resize: "vertical" as const }}
+                placeholder="দ্বীনি ও আধুনিক শিক্ষার সমন্বয়ে..."
+              />
+            </Field>
+          </div>
+        </SectionCard>
+      )}
+
+      {sectionContent === "about" && (
+        <SectionCard title={meta.title} subtitle={meta.subtitle}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <Field label={`ভূমিকা — ${content.aboutIntro.length}/500`}>
+              <textarea
+                value={content.aboutIntro}
+                maxLength={500}
+                rows={4}
+                onChange={(e) => setContent((prev) => ({ ...prev, aboutIntro: e.target.value }))}
+                style={{ ...inputStyle, resize: "vertical" as const }}
+                placeholder="প্রতিষ্ঠানের পরিচিতি..."
+              />
+            </Field>
+            <Field label={`লক্ষ্য ও উদ্দেশ্য — ${content.aboutMission.length}/500`}>
+              <textarea
+                value={content.aboutMission}
+                maxLength={500}
+                rows={4}
+                onChange={(e) => setContent((prev) => ({ ...prev, aboutMission: e.target.value }))}
+                style={{ ...inputStyle, resize: "vertical" as const }}
+                placeholder="প্রতিষ্ঠানের লক্ষ্য ও উদ্দেশ্য..."
+              />
+            </Field>
+          </div>
+        </SectionCard>
+      )}
+
+      {sectionContent === "highlights" && (
+        <SectionCard title={meta.title} subtitle={meta.subtitle}>
+          <div style={{ display: "grid", gap: 10 }}>
+            {content.highlights.map((item, index) => (
+              <div key={index} style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                <input value={item.icon} maxLength={8} onChange={(e) => updateHighlight(index, { icon: e.target.value })} style={iconInputStyle} placeholder="✨" />
+                <input
+                  value={item.label}
+                  maxLength={140}
+                  onChange={(e) => updateHighlight(index, { label: e.target.value })}
+                  style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+                  placeholder="বৈশিষ্ট্যের লেখা"
+                />
+                <ListEntryButtons onRemove={() => removeHighlight(index)} />
+              </div>
+            ))}
+            {!content.highlights.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো হাইলাইট যোগ করা হয়নি।</p>}
+            <button
+              type="button"
+              onClick={addHighlight}
+              disabled={content.highlights.length >= SECTION_LIMITS.highlights}
+              style={{
+                border: `1px dashed ${C.border}`,
+                background: "transparent",
+                color: content.highlights.length >= SECTION_LIMITS.highlights ? C.muted : C.emerald,
+                borderRadius: 10,
+                padding: "10px 12px",
+                fontWeight: 800,
+                cursor: content.highlights.length >= SECTION_LIMITS.highlights ? "not-allowed" : "pointer",
+                width: "fit-content",
+              }}
+            >
+              + নতুন হাইলাইট
+            </button>
+          </div>
+        </SectionCard>
+      )}
+
+      {sectionContent === "departments" && (
+        <SectionCard title={meta.title} subtitle={meta.subtitle}>
+          <div style={{ display: "grid", gap: 12 }}>
+            {content.departments.map((item, index) => (
+              <div key={index} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                  <input value={item.icon} maxLength={8} onChange={(e) => updateDepartment(index, { icon: e.target.value })} style={iconInputStyle} placeholder="📖" />
+                  <input
+                    value={item.title}
+                    maxLength={60}
+                    onChange={(e) => updateDepartment(index, { title: e.target.value })}
+                    style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+                    placeholder="বিভাগের নাম"
+                  />
+                  <ListEntryButtons onRemove={() => removeDepartment(index)} />
+                </div>
+                <textarea
+                  value={item.desc}
+                  maxLength={220}
+                  rows={2}
+                  onChange={(e) => updateDepartment(index, { desc: e.target.value })}
+                  style={{ ...inputStyle, resize: "vertical" as const }}
+                  placeholder="সংক্ষিপ্ত বিবরণ"
+                />
+              </div>
+            ))}
+            {!content.departments.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো বিভাগ যোগ করা হয়নি।</p>}
+            <button
+              type="button"
+              onClick={addDepartment}
+              disabled={content.departments.length >= SECTION_LIMITS.departments}
+              style={{
+                border: `1px dashed ${C.border}`,
+                background: "transparent",
+                color: content.departments.length >= SECTION_LIMITS.departments ? C.muted : C.emerald,
+                borderRadius: 10,
+                padding: "10px 12px",
+                fontWeight: 800,
+                cursor: content.departments.length >= SECTION_LIMITS.departments ? "not-allowed" : "pointer",
+                width: "fit-content",
+              }}
+            >
+              + নতুন বিভাগ
+            </button>
+          </div>
+        </SectionCard>
+      )}
+
+      {sectionContent === "classes" && (
+        <SectionCard title={meta.title} subtitle={meta.subtitle}>
+          <div style={{ display: "grid", gap: 12 }}>
+            {content.classes.map((item, index) => (
+              <div key={index} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                  <input value={item.icon} maxLength={8} onChange={(e) => updateClassItem(index, { icon: e.target.value })} style={iconInputStyle} placeholder="🎓" />
+                  <input
+                    value={item.title}
+                    maxLength={60}
+                    onChange={(e) => updateClassItem(index, { title: e.target.value })}
+                    style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+                    placeholder="ক্লাসের নাম"
+                  />
+                  <ListEntryButtons onRemove={() => removeClassItem(index)} />
+                </div>
+                <textarea
+                  value={item.desc}
+                  maxLength={160}
+                  rows={2}
+                  onChange={(e) => updateClassItem(index, { desc: e.target.value })}
+                  style={{ ...inputStyle, resize: "vertical" as const }}
+                  placeholder="সংক্ষিপ্ত বিবরণ (ঐচ্ছিক)"
+                />
+              </div>
+            ))}
+            {!content.classes.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো ক্লাস যোগ করা হয়নি।</p>}
+            <button
+              type="button"
+              onClick={addClassItem}
+              disabled={content.classes.length >= SECTION_LIMITS.classes}
+              style={{
+                border: `1px dashed ${C.border}`,
+                background: "transparent",
+                color: content.classes.length >= SECTION_LIMITS.classes ? C.muted : C.emerald,
+                borderRadius: 10,
+                padding: "10px 12px",
+                fontWeight: 800,
+                cursor: content.classes.length >= SECTION_LIMITS.classes ? "not-allowed" : "pointer",
+                width: "fit-content",
+              }}
+            >
+              + নতুন ক্লাস
+            </button>
+          </div>
+        </SectionCard>
+      )}
+
+      {sectionContent === "notices" && (
+        <SectionCard title={meta.title} subtitle={meta.subtitle}>
+          <div style={{ display: "grid", gap: 12 }}>
+            {content.notices.map((item, index) => (
+              <div key={index} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                  <input
+                    value={item.title}
+                    maxLength={140}
+                    onChange={(e) => updateNotice(index, { title: e.target.value })}
+                    style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+                    placeholder="নোটিশের শিরোনাম"
+                  />
+                  <input type="date" value={item.date} onChange={(e) => updateNotice(index, { date: e.target.value })} style={{ ...inputStyle, width: 150 }} />
+                  <ListEntryButtons onRemove={() => removeNotice(index)} />
+                </div>
+                <textarea
+                  value={item.body}
+                  maxLength={600}
+                  rows={3}
+                  onChange={(e) => updateNotice(index, { body: e.target.value })}
+                  style={{ ...inputStyle, resize: "vertical" as const }}
+                  placeholder="নোটিশের বিস্তারিত"
+                />
+              </div>
+            ))}
+            {!content.notices.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো নোটিশ যোগ করা হয়নি।</p>}
+            <button
+              type="button"
+              onClick={addNotice}
+              disabled={content.notices.length >= SECTION_LIMITS.notices}
+              style={{
+                border: `1px dashed ${C.border}`,
+                background: "transparent",
+                color: content.notices.length >= SECTION_LIMITS.notices ? C.muted : C.emerald,
+                borderRadius: 10,
+                padding: "10px 12px",
+                fontWeight: 800,
+                cursor: content.notices.length >= SECTION_LIMITS.notices ? "not-allowed" : "pointer",
+                width: "fit-content",
+              }}
+            >
+              + নতুন নোটিশ
+            </button>
+          </div>
+        </SectionCard>
+      )}
+
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          style={{
+            background: saved ? C.emerald : C.teal,
+            color: "#fff",
+            border: "none",
+            borderRadius: 12,
+            padding: "12px 24px",
+            fontWeight: 800,
+            fontSize: 15,
+            cursor: saving ? "wait" : "pointer",
+          }}
+        >
+          {saving ? t.students.saving : saved ? "✓ সংরক্ষিত হয়েছে" : "সংরক্ষণ করুন"}
+        </button>
+        <Link to="/website" style={{ textDecoration: "none", color: C.text, fontWeight: 800, fontSize: 13 }}>
+          সেকশন লিস্টে ফিরুন
+        </Link>
+      </div>
+    </div>
+  );
+}

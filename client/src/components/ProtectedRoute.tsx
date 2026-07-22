@@ -38,7 +38,7 @@ export function ProtectedRoute() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const perm = PATH_PERMISSION[location.pathname];
+  const perm = Object.entries(PATH_PERMISSION).find(([path]) => (path === "/" ? location.pathname === "/" : location.pathname.startsWith(path)))?.[1];
   if (perm && !canAccess(user.role, perm)) {
     return <Navigate to={firstAllowedPath(user.role)} replace />;
   }
