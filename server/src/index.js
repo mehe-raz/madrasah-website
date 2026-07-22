@@ -134,6 +134,25 @@ app.post("/api/public/admissions", admissionLimiter, async (req, res) => {
   }
 });
 
+// Public, unauthenticated: powers the "ফলাফল দেখুন" (Result Lookup) page.
+// Read-only and scoped tightly in lib/results.js (exact class+roll match,
+// published rows only, no personal data beyond name/roll/class/marks) — but
+// still rate-limited like admissions since it's open to the internet.
+const resultLookupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: "একটু পরে আবার চেষ্টা করুন" },
+});
+
+app.get("/api/public/results", resultLookupLimiter, async (req, res) => {
+  const { searchPublicResult } = require("./lib/results");
+  try {
+    res.json(await searchPublicResult(req.query));
+  } catch (err) {
+    res.status(500).json({ error: "লুকআপ ব্যর্থ হয়েছে" });
+  }
+});
+
 app.use("/api", apiLimiter, requireAuth, rbacMiddleware);
 
 app.use("/api/students", require("./routes/students"));
@@ -142,6 +161,7 @@ app.use("/api/payments", require("./routes/payments"));
 app.use("/api/income", require("./routes/income"));
 app.use("/api/expenses", require("./routes/expenses"));
 app.use("/api/hifz", require("./routes/hifz"));
+app.use("/api/results", require("./routes/results"));
 app.use("/api/settings", require("./routes/settings"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/dashboard", require("./routes/dashboard"));

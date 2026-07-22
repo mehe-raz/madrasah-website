@@ -27,6 +27,8 @@ export function usePublicSite() {
           departments: data.departments?.length ? data.departments : FALLBACK_CONTENT.departments,
           classes: data.classes || [],
           notices: data.notices || [],
+          aboutIntro: data.aboutIntro || FALLBACK_CONTENT.aboutIntro,
+          aboutMission: data.aboutMission || FALLBACK_CONTENT.aboutMission,
         });
       }
       if (settingsResult.status === "fulfilled") {

@@ -5,15 +5,16 @@ export type Permission =
   | "income"
   | "expenses"
   | "hifz"
+  | "results"
   | "reports"
   | "settings"
   | "website";
 
 const ROLE_PERMISSIONS: Record<string, Permission[] | ["*"]> = {
   "Super Admin": ["*"],
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website"],
+  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "results"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
-  Teacher: ["attendance", "hifz"],
+  Teacher: ["attendance", "hifz", "results"],
   "Hostel Manager": ["dashboard", "students", "attendance"],
 };
 
@@ -40,6 +41,7 @@ export function firstAllowedPath(role: string): string {
     { permission: "dashboard", path: "/" },
     { permission: "attendance", path: "/attendance" },
     { permission: "hifz", path: "/hifz" },
+    { permission: "results", path: "/results" },
     { permission: "students", path: "/students" },
     { permission: "income", path: "/income" },
     { permission: "expenses", path: "/expenses" },

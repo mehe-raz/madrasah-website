@@ -18,6 +18,7 @@ const Expenses = lazy(() => import("./modules/Expenses").then((m) => ({ default:
 const HifzTracking = lazy(() => import("./modules/HifzTracking").then((m) => ({ default: m.HifzTracking })));
 const Income = lazy(() => import("./modules/Income").then((m) => ({ default: m.Income })));
 const Reports = lazy(() => import("./modules/Reports").then((m) => ({ default: m.Reports })));
+const Results = lazy(() => import("./modules/Results").then((m) => ({ default: m.Results })));
 const Settings = lazy(() => import("./modules/Settings").then((m) => ({ default: m.Settings })));
 const Students = lazy(() => import("./modules/Students").then((m) => ({ default: m.Students })));
 const Website = lazy(() => import("./modules/Website").then((m) => ({ default: m.Website })));
@@ -54,6 +55,7 @@ export default function App() {
                 <Route path="fees" element={<Navigate to="/income" replace />} />
                 <Route path="expenses" element={<Expenses />} />
                 <Route path="hifz" element={<HifzTracking />} />
+                <Route path="results" element={<Results />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="website" element={<Website />} />
                 <Route path="website/:sectionId" element={<WebsiteSectionEditor />} />

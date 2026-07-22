@@ -12,6 +12,7 @@ const NAV_IDS: { id: string; path: string; icon: string; key: Permission }[] = [
   { id: "income", path: "/income", icon: "💰", key: "income" },
   { id: "expenses", path: "/expenses", icon: "💸", key: "expenses" },
   { id: "hifz", path: "/hifz", icon: "📖", key: "hifz" },
+  { id: "results", path: "/results", icon: "📝", key: "results" },
   { id: "reports", path: "/reports", icon: "📊", key: "reports" },
   { id: "website", path: "/website", icon: "🌐", key: "website" },
   { id: "settings", path: "/settings", icon: "⚙️", key: "settings" },

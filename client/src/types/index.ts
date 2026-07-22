@@ -283,3 +283,50 @@ export interface AttendanceResponse {
   dept?: string;
   students: Student[];
 }
+
+export interface ResultSubjectMark {
+  name: string;
+  marks: number;
+  fullMarks: number;
+}
+
+// A management-side result record (one exam, one student). Returned by
+// /api/results (auth-only) — includes the "published" flag so staff can
+// see draft vs live state.
+export interface StudentResult {
+  id: number;
+  studentId: number;
+  examName: string;
+  year: string;
+  class: string;
+  roll: string;
+  studentName: string;
+  subjects: ResultSubjectMark[];
+  totalMarks: number;
+  obtainedMarks: number;
+  gpa: string;
+  grade: string;
+  published: number;
+}
+
+export interface ResultStudentOption {
+  id: number;
+  name: string;
+  roll: string;
+  class: string;
+}
+
+// What the public Result Lookup page receives — same shape minus
+// studentId/id/published, since those are internal-only.
+export interface PublicResult {
+  name: string;
+  roll: string;
+  class: string;
+  examName: string;
+  year: string;
+  subjects: ResultSubjectMark[];
+  totalMarks: number;
+  obtainedMarks: number;
+  gpa: string;
+  grade: string;
+}

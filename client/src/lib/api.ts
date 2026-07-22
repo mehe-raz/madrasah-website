@@ -11,10 +11,14 @@ import type {
   GoogleDriveStatus,
   IncomeEntry,
   Payment,
+  PublicResult,
   PublicSettings,
+  ResultStudentOption,
+  ResultSubjectMark,
   Settings,
   SiteContent,
   Student,
+  StudentResult,
   User,
 } from "../types";
 
@@ -224,6 +228,39 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ sabaq }),
     }),
+
+  // Management: minimal student lookup (id/name/roll/class only) for the
+  // marks-entry screen. Gated by the "results" permission, not "students",
+  // so Teacher-role users can use it without the broader students access.
+  getResultClasses: () => request<string[]>("/results/classes"),
+
+  getResultStudents: (className: string) => request<ResultStudentOption[]>(`/results/students?class=${encodeURIComponent(className)}`),
+
+  getResults: (params: { class?: string; examName?: string; year?: string } = {}) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return request<StudentResult[]>(`/results${qs ? `?${qs}` : ""}`);
+  },
+
+  saveResult: (body: {
+    studentId: number;
+    examName: string;
+    year: string;
+    subjects: ResultSubjectMark[];
+    gpa?: string;
+    grade?: string;
+  }) => request<StudentResult>("/results", { method: "POST", body: JSON.stringify(body) }),
+
+  setResultPublished: (id: number, published: boolean) =>
+    request<StudentResult>(`/results/${id}/publish`, { method: "PATCH", body: JSON.stringify({ published }) }),
+
+  deleteResult: (id: number) => request<void>(`/results/${id}`, { method: "DELETE" }),
+
+  // Public: no login required. Powers the "ফলাফল দেখুন" page. Exact
+  // class + roll match only, server enforces its own rate limit.
+  searchPublicResults: (params: { class: string; roll: string; examName?: string }) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return request<PublicResult[]>(`/public/results?${qs}`);
+  },
 
   getSettings: () => request<Settings>("/settings"),
 

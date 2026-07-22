@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { usePublicSite } from "../hooks/usePublicSite";
+import { api } from "../lib/api";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { C } from "../theme/colors";
+import type { PublicResult } from "../types";
 
 const inputStyle = {
   width: "100%",
@@ -20,14 +22,28 @@ export function ResultLookup() {
   const [className, setClassName] = useState("");
   const [roll, setRoll] = useState("");
   const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [results, setResults] = useState<PublicResult[]>([]);
 
   useEffect(() => {
     document.title = `ফলাফল দেখুন — ${site.name}`;
   }, [site.name]);
 
-  const search = (e: FormEvent) => {
+  const search = async (e: FormEvent) => {
     e.preventDefault();
     setSearched(true);
+    setLoading(true);
+    setError("");
+    setResults([]);
+    try {
+      const rows = await api.searchPublicResults({ class: className, roll: roll.trim() });
+      setResults(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "খুঁজে পাওয়া যায়নি, পরে আবার চেষ্টা করুন।");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -42,9 +58,9 @@ export function ResultLookup() {
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.skyL, color: C.skyD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
                 Result
               </span>
-              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>Find results in a fast, simple search panel</h1>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>ফলাফল দ্রুত ও সহজে খুঁজুন</h1>
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
-                The search shell is designed to feel premium, light, and responsive while still keeping the page honest about the data.
+                ক্লাস ও রোল নম্বর দিয়ে প্রকাশিত ফলাফল সরাসরি এখান থেকে দেখা যাবে।
               </p>
             </div>
 
@@ -52,16 +68,16 @@ export function ResultLookup() {
               <div style={{ borderRadius: 24, minHeight: 250, padding: 18, background: "linear-gradient(180deg, rgba(240,249,255,0.94), rgba(255,255,255,0.68))", display: "grid", gap: 12 }}>
                 <div className="soft-panel" style={{ padding: 14 }}>
                   <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>Fast lookup</div>
-                  <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>Class + Roll → publish results later</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>ক্লাস + রোল দিয়ে সরাসরি ফলাফল</div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
                   <div className="soft-panel" style={{ padding: 14 }}>
-                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Status</div>
-                    <div style={{ fontSize: 18, fontWeight: 900 }}>Not published</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>নিরাপত্তা</div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>শুধু প্রকাশিত ফলাফল</div>
                   </div>
                   <div className="soft-panel" style={{ padding: 14 }}>
-                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Style</div>
-                    <div style={{ fontSize: 18, fontWeight: 900 }}>Premium shell</div>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>ব্যবহার</div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>ছাত্র ও অভিভাবক</div>
                   </div>
                 </div>
               </div>
@@ -104,9 +120,57 @@ export function ResultLookup() {
             </button>
           </form>
 
-          {searched && (
+          {loading && (
+            <div style={{ marginTop: 18, textAlign: "center", color: C.muted, fontSize: 13 }}>খোঁজা হচ্ছে...</div>
+          )}
+
+          {!loading && error && (
+            <div style={{ marginTop: 18, background: C.roseL, color: C.roseD, borderRadius: 14, padding: 18, textAlign: "center", fontSize: 13, lineHeight: 1.8 }}>
+              {error}
+            </div>
+          )}
+
+          {!loading && !error && searched && !results.length && (
             <div style={{ marginTop: 18, background: C.amberL, color: C.amberD, borderRadius: 14, padding: 18, textAlign: "center", fontSize: 13, lineHeight: 1.8 }}>
-              এই ক্লাসের ফলাফল এখনো প্রকাশ করা হয়নি। প্রকাশিত হলে এখানেই দেখা যাবে।
+              এই ক্লাস ও রোলের কোনো প্রকাশিত ফলাফল পাওয়া যায়নি। প্রকাশিত হলে এখানেই দেখা যাবে।
+            </div>
+          )}
+
+          {!loading && !error && results.length > 0 && (
+            <div style={{ marginTop: 18, display: "grid", gap: 14 }}>
+              {results.map((r, i) => (
+                <div key={i} className="soft-panel" style={{ padding: 18 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontWeight: 900, fontSize: 15, color: C.text }}>{r.name}</div>
+                      <div style={{ fontSize: 12, color: C.muted }}>
+                        {r.class} · রোল {r.roll} · {r.examName} {r.year}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      {r.gpa && <div style={{ fontWeight: 900, fontSize: 16, color: C.emeraldD }}>GPA {r.gpa}</div>}
+                      {r.grade && <div style={{ fontSize: 12, color: C.muted }}>গ্রেড: {r.grade}</div>}
+                    </div>
+                  </div>
+
+                  {r.subjects.length > 0 && (
+                    <div style={{ display: "grid", gap: 6, marginBottom: 10 }}>
+                      {r.subjects.map((s, j) => (
+                        <div key={j} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.text, borderBottom: `1px solid ${C.border}`, paddingBottom: 4 }}>
+                          <span>{s.name}</span>
+                          <span style={{ fontWeight: 700 }}>
+                            {s.marks} / {s.fullMarks}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, textAlign: "right" }}>
+                    মোট: {r.obtainedMarks} / {r.totalMarks}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
