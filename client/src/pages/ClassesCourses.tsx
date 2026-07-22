@@ -13,6 +13,7 @@ export function ClassesCourses() {
 
   useEffect(() => {
     document.title = `ক্লাস ও কোর্সসমূহ — ${site.name}`;
+    window.scrollTo(0, 0);
   }, [site.name]);
 
   return (

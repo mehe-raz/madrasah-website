@@ -42,6 +42,7 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
   const isMobile = useMediaQuery("(max-width: 900px)");
   const [classesOpen, setClassesOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileClassesOpen, setMobileClassesOpen] = useState(false);
   const [pendingClass, setPendingClass] = useState<string | null>(null);
 
   const navItems = useMemo(() => NAV_LINKS, []);
@@ -49,6 +50,8 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
   const goToAdmission = (className: string) => {
     setClassesOpen(false);
     setMobileOpen(false);
+    setMobileClassesOpen(false);
+    window.scrollTo(0, 0);
     navigate(`/admission/apply?class=${encodeURIComponent(className)}`);
   };
 
@@ -198,20 +201,30 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
             </div>
 
             <div style={{ marginTop: 6 }}>
-              <div style={{ fontSize: 12, color: C.muted, fontWeight: 800, marginBottom: 8 }}>Classes</div>
-              <div style={{ display: "grid", gap: 8 }}>
-                {classes.length ? (
-                  classes.map((c, i) => (
-                    <button key={`${c.title}-${i}`} type="button" onClick={() => goToAdmission(c.title)} className="pill nav-chip" style={{ textAlign: "left", background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", fontWeight: 700 }}>
-                      {c.icon} {c.title}
-                    </button>
-                  ))
-                ) : (
-                  <Link to="/classes" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", textDecoration: "none", fontWeight: 700 }}>
-                    View all classes
-                  </Link>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => setMobileClassesOpen((v) => !v)}
+                className="pill nav-chip"
+                style={{ width: "100%", textAlign: "left", background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "space-between" }}
+              >
+                <span>Classes</span>
+                <span style={{ fontSize: 10 }}>{mobileClassesOpen ? "▴" : "▾"}</span>
+              </button>
+              {mobileClassesOpen && (
+                <div style={{ display: "grid", gap: 8, marginTop: 8, paddingLeft: 4 }}>
+                  {classes.length ? (
+                    classes.map((c, i) => (
+                      <button key={`${c.title}-${i}`} type="button" onClick={() => setPendingClass(c.title)} className="pill nav-chip" style={{ textAlign: "left", background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", fontWeight: 700 }}>
+                        {c.icon} {c.title}
+                      </button>
+                    ))
+                  ) : (
+                    <Link to="/classes" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", textDecoration: "none", fontWeight: 700 }}>
+                      View all classes
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -225,7 +238,9 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
         cancelLabel="বাতিল"
         onCancel={() => setPendingClass(null)}
         onConfirm={() => {
-          if (pendingClass) navigate(`/admission/apply?class=${encodeURIComponent(pendingClass)}`);
+          if (pendingClass) {
+            goToAdmission(pendingClass);
+          }
           setPendingClass(null);
         }}
       />

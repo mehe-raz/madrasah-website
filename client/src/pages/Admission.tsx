@@ -17,6 +17,7 @@ export function Admission() {
 
   useEffect(() => {
     document.title = `ভর্তি — ${site.name}`;
+    window.scrollTo(0, 0);
   }, [site.name]);
 
   return (

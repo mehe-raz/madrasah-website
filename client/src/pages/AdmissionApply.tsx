@@ -54,6 +54,7 @@ export function AdmissionApply() {
 
   useEffect(() => {
     document.title = `ভর্তি ফর্ম — ${site.name}`;
+    window.scrollTo(0, 0);
   }, [site.name]);
 
   useEffect(() => {

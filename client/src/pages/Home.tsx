@@ -20,6 +20,7 @@ export function Home() {
 
   useEffect(() => {
     document.title = `${fallbackName} — স্বাগতম`;
+    window.scrollTo(0, 0);
   }, [fallbackName]);
 
   const latestNotice = useMemo(() => {
@@ -55,6 +56,30 @@ export function Home() {
     <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>
       <div className="pattern-bg" aria-hidden />
       <PublicHeader site={site} classes={content.classes} />
+
+      {latestNotice && (
+        <section className="section-shell page-section section-pop">
+          <div className="soft-panel hover-lift" style={{ padding: 22, display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span className="pill" style={{ display: "inline-flex", padding: "5px 11px", background: C.emeraldL, color: C.emeraldD, fontSize: 11, fontWeight: 900, marginBottom: 10 }}>
+                Notice
+              </span>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.text }}>{latestNotice.title}</h3>
+                <span style={{ fontSize: 12, color: C.muted }}>{formatNoticeDate(latestNotice.date)}</span>
+              </div>
+              {latestNotice.body && (
+                <p style={{ fontSize: 13, lineHeight: 1.8, color: C.muted, margin: "6px 0 0", maxWidth: 760 }}>
+                  {latestNotice.body}
+                </p>
+              )}
+            </div>
+            <Link to="/notices" className="pill hover-lift" style={{ background: C.slateL, border: `1px solid ${C.border}`, color: C.text, textDecoration: "none", padding: "11px 18px", fontSize: 13, fontWeight: 900 }}>
+              All notices →
+            </Link>
+          </div>
+        </section>
+      )}
 
       <section className="section-shell hero-shell section-pop">
         <div className="soft-panel-strong gradient-border" style={{ position: "relative", overflow: "hidden", padding: 26 }}>
@@ -123,51 +148,6 @@ export function Home() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {latestNotice && (
-        <section className="section-shell page-section section-pop">
-          <div className="soft-panel hover-lift" style={{ padding: 22, display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span className="pill" style={{ display: "inline-flex", padding: "5px 11px", background: C.emeraldL, color: C.emeraldD, fontSize: 11, fontWeight: 900, marginBottom: 10 }}>
-                Latest News
-              </span>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.text }}>{latestNotice.title}</h3>
-                <span style={{ fontSize: 12, color: C.muted }}>{formatNoticeDate(latestNotice.date)}</span>
-              </div>
-              {latestNotice.body && (
-                <p style={{ fontSize: 13, lineHeight: 1.8, color: C.muted, margin: "6px 0 0", maxWidth: 760 }}>
-                  {latestNotice.body}
-                </p>
-              )}
-            </div>
-            <Link to="/notices" className="pill hover-lift" style={{ background: C.slateL, border: `1px solid ${C.border}`, color: C.text, textDecoration: "none", padding: "11px 18px", fontSize: 13, fontWeight: 900 }}>
-              View all →
-            </Link>
-          </div>
-        </section>
-      )}
-
-      <section className="section-shell page-section section-pop">
-        <div style={{ textAlign: "center", marginBottom: 22 }}>
-          <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.slateL, color: C.slateD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
-            Why parents choose us
-          </span>
-          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>Caring learning, premium presentation</h2>
-          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>A clean school-style front end with soft depth, rounded panels, and light motion.</p>
-        </div>
-
-        <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          {features.map((h, i) => (
-            <div key={`${h.label}-${i}`} className="soft-panel hover-lift" style={{ padding: 18, display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ width: 46, height: 46, borderRadius: 16, background: i % 2 === 0 ? C.emeraldL : C.slateL, display: "grid", placeItems: "center", fontSize: 22, flexShrink: 0 }}>
-                {h.icon}
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 900, color: C.text, lineHeight: 1.5 }}>{h.label}</span>
-            </div>
-          ))}
         </div>
       </section>
 
