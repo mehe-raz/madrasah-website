@@ -29,6 +29,10 @@ const DEFAULT_CONTENT = {
   // Public "নোটিসেস" page. Empty by default; admin adds real notices from
   // the Website module. Sorted newest-first on the client.
   notices: [],
+  // Shown only on the public "এবাউট" (About) page — kept separate from
+  // heroSubtitle/highlights above so About never mirrors the Home page.
+  aboutIntro: "",
+  aboutMission: "",
 };
 
 function cleanText(value, maxLen) {
@@ -77,6 +81,8 @@ function sanitizeContent(input) {
       ],
       MAX_NOTICES
     ),
+    aboutIntro: cleanText(body.aboutIntro, 500),
+    aboutMission: cleanText(body.aboutMission, 500),
   };
 }
 

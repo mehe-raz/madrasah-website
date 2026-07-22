@@ -15,6 +15,8 @@ const EMPTY_CONTENT: SiteContent = {
   departments: [],
   classes: [],
   notices: [],
+  aboutIntro: "",
+  aboutMission: "",
 };
 
 const inputStyle = {
@@ -202,7 +204,32 @@ export function Website() {
         </div>
       </Card>
 
-      <Card title="হাইলাইটস" subtitle={`ছোট ছোট বৈশিষ্ট্য যা হিরোর নিচে দেখা যায় (সর্বোচ্চ ${MAX_LIST}টি)`}>
+      <Card title="এবাউট পেজ" subtitle='শুধু পাবলিক "আমাদের সম্পর্কে" পেজে দেখানো হয় — হোম পেজের হিরো টেক্সটের সাথে মিশবে না'>
+        <div style={{ display: "grid", gap: 14 }}>
+          <Field label={`ভূমিকা (সর্বোচ্চ ৫০০ অক্ষর) — ${content.aboutIntro.length}/500`}>
+            <textarea
+              value={content.aboutIntro}
+              maxLength={500}
+              rows={3}
+              onChange={(e) => setContent((prev) => ({ ...prev, aboutIntro: e.target.value }))}
+              style={{ ...inputStyle, resize: "vertical" as const }}
+              placeholder="প্রতিষ্ঠানের পরিচিতি — এবাউট পেজের শুরুতে দেখা যাবে"
+            />
+          </Field>
+          <Field label={`লক্ষ্য ও উদ্দেশ্য (সর্বোচ্চ ৫০০ অক্ষর) — ${content.aboutMission.length}/500`}>
+            <textarea
+              value={content.aboutMission}
+              maxLength={500}
+              rows={3}
+              onChange={(e) => setContent((prev) => ({ ...prev, aboutMission: e.target.value }))}
+              style={{ ...inputStyle, resize: "vertical" as const }}
+              placeholder="প্রতিষ্ঠানের লক্ষ্য ও উদ্দেশ্য"
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="হাইলাইটস" subtitle={`ছোট ছোট বৈশিষ্ট্য যা হোম পেজে হিরোর নিচে দেখা যায় (সর্বোচ্চ ${MAX_LIST}টি)`}>
         <div style={{ display: "grid", gap: 10 }}>
           {content.highlights.map((h, i) => (
             <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>

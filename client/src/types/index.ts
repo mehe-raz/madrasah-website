@@ -191,6 +191,10 @@ export interface SiteContent {
   departments: SiteDepartment[];
   classes: SiteClassItem[];
   notices: SiteNotice[];
+  // About-page-only fields. Kept separate from heroSubtitle/highlights above
+  // so the "এবাউট" page never shows Home-page content — it has its own copy.
+  aboutIntro: string;
+  aboutMission: string;
 }
 
 // What the public "ভর্তি" (admission) form submits. Stored server-side in

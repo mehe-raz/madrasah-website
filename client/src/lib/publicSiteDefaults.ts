@@ -35,4 +35,6 @@ export const FALLBACK_CONTENT: SiteContent = {
     { title: "Open house for parents", date: "2026-06-20", body: "Meet the teachers, explore the campus, and learn about our approach." },
     { title: "Holiday notice", date: "2026-06-10", body: "The campus will remain closed on the announced holiday dates." },
   ],
+  aboutIntro: "We are a warm, community-rooted school built around care, structure, and steady academic growth for every child who walks through our doors.",
+  aboutMission: "Our mission is to give every family a safe, nurturing place to learn — where academic growth goes hand in hand with character and community.",
 };

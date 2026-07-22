@@ -33,7 +33,7 @@ export function About() {
               </span>
               <h1 className="section-heading" style={{ margin: "0 0 12px" }}>{site.name}</h1>
               <p style={{ fontSize: 15, lineHeight: 1.85, color: C.muted, margin: 0, maxWidth: 680 }}>
-                {content.heroSubtitle}
+                {content.aboutIntro || "A warm, community-rooted school built around care, structure, and steady growth for every child."}
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
                 <Link to="/admission" className="pill hover-lift" style={{ background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", textDecoration: "none", padding: "12px 18px", fontWeight: 900 }}>
@@ -90,22 +90,10 @@ export function About() {
 
       <section className="section-shell page-section section-pop">
         <div className="soft-panel" style={{ padding: 22 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 18 }}>
-            <div>
-              <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 10px" }}>Our programs</h3>
-              <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.8, margin: 0 }}>
-                The site keeps a clean information hierarchy, just like a premium school front end — easy to scan on mobile, polished on desktop.
-              </p>
-            </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {content.highlights.slice(0, 4).map((h, i) => (
-                <div key={`${h.label}-${i}`} className="soft-panel" style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 22 }}>{h.icon}</span>
-                  <span style={{ fontSize: 13, fontWeight: 800 }}>{h.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 10px" }}>Our mission</h3>
+          <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.85, margin: 0, maxWidth: 780 }}>
+            {content.aboutMission || "Our mission is to give every family a safe, nurturing place to learn — where academic growth goes hand in hand with character and community."}
+          </p>
         </div>
       </section>
 
