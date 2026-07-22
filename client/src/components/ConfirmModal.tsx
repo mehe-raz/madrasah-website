@@ -23,6 +23,7 @@ export function ConfirmModal({
       role="dialog"
       aria-modal="true"
       onClick={onCancel}
+      className="modal-backdrop"
       style={{
         position: "fixed",
         inset: 0,
@@ -36,30 +37,29 @@ export function ConfirmModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="soft-panel-strong modal-content"
         style={{
-          background: C.card,
-          borderRadius: 16,
-          border: `1px solid ${C.border}`,
           padding: 24,
           maxWidth: 380,
           width: "100%",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
         }}
       >
-        <h3 style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: "0 0 10px" }}>{title}</h3>
-        <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.6, margin: "0 0 22px" }}>{message}</p>
+        <h3 style={{ fontSize: 17, fontWeight: 900, color: C.text, margin: "0 0 10px" }}>{title}</h3>
+        <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7, margin: "0 0 22px" }}>{message}</p>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
           <button
             type="button"
             onClick={onCancel}
-            style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 10, padding: "10px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+            className="pill nav-chip"
+            style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, padding: "10px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer" }}
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            style={{ border: "none", background: C.emerald, color: "#fff", borderRadius: 10, padding: "10px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+            className="pill nav-chip"
+            style={{ border: "none", background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", padding: "10px 16px", fontWeight: 900, fontSize: 13, cursor: "pointer" }}
           >
             {confirmLabel}
           </button>

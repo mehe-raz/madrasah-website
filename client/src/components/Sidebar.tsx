@@ -36,8 +36,8 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
     <aside
       className={`sidebar ${open ? "sidebar-open" : "sidebar-closed"}`}
       style={{
-        width: open ? 230 : 60,
-        background: C.slateD,
+        width: open ? 236 : 64,
+        background: "linear-gradient(180deg, #0f172a 0%, #08111d 100%)",
         transition: "width 0.25s",
         display: "flex",
         flexDirection: "column",
@@ -48,61 +48,59 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
     >
       <div
         style={{
-          padding: open ? "20px 20px 16px" : "20px 10px 16px",
+          padding: open ? "20px 20px 16px" : "20px 12px 16px",
           borderBottom: "1px solid rgba(255,255,255,0.08)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {settings.logo ? (
-            <img src={settings.logo} alt="" loading="lazy" decoding="async" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover" }} />
+            <img src={settings.logo} alt="" loading="lazy" decoding="async" style={{ width: 34, height: 34, borderRadius: 10, objectFit: "cover" }} />
           ) : (
             <span style={{ fontSize: 26, flexShrink: 0 }}>🕌</span>
           )}
           {open && (
             <div>
-              <div style={{ color: "#fff", fontWeight: 700, fontSize: 13, lineHeight: 1.2 }}>{madrasaName}</div>
-              <div style={{ color: C.teal, fontWeight: 600, fontSize: 12 }}>ERP</div>
+              <div style={{ color: "#fff", fontWeight: 800, fontSize: 13, lineHeight: 1.2 }}>{madrasaName}</div>
+              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, marginTop: 4 }}>{user.role}</div>
             </div>
           )}
         </div>
       </div>
 
-      <nav style={{ padding: "10px 8px", flex: 1 }}>
-        {navItems.map((n) => (
+      <div style={{ padding: open ? 12 : 8, display: "grid", gap: 6 }}>
+        {navItems.map((item) => (
           <NavLink
-            key={n.id}
-            to={n.path}
-            end={n.path === "/"}
+            key={item.id}
+            to={item.path}
             onClick={onNavigate}
-            title={t.nav[n.key as keyof typeof t.nav] || n.id}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
             style={({ isActive }) => ({
-              width: "100%",
               display: "flex",
               alignItems: "center",
               gap: 10,
-              padding: open ? "10px 12px" : "10px",
-              borderRadius: 8,
-              marginBottom: 2,
-              background: isActive ? "rgba(8,145,178,0.25)" : "transparent",
-              color: isActive ? "#7dd3fc" : "rgba(255,255,255,0.6)",
+              padding: open ? "11px 12px" : "11px 10px",
               textDecoration: "none",
-              transition: "all 0.15s",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
             })}
+            title={!open ? t.nav[item.key] : undefined}
           >
-            <span style={{ fontSize: 18, flexShrink: 0 }}>{n.icon}</span>
-            {open && (
-              <span style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {t.nav[n.key as keyof typeof t.nav] || n.id}
-              </span>
-            )}
+            <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav[item.key]}</span>}
           </NavLink>
         ))}
-      </nav>
+      </div>
 
       {open && (
-        <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>{user.name}</div>
-          <div style={{ fontSize: 11, color: C.teal }}>{user.role}</div>
+        <div style={{ marginTop: "auto", padding: 16, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="soft-panel" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)", boxShadow: "none", padding: 14 }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", fontWeight: 800, marginBottom: 6 }}>Theme</div>
+            <div style={{ fontSize: 13, color: "#fff", fontWeight: 700 }}>{settings.theme === "dark" ? "Dark" : "Light"}</div>
+          </div>
         </div>
       )}
     </aside>

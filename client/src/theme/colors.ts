@@ -1,7 +1,7 @@
 export const C = {
   emerald: "#10b981",
-  emeraldL: "#d1fae5",
-  emeraldD: "#065f46",
+  emeraldL: "#dcfce7",
+  emeraldD: "#047857",
 
   teal: "#14b8a6",
   tealL: "#ccfbf1",
@@ -23,11 +23,12 @@ export const C = {
   skyL: "#e0f2fe",
   skyD: "#075985",
 
-  slate: "#475569",
+  slate: "#64748b",
   slateD: "#0f172a",
 
   bg: "var(--bg)",
   card: "var(--card)",
+  surface: "var(--surface)",
   border: "var(--border)",
   text: "var(--text)",
   muted: "var(--muted)",

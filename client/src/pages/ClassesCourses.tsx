@@ -6,11 +6,6 @@ import { PublicFooter } from "../components/PublicFooter";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { C } from "../theme/colors";
 
-// Public "ক্লাস ও কোর্সসমূহ" page. Lists whatever classes the admin has
-// configured (Website module → same content.classes list the header's
-// dropdown reads). Clicking a class asks for confirmation before routing
-// to the admission form, per spec — unlike the /admission page, where
-// clicking goes straight through with no confirmation step.
 export function ClassesCourses() {
   const { site, content, loading } = usePublicSite();
   const navigate = useNavigate();
@@ -21,47 +16,72 @@ export function ClassesCourses() {
   }, [site.name]);
 
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh", color: C.text }}>
+    <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>
+      <div className="pattern-bg" aria-hidden />
       <PublicHeader site={site} classes={content.classes} />
 
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 20px 44px" }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>ক্লাস ও কোর্সসমূহ</h1>
-          <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>যেকোনো ক্লাসে ক্লিক করে ভর্তি সম্পর্কে জানুন</p>
+      <section className="section-shell hero-shell section-pop">
+        <div className="soft-panel-strong" style={{ padding: 26, overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
+            <div>
+              <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.skyL, color: C.skyD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
+                Classes
+              </span>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>Explore available classes and courses</h1>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
+                Pick a program to open the admission form with one tap. The layout is clean, fast, and touch-friendly.
+              </p>
+            </div>
+
+            <div className="soft-panel hero-visual" style={{ padding: 18 }}>
+              <div style={{ borderRadius: 24, minHeight: 260, display: "grid", placeItems: "center", background: "linear-gradient(180deg, rgba(240,249,255,0.94), rgba(255,255,255,0.68))" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, width: "100%" }}>
+                  {["Playgroup", "Nursery", "KG", "Primary"].map((item, i) => (
+                    <div key={item} className="soft-panel" style={{ padding: 16, minHeight: 84 }}>
+                      <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, marginBottom: 8 }}>Program</div>
+                      <div style={{ fontSize: 16, fontWeight: 900 }}>{item}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section-shell page-section section-pop">
+        <div style={{ textAlign: "center", marginBottom: 22 }}>
+          <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
+            Class list
+          </span>
+          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>Tap a class to continue</h2>
+          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>The same visual language stays consistent across home, about, admission, and result pages.</p>
         </div>
 
         {loading ? (
-          <p style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</p>
+          <div style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</div>
         ) : content.classes.length ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+          <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
             {content.classes.map((c, i) => (
               <button
                 key={`${c.title}-${i}`}
                 type="button"
                 onClick={() => setPendingClass(c.title)}
-                style={{
-                  textAlign: "left",
-                  background: C.card,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 14,
-                  padding: 20,
-                  cursor: "pointer",
-                }}
+                className="soft-panel hover-lift shine-on-hover"
+                style={{ textAlign: "left", background: C.card, border: `1px solid ${C.border}`, padding: 20, cursor: "pointer" }}
               >
-                <div
-                  style={{ width: 46, height: 46, borderRadius: 10, background: C.emeraldL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 14 }}
-                >
+                <div style={{ width: 50, height: 50, borderRadius: 17, background: i % 2 === 0 ? C.emeraldL : C.slateL, display: "grid", placeItems: "center", fontSize: 22, marginBottom: 14 }}>
                   {c.icon || "🎓"}
                 </div>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: C.text, margin: "0 0 6px" }}>{c.title}</h3>
-                {c.desc && <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, margin: 0 }}>{c.desc}</p>}
-                <span style={{ display: "inline-block", marginTop: 12, fontSize: 12, fontWeight: 700, color: C.emerald }}>ভর্তি হতে চান? →</span>
+                <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{c.title}</h3>
+                {c.desc && <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{c.desc}</p>}
+                <div style={{ marginTop: 14, fontSize: 12, fontWeight: 900, color: C.emeraldD }}>Continue to admission →</div>
               </button>
             ))}
           </div>
         ) : (
-          <div style={{ textAlign: "center", background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 40, color: C.muted, fontSize: 14 }}>
-            ক্লাসের তালিকা শীঘ্রই যুক্ত করা হবে।
+          <div className="soft-panel" style={{ padding: 20, textAlign: "center", color: C.muted }}>
+            No classes have been configured yet.
           </div>
         )}
       </section>
@@ -69,9 +89,11 @@ export function ClassesCourses() {
       <PublicFooter site={site} />
 
       <ConfirmModal
-        open={!!pendingClass}
-        title="ভর্তি নিশ্চিতকরণ"
-        message={`আপনি কি "${pendingClass}"-এ ভর্তি হতে আগ্রহী? কন্টিনিউ করলে ভর্তি ফর্মে নিয়ে যাওয়া হবে।`}
+        open={pendingClass !== null}
+        title="ভর্তি"
+        message={`${pendingClass ?? ""} ক্লাসে ভর্তি ফর্মে যেতে চান?`}
+        confirmLabel="এগিয়ে যান"
+        cancelLabel="বাতিল"
         onCancel={() => setPendingClass(null)}
         onConfirm={() => {
           if (pendingClass) navigate(`/admission/apply?class=${encodeURIComponent(pendingClass)}`);

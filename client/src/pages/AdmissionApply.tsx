@@ -10,7 +10,7 @@ import type { AdmissionApplicationInput } from "../types";
 const inputStyle = {
   width: "100%",
   border: `1px solid ${C.border}`,
-  borderRadius: 10,
+  borderRadius: 12,
   padding: "12px 14px",
   fontSize: 14,
   boxSizing: "border-box" as const,
@@ -21,7 +21,7 @@ const inputStyle = {
 function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <label style={{ display: "block" }}>
-      <span style={{ display: "block", fontSize: 13, color: C.text, fontWeight: 700, marginBottom: 6 }}>
+      <span style={{ display: "block", fontSize: 13, color: C.text, fontWeight: 800, marginBottom: 6 }}>
         {label} {required && <span style={{ color: C.rose }}>*</span>}
       </span>
       {children}
@@ -81,97 +81,128 @@ export function AdmissionApply() {
   };
 
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh", color: C.text }}>
+    <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>
+      <div className="pattern-bg" aria-hidden />
       <PublicHeader site={site} classes={content.classes} />
 
-      <section style={{ maxWidth: 640, margin: "0 auto", padding: "36px 20px 60px" }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>ভর্তি ফর্ম</h1>
-          <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>নিচের তথ্যগুলো সঠিকভাবে পূরণ করুন, আমরা যোগাযোগ করব ইনশাআল্লাহ</p>
-        </div>
-
-        {result ? (
-          <div style={{ background: C.emeraldL, border: `1px solid ${C.emerald}`, borderRadius: 14, padding: 26, textAlign: "center" }}>
-            <div style={{ fontSize: 34, marginBottom: 10 }}>✅</div>
-            <h2 style={{ fontSize: 17, fontWeight: 800, color: C.emeraldD, margin: "0 0 8px" }}>আবেদন সফলভাবে জমা হয়েছে</h2>
-            <p style={{ fontSize: 13, color: C.emeraldD, margin: "0 0 4px" }}>রেফারেন্স নম্বর: #{result.id}</p>
-            <p style={{ fontSize: 13, color: C.emeraldD, margin: 0 }}>আমরা শীঘ্রই আপনার দেওয়া নাম্বারে যোগাযোগ করব ইনশাআল্লাহ।</p>
-            <Link to="/" style={{ display: "inline-block", marginTop: 18, background: C.emerald, color: "#fff", borderRadius: 10, padding: "10px 20px", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
-              হোমে ফিরে যান
-            </Link>
-          </div>
-        ) : (
-          <form onSubmit={submit} style={{ display: "grid", gap: 16, background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 22 }}>
-            {error && <div style={{ background: C.roseL, color: C.roseD, borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{error}</div>}
-
-            <Field label="ক্লাস / কোর্স" required>
-              {content.classes.length ? (
-                <select value={form.className} onChange={(e) => update({ className: e.target.value })} style={inputStyle}>
-                  <option value="">নির্বাচন করুন</option>
-                  {content.classes.map((c, i) => (
-                    <option key={i} value={c.title}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input value={form.className} onChange={(e) => update({ className: e.target.value })} style={inputStyle} placeholder="যেমন: হিফজ বিভাগ - ১ম বর্ষ" />
-              )}
-            </Field>
-
-            <Field label="শিক্ষার্থীর নাম" required>
-              <input value={form.studentName} onChange={(e) => update({ studentName: e.target.value })} style={inputStyle} placeholder="পূর্ণ নাম" />
-            </Field>
-
-            <Field label="শিক্ষার্থীর নাম (ইংরেজিতে)">
-              <input value={form.studentNameEn} onChange={(e) => update({ studentNameEn: e.target.value })} style={inputStyle} placeholder="Full name in English" />
-            </Field>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="জন্ম তারিখ">
-                <input type="date" value={form.dateOfBirth} onChange={(e) => update({ dateOfBirth: e.target.value })} style={inputStyle} />
-              </Field>
-              <Field label="লিঙ্গ">
-                <select value={form.gender} onChange={(e) => update({ gender: e.target.value })} style={inputStyle}>
-                  <option value="">নির্বাচন করুন</option>
-                  <option value="ছেলে">ছেলে</option>
-                  <option value="মেয়ে">মেয়ে</option>
-                </select>
-              </Field>
+      <section className="section-shell hero-shell section-pop">
+        <div className="soft-panel-strong" style={{ padding: 26, overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
+            <div>
+              <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
+                Application Form
+              </span>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>Apply in a clean, guided form</h1>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
+                The application keeps the same premium visual language while staying simple enough for mobile users.
+              </p>
             </div>
 
-            <Field label="অভিভাবকের নাম" required>
-              <input value={form.guardianName} onChange={(e) => update({ guardianName: e.target.value })} style={inputStyle} placeholder="পিতা/মাতা/অভিভাবকের নাম" />
-            </Field>
+            <div className="soft-panel hero-visual" style={{ padding: 18 }}>
+              <div style={{ borderRadius: 24, minHeight: 250, padding: 18, background: "linear-gradient(180deg, rgba(240,253,244,0.92), rgba(255,255,255,0.68))", display: "grid", gap: 12 }}>
+                <div className="soft-panel" style={{ padding: 14 }}>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>Tips</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>Fill the starred fields carefully.</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+                  <div className="soft-panel" style={{ padding: 14 }}>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Fast</div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>1 minute</div>
+                  </div>
+                  <div className="soft-panel" style={{ padding: 14 }}>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Status</div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>Online</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-            <Field label="মোবাইল নম্বর" required>
-              <input value={form.guardianPhone} onChange={(e) => update({ guardianPhone: e.target.value })} style={inputStyle} placeholder="01XXXXXXXXX" inputMode="tel" />
-            </Field>
+      <section className="section-shell page-section section-pop">
+        <div className="soft-panel-strong" style={{ padding: 22, maxWidth: 760, margin: "0 auto" }}>
+          {result ? (
+            <div style={{ textAlign: "center", padding: 8 }}>
+              <div style={{ fontSize: 34, marginBottom: 10 }}>✅</div>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: C.emeraldD, margin: "0 0 8px" }}>আবেদন সফলভাবে জমা হয়েছে</h2>
+              <p style={{ fontSize: 13, color: C.emeraldD, margin: "0 0 4px" }}>রেফারেন্স নম্বর: #{result.id}</p>
+              <p style={{ fontSize: 13, color: C.emeraldD, margin: 0 }}>আমরা শীঘ্রই যোগাযোগ করব ইনশাআল্লাহ।</p>
+              <Link to="/" className="pill hover-lift" style={{ display: "inline-block", marginTop: 18, background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", borderRadius: 12, padding: "11px 18px", fontWeight: 900, textDecoration: "none" }}>
+                হোমে ফিরে যান
+              </Link>
+            </div>
+          ) : (
+            <form onSubmit={submit} style={{ display: "grid", gap: 16 }}>
+              {error && <div style={{ background: C.roseL, color: C.roseD, borderRadius: 12, padding: "10px 14px", fontSize: 13, lineHeight: 1.7 }}>{error}</div>}
 
-            <Field label="বর্তমান ঠিকানা">
-              <textarea value={form.presentAddress} onChange={(e) => update({ presentAddress: e.target.value })} rows={2} style={{ ...inputStyle, resize: "vertical" as const }} />
-            </Field>
+              <div style={{ display: "grid", gap: 16 }}>
+                <Field label="ক্লাস / কোর্স" required>
+                  {content.classes.length ? (
+                    <select value={form.className} onChange={(e) => update({ className: e.target.value })} style={inputStyle}>
+                      <option value="">নির্বাচন করুন</option>
+                      {content.classes.map((c, i) => (
+                        <option key={i} value={c.title}>
+                          {c.title}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input value={form.className} onChange={(e) => update({ className: e.target.value })} style={inputStyle} placeholder="যেমন: KG" />
+                  )}
+                </Field>
 
-            <Field label="পূর্ববর্তী প্রতিষ্ঠান (যদি থাকে)">
-              <input value={form.previousInstitution} onChange={(e) => update({ previousInstitution: e.target.value })} style={inputStyle} />
-            </Field>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  <Field label="শিক্ষার্থীর নাম" required>
+                    <input value={form.studentName} onChange={(e) => update({ studentName: e.target.value })} style={inputStyle} placeholder="পূর্ণ নাম" />
+                  </Field>
+                  <Field label="শিক্ষার্থীর নাম (ইংরেজিতে)">
+                    <input value={form.studentNameEn} onChange={(e) => update({ studentNameEn: e.target.value })} style={inputStyle} placeholder="Full name in English" />
+                  </Field>
+                </div>
 
-            <Field label="অতিরিক্ত কিছু জানাতে চাইলে">
-              <textarea value={form.note} onChange={(e) => update({ note: e.target.value })} rows={2} style={{ ...inputStyle, resize: "vertical" as const }} />
-            </Field>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  <Field label="জন্ম তারিখ">
+                    <input type="date" value={form.dateOfBirth} onChange={(e) => update({ dateOfBirth: e.target.value })} style={inputStyle} />
+                  </Field>
+                  <Field label="লিঙ্গ">
+                    <select value={form.gender} onChange={(e) => update({ gender: e.target.value })} style={inputStyle}>
+                      <option value="">নির্বাচন করুন</option>
+                      <option>Male</option>
+                      <option>Female</option>
+                      <option>Other</option>
+                    </select>
+                  </Field>
+                </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 10, padding: "13px 22px", fontWeight: 700, fontSize: 15, cursor: submitting ? "wait" : "pointer" }}
-            >
-              {submitting ? "জমা হচ্ছে…" : "আবেদন জমা দিন"}
-            </button>
-            <p style={{ fontSize: 11, color: C.muted, margin: 0, textAlign: "center" }}>
-              আপনার তথ্য শুধুমাত্র ভর্তি প্রক্রিয়ার জন্য ব্যবহার করা হবে এবং নিরাপদে সংরক্ষণ করা হয়।
-            </p>
-          </form>
-        )}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  <Field label="অভিভাবকের নাম" required>
+                    <input value={form.guardianName} onChange={(e) => update({ guardianName: e.target.value })} style={inputStyle} placeholder="অভিভাবকের পূর্ণ নাম" />
+                  </Field>
+                  <Field label="অভিভাবকের ফোন" required>
+                    <input value={form.guardianPhone} onChange={(e) => update({ guardianPhone: e.target.value })} style={inputStyle} placeholder="01XXXXXXXXX" inputMode="tel" />
+                  </Field>
+                </div>
+
+                <Field label="বর্তমান ঠিকানা">
+                  <textarea value={form.presentAddress} onChange={(e) => update({ presentAddress: e.target.value })} style={{ ...inputStyle, minHeight: 96, resize: "vertical" }} placeholder="বর্তমান ঠিকানা লিখুন" />
+                </Field>
+
+                <Field label="পূর্ববর্তী প্রতিষ্ঠান">
+                  <input value={form.previousInstitution} onChange={(e) => update({ previousInstitution: e.target.value })} style={inputStyle} placeholder="স্কুল/মাদ্রাসার নাম" />
+                </Field>
+
+                <Field label="অতিরিক্ত তথ্য">
+                  <textarea value={form.note} onChange={(e) => update({ note: e.target.value })} style={{ ...inputStyle, minHeight: 110, resize: "vertical" }} placeholder="যদি কিছু জানানোর থাকে" />
+                </Field>
+
+                <button type="submit" disabled={submitting} className="pill hover-lift" style={{ background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", border: "none", padding: "13px 22px", fontWeight: 900, fontSize: 15, cursor: "pointer", opacity: submitting ? 0.78 : 1 }}>
+                  {submitting ? "জমা হচ্ছে…" : "আবেদন জমা দিন"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </section>
 
       <PublicFooter site={site} />

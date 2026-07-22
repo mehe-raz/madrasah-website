@@ -17,11 +17,6 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" });
 }
 
-// Public "নোটিসেস" page. Shows only the last 6 months of notices, newest
-// first. The most recent ~3 months load immediately; anything 3-6 months
-// old stays behind "আরও পুরনো নোটিশ দেখুন" so the page doesn't load
-// everything at once. Notices older than 6 months are not shown at all —
-// per spec, that's a deliberate cutoff, not a bug.
 export function Notices() {
   const { site, content, loading } = usePublicSite();
   const [showOlder, setShowOlder] = useState(false);
@@ -47,63 +42,114 @@ export function Notices() {
   }, [content.notices]);
 
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh", color: C.text }}>
+    <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>
+      <div className="pattern-bg" aria-hidden />
       <PublicHeader site={site} classes={content.classes} />
 
-      <section style={{ maxWidth: 760, margin: "0 auto", padding: "36px 20px 44px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
-          <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: "0 0 6px" }}>নোটিসেস</h1>
-            <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>গত ৬ মাসের নোটিশ, সর্বশেষগুলো আগে</p>
+      <section className="section-shell hero-shell section-pop">
+        <div className="soft-panel-strong" style={{ padding: 26, overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 22, alignItems: "center" }}>
+            <div>
+              <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
+                Blog & Notices
+              </span>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>Latest updates in a clean reading layout</h1>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
+                Recent notices appear first, while older items stay tucked behind a small expand action to keep the page fast and tidy.
+              </p>
+            </div>
+
+            <div className="soft-panel hero-visual" style={{ padding: 18 }}>
+              <div style={{ borderRadius: 24, minHeight: 250, padding: 18, background: "linear-gradient(180deg, rgba(240,253,244,0.92), rgba(255,255,255,0.68))", display: "grid", gap: 12 }}>
+                <div className="soft-panel" style={{ padding: 14 }}>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>Quick note</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, marginTop: 6 }}>Mobile-friendly updates with strong visual hierarchy.</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+                  <div className="soft-panel" style={{ padding: 14 }}>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Recent</div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>{recent.length}</div>
+                  </div>
+                  <div className="soft-panel" style={{ padding: 14 }}>
+                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>Older</div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>{older.length}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <Link
-            to="/result"
-            style={{ background: C.amberL, color: C.amberD, borderRadius: 8, padding: "9px 16px", fontWeight: 700, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap" }}
-          >
-            ফলাফল দেখুন →
-          </Link>
+        </div>
+      </section>
+
+      <section className="section-shell page-section section-pop">
+        <div style={{ textAlign: "center", marginBottom: 22 }}>
+          <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.slateL, color: C.slateD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
+            Recent first
+          </span>
+          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>Notice board</h2>
+          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>Only the last 6 months are shown to keep the page compact and relevant.</p>
         </div>
 
         {loading ? (
-          <p style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</p>
-        ) : recent.length === 0 && older.length === 0 ? (
-          <div style={{ textAlign: "center", background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 40, color: C.muted, fontSize: 14 }}>
-            এই মুহূর্তে কোনো নোটিশ নেই।
-          </div>
+          <div style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</div>
         ) : (
-          <div style={{ display: "grid", gap: 12 }}>
-            {recent.map((n, i) => (
-              <NoticeCard key={`r-${i}`} title={n.title} date={n.date} body={n.body} />
-            ))}
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(260px, 0.9fr)", gap: 18, alignItems: "start" }}>
+            <div style={{ display: "grid", gap: 12 }}>
+              {recent.length ? recent.map((n, i) => (
+                <article key={`${n.title}-${i}`} className="soft-panel hover-lift" style={{ padding: 18, display: "grid", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <span className="pill" style={{ padding: "5px 10px", background: i % 2 === 0 ? C.emeraldL : C.slateL, color: C.text, fontSize: 11, fontWeight: 900 }}>Notice</span>
+                    <span style={{ fontSize: 12, color: C.muted }}>{formatDate(n.date)}</span>
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: C.text }}>{n.title}</h3>
+                  {n.body && <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.8 }}>{n.body}</p>}
+                </article>
+              )) : (
+                <div className="soft-panel" style={{ padding: 22, textAlign: "center", color: C.muted }}>No notices available yet.</div>
+              )}
 
-            {older.length > 0 && !showOlder && (
-              <button
-                type="button"
-                onClick={() => setShowOlder(true)}
-                style={{ border: `1px dashed ${C.border}`, background: "transparent", color: C.emerald, borderRadius: 10, padding: "12px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-              >
-                আরও পুরনো নোটিশ দেখুন (গত ৩-৬ মাস)
-              </button>
-            )}
+              {!!older.length && (
+                <div className="soft-panel" style={{ padding: 18 }}>
+                  {!showOlder ? (
+                    <button type="button" onClick={() => setShowOlder(true)} className="pill hover-lift" style={{ border: "none", background: C.emeraldL, color: C.emeraldD, padding: "11px 16px", fontWeight: 900, cursor: "pointer" }}>
+                      আরও পুরনো নোটিশ দেখুন
+                    </button>
+                  ) : (
+                    <div style={{ display: "grid", gap: 12 }}>
+                      {older.map((n, i) => (
+                        <article key={`${n.title}-${i}`} className="soft-panel" style={{ padding: 16, background: C.card }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                            <h4 style={{ margin: 0, fontSize: 14, fontWeight: 900 }}>{n.title}</h4>
+                            <span style={{ fontSize: 12, color: C.muted }}>{formatDate(n.date)}</span>
+                          </div>
+                          {n.body && <p style={{ margin: "8px 0 0", color: C.muted, fontSize: 13, lineHeight: 1.7 }}>{n.body}</p>}
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-            {showOlder && older.map((n, i) => <NoticeCard key={`o-${i}`} title={n.title} date={n.date} body={n.body} />)}
+            <aside className="soft-panel" style={{ padding: 18, position: "sticky", top: 110 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 10px" }}>Quick links</h3>
+              <div style={{ display: "grid", gap: 10 }}>
+                <Link to="/result" className="pill nav-chip" style={{ background: C.slateL, border: `1px solid ${C.border}`, color: C.text, textDecoration: "none", padding: "11px 14px", textAlign: "center", fontWeight: 900 }}>
+                  Result lookup
+                </Link>
+                <Link to="/admission" className="pill nav-chip" style={{ background: C.emeraldL, border: `1px solid ${C.border}`, color: C.emeraldD, textDecoration: "none", padding: "11px 14px", textAlign: "center", fontWeight: 900 }}>
+                  Admission
+                </Link>
+                <Link to="/gallery" className="pill nav-chip" style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text, textDecoration: "none", padding: "11px 14px", textAlign: "center", fontWeight: 900 }}>
+                  Gallery
+                </Link>
+              </div>
+            </aside>
           </div>
         )}
       </section>
 
       <PublicFooter site={site} />
-    </div>
-  );
-}
-
-function NoticeCard({ title, date, body }: { title: string; date: string; body: string }) {
-  return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6, flexWrap: "wrap" }}>
-        <h3 style={{ fontSize: 15, fontWeight: 800, color: C.text, margin: 0 }}>{title}</h3>
-        <span style={{ fontSize: 12, color: C.muted, whiteSpace: "nowrap" }}>{formatDate(date)}</span>
-      </div>
-      {body && <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" }}>{body}</p>}
     </div>
   );
 }

@@ -27,17 +27,12 @@ export function Layout() {
     document.documentElement.setAttribute("data-theme", settings.theme === "dark" ? "dark" : "light");
   }, [settings.theme]);
 
-
   useEffect(() => {
-    if (isMobile) {
-      setSidebarOpen(false);
-    }
+    if (isMobile) setSidebarOpen(false);
   }, [location.pathname, isMobile]);
 
   const handleLogout = async () => {
     await logout();
-    // Send the user to the public landing page instead of the login form —
-    // they can get back to /login from there (header/footer) whenever they need to.
     navigate("/");
   };
 

@@ -4,17 +4,13 @@ import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { C } from "../theme/colors";
 
-// Public "গ্যালারি" page. Per spec this stays a static demo for now — the
-// admin panel doesn't have a real image-upload section for this yet, so
-// there is nothing to fetch and nothing needs to open on click. Building
-// the real upload-and-manage flow is a separate later task.
 const DEMO_ITEMS = [
-  { icon: "🕌", label: "প্রতিষ্ঠানের ভবন" },
-  { icon: "📖", label: "হিফজ ক্লাস" },
-  { icon: "🎓", label: "সমাপনী অনুষ্ঠান" },
-  { icon: "🏆", label: "পুরস্কার বিতরণী" },
-  { icon: "🤝", label: "অভিভাবক সমাবেশ" },
-  { icon: "🕋", label: "ইসলামিক অনুষ্ঠান" },
+  { icon: "🕌", label: "Campus frontage", tint: C.skyL },
+  { icon: "📖", label: "Learning corner", tint: C.emeraldL },
+  { icon: "🎓", label: "Celebration day", tint: C.amberL },
+  { icon: "🏆", label: "Award moments", tint: C.violetL },
+  { icon: "🤝", label: "Parent meet-up", tint: C.slateL },
+  { icon: "🕋", label: "Special event", tint: C.roseL },
 ];
 
 export function Gallery() {
@@ -25,39 +21,67 @@ export function Gallery() {
   }, [site.name]);
 
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh", color: C.text }}>
+    <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>
+      <div className="pattern-bg" aria-hidden />
       <PublicHeader site={site} classes={content.classes} />
 
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 20px 44px" }}>
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>গ্যালারি</h1>
-          <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>প্রতিষ্ঠানের বিভিন্ন মুহূর্তের ছবি</p>
+      <section className="section-shell hero-shell section-pop">
+        <div className="soft-panel-strong" style={{ padding: 26, overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
+            <div>
+              <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.violetL, color: C.violetD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
+                Gallery
+              </span>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>A soft, premium gallery layout</h1>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
+                Static showcase cards keep the page light and fast while matching the polished style of the reference design.
+              </p>
+            </div>
+
+            <div className="soft-panel hero-visual" style={{ padding: 18 }}>
+              <div style={{ borderRadius: 24, minHeight: 260, display: "grid", placeItems: "center", background: "linear-gradient(180deg, rgba(245,243,255,0.95), rgba(255,255,255,0.68))" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, width: "100%" }}>
+                  {["📸", "🌈", "✨", "🎉", "🧩", "💫"].map((icon, i) => (
+                    <div key={icon} className="soft-panel" style={{ minHeight: 74, display: "grid", placeItems: "center", fontSize: 24 }}>
+                      {icon}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section-shell page-section section-pop">
+        <div style={{ textAlign: "center", marginBottom: 22 }}>
+          <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
+            Moments
+          </span>
+          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>Memorable moments from campus life</h2>
+          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>The cards are lightweight, responsive, and visually aligned with the main landing page.</p>
         </div>
 
-        <div style={{ background: C.amberL, color: C.amberD, borderRadius: 10, padding: "10px 16px", fontSize: 13, textAlign: "center", marginBottom: 24 }}>
-          এটি একটি ডেমো — প্রকৃত ছবি শীঘ্রই যুক্ত করা হবে
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
-          {DEMO_ITEMS.map((item, i) => (
-            <div
-              key={i}
-              style={{
-                aspectRatio: "4 / 3",
-                background: C.slateL,
-                border: `1px solid ${C.border}`,
-                borderRadius: 14,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
+        <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
+          {DEMO_ITEMS.map((item) => (
+            <div key={item.label} className="soft-panel hover-lift shine-on-hover" style={{ aspectRatio: "4 / 3", background: item.tint, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 16, textAlign: "center" }}>
               <span style={{ fontSize: 34 }}>{item.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.muted }}>{item.label}</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: C.text }}>{item.label}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="section-shell page-section section-pop">
+        <div className="soft-panel-strong" style={{ padding: 22 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 14 }}>
+            <div>
+              <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 8px" }}>Photo uploads can be added later</h3>
+              <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.8 }}>
+                This page is intentionally lightweight now so it loads quickly and stays easy to extend later.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

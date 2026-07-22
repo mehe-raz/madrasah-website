@@ -1,29 +1,38 @@
 import type { PublicSettings, SiteContent } from "../types";
 
 export const FALLBACK_SETTINGS: PublicSettings = {
-  name: "Madrasah ERP",
+  name: "Little Learners Academy",
   logo: "",
-  address: "",
-  phone: "",
-  email: "",
-  footer: "",
+  address: "Chandrima Model Town, Mohammadpur, Dhaka",
+  phone: "01315-872600",
+  email: "hello@llisbd.com",
+  footer: "An inspiring learning environment for little minds.",
 };
 
 export const FALLBACK_CONTENT: SiteContent = {
-  badge: "ডেমো ওয়েবসাইট — শীঘ্রই সম্পূর্ণ চালু হচ্ছে",
-  heroSubtitle: "দ্বীনি ও আধুনিক শিক্ষার সমন্বয়ে আপনার সন্তানের উজ্জ্বল ভবিষ্যৎ গড়ে তুলুন।",
+  badge: "Inspiring curious little minds",
+  heroSubtitle: "A warm, premium, child-friendly learning experience where every child grows with confidence, creativity, and care.",
   highlights: [
-    { label: "প্রতিষ্ঠাকাল থেকে সুনামের সাথে পরিচালিত", icon: "🏛️" },
-    { label: "আবাসিক ও অনাবাসিক উভয় ব্যবস্থা", icon: "🏠" },
-    { label: "অভিজ্ঞ ও যোগ্য শিক্ষক পরিষদ", icon: "👳" },
-    { label: "নিয়মিত অভিভাবক যোগাযোগ ব্যবস্থা", icon: "📞" },
+    { label: "Safe, happy, and welcoming campus", icon: "🏡" },
+    { label: "Caring teachers with modern methods", icon: "👩‍🏫" },
+    { label: "Play-based learning and discovery", icon: "🎨" },
+    { label: "Strong parent communication", icon: "💬" },
   ],
   departments: [
-    { title: "হিফজ বিভাগ", desc: "পূর্ণাঙ্গ কুরআন মুখস্থকরণ প্রোগ্রাম, অভিজ্ঞ হাফেজ শিক্ষকমণ্ডলীর তত্ত্বাবধানে।", icon: "📖" },
-    { title: "নাজেরা বিভাগ", desc: "শুদ্ধভাবে কুরআন তিলাওয়াত শিক্ষা ও তাজবীদ চর্চা।", icon: "🕌" },
-    { title: "কিতাব বিভাগ", desc: "দাওরায়ে হাদীস পর্যন্ত ইসলামী শিক্ষার ধারাবাহিক পাঠ্যক্রম।", icon: "📚" },
-    { title: "জেনারেল বিভাগ", desc: "দ্বীনি শিক্ষার পাশাপাশি জাতীয় শিক্ষাক্রম অনুসরণ।", icon: "🎓" },
+    { title: "Playgroup", desc: "Gentle socialization with joyful early learning activities.", icon: "🧸" },
+    { title: "Nursery", desc: "Language, numeracy, storytelling, and curiosity building.", icon: "📘" },
+    { title: "Kindergarten", desc: "Balanced academic growth with creativity and routine.", icon: "🌈" },
+    { title: "Primary", desc: "Confident foundation for the next stage of learning.", icon: "🎓" },
   ],
-  classes: [],
-  notices: [],
+  classes: [
+    { title: "Playgroup", desc: "A friendly start for young learners.", icon: "🧸" },
+    { title: "Nursery", desc: "Fun learning through guided activities.", icon: "📘" },
+    { title: "KG", desc: "Early literacy, numeracy, and creativity.", icon: "🌈" },
+    { title: "Class 1", desc: "Structured learning with care and confidence.", icon: "✨" },
+  ],
+  notices: [
+    { title: "Admission for the new session is open", date: "2026-07-01", body: "Applications are now being accepted for the upcoming session." },
+    { title: "Open house for parents", date: "2026-06-20", body: "Meet the teachers, explore the campus, and learn about our approach." },
+    { title: "Holiday notice", date: "2026-06-10", body: "The campus will remain closed on the announced holiday dates." },
+  ],
 };
