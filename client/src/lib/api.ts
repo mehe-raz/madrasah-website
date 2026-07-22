@@ -334,6 +334,15 @@ export const api = {
   uploadFile: (dataUrl: string, folder: string) =>
     request<{ url: string; publicId: string }>("/uploads", { method: "POST", body: JSON.stringify({ dataUrl, folder }) }),
 
+  // Deletes an asset from Cloudinary storage by publicId (returned from
+  // uploadFile above). Used when the admin removes a gallery photo so the
+  // file doesn't keep sitting in storage, unreferenced, forever.
+  deleteUpload: (publicId: string, resourceType?: string) =>
+    request<{ ok: boolean; result: string }>("/uploads", {
+      method: "DELETE",
+      body: JSON.stringify({ publicId, resourceType }),
+    }),
+
   createUser: (body: { name: string; role: string; email: string; password: string }) =>
     request<User>("/users", { method: "POST", body: JSON.stringify(body) }),
 

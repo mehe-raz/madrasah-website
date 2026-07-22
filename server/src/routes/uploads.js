@@ -61,4 +61,49 @@ router.post("/", uploadLimiter, async (req, res) => {
   }
 });
 
+// Deletes an uploaded asset from Cloudinary storage — used when the admin
+// removes a gallery photo (or replaces one) so the file doesn't keep
+// sitting in Cloudinary forever, unreferenced, still counting against
+// storage/bandwidth quota. Only the publicId is needed (not the full URL);
+// the required permission is derived from its folder segment
+// ("madrasah/<folder>/...") the same way upload above derives it, so a
+// role that couldn't upload into a folder also can't delete from it.
+router.delete("/", async (req, res) => {
+  if (!isConfigured()) {
+    return res.status(503).json({
+      error: "Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.",
+    });
+  }
+
+  const { publicId, resourceType } = req.body || {};
+  if (!publicId || typeof publicId !== "string") {
+    return res.status(400).json({ error: "publicId is required" });
+  }
+
+  const folderSegment = publicId.split("/")[1] || "misc";
+  const folderLower = folderSegment.toLowerCase();
+  let requiredPermission = "students";
+  if (folderLower.startsWith("settings")) requiredPermission = "settings";
+  else if (folderLower.startsWith("website") || folderLower.startsWith("gallery")) requiredPermission = "website";
+  if (!req.user) return res.status(401).json({ error: "Login required" });
+  if (!canAccess(req.user.role, requiredPermission)) {
+    return res.status(403).json({ error: "Access denied" });
+  }
+
+  configureOnce();
+
+  try {
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType === "raw" ? "raw" : "image",
+    });
+    // Cloudinary returns { result: "not found" } (not an error) when the
+    // asset is already gone — treat that as success too, since the end
+    // state the caller wants (asset absent) is already true.
+    res.json({ ok: true, result: result.result });
+  } catch (err) {
+    console.error("Cloudinary delete failed:", err.message);
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
+
 module.exports = router;

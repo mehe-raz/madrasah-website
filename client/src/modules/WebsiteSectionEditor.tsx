@@ -246,8 +246,8 @@ export function WebsiteSectionEditor() {
         setError("ছবিটি সংকুচিত করার পরও আকার বেশি বড়। অন্য একটি ছবি চেষ্টা করুন।");
         return;
       }
-      const { url } = await api.uploadFile(compressed, "gallery");
-      setContent((prev) => ({ ...prev, gallery: [...prev.gallery, { url, caption: "" }] }));
+      const { url, publicId } = await api.uploadFile(compressed, "gallery");
+      setContent((prev) => ({ ...prev, gallery: [...prev.gallery, { url, caption: "", publicId }] }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "ছবি আপলোড ব্যর্থ হয়েছে");
     } finally {
@@ -259,7 +259,21 @@ export function WebsiteSectionEditor() {
   const removeDepartment = (index: number) => setContent((prev) => ({ ...prev, departments: prev.departments.filter((_, i) => i !== index) }));
   const removeClassItem = (index: number) => setContent((prev) => ({ ...prev, classes: prev.classes.filter((_, i) => i !== index) }));
   const removeNotice = (index: number) => setContent((prev) => ({ ...prev, notices: prev.notices.filter((_, i) => i !== index) }));
-  const removeGalleryItem = (index: number) => setContent((prev) => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== index) }));
+  // Removes the photo from the list immediately (so the editor stays
+  // responsive) and, separately, asks the server to delete the underlying
+  // Cloudinary asset so it doesn't keep sitting in storage unreferenced.
+  // The delete is best-effort: if it fails (network blip, already gone,
+  // etc.) the photo still comes out of the gallery list either way — we
+  // just log it instead of blocking the admin's edit on a cleanup call.
+  const removeGalleryItem = (index: number) => {
+    const item = content.gallery[index];
+    setContent((prev) => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== index) }));
+    if (item?.publicId) {
+      api.deleteUpload(item.publicId).catch((err) => {
+        console.error("Cloudinary cleanup failed for", item.publicId, err);
+      });
+    }
+  };
 
   const sectionContent = sectionId;
 
@@ -595,8 +609,8 @@ export function WebsiteSectionEditor() {
                 />
               </label>
             </div>
-            {!content.gallery.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো ছবি আপলোড করা হয়নি। ছবি যোগ করলে সেটি সরাসরি পাবলিক গ্যালারি পেজে দেখা যাবে।</p>}
-            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>ছবি আপলোডের সময় স্বয়ংক্রিয়ভাবে সংকুচিত হবে, সর্বোচ্চ {SECTION_LIMITS.gallery}টি ছবি।</p>
+            {!content.gallery.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো ছবি আপলোড করা হয়নি। ছবি যোগ করে নিচের "সংরক্ষণ করুন" বাটনে ক্লিক করলে তবেই সেটি পাবলিক গ্যালারি পেজে দেখা যাবে।</p>}
+            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>ছবি আপলোডের সময় স্বয়ংক্রিয়ভাবে সংকুচিত হবে, সর্বোচ্চ {SECTION_LIMITS.gallery}টি ছবি। পরিবর্তন পাবলিক পেজে দেখাতে "সংরক্ষণ করুন" বাটনে ক্লিক করতে ভুলবেন না।</p>
           </div>
         </SectionCard>
       )}

@@ -57,7 +57,9 @@ function sanitizeList(list, fields, max = MAX_LIST) {
 // hand — but we still validate the shape server-side in case the request
 // body was crafted directly. Anything that isn't a plausible http(s) image
 // URL is dropped rather than stored, so the public page never renders a
-// javascript:/data: URL or similar.
+// javascript:/data: URL or similar. publicId is carried through (not
+// re-validated beyond length/type) so a later removal can also delete the
+// underlying Cloudinary asset instead of just this reference to it.
 function sanitizeGallery(list) {
   if (!Array.isArray(list)) return [];
   return list
@@ -65,6 +67,7 @@ function sanitizeGallery(list) {
     .map((item) => ({
       url: cleanText(item && item.url, 500),
       caption: cleanText(item && item.caption, 140),
+      publicId: cleanText(item && item.publicId, 200),
     }))
     .filter((item) => /^https?:\/\//i.test(item.url));
 }

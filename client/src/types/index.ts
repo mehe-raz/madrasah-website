@@ -186,10 +186,14 @@ export interface SiteNotice {
 
 // One uploaded photo on the public Gallery page. `url` comes back from
 // POST /api/uploads (Cloudinary secure_url) — the editor never lets the
-// admin type an arbitrary URL by hand, only upload a file.
+// admin type an arbitrary URL by hand, only upload a file. `publicId` is
+// kept alongside so a removed photo can also be deleted from Cloudinary
+// storage, not just dropped from this list. Older entries saved before
+// this field existed simply won't have it (optional).
 export interface SiteGalleryItem {
   url: string;
   caption: string;
+  publicId?: string;
 }
 
 export interface SiteContent {
