@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { useLanguage } from "./context/AppSettingsContext";
 
+const About = lazy(() => import("./pages/About").then((m) => ({ default: m.About })));
 const Admission = lazy(() => import("./pages/Admission").then((m) => ({ default: m.Admission })));
 const AdmissionApply = lazy(() => import("./pages/AdmissionApply").then((m) => ({ default: m.AdmissionApply })));
 const ClassesCourses = lazy(() => import("./pages/ClassesCourses").then((m) => ({ default: m.ClassesCourses })));
@@ -36,6 +37,7 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/about" element={<About />} />
             <Route path="/classes" element={<ClassesCourses />} />
             <Route path="/admission" element={<Admission />} />
             <Route path="/admission/apply" element={<AdmissionApply />} />

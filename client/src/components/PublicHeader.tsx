@@ -12,6 +12,9 @@ const NAV_LINKS = [
   { to: "/notices", label: "নোটিসেস" },
 ];
 
+// Public visitors no longer need a login button front-and-center; login is
+// still reachable from the footer for staff/admins. This button replaces it.
+
 function NavLink({ to, label, active }: { to: string; label: string; active: boolean }) {
   return (
     <Link
@@ -178,10 +181,10 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                 ফলাফল দেখুন
               </Link>
               <Link
-                to="/login"
+                to="/about"
                 style={{ background: C.emerald, color: "#fff", borderRadius: 8, padding: "9px 18px", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
               >
-                লগইন
+                আমাদের সম্পর্কে
               </Link>
             </nav>
           )}
@@ -239,11 +242,11 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
               ফলাফল দেখুন
             </Link>
             <Link
-              to="/login"
+              to="/about"
               onClick={() => setMobileOpen(false)}
               style={{ margin: "0 6px", background: C.emerald, color: "#fff", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14, textDecoration: "none", textAlign: "center" }}
             >
-              লগইন
+              আমাদের সম্পর্কে
             </Link>
           </div>
         )}

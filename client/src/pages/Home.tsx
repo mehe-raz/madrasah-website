@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
 import { PublicHeader } from "../components/PublicHeader";
@@ -32,6 +32,12 @@ function DividerPattern() {
   );
 }
 
+function formatNoticeDate(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" });
+}
+
 export function Home() {
   const { site, content } = usePublicSite();
   const madrasaName = site.name;
@@ -39,6 +45,13 @@ export function Home() {
   useEffect(() => {
     document.title = `${madrasaName} — স্বাগতম`;
   }, [madrasaName]);
+
+  // Only the single most recent notice shows on the landing page; the full
+  // list (with the 6-month window) lives on /notices behind "সব দেখুন".
+  const latestNotice = useMemo(() => {
+    if (!content.notices.length) return null;
+    return [...content.notices].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  }, [content.notices]);
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", color: C.text }}>
@@ -107,6 +120,68 @@ export function Home() {
       </section>
 
       <DividerPattern />
+
+      {/* Latest notice */}
+      {latestNotice && (
+        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 20px 8px" }}>
+          <div
+            style={{
+              background: C.card,
+              border: `1px solid ${C.border}`,
+              borderRadius: 14,
+              padding: 20,
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 16,
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  background: C.emeraldL,
+                  color: C.emeraldD,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  marginBottom: 8,
+                }}
+              >
+                সর্বশেষ নোটিশ
+              </span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: C.text, margin: 0 }}>{latestNotice.title}</h3>
+                <span style={{ fontSize: 12, color: C.muted, whiteSpace: "nowrap" }}>{formatNoticeDate(latestNotice.date)}</span>
+              </div>
+              {latestNotice.body && (
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: C.muted,
+                    lineHeight: 1.6,
+                    margin: "6px 0 0",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {latestNotice.body}
+                </p>
+              )}
+            </div>
+            <Link
+              to="/notices"
+              style={{ background: C.emeraldL, color: C.emeraldD, borderRadius: 8, padding: "10px 18px", fontWeight: 700, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap" }}
+            >
+              সব দেখুন →
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Highlights strip */}
       <section style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 20px" }}>

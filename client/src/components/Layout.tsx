@@ -36,7 +36,9 @@ export function Layout() {
 
   const handleLogout = async () => {
     await logout();
-    navigate("/login");
+    // Send the user to the public landing page instead of the login form —
+    // they can get back to /login from there (header/footer) whenever they need to.
+    navigate("/");
   };
 
   if (!user) return null;
