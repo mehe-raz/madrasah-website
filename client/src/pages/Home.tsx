@@ -1,29 +1,38 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
+import { api } from "../lib/api";
 import { C } from "../theme/colors";
+import type { SiteContent } from "../types";
 import heroImage from "../assets/hero.png";
 
 /**
  * Public-facing institution page shown to visitors who are not logged in.
- * This is a content demo only — no live data, no forms submit anywhere yet.
- * Functional pieces (real admission form, notices, gallery, etc.) will be
- * wired up in a later pass; for now every "action" simply routes to /login.
+ * The editable parts (badge, hero text, highlights, departments) are loaded
+ * from /api/public/site-content, which Admin/Super Admin update from the
+ * "ওয়েবসাইট" control panel — so changes there show up here immediately on
+ * the next load, no redeploy needed. Everything else (form submissions,
+ * gallery, notices) is still a later pass; every action here just routes to
+ * /login for now.
  */
 
-const departments = [
-  { title: "হিফজ বিভাগ", desc: "পূর্ণাঙ্গ কুরআন মুখস্থকরণ প্রোগ্রাম, অভিজ্ঞ হাফেজ শিক্ষকমণ্ডলীর তত্ত্বাবধানে।", icon: "📖" },
-  { title: "নাজেরা বিভাগ", desc: "শুদ্ধভাবে কুরআন তিলাওয়াত শিক্ষা ও তাজবীদ চর্চা।", icon: "🕌" },
-  { title: "কিতাব বিভাগ", desc: "দাওরায়ে হাদীস পর্যন্ত ইসলামী শিক্ষার ধারাবাহিক পাঠ্যক্রম।", icon: "📚" },
-  { title: "জেনারেল বিভাগ", desc: "দ্বীনি শিক্ষার পাশাপাশি জাতীয় শিক্ষাক্রম অনুসরণ।", icon: "🎓" },
-];
-
-const highlights = [
-  { label: "প্রতিষ্ঠাকাল থেকে সুনামের সাথে পরিচালিত", icon: "🏛️" },
-  { label: "আবাসিক ও অনাবাসিক উভয় ব্যবস্থা", icon: "🏠" },
-  { label: "অভিজ্ঞ ও যোগ্য শিক্ষক পরিষদ", icon: "👳" },
-  { label: "নিয়মিত অভিভাবক যোগাযোগ ব্যবস্থা", icon: "📞" },
-];
+const FALLBACK_CONTENT: SiteContent = {
+  badge: "ডেমো ওয়েবসাইট — শীঘ্রই সম্পূর্ণ চালু হচ্ছে",
+  heroSubtitle: "দ্বীনি ও আধুনিক শিক্ষার সমন্বয়ে আপনার সন্তানের উজ্জ্বল ভবিষ্যৎ গড়ে তুলুন।",
+  highlights: [
+    { label: "প্রতিষ্ঠাকাল থেকে সুনামের সাথে পরিচালিত", icon: "🏛️" },
+    { label: "আবাসিক ও অনাবাসিক উভয় ব্যবস্থা", icon: "🏠" },
+    { label: "অভিজ্ঞ ও যোগ্য শিক্ষক পরিষদ", icon: "👳" },
+    { label: "নিয়মিত অভিভাবক যোগাযোগ ব্যবস্থা", icon: "📞" },
+  ],
+  departments: [
+    { title: "হিফজ বিভাগ", desc: "পূর্ণাঙ্গ কুরআন মুখস্থকরণ প্রোগ্রাম, অভিজ্ঞ হাফেজ শিক্ষকমণ্ডলীর তত্ত্বাবধানে।", icon: "📖" },
+    { title: "নাজেরা বিভাগ", desc: "শুদ্ধভাবে কুরআন তিলাওয়াত শিক্ষা ও তাজবীদ চর্চা।", icon: "🕌" },
+    { title: "কিতাব বিভাগ", desc: "দাওরায়ে হাদীস পর্যন্ত ইসলামী শিক্ষার ধারাবাহিক পাঠ্যক্রম।", icon: "📚" },
+    { title: "জেনারেল বিভাগ", desc: "দ্বীনি শিক্ষার পাশাপাশি জাতীয় শিক্ষাক্রম অনুসরণ।", icon: "🎓" },
+  ],
+};
 
 function DividerPattern() {
   return (
@@ -46,6 +55,28 @@ function DividerPattern() {
 export function Home() {
   const { settings } = useAppSettings();
   const { name: madrasaName } = useMadrasaBranding();
+  const [content, setContent] = useState<SiteContent>(FALLBACK_CONTENT);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getPublicSiteContent()
+      .then((data) => {
+        if (cancelled) return;
+        setContent({
+          badge: data.badge || FALLBACK_CONTENT.badge,
+          heroSubtitle: data.heroSubtitle || FALLBACK_CONTENT.heroSubtitle,
+          highlights: data.highlights.length ? data.highlights : FALLBACK_CONTENT.highlights,
+          departments: data.departments.length ? data.departments : FALLBACK_CONTENT.departments,
+        });
+      })
+      .catch(() => {
+        /* keep fallback content */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", color: C.text }}>
@@ -122,13 +153,13 @@ export function Home() {
                 marginBottom: 16,
               }}
             >
-              ডেমো ওয়েবসাইট — শীঘ্রই সম্পূর্ণ চালু হচ্ছে
+              {content.badge}
             </span>
             <h1 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, lineHeight: 1.25, margin: "0 0 14px", color: C.text }}>
               {madrasaName}
             </h1>
             <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, margin: "0 0 26px", maxWidth: 480 }}>
-              {settings.footer || "দ্বীনি ও আধুনিক শিক্ষার সমন্বয়ে আপনার সন্তানের উজ্জ্বল ভবিষ্যৎ গড়ে তুলুন।"}
+              {content.heroSubtitle}
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <Link
@@ -184,9 +215,9 @@ export function Home() {
       {/* Highlights strip */}
       <section style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 20px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-          {highlights.map((h) => (
+          {content.highlights.map((h, i) => (
             <div
-              key={h.label}
+              key={`${h.label}-${i}`}
               style={{
                 background: C.card,
                 border: `1px solid ${C.border}`,
@@ -211,9 +242,9 @@ export function Home() {
           <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>শিক্ষার্থীদের চাহিদা অনুযায়ী বিভিন্ন বিভাগে ভর্তির সুযোগ</p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 16 }}>
-          {departments.map((d) => (
+          {content.departments.map((d, i) => (
             <div
-              key={d.title}
+              key={`${d.title}-${i}`}
               style={{
                 background: C.card,
                 border: `1px solid ${C.border}`,
