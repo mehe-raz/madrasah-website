@@ -12,21 +12,21 @@ const NAV_LINKS = [
   { to: "/notices", label: "নোটিসেস" },
 ];
 
-// Public visitors no longer need a login button front-and-center; login is
-// still reachable from the footer for staff/admins. This button replaces it.
-
 function NavLink({ to, label, active }: { to: string; label: string; active: boolean }) {
   return (
     <Link
       to={to}
       style={{
-        color: active ? C.emerald : C.text,
-        fontWeight: 700,
+        color: active ? C.emeraldD : C.text,
+        fontWeight: 800,
         fontSize: 13,
         textDecoration: "none",
-        padding: "8px 4px",
-        borderBottom: active ? `2px solid ${C.emerald}` : "2px solid transparent",
+        padding: "10px 14px",
+        borderRadius: 999,
+        background: active ? C.emeraldL : "transparent",
+        border: `1px solid ${active ? "transparent" : "transparent"}`,
         whiteSpace: "nowrap",
+        transition: "all 180ms ease",
       }}
     >
       {label}
@@ -55,71 +55,79 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
           position: "sticky",
           top: 0,
           zIndex: 30,
-          background: "var(--card)",
+          background: "rgba(255,255,255,0.72)",
+          backdropFilter: "blur(16px)",
           borderBottom: `1px solid ${C.border}`,
+          boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)",
         }}
       >
+        <div style={{ height: 4, background: `linear-gradient(90deg, ${C.sky}, ${C.emerald}, ${C.amber})` }} />
         <div
+          className="section-shell"
           style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            padding: "12px 20px",
+            paddingTop: 12,
+            paddingBottom: 12,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 12,
           }}
         >
-          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none" }}>
+          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, textDecoration: "none" }}>
             {site.logo ? (
-              <img src={site.logo} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+              <img src={site.logo} alt="" style={{ width: 42, height: 42, borderRadius: 14, objectFit: "cover", flexShrink: 0, boxShadow: "0 10px 24px rgba(15, 23, 42, 0.10)" }} />
             ) : (
-              <span style={{ fontSize: 28, flexShrink: 0 }}>🕌</span>
+              <span style={{ fontSize: 30, flexShrink: 0 }}>🕌</span>
             )}
-            <span style={{ fontWeight: 800, fontSize: 16, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <span
+              style={{
+                fontWeight: 900,
+                fontSize: 16,
+                color: C.text,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                letterSpacing: "-0.01em",
+              }}
+            >
               {site.name}
             </span>
           </Link>
 
           {!isMobile && (
-            <nav style={{ display: "flex", alignItems: "center", gap: 22 }}>
+            <nav style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <NavLink to="/" label="হোম" active={location.pathname === "/"} />
 
-              <div
-                style={{ position: "relative" }}
-                onMouseEnter={() => setClassesOpen(true)}
-                onMouseLeave={() => setClassesOpen(false)}
-              >
+              <div style={{ position: "relative" }} onMouseEnter={() => setClassesOpen(true)} onMouseLeave={() => setClassesOpen(false)}>
                 <button
                   type="button"
                   onClick={() => setClassesOpen((v) => !v)}
                   style={{
-                    background: "none",
+                    background: classesOpen ? C.slateL : "transparent",
                     border: "none",
                     cursor: "pointer",
-                    color: location.pathname === "/classes" ? C.emerald : C.text,
-                    fontWeight: 700,
+                    color: location.pathname === "/classes" ? C.emeraldD : C.text,
+                    fontWeight: 800,
                     fontSize: 13,
-                    padding: "8px 4px",
+                    padding: "10px 14px",
+                    borderRadius: 999,
                     display: "flex",
                     alignItems: "center",
-                    gap: 4,
+                    gap: 6,
                   }}
                 >
                   ক্লাস ও কোর্সসমূহ <span style={{ fontSize: 10 }}>▾</span>
                 </button>
                 {classesOpen && (
                   <div
+                    className="soft-panel"
                     style={{
                       position: "absolute",
-                      top: "100%",
+                      top: "calc(100% + 10px)",
                       left: 0,
-                      background: C.card,
-                      border: `1px solid ${C.border}`,
-                      borderRadius: 10,
-                      boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
-                      minWidth: 220,
-                      padding: 6,
+                      minWidth: 240,
+                      padding: 8,
+                      overflow: "hidden",
                     }}
                   >
                     {classes.length ? (
@@ -134,8 +142,8 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                             textAlign: "left",
                             background: "none",
                             border: "none",
-                            borderRadius: 6,
-                            padding: "9px 10px",
+                            borderRadius: 12,
+                            padding: "10px 12px",
                             fontSize: 13,
                             color: C.text,
                             cursor: "pointer",
@@ -147,14 +155,14 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                         </button>
                       ))
                     ) : (
-                      <Link to="/classes" style={{ display: "block", padding: "9px 10px", fontSize: 13, color: C.muted, textDecoration: "none" }}>
+                      <Link to="/classes" style={{ display: "block", padding: "10px 12px", fontSize: 13, color: C.muted, textDecoration: "none" }}>
                         সব ক্লাস দেখুন →
                       </Link>
                     )}
                     {classes.length > 0 && (
                       <Link
                         to="/classes"
-                        style={{ display: "block", padding: "9px 10px", fontSize: 12, color: C.emerald, fontWeight: 700, textDecoration: "none", borderTop: `1px solid ${C.border}`, marginTop: 4 }}
+                        style={{ display: "block", padding: "10px 12px", fontSize: 12, color: C.emeraldD, fontWeight: 800, textDecoration: "none", borderTop: `1px solid ${C.border}`, marginTop: 4 }}
                       >
                         সব দেখুন →
                       </Link>
@@ -166,23 +174,26 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
               <NavLink to="/admission" label="ভর্তি" active={location.pathname.startsWith("/admission")} />
               <NavLink to="/gallery" label="গ্যালারি" active={location.pathname === "/gallery"} />
               <NavLink to="/notices" label="নোটিসেস" active={location.pathname === "/notices"} />
+
               <Link
                 to="/result"
+                className="pill hover-lift"
                 style={{
                   background: C.amberL,
                   color: C.amberD,
-                  borderRadius: 8,
-                  padding: "8px 14px",
-                  fontWeight: 700,
+                  padding: "10px 14px",
+                  fontWeight: 800,
                   fontSize: 13,
                   textDecoration: "none",
+                  border: `1px solid ${C.border}`,
                 }}
               >
                 ফলাফল দেখুন
               </Link>
               <Link
                 to="/about"
-                style={{ background: C.emerald, color: "#fff", borderRadius: 8, padding: "9px 18px", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
+                className="pill hover-lift"
+                style={{ background: `linear-gradient(135deg, ${C.emerald}, ${C.teal})`, color: "#fff", padding: "10px 16px", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
               >
                 আমাদের সম্পর্কে
               </Link>
@@ -194,7 +205,8 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
               type="button"
               aria-label="মেনু"
               onClick={() => setMobileOpen((v) => !v)}
-              style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 18, cursor: "pointer", color: C.text }}
+              className="soft-panel"
+              style={{ background: "var(--card)", border: `1px solid ${C.border}`, borderRadius: 14, padding: "10px 12px", fontSize: 18, cursor: "pointer", color: C.text }}
             >
               {mobileOpen ? "✕" : "☰"}
             </button>
@@ -202,52 +214,66 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
         </div>
 
         {isMobile && mobileOpen && (
-          <div style={{ borderTop: `1px solid ${C.border}`, padding: "10px 20px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
-            {NAV_LINKS.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                onClick={() => setMobileOpen(false)}
-                style={{ padding: "12px 6px", fontSize: 14, fontWeight: 700, color: C.text, textDecoration: "none", borderBottom: `1px solid ${C.border}` }}
-              >
-                {l.label}
-              </Link>
-            ))}
-
-            <div style={{ padding: "12px 6px 4px", fontSize: 14, fontWeight: 700, color: C.text, borderBottom: `1px solid ${C.border}` }}>ক্লাস ও কোর্সসমূহ</div>
-            <div style={{ display: "flex", flexDirection: "column", paddingBottom: 8 }}>
-              {classes.length ? (
-                classes.map((c, i) => (
-                  <button
-                    key={`${c.title}-${i}`}
-                    type="button"
-                    onClick={() => setPendingClass(c.title)}
-                    style={{ textAlign: "left", background: "none", border: "none", padding: "10px 14px", fontSize: 13, color: C.muted, cursor: "pointer" }}
-                  >
-                    {c.icon} {c.title}
-                  </button>
-                ))
-              ) : (
-                <Link to="/classes" onClick={() => setMobileOpen(false)} style={{ padding: "10px 14px", fontSize: 13, color: C.muted, textDecoration: "none" }}>
-                  সব ক্লাস দেখুন →
+          <div className="section-shell" style={{ paddingBottom: 14 }}>
+            <div className="soft-panel" style={{ padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+              {NAV_LINKS.map((l) => (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  onClick={() => setMobileOpen(false)}
+                  style={{
+                    padding: "12px 12px",
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: C.text,
+                    textDecoration: "none",
+                    borderRadius: 12,
+                    background: location.pathname === l.to ? C.slateL : "transparent",
+                  }}
+                >
+                  {l.label}
                 </Link>
-              )}
-            </div>
+              ))}
 
-            <Link
-              to="/result"
-              onClick={() => setMobileOpen(false)}
-              style={{ margin: "6px 6px", background: C.amberL, color: C.amberD, borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14, textDecoration: "none", textAlign: "center" }}
-            >
-              ফলাফল দেখুন
-            </Link>
-            <Link
-              to="/about"
-              onClick={() => setMobileOpen(false)}
-              style={{ margin: "0 6px", background: C.emerald, color: "#fff", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14, textDecoration: "none", textAlign: "center" }}
-            >
-              আমাদের সম্পর্কে
-            </Link>
+              <div style={{ padding: "12px 12px 4px", fontSize: 14, fontWeight: 800, color: C.text }}>ক্লাস ও কোর্সসমূহ</div>
+              <div style={{ display: "flex", flexDirection: "column", paddingBottom: 8 }}>
+                {classes.length ? (
+                  classes.map((c, i) => (
+                    <button
+                      key={`${c.title}-${i}`}
+                      type="button"
+                      onClick={() => setPendingClass(c.title)}
+                      style={{ textAlign: "left", background: "none", border: "none", padding: "10px 12px", fontSize: 13, color: C.muted, cursor: "pointer" }}
+                    >
+                      {c.icon} {c.title}
+                    </button>
+                  ))
+                ) : (
+                  <Link to="/classes" onClick={() => setMobileOpen(false)} style={{ padding: "10px 12px", fontSize: 13, color: C.muted, textDecoration: "none" }}>
+                    সব ক্লাস দেখুন →
+                  </Link>
+                )}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "4px 2px 2px" }}>
+                <Link
+                  to="/result"
+                  onClick={() => setMobileOpen(false)}
+                  className="pill"
+                  style={{ background: C.amberL, color: C.amberD, padding: "12px", fontWeight: 800, fontSize: 14, textDecoration: "none", textAlign: "center" }}
+                >
+                  ফলাফল
+                </Link>
+                <Link
+                  to="/about"
+                  onClick={() => setMobileOpen(false)}
+                  className="pill"
+                  style={{ background: `linear-gradient(135deg, ${C.emerald}, ${C.teal})`, color: "#fff", padding: "12px", fontWeight: 800, fontSize: 14, textDecoration: "none", textAlign: "center" }}
+                >
+                  সম্পর্কে
+                </Link>
+              </div>
+            </div>
           </div>
         )}
       </header>
