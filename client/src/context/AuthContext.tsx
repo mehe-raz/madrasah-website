@@ -29,10 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { user: u } = await api.me();
       setUser(u);
-      localStorage.setItem("madrasah-token", "cookie");
     } catch {
       setUser(null);
-      localStorage.removeItem("madrasah-token");
     }
   }, []);
 
@@ -41,20 +39,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { user: u, token } = await api.login(email, password);
-    if (token) localStorage.setItem("madrasah-token", token);
+    const { user: u } = await api.login(email, password);
     setUser(u);
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
-    const { user: u, token } = await api.register(name, email, password);
-    if (token) localStorage.setItem("madrasah-token", token);
+    const { user: u } = await api.register(name, email, password);
     setUser(u);
   }, []);
 
   const logout = useCallback(async () => {
     await api.logout();
-    localStorage.removeItem("madrasah-token");
     setUser(null);
   }, []);
 

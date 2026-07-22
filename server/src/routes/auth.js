@@ -48,7 +48,7 @@ router.post("/register", async (req, res) => {
     const user = await db.get("SELECT id, name, email, role FROM users WHERE id = $1", [result.insertId]);
     const token = signToken(user);
     res.cookie("token", token, cookieOptions);
-    res.status(201).json({ user, token });
+    res.status(201).json({ user });
   } catch (e) {
     if (isUniqueViolation(e)) return res.status(409).json({ error: "Email already registered" });
     throw e;
@@ -67,7 +67,7 @@ router.post("/login", async (req, res) => {
   const user = publicUser(row);
   const token = signToken(user);
   res.cookie("token", token, cookieOptions);
-  res.json({ user, token });
+  res.json({ user });
 });
 
 router.post("/logout", (_req, res) => {
@@ -76,9 +76,7 @@ router.post("/logout", (_req, res) => {
 });
 
 router.get("/me", async (req, res) => {
-  const header = req.headers.authorization;
-  const cookie = req.cookies?.token;
-  const token = header?.startsWith("Bearer ") ? header.slice(7) : cookie;
+  const token = req.cookies?.token;
   if (!token) return res.status(401).json({ error: "Not logged in" });
   try {
     const jwt = require("jsonwebtoken");

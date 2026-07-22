@@ -26,23 +26,16 @@ import type {
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
-function getToken() {
-  return localStorage.getItem("madrasah-token");
-}
-
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = getToken();
   const res = await fetch(`${API}${path}`, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
     ...options,
   });
   if (res.status === 401) {
-    localStorage.removeItem("madrasah-token");
     throw new Error("UNAUTHORIZED");
   }
   if (!res.ok) {
@@ -57,13 +50,13 @@ export const api = {
   health: () => request<{ ok: boolean }>("/health"),
 
   login: (email: string, password: string) =>
-    request<{ user: AuthUser; token: string }>("/auth/login", {
+    request<{ user: AuthUser }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
   register: (name: string, email: string, password: string) =>
-    request<{ user: AuthUser; token: string }>("/auth/register", {
+    request<{ user: AuthUser }>("/auth/register", {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
     }),
@@ -142,10 +135,8 @@ export const api = {
     request<{ ok: boolean }>(`/students/${id}`, { method: "DELETE" }),
 
   downloadStudentPdf: async (id: number, name: string) => {
-    const token = getToken();
     const res = await fetch(`${API}/students/${id}/pdf`, {
       credentials: "include",
-      headers: token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) throw new Error("PDF generation failed");
     const blob = await res.blob();
@@ -353,10 +344,8 @@ export const api = {
     request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/users/${id}`, { method: "DELETE" }),
 
   downloadBackup: async () => {
-    const token = getToken();
     const res = await fetch(`${API}/backup`, {
       credentials: "include",
-      headers: token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) throw new Error("Backup failed");
     const disposition = res.headers.get("Content-Disposition") || "";
@@ -379,13 +368,11 @@ export const api = {
   runBackupNow: () => request<{ filename: string; localPath: string; config: BackupConfig }>("/backup/run", { method: "POST" }),
 
   previewBackup: async (file: File) => {
-    const token = getToken();
     const res = await fetch(`${API}/backup/preview`, {
       method: "POST",
       credentials: "include",
       headers: {
         "Content-Type": "application/octet-stream",
-        ...(token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: await file.arrayBuffer(),
     });
@@ -402,13 +389,11 @@ export const api = {
     ),
 
   restoreBackup: async (file: File) => {
-    const token = getToken();
     const res = await fetch(`${API}/backup/restore`, {
       method: "POST",
       credentials: "include",
       headers: {
         "Content-Type": "application/octet-stream",
-        ...(token && token !== "cookie" ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: await file.arrayBuffer(),
     });
