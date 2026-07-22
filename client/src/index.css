@@ -51,6 +51,10 @@ body,
   color: var(--text);
 }
 
+html {
+  scroll-behavior: auto;
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -133,7 +137,7 @@ img {
 
 .page-shell {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .section-shell {
@@ -312,7 +316,8 @@ img {
 }
 
 .section-pop {
-  animation: fadeRise 700ms ease both;
+  animation: fadeRise 420ms ease both;
+  will-change: opacity, transform;
 }
 
 .delay-1 { animation-delay: 120ms; }
@@ -402,6 +407,13 @@ img {
 
   .sidebar-toggle {
     display: inline-flex;
+  }
+
+  .page-shell.app-shell {
+    display: block !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   .app-shell {

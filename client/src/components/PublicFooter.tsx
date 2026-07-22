@@ -1,16 +1,5 @@
-import { Link } from "react-router-dom";
 import { C } from "../theme/colors";
 import type { PublicSettings } from "../types";
-
-const quickLinks = [
-  { to: "/", label: "Home" },
-  { to: "/about", label: "About Us" },
-  { to: "/classes", label: "Classes" },
-  { to: "/admission", label: "Admission" },
-  { to: "/gallery", label: "Gallery" },
-  { to: "/notices", label: "Notices" },
-  { to: "/result", label: "Result" },
-];
 
 export function PublicFooter({ site }: { site: PublicSettings }) {
   const year = new Date().getFullYear();
@@ -48,31 +37,6 @@ export function PublicFooter({ site }: { site: PublicSettings }) {
               <div style={{ fontSize: 14, color: C.text, fontWeight: 800, marginBottom: 12 }}>{site.phone || "—"}</div>
               <div style={{ fontSize: 13, color: C.muted, marginBottom: 6 }}>Email</div>
               <div style={{ fontSize: 14, color: C.text, fontWeight: 800 }}>{site.email || "—"}</div>
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>Quick Links</div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {quickLinks.map((link, i) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className="pill nav-chip"
-                  style={{
-                    background: i % 2 === 0 ? C.slateL : C.card,
-                    color: C.text,
-                    border: `1px solid ${C.border}`,
-                    padding: "11px 14px",
-                    fontWeight: 800,
-                    fontSize: 13,
-                    textDecoration: "none",
-                    textAlign: "center",
-                  }}
-                >
-                  {link.label}
-                </Link>
-              ))}
             </div>
           </div>
         </div>

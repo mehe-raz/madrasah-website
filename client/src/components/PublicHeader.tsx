@@ -54,19 +54,6 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
 
   return (
     <>
-      <div className="top-contact-bar">
-        <div className="section-shell" style={{ paddingTop: 9, paddingBottom: 9, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", color: C.text, fontSize: 12, fontWeight: 700 }}>
-            <span>📞 {site.phone || "—"}</span>
-            <span>✉️ {site.email || "—"}</span>
-            <span>📍 {site.address || "Dhaka, Bangladesh"}</span>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ padding: "5px 10px", borderRadius: 999, background: C.card, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 800 }}>Premium school website</span>
-            <Link to="/admission" className="pill nav-chip" style={{ padding: "5px 12px", background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 800 }}>Apply Now</Link>
-          </div>
-        </div>
-      </div>
 
       <header
         className="glass-header"
@@ -166,22 +153,6 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                   )
                 ))}
               </nav>
-
-              <Link
-                to="/admission"
-                className="pill nav-chip"
-                style={{
-                  background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`,
-                  color: "#fff",
-                  textDecoration: "none",
-                  padding: "11px 16px",
-                  fontWeight: 900,
-                  fontSize: 13,
-                  boxShadow: "0 14px 28px rgba(16, 185, 129, 0.18)",
-                }}
-              >
-                Apply Now
-              </Link>
             </>
           ) : (
             <button
@@ -241,17 +212,6 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                   </Link>
                 )}
               </div>
-            </div>
-
-            <div style={{ marginTop: "auto", display: "grid", gap: 8 }}>
-              <div className="soft-panel" style={{ padding: 14 }}>
-                <div style={{ fontSize: 12, color: C.muted, fontWeight: 800, marginBottom: 6 }}>Contact</div>
-                <div style={{ fontSize: 13, color: C.text, fontWeight: 700, lineHeight: 1.7 }}>📞 {site.phone || "—"}</div>
-                <div style={{ fontSize: 13, color: C.text, fontWeight: 700, lineHeight: 1.7 }}>✉️ {site.email || "—"}</div>
-              </div>
-              <Link to="/admission" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", textDecoration: "none", padding: "12px 14px", fontWeight: 900, textAlign: "center" }}>
-                Apply Now
-              </Link>
             </div>
           </div>
         </div>
