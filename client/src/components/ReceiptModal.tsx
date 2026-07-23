@@ -41,7 +41,6 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
       <h2 style="text-align:center;font-size:14px;color:#0d9488">Fee Receipt</h2>
       <table>${rowsHtml}</table>
       <p class="footer">${settings.footer}</p>
-      <script>window.onload=function(){window.print();}</script>
       </body></html>`;
   };
 
@@ -50,6 +49,15 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
     if (!w) return;
     w.document.write(receiptHtml());
     w.document.close();
+    // Inline <script> in the written HTML gets blocked by the app's CSP
+    // (script-src 'self', no 'unsafe-inline'), so window.print() never
+    // ran and only the receipt data showed up with no print dialog.
+    // Setting onload here instead runs in this (already-allowed) script
+    // context rather than the child document's.
+    w.onload = () => {
+      w.focus();
+      w.print();
+    };
   };
 
   const rows = [

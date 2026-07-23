@@ -103,17 +103,24 @@ function writePrintWindow(w: Window, title: string, bodyHtml: string) {
         </div>
       </header>
       ${bodyHtml}
-      <script>
-        window.onload = function () {
-          window.focus();
-          window.print();
-        };
-      </script>
     </body></html>`;
 
   w.document.open();
   w.document.write(html);
   w.document.close();
+
+  // NOTE: intentionally NOT an inline <script> inside the written HTML.
+  // The app's CSP (script-src 'self', no 'unsafe-inline') blocks inline
+  // scripts, and this new window inherits that same CSP since it was
+  // opened as "about:blank" from this origin. An inline <script>window.print()</script>
+  // written into it would silently fail to run — the print dialog never
+  // opens, you just see the data. Setting w.onload from here instead runs
+  // in the *opener's* script context, which is same-origin JS and already
+  // allowed, so it isn't affected by the child document's CSP.
+  w.onload = () => {
+    w.focus();
+    w.print();
+  };
 }
 
 function openPrintWindow(title: string, bodyHtml: string, targetWindow?: Window | null) {
