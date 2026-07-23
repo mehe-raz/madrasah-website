@@ -5,6 +5,7 @@ const db = require("../db");
 const { signToken } = require("../middleware/auth");
 const { isUniqueViolation } = require("../pg");
 const nodemailer = require("nodemailer");
+const { passwordPolicyError } = require("../lib/passwordPolicy");
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -21,6 +22,7 @@ function publicUser(row) {
   return { id: row.id, name: row.name, email: row.email, role: row.role };
 }
 
+
 router.post("/register", async (req, res) => {
   const userCountRow = await db.get("SELECT COUNT(*)::int AS c FROM users");
   const userCount = userCountRow?.c || 0;
@@ -36,8 +38,9 @@ router.post("/register", async (req, res) => {
   if (!name?.trim() || !email?.trim() || !password) {
     return res.status(400).json({ error: "Name, email and password required" });
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  const pwError = passwordPolicyError(password);
+  if (pwError) {
+    return res.status(400).json({ error: pwError });
   }
 
   const hash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -173,7 +176,8 @@ router.post("/forgot-password", async (req, res) => {
 router.post("/reset-password", async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ error: "Token and password required" });
-  if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters" });
+  const pwError = passwordPolicyError(password);
+  if (pwError) return res.status(400).json({ error: pwError });
 
   const row = await db.get(
     `SELECT pr."userId" FROM password_resets pr

@@ -5,6 +5,7 @@ const { createDeleteRequest } = require("../lib/deleteRequests");
 const { isUniqueViolation } = require("../pg");
 const { requirePermission } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
+const { passwordPolicyError } = require("../lib/passwordPolicy");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -44,7 +45,10 @@ router.post("/", async (req, res) => {
   if (!email?.trim() || !password) {
     return res.status(400).json({ error: "Email and password required" });
   }
-  if (password.length < 8) return res.status(400).json({ error: "Password min 8 characters" });
+  {
+    const pwError = passwordPolicyError(password);
+    if (pwError) return res.status(400).json({ error: pwError });
+  }
 
   const hash = await bcrypt.hash(password, SALT_ROUNDS);
   const isProtected = role === "Super Admin" ? 1 : 0;
@@ -102,7 +106,10 @@ router.patch("/:id", async (req, res) => {
     if (email !== undefined) payload.email = String(email).trim().toLowerCase();
     if (role !== undefined) payload.role = role;
     if (password) {
-      if (password.length < 8) return res.status(400).json({ error: "Password min 8 characters" });
+      {
+    const pwError = passwordPolicyError(password);
+    if (pwError) return res.status(400).json({ error: pwError });
+  }
       payload.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     }
     const request = await createDeleteRequest({
@@ -148,7 +155,10 @@ router.patch("/:id", async (req, res) => {
     await db.run('UPDATE users SET role = $1, "isProtected" = $2 WHERE id = $3', [role, role === "Super Admin" ? 1 : 0, id]);
   }
   if (password) {
-    if (password.length < 8) return res.status(400).json({ error: "Password min 8 characters" });
+    {
+    const pwError = passwordPolicyError(password);
+    if (pwError) return res.status(400).json({ error: pwError });
+  }
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
     await db.run('UPDATE users SET "passwordHash" = $1 WHERE id = $2', [hash, id]);
   }

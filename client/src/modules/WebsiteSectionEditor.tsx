@@ -104,25 +104,76 @@ function SectionCard({ title, subtitle, children }: { title: string; subtitle?: 
   );
 }
 
-function ListEntryButtons({ onRemove, disabled }: { onRemove: () => void; disabled?: boolean }) {
+function moveItem<T>(list: T[], index: number, direction: -1 | 1): T[] {
+  const target = index + direction;
+  if (target < 0 || target >= list.length) return list;
+  const next = list.slice();
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+function ReorderButton({ direction, onClick, disabled }: { direction: "up" | "down"; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
-      onClick={onRemove}
+      onClick={onClick}
       disabled={disabled}
+      title={direction === "up" ? "উপরে সরান" : "নিচে সরান"}
+      aria-label={direction === "up" ? "উপরে সরান" : "নিচে সরান"}
       style={{
-        border: "none",
-        background: C.roseL,
-        color: C.roseD,
-        borderRadius: 10,
-        padding: "10px 12px",
+        border: `1px solid ${C.border}`,
+        background: disabled ? C.bg : C.card,
+        color: disabled ? C.muted : C.text,
+        borderRadius: 8,
+        padding: "6px 10px",
         cursor: disabled ? "not-allowed" : "pointer",
         fontWeight: 800,
+        lineHeight: 1,
         flexShrink: 0,
       }}
     >
-      মুছুন
+      {direction === "up" ? "↑" : "↓"}
     </button>
+  );
+}
+
+function ListEntryButtons({
+  onRemove,
+  disabled,
+  onMoveUp,
+  onMoveDown,
+  moveUpDisabled,
+  moveDownDisabled,
+}: {
+  onRemove: () => void;
+  disabled?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  moveUpDisabled?: boolean;
+  moveDownDisabled?: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+      {onMoveUp && <ReorderButton direction="up" onClick={onMoveUp} disabled={moveUpDisabled} />}
+      {onMoveDown && <ReorderButton direction="down" onClick={onMoveDown} disabled={moveDownDisabled} />}
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={disabled}
+        style={{
+          border: "none",
+          background: C.roseL,
+          color: C.roseD,
+          borderRadius: 10,
+          padding: "10px 12px",
+          cursor: disabled ? "not-allowed" : "pointer",
+          fontWeight: 800,
+          flexShrink: 0,
+        }}
+      >
+        মুছুন
+      </button>
+    </div>
   );
 }
 
@@ -259,6 +310,14 @@ export function WebsiteSectionEditor() {
   const removeDepartment = (index: number) => setContent((prev) => ({ ...prev, departments: prev.departments.filter((_, i) => i !== index) }));
   const removeClassItem = (index: number) => setContent((prev) => ({ ...prev, classes: prev.classes.filter((_, i) => i !== index) }));
   const removeNotice = (index: number) => setContent((prev) => ({ ...prev, notices: prev.notices.filter((_, i) => i !== index) }));
+
+  // Reordering: public site renders each section in array order, so moving
+  // an item up/down here directly controls what visitors see first.
+  const moveHighlight = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, highlights: moveItem(prev.highlights, index, dir) }));
+  const moveDepartment = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, departments: moveItem(prev.departments, index, dir) }));
+  const moveClassItem = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, classes: moveItem(prev.classes, index, dir) }));
+  const moveNotice = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, notices: moveItem(prev.notices, index, dir) }));
+  const moveGalleryItem = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, gallery: moveItem(prev.gallery, index, dir) }));
   // Removes the photo from the list immediately (so the editor stays
   // responsive) and, separately, asks the server to delete the underlying
   // Cloudinary asset so it doesn't keep sitting in storage unreferenced.
@@ -376,7 +435,13 @@ export function WebsiteSectionEditor() {
                   style={{ ...inputStyle, flex: 1, minWidth: 180 }}
                   placeholder="বৈশিষ্ট্যের লেখা"
                 />
-                <ListEntryButtons onRemove={() => removeHighlight(index)} />
+                <ListEntryButtons
+                  onRemove={() => removeHighlight(index)}
+                  onMoveUp={() => moveHighlight(index, -1)}
+                  onMoveDown={() => moveHighlight(index, 1)}
+                  moveUpDisabled={index === 0}
+                  moveDownDisabled={index === content.highlights.length - 1}
+                />
               </div>
             ))}
             {!content.highlights.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো হাইলাইট যোগ করা হয়নি।</p>}
@@ -415,7 +480,13 @@ export function WebsiteSectionEditor() {
                     style={{ ...inputStyle, flex: 1, minWidth: 180 }}
                     placeholder="বিভাগের নাম"
                   />
-                  <ListEntryButtons onRemove={() => removeDepartment(index)} />
+                  <ListEntryButtons
+                    onRemove={() => removeDepartment(index)}
+                    onMoveUp={() => moveDepartment(index, -1)}
+                    onMoveDown={() => moveDepartment(index, 1)}
+                    moveUpDisabled={index === 0}
+                    moveDownDisabled={index === content.departments.length - 1}
+                  />
                 </div>
                 <textarea
                   value={item.desc}
@@ -463,7 +534,13 @@ export function WebsiteSectionEditor() {
                     style={{ ...inputStyle, flex: 1, minWidth: 180 }}
                     placeholder="ক্লাসের নাম"
                   />
-                  <ListEntryButtons onRemove={() => removeClassItem(index)} />
+                  <ListEntryButtons
+                    onRemove={() => removeClassItem(index)}
+                    onMoveUp={() => moveClassItem(index, -1)}
+                    onMoveDown={() => moveClassItem(index, 1)}
+                    moveUpDisabled={index === 0}
+                    moveDownDisabled={index === content.classes.length - 1}
+                  />
                 </div>
                 <textarea
                   value={item.desc}
@@ -511,7 +588,13 @@ export function WebsiteSectionEditor() {
                     placeholder="নোটিশের শিরোনাম"
                   />
                   <input type="date" value={item.date} onChange={(e) => updateNotice(index, { date: e.target.value })} style={{ ...inputStyle, width: 150 }} />
-                  <ListEntryButtons onRemove={() => removeNotice(index)} />
+                  <ListEntryButtons
+                    onRemove={() => removeNotice(index)}
+                    onMoveUp={() => moveNotice(index, -1)}
+                    onMoveDown={() => moveNotice(index, 1)}
+                    moveUpDisabled={index === 0}
+                    moveDownDisabled={index === content.notices.length - 1}
+                  />
                 </div>
                 <textarea
                   value={item.body}
@@ -571,7 +654,13 @@ export function WebsiteSectionEditor() {
                     style={{ ...inputStyle, fontSize: 12, padding: "8px 10px" }}
                     placeholder="ক্যাপশন (ঐচ্ছিক)"
                   />
-                  <ListEntryButtons onRemove={() => removeGalleryItem(index)} />
+                  <ListEntryButtons
+                    onRemove={() => removeGalleryItem(index)}
+                    onMoveUp={() => moveGalleryItem(index, -1)}
+                    onMoveDown={() => moveGalleryItem(index, 1)}
+                    moveUpDisabled={index === 0}
+                    moveDownDisabled={index === content.gallery.length - 1}
+                  />
                 </div>
               ))}
 
