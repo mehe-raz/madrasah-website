@@ -234,6 +234,18 @@ export interface AdmissionApplication extends AdmissionApplicationInput {
   createdAt: string;
 }
 
+export interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  body: string;
+  entityType: string;
+  entityId: number | null;
+  link: string;
+  createdAt: string;
+  read: boolean;
+}
+
 export interface AuthUser {
   id: number;
   name: string;

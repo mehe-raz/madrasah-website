@@ -212,6 +212,7 @@ app.use("/api/backup", require("./routes/backup"));
 app.use("/api/uploads", require("./routes/uploads"));
 app.use("/api/site-content", require("./routes/siteContent"));
 app.use("/api/admissions", require("./routes/admissions"));
+app.use("/api/notifications", require("./routes/notifications"));
 
 if (process.env.NODE_ENV === "production") {
   app.use(

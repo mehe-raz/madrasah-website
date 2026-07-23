@@ -43,6 +43,10 @@ export function ProtectedRoute() {
     return <Navigate to={firstAllowedPath(user.role)} replace />;
   }
 
+  if (location.pathname.startsWith("/admissions") && !canAccess(user.role, "website")) {
+    return <Navigate to={firstAllowedPath(user.role)} replace />;
+  }
+
   const perm = Object.entries(PATH_PERMISSION).find(([path]) => (path === "/" ? location.pathname === "/" : location.pathname.startsWith(path)))?.[1];
   if (perm && !canAccess(user.role, perm)) {
     return <Navigate to={firstAllowedPath(user.role)} replace />;

@@ -1,4 +1,5 @@
 const db = require("./../db");
+const { createNotification } = require("./notifications");
 
 const MAX_LEN = {
   studentName: 120,
@@ -80,6 +81,20 @@ async function createAdmission(body) {
       createdAt,
     ]
   );
+
+  // Same roles that can review applications (requirePermission("website")
+  // on the /api/admissions route) — see lib/notifications.js for how
+  // targetRoles visibility is resolved.
+  await createNotification({
+    type: "admission",
+    title: "নতুন ভর্তির আবেদন",
+    body: `${row.studentName} — ${row.className}`,
+    entityType: "admission",
+    entityId: row.id,
+    link: "/admissions",
+    targetRoles: ["Admin", "Super Admin"],
+  });
+
   return row;
 }
 

@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { applyUserUpdate, deleteEntity, isApprovalRole, publicRequest } = require("../lib/deleteRequests");
 const { recordAudit } = require("../lib/auditLog");
+const { createNotification } = require("../lib/notifications");
 
 const router = express.Router();
 
@@ -41,6 +42,17 @@ router.post("/:id/approve", async (req, res) => {
     label: `Approved ${row.entityType} delete/update: ${row.label}`,
     details: { requestedBy: row.requestedByName, applied: ok },
   });
+  if (row.requestedBy) {
+    await createNotification({
+      type: "delete-request-resolved",
+      title: ok ? "রিকোয়েস্ট অনুমোদিত হয়েছে" : "রিকোয়েস্ট প্রসেস করা যায়নি",
+      body: row.label,
+      entityType: "delete-request",
+      entityId: row.id,
+      link: "/",
+      targetUserId: row.requestedBy,
+    });
+  }
   res.json({ ok: true, deleted: ok });
 });
 
@@ -62,6 +74,17 @@ router.post("/:id/reject", async (req, res) => {
     label: `Rejected ${row.entityType} delete/update: ${row.label}`,
     details: { requestedBy: row.requestedByName },
   });
+  if (row.requestedBy) {
+    await createNotification({
+      type: "delete-request-resolved",
+      title: "রিকোয়েস্ট রিজেক্ট করা হয়েছে",
+      body: row.label,
+      entityType: "delete-request",
+      entityId: row.id,
+      link: "/",
+      targetUserId: row.requestedBy,
+    });
+  }
   res.json({ ok: true });
 });
 

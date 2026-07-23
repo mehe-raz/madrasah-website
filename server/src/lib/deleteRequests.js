@@ -1,4 +1,5 @@
 const db = require("../db");
+const { createNotification } = require("./notifications");
 
 function isApprovalRole(role) {
   return role === "Super Admin" || role === "Admin";
@@ -44,6 +45,17 @@ async function createDeleteRequest({ entityType, entityId, label, amount, user, 
     ]
   );
   const row = await db.get("SELECT * FROM delete_requests WHERE id = $1", [result.insertId]);
+
+  await createNotification({
+    type: "delete-request",
+    title: "নতুন ডিলিট রিকোয়েস্ট",
+    body: label,
+    entityType: "delete-request",
+    entityId: row.id,
+    link: "/",
+    targetRoles: ["Admin", "Super Admin"],
+  });
+
   return publicRequest(row);
 }
 

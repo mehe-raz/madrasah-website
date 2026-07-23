@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
+import { NotificationBell } from "./NotificationBell";
 
 const PATH_KEYS: Record<string, "dashboard" | "students" | "attendance" | "income" | "expenses" | "hifz" | "reports" | "settings"> = {
   "/": "dashboard",
@@ -59,6 +60,8 @@ export function Topbar({ onToggleSidebar, onLogout }: TopbarProps) {
       <span className="hide-mobile" style={{ fontSize: 13, color: C.muted, fontWeight: 700 }}>
         2025-2026
       </span>
+
+      <NotificationBell />
 
       <button
         type="button"

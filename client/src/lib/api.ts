@@ -13,6 +13,7 @@ import type {
   GoogleDriveStatus,
   IncomeEntry,
   IncomeSummary,
+  Notification,
   PaginatedResult,
   Payment,
   PublicResult,
@@ -321,6 +322,24 @@ export const api = {
   // the marketing site. Server enforces its own rate limit + validation.
   submitAdmission: (body: AdmissionApplicationInput) =>
     request<AdmissionApplication>("/public/admissions", { method: "POST", body: JSON.stringify(body) }),
+
+  // Admin / Super Admin only (enforced server-side by the "website" permission)
+  // — review queue for submitted admission applications.
+  getAdmissions: () => request<AdmissionApplication[]>("/admissions"),
+
+  updateAdmissionStatus: (id: number, status: string) =>
+    request<AdmissionApplication>(`/admissions/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+
+  // In-app notification center: new admissions, delete requests, and their
+  // resolutions. Visibility is scoped server-side to the logged-in user's
+  // role/id, so no permission gating needed on the client.
+  getNotifications: (limit?: number) => request<Notification[]>(`/notifications${limit ? `?limit=${limit}` : ""}`),
+
+  getUnreadNotificationCount: () => request<{ count: number }>("/notifications/unread-count"),
+
+  markNotificationRead: (id: number) => request<{ ok: boolean }>(`/notifications/${id}/read`, { method: "POST" }),
+
+  markAllNotificationsRead: () => request<{ ok: boolean }>("/notifications/read-all", { method: "POST" }),
 
   getUsers: () => request<User[]>("/users"),
 
