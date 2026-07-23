@@ -63,7 +63,7 @@ export function ClassesCourses() {
           <div style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</div>
         ) : content.classes.length ? (
           <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-            {content.classes.map((c) => (
+            {content.classes.map((c, i) => (
               <button
                 key={`${c.title}-${i}`}
                 type="button"
