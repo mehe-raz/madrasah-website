@@ -575,4 +575,22 @@ setInterval(() => {
     .catch((e) => console.error("Auto backup failed:", e.message));
 }, 15 * 60 * 1000);
 
+// Test-only hook: exposes the core backup/restore functions so
+// scripts/backup-restore.test.js can exercise them directly against a
+// throwaway test database, without going through HTTP/auth. Nothing here
+// changes the routes above or is reachable from the network — it's just a
+// property on the exported router object. See that script for the actual
+// test scenarios (round-trip restore, corrupt/wrong-key rejection,
+// concurrent-restore locking).
+router.__test__ = {
+  createBackup,
+  restoreJsonBackup,
+  decodeBackupToJson,
+  getRestoreReport,
+  performRestore,
+  normalizeBackupDocument,
+  BACKUP_TABLES,
+  RESTORE_REQUIRED_TABLES,
+};
+
 module.exports = router;

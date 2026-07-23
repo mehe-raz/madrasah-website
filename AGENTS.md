@@ -57,6 +57,13 @@ every logic bug. Treat a pass as "didn't obviously break anything," not as
 login, student create, attendance, and backup after anything touching those
 areas.)
 
+`npm run check` does NOT run `npm run test:backup` (it needs a separate
+throwaway test database — see BACKUP_TEST_DATABASE_URL in .env.example).
+Run it manually after touching anything in server/src/routes/backup.js,
+restoreLock.js, or backupEncryption.js: it seeds data, backs it up, mutates
+the data, restores, and checks the database matches the pre-mutation state
+exactly, plus a few rejection/concurrency cases.
+
 ## Single source of truth
 
 - Roles & permissions: `server/src/config/roles.js` (client copy is generated
