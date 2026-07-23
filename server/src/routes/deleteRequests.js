@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { applyUserUpdate, deleteEntity, isApprovalRole, publicRequest } = require("../lib/deleteRequests");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 
@@ -32,6 +33,14 @@ router.post("/:id/approve", async (req, res) => {
     'UPDATE delete_requests SET status = $1, "resolvedAt" = $2, "resolvedBy" = $3 WHERE id = $4',
     [ok ? "approved" : "missing", new Date().toISOString(), req.user?.id || null, id]
   );
+  await recordAudit({
+    action: "delete-request.approved",
+    actor: req.user,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    label: `Approved ${row.entityType} delete/update: ${row.label}`,
+    details: { requestedBy: row.requestedByName, applied: ok },
+  });
   res.json({ ok: true, deleted: ok });
 });
 
@@ -45,6 +54,14 @@ router.post("/:id/reject", async (req, res) => {
     `UPDATE delete_requests SET status = 'rejected', "resolvedAt" = $1, "resolvedBy" = $2 WHERE id = $3`,
     [new Date().toISOString(), req.user?.id || null, id]
   );
+  await recordAudit({
+    action: "delete-request.rejected",
+    actor: req.user,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    label: `Rejected ${row.entityType} delete/update: ${row.label}`,
+    details: { requestedBy: row.requestedByName },
+  });
   res.json({ ok: true });
 });
 

@@ -275,6 +275,24 @@ export interface PaginatedResult<T> {
   totalPages: number;
 }
 
+export interface AuditLog {
+  id: number;
+  action: string;
+  actorId: number | null;
+  actorName: string;
+  actorRole: string;
+  entityType: string;
+  entityId: number | null;
+  label: string;
+  details: string;
+  createdAt: string;
+}
+
+export interface AuditLogMeta {
+  actions: string[];
+  entityTypes: string[];
+}
+
 export interface DashboardData {
   stats: {
     total: number;

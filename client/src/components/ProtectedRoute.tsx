@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
-import { canAccess, firstAllowedPath, type Permission } from "../lib/permissions";
+import { canAccess, canViewAuditLogs, firstAllowedPath, type Permission } from "../lib/permissions";
 import { C } from "../theme/colors";
 import { Home } from "../pages/Home";
 
@@ -37,6 +37,10 @@ export function ProtectedRoute() {
     // other protected sections still redirect to login as before.
     if (location.pathname === "/") return <Home />;
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (location.pathname.startsWith("/audit-logs") && !canViewAuditLogs(user.role)) {
+    return <Navigate to={firstAllowedPath(user.role)} replace />;
   }
 
   const perm = Object.entries(PATH_PERMISSION).find(([path]) => (path === "/" ? location.pathname === "/" : location.pathname.startsWith(path)))?.[1];

@@ -13,6 +13,7 @@ const Gallery = lazy(() => import("./pages/Gallery").then((m) => ({ default: m.G
 const Notices = lazy(() => import("./pages/Notices").then((m) => ({ default: m.Notices })));
 const ResultLookup = lazy(() => import("./pages/ResultLookup").then((m) => ({ default: m.ResultLookup })));
 const Attendance = lazy(() => import("./modules/Attendance").then((m) => ({ default: m.Attendance })));
+const AuditLogs = lazy(() => import("./modules/AuditLogs").then((m) => ({ default: m.AuditLogs })));
 const Dashboard = lazy(() => import("./modules/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Expenses = lazy(() => import("./modules/Expenses").then((m) => ({ default: m.Expenses })));
 const HifzTracking = lazy(() => import("./modules/HifzTracking").then((m) => ({ default: m.HifzTracking })));
@@ -60,6 +61,7 @@ export default function App() {
                 <Route path="website" element={<Website />} />
                 <Route path="website/:sectionId" element={<WebsiteSectionEditor />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="audit-logs" element={<AuditLogs />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Route>

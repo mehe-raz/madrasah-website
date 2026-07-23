@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { nextReceipt } = require("../lib/receiptCounter");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -82,6 +83,15 @@ router.post("/", async (req, res) => {
 
     await tx.run("UPDATE students SET due = $1 WHERE id = $2", [newDue, studentId]);
     return { insertId: result.insertId, payment };
+  });
+
+  await recordAudit({
+    action: "payment.created",
+    actor: req.user,
+    entityType: "payment",
+    entityId: insertId,
+    label: `Payment ৳${payment.amount} from ${payment.student} (Roll ${payment.roll})`,
+    details: { studentId: payment.studentId, amount: payment.amount, method: payment.method, receipt: payment.receipt, status: payment.status },
   });
 
   res.status(201).json({ id: insertId, ...payment });

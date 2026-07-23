@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { recordAudit } = require("../lib/auditLog");
 const PDFDocument = require("pdfkit");
 const {
   RETURNING_COLUMNS,
@@ -275,6 +276,14 @@ router.post("/", async (req, res) => {
       admissionValues(student)
     );
     const created = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [result.insertId]);
+    await recordAudit({
+      action: "student.created",
+      actor: req.user,
+      entityType: "student",
+      entityId: created.id,
+      label: `Admitted ${created.name} (Roll ${created.roll})`,
+      details: { roll: created.roll, class: created.class, dept: created.dept, admissionNumber: created.admissionNumber },
+    });
     res.status(201).json(created);
   } catch (err) {
     const duplicateMessage = constraintError(err);
@@ -302,6 +311,15 @@ router.patch("/:id", async (req, res) => {
       `UPDATE students SET ${assignments}, documents=$${values.length + 1} WHERE id=$${values.length + 2}`,
       [...values, JSON.stringify(updated.documents || {}), existing.id]
     );
+    const changedFields = UPDATE_COLUMNS.map(([, key]) => key).filter((key) => String(existing[key] ?? "") !== String(updated[key] ?? ""));
+    await recordAudit({
+      action: "student.updated",
+      actor: req.user,
+      entityType: "student",
+      entityId: existing.id,
+      label: `Updated ${updated.name} (Roll ${updated.roll})`,
+      details: { changedFields },
+    });
     res.json(await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [existing.id]));
   } catch (err) {
     const duplicateMessage = constraintError(err);
@@ -333,6 +351,14 @@ router.delete("/:id", requirePermission("*"), async (req, res) => {
 
   await db.run('DELETE FROM attendance WHERE "studentId" = $1', [req.params.id]);
   await db.run("DELETE FROM students WHERE id = $1", [req.params.id]);
+
+  await recordAudit({
+    action: "student.deleted",
+    actor: req.user,
+    entityType: "student",
+    entityId: existing.id,
+    label: `Deleted ${existing.name} (Roll ${existing.roll})`,
+  });
 
   res.json({ ok: true, message: "ছাত্র মুছে ফেলা হয়েছে" });
 });

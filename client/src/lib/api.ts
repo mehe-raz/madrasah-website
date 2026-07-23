@@ -2,6 +2,8 @@ import type {
   AdmissionApplication,
   AdmissionApplicationInput,
   AttendanceResponse,
+  AuditLog,
+  AuditLogMeta,
   AuthUser,
   BackupConfig,
   DashboardData,
@@ -414,4 +416,29 @@ export const api = {
 
   restoreFromGoogleDrive: (fileId: string) =>
     request<{ ok: boolean; message: string }>(`/backup/google/restore/${fileId}`, { method: "POST" }),
+
+  // Super Admin-only audit log feed: filterable, paginated history of who
+  // changed what (students, payments, expenses, users, settings, backups,
+  // delete-request approvals, etc).
+  getAuditLogs: (params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    entityType?: string;
+    search?: string;
+    from?: string;
+    to?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(params?.page ?? 1));
+    qs.set("limit", String(params?.limit ?? 50));
+    if (params?.action) qs.set("action", params.action);
+    if (params?.entityType) qs.set("entityType", params.entityType);
+    if (params?.search) qs.set("search", params.search);
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    return request<PaginatedResult<AuditLog>>(`/audit-logs?${qs.toString()}`);
+  },
+
+  getAuditLogMeta: () => request<AuditLogMeta>("/audit-logs/meta"),
 };

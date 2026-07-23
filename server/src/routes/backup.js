@@ -7,6 +7,7 @@ const googleDrive = require("../lib/googleDrive");
 const backupEncryption = require("../lib/backupEncryption");
 const { withRestoreLock, RestoreLockError } = require("../lib/restoreLock");
 const { recordBackupEvent } = require("../lib/backupAudit");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -287,9 +288,24 @@ async function performRestore(buffer, user = null) {
     try {
       const report = await restoreJsonBackup(decodeBackupToJson(buffer));
       await recordBackupEvent({ event: 'restore', status: 'success', user, backupVersion: report.version, backupFormat: report.format, report: { ...report, safetyBackup: beforeBackup.filename } });
+      await recordAudit({
+        action: "backup.restored",
+        actor: user,
+        entityType: "backup",
+        entityId: 0,
+        label: `Restored backup (v${report.version}, safety copy: ${beforeBackup.filename})`,
+        details: { restoredRows: report.restoredRows, warnings: report.warnings },
+      });
       return { beforeBackup, report };
     } catch (e) {
       await recordBackupEvent({ event: 'restore', status: 'failed', user, error: e.message || 'Restore failed', report: { safetyBackup: beforeBackup.filename } });
+      await recordAudit({
+        action: "backup.restore-failed",
+        actor: user,
+        entityType: "backup",
+        entityId: 0,
+        label: `Restore failed: ${e.message || "Restore failed"}`,
+      });
       throw e;
     }
   });
@@ -332,7 +348,15 @@ router.post("/run", async (req, res) => {
     return res.status(403).json({ error: "Only Super Admin can run a backup" });
   }
   try {
-    res.json(await createBackup());
+    const result = await createBackup();
+    await recordAudit({
+      action: "backup.created",
+      actor: req.user,
+      entityType: "backup",
+      entityId: 0,
+      label: `Manual backup created: ${result.filename}`,
+    });
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message || "Backup failed" });
   }

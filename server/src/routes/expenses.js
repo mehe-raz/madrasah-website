@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests");
 const { requirePermission } = require("../middleware/rbac");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -26,6 +27,14 @@ router.post("/", async (req, res) => {
     "INSERT INTO expenses (cat, amount, date, note) VALUES ($1, $2, $3, $4) RETURNING id",
     [cat, amt, date, note || ""]
   );
+  await recordAudit({
+    action: "expense.created",
+    actor: req.user,
+    entityType: "expense",
+    entityId: result.insertId,
+    label: `Expense ৳${amt} - ${cat}`,
+    details: { cat, amount: amt, note: note || "" },
+  });
   res.status(201).json({ id: result.insertId, cat, amount: amt, date, note: note || "" });
 });
 
@@ -46,6 +55,13 @@ router.delete("/:id", async (req, res) => {
 
   const result = await db.run("DELETE FROM expenses WHERE id = $1", [req.params.id]);
   if (result.rowCount === 0) return res.status(404).json({ error: "ব্যয় পাওয়া যায়নি" });
+  await recordAudit({
+    action: "expense.deleted",
+    actor: req.user,
+    entityType: "expense",
+    entityId: Number(req.params.id),
+    label: `Deleted expense ৳${existing.amount} - ${existing.cat}`,
+  });
   res.json({ ok: true });
 });
 
