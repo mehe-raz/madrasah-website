@@ -1,8 +1,10 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Badge } from "../components/Badge";
 import { ReceiptModal } from "../components/ReceiptModal";
+import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { StatCard } from "../components/StatCard";
 import { useLanguage } from "../context/AppSettingsContext";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
@@ -12,6 +14,7 @@ const METHODS = ["Cash", "bKash", "Nagad", "Bank"];
 
 export function Income() {
   const { t } = useLanguage();
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [tab, setTab] = useState<"list" | "add" | "student">("list");
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -261,6 +264,33 @@ export function Income() {
               </button>
             ))}
           </div>
+          {isMobile ? (
+            <RecordCardList>
+              {entries.map((e) => (
+                <RecordCard
+                  key={e.id}
+                  title={<Badge label={e.category} color={C.emerald} />}
+                  subtitle={<span style={{ fontFamily: "monospace", color: C.teal, fontWeight: 600 }}>{e.receipt}</span>}
+                  headerRight={<div style={{ fontWeight: 700, color: C.emerald, fontSize: 15 }}>{fmt(e.amount)}</div>}
+                  fields={[
+                    { label: "Date", value: e.date },
+                    { label: "Method", value: e.method },
+                    { label: "Note", value: e.note || "—", fullWidth: true },
+                  ]}
+                  actions={
+                    <>
+                      <button type="button" onClick={() => openReceipt(e)} style={{ flex: 1, background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "8px 8px", fontSize: 12, cursor: "pointer" }}>Receipt</button>
+                      <button type="button" onClick={() => setEditRow({ ...e })} style={{ flex: 1, background: C.amberL, color: C.amberD, border: "none", borderRadius: 6, padding: "8px 8px", fontSize: 12, cursor: "pointer" }}>Edit</button>
+                      <button type="button" onClick={() => handleDelete(e.id)} style={{ flex: 1, background: C.roseL, color: C.rose, border: "none", borderRadius: 6, padding: "8px 8px", fontSize: 12, cursor: "pointer" }}>Delete</button>
+                    </>
+                  }
+                />
+              ))}
+              {!entries.length && (
+                <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>No entries found.</div>
+              )}
+            </RecordCardList>
+          ) : (
           <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
               <thead>
@@ -289,6 +319,7 @@ export function Income() {
               </tbody>
             </table>
           </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
             <div style={{ color: C.muted, fontSize: 12 }}>Showing {entries.length} of {totalEntries}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Badge } from "../components/Badge";
 import { ReceiptModal } from "../components/ReceiptModal";
+import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { StatCard } from "../components/StatCard";
 import { useLanguage } from "../context/AppSettingsContext";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
@@ -10,6 +12,7 @@ import type { Payment, Student } from "../types";
 
 export function Fees() {
   const { t } = useLanguage();
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [tab, setTab] = useState("payments");
   const [showReceipt, setShowReceipt] = useState<Payment | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -103,6 +106,30 @@ export function Fees() {
       </div>
 
       {tab === "payments" && (
+        isMobile ? (
+          <RecordCardList>
+            {payments.map((p) => (
+              <RecordCard
+                key={p.id}
+                title={p.student}
+                subtitle={`রোল: ${p.roll}`}
+                headerRight={<div style={{ fontWeight: 700, color: C.emerald, fontSize: 15 }}>{fmt(p.amount)}</div>}
+                fields={[
+                  { label: "রসিদ নং", value: <span style={{ fontFamily: "monospace", color: C.teal, fontWeight: 600 }}>{p.receipt}</span> },
+                  { label: "তারিখ", value: p.date },
+                  { label: "মাধ্যম", value: <Badge label={p.method} color={C.sky} /> },
+                  { label: "স্ট্যাটাস", value: <Badge label={p.status} color={p.status === "সম্পন্ন" ? C.emerald : C.amber} /> },
+                ]}
+                actions={
+                  <button type="button" onClick={() => setShowReceipt(p)} style={{ flex: 1, background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🧾 রসিদ</button>
+                }
+              />
+            ))}
+            {!payments.length && (
+              <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>কোনো পেমেন্ট পাওয়া যায়নি।</div>
+            )}
+          </RecordCardList>
+        ) : (
         <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 600 }}>
             <thead>
@@ -132,9 +159,32 @@ export function Fees() {
             </tbody>
           </table>
         </div>
+        )
       )}
 
       {tab === "due" && (
+        isMobile ? (
+          <RecordCardList>
+            {dueStudents.map((s) => (
+              <RecordCard
+                key={s.id}
+                title={s.name}
+                subtitle={`রোল: ${s.roll}  •  ক্লাস: ${s.class}`}
+                headerRight={<span style={{ color: C.rose, fontWeight: 700, fontSize: 15 }}>{fmt(s.due)}</span>}
+                fields={[
+                  { label: "মাসিক বেতন", value: fmt(s.fee) },
+                  { label: "বকেয়া", value: <span style={{ color: C.rose, fontWeight: 700 }}>{fmt(s.due)}</span> },
+                ]}
+                actions={
+                  <button type="button" onClick={() => { setPayStudent(s); setTab("collect"); }} style={{ flex: 1, background: C.roseL, color: C.roseD, border: "none", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>বেতন নিন</button>
+                }
+              />
+            ))}
+            {!dueStudents.length && (
+              <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>কোনো বকেয়া ছাত্র নেই।</div>
+            )}
+          </RecordCardList>
+        ) : (
         <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 520 }}>
             <thead>
@@ -160,6 +210,7 @@ export function Fees() {
             </tbody>
           </table>
         </div>
+        )
       )}
 
       {tab === "collect" && payStudent && (

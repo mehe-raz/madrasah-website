@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
+import { RecordCard, RecordCardList } from "../components/RecordCard";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { deptLabel, typeLabel } from "../lib/labels";
@@ -170,6 +172,7 @@ function readFile(file: File, t: Dict, imageOnly = false): Promise<string> {
 
 export function Students() {
   const { t, tr } = useLanguage();
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("All");
@@ -640,6 +643,30 @@ export function Students() {
         </div>
       )}
 
+      {isMobile ? (
+        <div style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, padding: 12 }}>
+          <RecordCardList>
+            {filtered.map((student) => (
+              <RecordCard
+                key={student.id}
+                title={student.name}
+                subtitle={student.nameEn}
+                fields={[
+                  { label: t.students.class, value: student.class },
+                  { label: t.students.roll, value: student.roll },
+                ]}
+                actions={
+                  <>
+                    <button type="button" onClick={() => setViewing(student)} style={{ flex: 1, border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>{t.students.view}</button>
+                    <button type="button" onClick={() => startEdit(student)} style={{ flex: 1, border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>{t.common.edit}</button>
+                  </>
+                }
+              />
+            ))}
+          </RecordCardList>
+          <div style={{ padding: "12px 4px 0", color: C.muted, fontSize: 12 }}>{tr("students.totalStudentsLine", { count: filtered.length })}</div>
+        </div>
+      ) : (
       <div className="table-wrap" style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 720 }}>
           <thead>
@@ -668,6 +695,7 @@ export function Students() {
         </table>
         <div style={{ padding: "10px 12px", color: C.muted, fontSize: 12, borderTop: `1px solid ${C.border}` }}>{tr("students.totalStudentsLine", { count: filtered.length })}</div>
       </div>
+      )}
 
       {viewing && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewing(null)}>
