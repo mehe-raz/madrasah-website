@@ -33,6 +33,17 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
 
   const url = new URL(e.request.url);
+
+  // Cross-origin requests (Cloudinary images, Google Fonts, etc.) should
+  // never be re-fetched from inside the service worker: a fetch() issued
+  // here is checked against the page's connect-src CSP directive (not
+  // img-src/style-src), so unless every third-party host is also added to
+  // connect-src, the SW's own fetch gets CSP-blocked and the resource
+  // appears broken even though the browser could have loaded it directly.
+  // Simplest, most future-proof fix: don't intercept these at all — let
+  // the browser handle them natively.
+  if (url.origin !== self.location.origin) return;
+
   // API responses must always be fresh (attendance, fees, dashboard data
   // etc.) — never let the service worker serve a cached copy of these.
   if (url.pathname.startsWith("/api/")) return;

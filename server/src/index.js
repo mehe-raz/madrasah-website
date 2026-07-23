@@ -71,7 +71,14 @@ app.set("trust proxy", 1);
 // If you deploy the backend API on its own domain (see
 // docs/DEPLOYMENT_CHECKLIST.md, e.g. Render), that origin is already covered
 // below via https://*.onrender.com and CLIENT_ORIGIN's allowedOrigins.
-const cspConnectSrc = ["'self'", "https://*.onrender.com", ...allowedOrigins];
+const cspConnectSrc = [
+  "'self'",
+  "https://*.onrender.com",
+  "https://res.cloudinary.com",
+  "https://fonts.googleapis.com",
+  "https://fonts.gstatic.com",
+  ...allowedOrigins,
+];
 
 app.use(
   helmet({
