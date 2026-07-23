@@ -6,6 +6,8 @@ const { signToken } = require("../middleware/auth");
 const { isUniqueViolation } = require("../pg");
 const nodemailer = require("nodemailer");
 const { passwordPolicyError } = require("../lib/passwordPolicy");
+const { validate } = require("../middleware/validate");
+const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } = require("../lib/authSchemas");
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -23,7 +25,7 @@ function publicUser(row) {
 }
 
 
-router.post("/register", async (req, res) => {
+router.post("/register", validate(registerSchema), async (req, res) => {
   const userCountRow = await db.get("SELECT COUNT(*)::int AS c FROM users");
   const userCount = userCountRow?.c || 0;
   const publicSetupEnabled = process.env.ENABLE_PUBLIC_SETUP === "true";
@@ -35,9 +37,6 @@ router.post("/register", async (req, res) => {
   }
 
   const { name, email, password } = req.body;
-  if (!name?.trim() || !email?.trim() || !password) {
-    return res.status(400).json({ error: "Name, email and password required" });
-  }
   const pwError = passwordPolicyError(password);
   if (pwError) {
     return res.status(400).json({ error: pwError });
@@ -60,11 +59,8 @@ router.post("/register", async (req, res) => {
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", validate(loginSchema), async (req, res) => {
   const { email, password } = req.body;
-  if (!email?.trim() || !password) {
-    return res.status(400).json({ error: "Email and password required" });
-  }
   const row = await db.get('SELECT * FROM users WHERE email = $1', [email.trim().toLowerCase()]);
   if (!row?.passwordHash) return res.status(401).json({ error: "Invalid email or password" });
 
@@ -122,9 +118,8 @@ router.get("/me", async (req, res) => {
   }
 });
 
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password", validate(forgotPasswordSchema), async (req, res) => {
   const { email } = req.body;
-  if (!email?.trim()) return res.status(400).json({ error: "Email required" });
   const row = await db.get("SELECT id, name FROM users WHERE email = $1", [email.trim().toLowerCase()]);
   if (!row) {
     return res.json({ ok: true, message: "If email exists, reset link was generated" });
@@ -173,9 +168,8 @@ router.post("/forgot-password", async (req, res) => {
   });
 });
 
-router.post("/reset-password", async (req, res) => {
+router.post("/reset-password", validate(resetPasswordSchema), async (req, res) => {
   const { token, password } = req.body;
-  if (!token || !password) return res.status(400).json({ error: "Token and password required" });
   const pwError = passwordPolicyError(password);
   if (pwError) return res.status(400).json({ error: pwError });
 
