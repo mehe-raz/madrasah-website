@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const rateLimit = require("express-rate-limit");
 const db = require("../db");
 const { signToken } = require("../middleware/auth");
 const { isUniqueViolation } = require("../pg");
@@ -19,6 +20,24 @@ const cookieOptions = {
   secure: process.env.NODE_ENV === "production",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
+
+// IP-based rate limit specifically for /login, on top of the broader
+// authLimiter already applied to the whole /api/auth router in index.js and
+// the per-account lockout below. Without this, a single IP could spray
+// password guesses across many different accounts (5 tries each, staying
+// just under the per-account lock) far faster than the general 100/15min
+// authLimiter would ever notice. Only failed attempts count against the
+// limit (skipSuccessfulRequests), so a shared office/school IP with several
+// staff logging in normally is never penalized — only sustained failures
+// from one IP trip it.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: "Too many failed login attempts from this network. Please try again later." },
+});
 
 function publicUser(row) {
   return { id: row.id, name: row.name, email: row.email, role: row.role };
@@ -59,7 +78,7 @@ router.post("/register", validate(registerSchema), async (req, res) => {
   }
 });
 
-router.post("/login", validate(loginSchema), async (req, res) => {
+router.post("/login", loginLimiter, validate(loginSchema), async (req, res) => {
   const { email, password } = req.body;
   const row = await db.get('SELECT * FROM users WHERE email = $1', [email.trim().toLowerCase()]);
   if (!row?.passwordHash) return res.status(401).json({ error: "Invalid email or password" });
