@@ -4,3 +4,5 @@ server/data/
 *.db
 .env
 .DS_Store
+*.diff
+*-diff.txt

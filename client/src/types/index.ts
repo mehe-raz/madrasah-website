@@ -96,7 +96,7 @@ export interface Expense {
 
 export interface DeleteRequest {
   id: number;
-  entityType: "income" | "expense" | "user-update" | "user-delete";
+  entityType: "income" | "expense" | "payment-delete" | "user-update" | "user-delete";
   entityId: number;
   label: string;
   amount: number;

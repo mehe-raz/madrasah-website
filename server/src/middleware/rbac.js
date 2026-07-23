@@ -1,29 +1,7 @@
-const ROLE_PERMISSIONS = {
-  "Super Admin": ["*"],
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "results"],
-  Accountant: ["dashboard", "income", "expenses", "reports"],
-  Teacher: ["attendance", "hifz", "results"],
-  "Hostel Manager": ["dashboard", "students", "attendance"],
-};
-
-const ROUTE_PERMISSION = {
-  "/api/dashboard": "dashboard",
-  "/api/delete-requests": "dashboard",
-  "/api/students": "students",
-  "/api/attendance": "attendance",
-  "/api/payments": "income",
-  "/api/income": "income",
-  "/api/expenses": "expenses",
-  "/api/hifz": "hifz",
-  "/api/results": "results",
-  "/api/settings": "settings",
-  "/api/users": "settings",
-  "/api/backup": "settings",
-  "/api/reports": "reports",
-  "/api/audit-logs": "settings",
-  "/api/site-content": "website",
-  "/api/admissions": "website",
-};
+// Roles & permissions now live in one place: server/src/config/roles.js
+// (client/src/lib/roles.generated.ts is generated FROM that file — see
+// scripts/sync-roles.js). Do not redefine these tables here.
+const { ROLE_PERMISSIONS, ROUTE_PERMISSION } = require("../config/roles");
 
 function canAccess(role, permission) {
   const perms = ROLE_PERMISSIONS[role] || [];

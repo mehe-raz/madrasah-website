@@ -1,3 +1,8 @@
+// Roles & permissions now live in one place: server/src/config/roles.js.
+// This file's ROLE_PERMISSIONS is auto-generated from that source — see
+// scripts/sync-roles.js. Do not edit roles.generated.ts by hand.
+import { ROLE_PERMISSIONS } from "./roles.generated";
+
 export type Permission =
   | "dashboard"
   | "students"
@@ -10,18 +15,12 @@ export type Permission =
   | "settings"
   | "website";
 
-const ROLE_PERMISSIONS: Record<string, Permission[] | ["*"]> = {
-  "Super Admin": ["*"],
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "results"],
-  Accountant: ["dashboard", "income", "expenses", "reports"],
-  Teacher: ["attendance", "hifz", "results"],
-  "Hostel Manager": ["dashboard", "students", "attendance"],
-};
+const ROLE_PERMISSIONS_MAP: Record<string, readonly string[]> = ROLE_PERMISSIONS;
 
 export function canAccess(role: string, permission: Permission): boolean {
-  const perms = ROLE_PERMISSIONS[role] || [];
-  if ((perms as string[]).includes("*")) return true;
-  return (perms as Permission[]).includes(permission);
+  const perms = ROLE_PERMISSIONS_MAP[role] || [];
+  if (perms.includes("*")) return true;
+  return perms.includes(permission);
 }
 
 export function canManageUsers(role: string): boolean {
