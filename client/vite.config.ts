@@ -21,9 +21,15 @@ export default defineConfig({
         // pages with charts — bundling both into every page's chunk meant
         // a full re-download on every app update even when neither library
         // changed.
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          charts: ['recharts'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts')) return 'charts'
+            if (
+              id.includes('react-dom') ||
+              id.includes('/react/') ||
+              id.includes('react-router-dom')
+            ) return 'react-vendor'
+          }
         },
       },
     },
