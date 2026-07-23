@@ -127,6 +127,23 @@ function countsEqual(a, b) {
   return BACKUP_TABLES.every((t) => a[t] === b[t]);
 }
 
+// db.init()'s first-run dev seed (server/src/db.js) inserts some rows with
+// explicit ids (via OVERRIDING SYSTEM VALUE), which does not advance the
+// table's identity sequence. The same thing happens inside restoreJsonBackup
+// itself, which also inserts explicit ids. Either way, the next plain
+// INSERT (no explicit id) can then collide with an id that already exists.
+// This repairs every table's sequence to start after its current max id —
+// safe to call any time, and needed once after db.init() and again after
+// each restore in this script.
+const TABLES_WITH_ID = BACKUP_TABLES.filter((t) => t !== "settings");
+async function fixIdentitySequences() {
+  for (const table of TABLES_WITH_ID) {
+    await db.run(
+      `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE((SELECT MAX(id) FROM ${table}), 1), (SELECT MAX(id) FROM ${table}) IS NOT NULL)`
+    );
+  }
+}
+
 async function cleanupMarkedRows() {
   // Cascades to attendance/payments/hifz_logs for these students via FK.
   await db.run(`DELETE FROM students WHERE name LIKE $1`, [`${MARK}%`]);
@@ -138,6 +155,7 @@ async function cleanupMarkedRows() {
 async function run() {
   console.log(`Connecting to test database (BACKUP_TEST_DATABASE_URL)...`);
   await db.init(); // idempotent: creates schema if missing, safe to re-run
+  await fixIdentitySequences();
 
   console.log("\nCleaning up any leftovers from a previous run...");
   await cleanupMarkedRows();
@@ -194,6 +212,7 @@ async function run() {
 
   const report = await restoreJsonBackup(backupData);
   ok("restore reported success for all backed-up tables", Array.isArray(report.tables) && report.tables.length > 0);
+  await fixIdentitySequences();
 
   const afterCounts = await tableCounts();
   ok("table counts after restore match counts at backup time", countsEqual(beforeCounts, afterCounts),
@@ -258,6 +277,7 @@ async function run() {
     );
     ok("exactly one concurrent restore call succeeded", succeeded === 1, `succeeded=${succeeded}`);
     ok("the other concurrent call was refused as locked, not run", lockRejected);
+    await fixIdentitySequences();
   }
 
   console.log("\nCleaning up test rows...");
