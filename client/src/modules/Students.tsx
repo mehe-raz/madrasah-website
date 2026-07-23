@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { Badge } from "../components/Badge";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
-import { deptLabel, statusLabel, typeLabel } from "../lib/labels";
+import { deptLabel, typeLabel } from "../lib/labels";
 import { printAdmissionForm, printReportTable } from "../lib/printReport";
 import { C } from "../theme/colors";
 import type { Student, StudentDocuments } from "../types";

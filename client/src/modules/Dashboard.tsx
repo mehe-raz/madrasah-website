@@ -181,6 +181,7 @@ export function Dashboard() {
             <Tooltip />
             <Line type="monotone" dataKey="present" name={t.dashboard.present} stroke={C.emerald} strokeWidth={2} dot={{ r: 4 }} />
             <Line type="monotone" dataKey="absent" name={t.dashboard.absent} stroke={C.rose} strokeWidth={2} dot={{ r: 4 }} />
+            <Line type="monotone" dataKey="late" name={t.attendance.late} stroke={C.amber} strokeWidth={2} dot={{ r: 4 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>

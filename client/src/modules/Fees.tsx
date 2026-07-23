@@ -16,9 +16,8 @@ export function Fees() {
   const [payStudent, setPayStudent] = useState<Student | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [payPage, setPayPage] = useState(1);
-  const [payPageSize] = useState(25);
-  const [payTotal, setPayTotal] = useState(0);
+  const payPage = 1;
+  const payPageSize = 25;
   const [loadError, setLoadError] = useState(false);
   const [method, setMethod] = useState("নগদ");
 
@@ -35,7 +34,6 @@ export function Fees() {
         const loadedStudents = Array.isArray(studentData?.items) ? studentData.items : [];
         setStudents(loadedStudents);
         setPayments(Array.isArray(paymentData?.items) ? paymentData.items : []);
-        setPayTotal(Number(paymentData?.total) || 0);
         setLoadError(false);
         setPayStudent((prev) => prev || loadedStudents.find((s) => s.due > 0) || loadedStudents[0] || null);
       } catch (err) {
@@ -43,7 +41,6 @@ export function Fees() {
         console.error("Failed to load fees screen", err);
         setStudents([]);
         setPayments([]);
-        setPayTotal(0);
         setLoadError(true);
       }
     };

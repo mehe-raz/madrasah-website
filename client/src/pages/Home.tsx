@@ -34,14 +34,6 @@ export function Home() {
     { value: `${content.notices.length || 0}`, label: "নোটিশ" },
   ];
 
-  const features = content.highlights.length
-    ? content.highlights
-    : [
-        { icon: "🏛️", label: "প্রতিষ্ঠাকাল থেকে সুনামের সাথে পরিচালিত" },
-        { icon: "🏠", label: "আবাসিক ও অনাবাসিক উভয় ব্যবস্থা" },
-        { icon: "👳", label: "অভিজ্ঞ ও যোগ্য শিক্ষক পরিষদ" },
-        { icon: "📞", label: "নিয়মিত অভিভাবক যোগাযোগ ব্যবস্থা" },
-      ];
 
   const programs = content.departments.length
     ? content.departments

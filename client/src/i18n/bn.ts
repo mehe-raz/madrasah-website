@@ -192,6 +192,7 @@ export const bn = {
     markAll: "সবাইকে",
     markPresent: "উপস্থিত চিহ্নিত করুন",
     markAbsent: "অনুপস্থিত চিহ্নিত করুন",
+    markLate: "দেরিতে চিহ্নিত করুন",
     roll: "রোল",
     name: "নাম",
     class: "ক্লাস",

@@ -112,9 +112,13 @@ export function Attendance() {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, color: C.muted, alignSelf: "center" }}>{t.attendance.markAll}:</span>
-        {["উপস্থিত", "অনুপস্থিত"].map((v) => (
-          <button key={v} type="button" onClick={() => bulkMark(v)} style={{ border: `1px solid ${C.border}`, background: C.card, borderRadius: 7, padding: "6px 14px", cursor: "pointer", fontSize: 13, color: C.text }}>
-            {v === "উপস্থিত" ? t.attendance.markPresent : t.attendance.markAbsent}
+        {[
+          { value: "উপস্থিত", label: t.attendance.markPresent },
+          { value: "অনুপস্থিত", label: t.attendance.markAbsent },
+          { value: "দেরিতে", label: t.attendance.markLate },
+        ].map(({ value, label }) => (
+          <button key={value} type="button" onClick={() => bulkMark(value)} style={{ border: `1px solid ${C.border}`, background: C.card, borderRadius: 7, padding: "6px 14px", cursor: "pointer", fontSize: 13, color: C.text }}>
+            {label}
           </button>
         ))}
       </div>

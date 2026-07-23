@@ -37,7 +37,7 @@ export function ClassesCourses() {
             <div className="soft-panel hero-visual" style={{ padding: 18 }}>
               <div style={{ borderRadius: 24, minHeight: 260, display: "grid", placeItems: "center", background: "linear-gradient(180deg, rgba(240,249,255,0.94), rgba(255,255,255,0.68))" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, width: "100%" }}>
-                  {["হিফজ", "নাজেরা", "কিতাব", "জেনারেল"].map((item, i) => (
+                  {["হিফজ", "নাজেরা", "কিতাব", "জেনারেল"].map((item) => (
                     <div key={item} className="soft-panel" style={{ padding: 16, minHeight: 84 }}>
                       <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, marginBottom: 8 }}>বিভাগ</div>
                       <div style={{ fontSize: 16, fontWeight: 900 }}>{item}</div>
@@ -63,7 +63,7 @@ export function ClassesCourses() {
           <div style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</div>
         ) : content.classes.length ? (
           <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-            {content.classes.map((c, i) => (
+            {content.classes.map((c) => (
               <button
                 key={`${c.title}-${i}`}
                 type="button"
@@ -71,7 +71,7 @@ export function ClassesCourses() {
                 className="soft-panel hover-lift shine-on-hover"
                 style={{ textAlign: "left", background: C.card, border: `1px solid ${C.border}`, padding: 20, cursor: "pointer" }}
               >
-                <div style={{ width: 50, height: 50, borderRadius: 17, background: i % 2 === 0 ? C.emeraldL : C.slateL, display: "grid", placeItems: "center", fontSize: 22, marginBottom: 14 }}>
+                <div style={{ width: 50, height: 50, borderRadius: 17, background: C.emeraldL, display: "grid", placeItems: "center", fontSize: 22, marginBottom: 14 }}>
                   {c.icon || "🎓"}
                 </div>
                 <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{c.title}</h3>

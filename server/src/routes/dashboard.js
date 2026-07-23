@@ -92,14 +92,15 @@ router.get("/", async (_req, res) => {
   const attendanceByDate = {};
   attendanceByDay.forEach((r) => {
     const key = String(r.date).slice(0, 10);
-    if (!attendanceByDate[key]) attendanceByDate[key] = { present: 0, absent: 0 };
+    if (!attendanceByDate[key]) attendanceByDate[key] = { present: 0, absent: 0, late: 0 };
     if (r.status === "উপস্থিত") attendanceByDate[key].present++;
     else if (r.status === "অনুপস্থিত") attendanceByDate[key].absent++;
+    else if (r.status === "দেরিতে") attendanceByDate[key].late++;
   });
   const attendanceData = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getTime() - (5 - i) * 24 * 60 * 60 * 1000);
     const key = d.toISOString().slice(0, 10);
-    const counts = attendanceByDate[key] || { present: 0, absent: 0 };
+    const counts = attendanceByDate[key] || { present: 0, absent: 0, late: 0 };
     return { day: dayLabels[d.getDay()], ...counts };
   });
 

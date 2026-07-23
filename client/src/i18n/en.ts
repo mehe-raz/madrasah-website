@@ -194,6 +194,7 @@ export const en = {
     markAll: "Mark all",
     markPresent: "Mark Present",
     markAbsent: "Mark Absent",
+    markLate: "Mark Late",
     roll: "Roll",
     name: "Name",
     class: "Class",

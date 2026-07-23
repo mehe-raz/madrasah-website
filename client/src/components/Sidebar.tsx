@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { canAccess, canViewAuditLogs, type Permission } from "../lib/permissions";
-import { C } from "../theme/colors";
 
 const NAV_IDS: { id: string; path: string; icon: string; key: Permission }[] = [
   { id: "dashboard", path: "/", icon: "🏠", key: "dashboard" },
