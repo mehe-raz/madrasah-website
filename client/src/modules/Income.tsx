@@ -28,6 +28,7 @@ export function Income() {
   const [editRow, setEditRow] = useState<IncomeEntry | null>(null);
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
     category: "Donation",
@@ -51,6 +52,7 @@ export function Income() {
   });
 
   const load = async () => {
+    setLoading(true);
     try {
       const [summary, pageData, categoryData, studentData] = await Promise.all([
         api.getIncomeSummary(),
@@ -86,6 +88,8 @@ export function Income() {
       setCategories([]);
       setCatEdit([]);
       setStudents([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -101,6 +105,19 @@ export function Income() {
     return classMatch && activeMatch && searchMatch;
   });
   const classList = [...new Set(students.map((s) => s.class).filter(Boolean))];
+
+  // Once the typed name/roll narrows the list to exactly one student, select
+  // them automatically instead of requiring a manual pick from the dropdown.
+  useEffect(() => {
+    if (!searchText) return;
+    if (studentsInClass.length === 1) {
+      const only = studentsInClass[0];
+      if (only.id !== studentForm.studentId) {
+        setStudentForm((f) => ({ ...f, studentId: only.id, amount: String(only.due > 0 ? only.due : only.fee) }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText, studentsInClass.length]);
 
   const saveCategories = async () => {
     try {
@@ -239,6 +256,12 @@ export function Income() {
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.income.title}</h2>
       {msg && <p style={{ color: msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("invalid") ? C.rose : C.teal, fontSize: 13, marginTop: -8, marginBottom: 12 }}>{msg}</p>}
+      {loading && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.muted, fontSize: 13, marginTop: -8, marginBottom: 12 }}>
+          <span style={{ width: 14, height: 14, border: `2px solid ${C.border}`, borderTopColor: C.teal, borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+          {t.common.loading}
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
         <StatCard label={t.income.total} value={fmt(totalIncome)} icon="💰" color={C.emerald} />
@@ -339,7 +362,7 @@ export function Income() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 16 }}>
             {categories.filter((c) => c !== "Student Fee").map((cat) => (
-              <button key={cat} type="button" onClick={() => setForm({ ...form, category: cat })} style={{ border: `2px solid ${form.category === cat ? C.teal : C.border}`, background: form.category === cat ? C.tealL : C.card, borderRadius: 8, padding: "10px", cursor: "pointer", fontSize: 12, fontWeight: form.category === cat ? 700 : 400 }}>
+              <button key={cat} type="button" onClick={() => setForm({ ...form, category: cat })} style={{ border: `2px solid ${form.category === cat ? C.teal : C.border}`, background: form.category === cat ? C.tealL : C.card, color: form.category === cat ? C.tealD : C.text, borderRadius: 8, padding: "10px", cursor: "pointer", fontSize: 12, fontWeight: form.category === cat ? 700 : 400 }}>
                 {cat}
               </button>
             ))}
@@ -380,7 +403,8 @@ export function Income() {
             onChange={(e) => {
               const cls = e.target.value;
               const first = students.find((s) => s.class === cls);
-              setStudentForm({ ...studentForm, className: cls, studentId: first?.id || 0, amount: first ? String(first.fee) : "" });
+              setStudentForm({ ...studentForm, className: cls, studentId: first?.id || 0, amount: first ? String(first.due > 0 ? first.due : first.fee) : "" });
+              setStudentSearch("");
             }}
             style={{ ...fieldStyle, marginBottom: 12 }}
           >
@@ -413,7 +437,7 @@ export function Income() {
           <input type="number" placeholder="Amount" value={studentForm.amount} onChange={(e) => setStudentForm({ ...studentForm, amount: e.target.value })} style={{ ...fieldStyle, marginBottom: 12 }} />
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
             {METHODS.map((m) => (
-              <button key={m} type="button" onClick={() => setStudentForm({ ...studentForm, method: m })} style={{ flex: 1, minWidth: 70, border: `1px solid ${studentForm.method === m ? C.teal : C.border}`, borderRadius: 8, padding: 8, background: studentForm.method === m ? C.tealL : C.card, cursor: "pointer", fontSize: 12 }}>
+              <button key={m} type="button" onClick={() => setStudentForm({ ...studentForm, method: m })} style={{ flex: 1, minWidth: 70, border: `1px solid ${studentForm.method === m ? C.teal : C.border}`, borderRadius: 8, padding: 8, background: studentForm.method === m ? C.tealL : C.card, color: studentForm.method === m ? C.tealD : C.text, cursor: "pointer", fontSize: 12 }}>
                 {m}
               </button>
             ))}

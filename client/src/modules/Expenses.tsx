@@ -32,18 +32,21 @@ export function Expenses() {
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Previously `.then(setExpenses)` had no `.catch()` — a failed load
     // left the (originally fake mock) expense list on screen with no
     // indication real data never arrived.
+    setLoading(true);
     api
       .getExpenses()
       .then((list) => {
         setExpenses(list);
         setLoadError(false);
       })
-      .catch(() => setLoadError(true));
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
   }, []);
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
@@ -106,6 +109,13 @@ export function Expenses() {
         <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text }}>{t.expenses.title}</h2>
         <button type="button" onClick={() => openAdd()} style={{ background: C.amber, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>+ {t.expenses.addNew}</button>
       </div>
+
+      {loading && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.muted, fontSize: 13, marginBottom: 16 }}>
+          <span style={{ width: 14, height: 14, border: `2px solid ${C.border}`, borderTopColor: C.amber, borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+          {t.common.loading}
+        </div>
+      )}
 
       {loadError && (
         <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>{t.common.requestFailed}</div>
