@@ -50,11 +50,26 @@ router.post("/", uploadLimiter, async (req, res) => {
   configureOnce();
 
   try {
+    const isImage = info.mime !== "application/pdf";
     const result = await cloudinary.uploader.upload(dataUrl, {
       folder: `madrasah/${folderName.replace(/[^a-zA-Z0-9_-]/g, "") || "misc"}`,
-      resource_type: info.mime === "application/pdf" ? "raw" : "image",
+      resource_type: isImage ? "image" : "raw",
     });
-    res.json({ url: result.secure_url, publicId: result.public_id });
+    // For images, serve through f_auto,q_auto so Cloudinary picks the best
+    // format (WebP/AVIF where the browser supports it) and compression
+    // automatically, instead of always sending the original upload as-is.
+    // This is a delivery-URL transformation only — the stored asset is
+    // untouched, so nothing here is lossy or irreversible.
+    const url = isImage
+      ? cloudinary.url(result.public_id, {
+          secure: true,
+          resource_type: "image",
+          fetch_format: "auto",
+          quality: "auto",
+          version: result.version,
+        })
+      : result.secure_url;
+    res.json({ url, publicId: result.public_id });
   } catch (err) {
     console.error("Cloudinary upload failed:", err.message);
     res.status(500).json({ error: "Upload failed" });

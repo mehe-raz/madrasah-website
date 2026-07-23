@@ -1,11 +1,63 @@
-/** Service worker for offline shell | PWA অফলাইন শেল */
-const CACHE = "madrasah-erp-v1";
+/** Service worker for offline shell + static asset caching | PWA অফলাইন শেল */
+const SHELL_CACHE = "madrasah-erp-shell-v2";
+const ASSET_CACHE = "madrasah-erp-assets-v2";
+
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/", "/index.html"])));
+  e.waitUntil(caches.open(SHELL_CACHE).then((c) => c.addAll(["/", "/index.html"])));
   self.skipWaiting();
 });
+
+self.addEventListener("activate", (e) => {
+  // Drop caches from older versions of this service worker so upgrades
+  // don't leave stale assets sitting around forever.
+  e.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k !== SHELL_CACHE && k !== ASSET_CACHE).map((k) => caches.delete(k)))
+      )
+  );
+  self.clients.claim();
+});
+
+function isStaticAsset(request) {
+  const url = new URL(request.url);
+  return (
+    url.origin === self.location.origin &&
+    (/\.(js|css|woff2?|ttf|otf|png|jpe?g|svg|webp|avif|ico)$/i.test(url.pathname) ||
+      url.pathname.startsWith("/assets/"))
+  );
+}
+
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+
+  const url = new URL(e.request.url);
+  // API responses must always be fresh (attendance, fees, dashboard data
+  // etc.) — never let the service worker serve a cached copy of these.
+  if (url.pathname.startsWith("/api/")) return;
+
+  if (isStaticAsset(e.request)) {
+    // Cache-first with stale-while-revalidate: hashed JS/CSS/image assets
+    // load instantly from cache on repeat visits, while a background
+    // refetch keeps the cache updated for the *next* visit.
+    e.respondWith(
+      caches.open(ASSET_CACHE).then(async (cache) => {
+        const cached = await cache.match(e.request);
+        const network = fetch(e.request)
+          .then((res) => {
+            if (res && res.ok) cache.put(e.request, res.clone());
+            return res;
+          })
+          .catch(() => cached);
+        return cached || network;
+      })
+    );
+    return;
+  }
+
+  // Navigations/HTML: network-first, falling back to the cached shell when
+  // offline (unchanged behaviour from before).
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request).then((r) => r || caches.match("/index.html")))
   );
