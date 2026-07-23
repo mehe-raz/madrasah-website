@@ -61,7 +61,40 @@ function isAllowedOrigin(origin) {
 }
 
 app.set("trust proxy", 1);
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+
+// Explicit CSP allow-list instead of helmet's defaults: locks script/object
+// execution down to same-origin only, and only opens img/font/connect-src
+// for the specific third-party hosts this app actually talks to (Google
+// Fonts for the Bengali font, Cloudinary for uploaded photos/documents,
+// Google's own domains for Drive-backup avatars). Anything not listed here
+// is blocked by the 'self'/'none' fallback, which is the point.
+// If you deploy the backend API on its own domain (see
+// docs/DEPLOYMENT_CHECKLIST.md, e.g. Render), that origin is already covered
+// below via https://*.onrender.com and CLIENT_ORIGIN's allowedOrigins.
+const cspConnectSrc = ["'self'", "https://*.onrender.com", ...allowedOrigins];
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        // React sets inline `style` attributes at runtime, so style-src needs
+        // 'unsafe-inline'; Google Fonts' stylesheet link needs its own host.
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://*.googleusercontent.com"],
+        connectSrc: cspConnectSrc,
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        ...(process.env.NODE_ENV === "production" ? { upgradeInsecureRequests: [] } : {}),
+      },
+    },
+  })
+);
 // Gzip-compress every response. JSON payloads (student lists, dashboard
 // aggregates, reports) typically shrink by 70-90%, which directly speeds up
 // "page data loading" over slower mobile connections.

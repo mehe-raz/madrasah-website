@@ -33,6 +33,13 @@
 - Redeploy after each GitHub push.
 - If login opens but does not work, the frontend is live but backend URL/env is not set correctly.
 
+## Content-Security-Policy (CSP)
+
+- A CSP is enforced in two places: `helmet()` in `server/src/index.js` (applies when Express serves the frontend directly) and the `headers` block in `client/vercel.json` / root `vercel.json` (applies when Vercel serves the static build).
+- Both already allow: same-origin scripts/styles, Google Fonts, Cloudinary images, and any `https://*.onrender.com` backend.
+- If your backend API is hosted somewhere other than Render (a custom domain, Railway, Fly.io, etc.), add that exact origin to `connect-src` in **both** places above, or `fetch()` calls from the frontend to the API will be blocked by the browser.
+- After changing the CSP, always retest login, attendance save, image upload, and PDF/report export — a missed domain shows up as a silent network failure in the browser console, not a visible error in the UI.
+
 ## Data Safety
 
 - Do not commit `.env`, `server/data`, `.db`, or backup files.
