@@ -29,11 +29,37 @@ import type {
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
+// ----------------------------------------------------------------------------
+// TEMPORARY multi-tenant testing helper (remove once real wildcard
+// subdomains are set up in production).
+//
+// Since a free Render/Vercel subdomain can't have its own wildcard
+// subdomains, the browser has no way to say "I'm madrasah-a" just from the
+// URL host the way it normally would (a.yourdomain.com vs b.yourdomain.com).
+// So instead: open the app once with ?tenant=<code> in the URL — e.g.
+//   https://your-app.onrender.com/login?tenant=madrasah-a
+// and this stores that code in localStorage. Every API request after that
+// sends it as an X-Tenant-Code header, which tenantResolve.js already reads
+// before it even looks at the hostname. To switch tenants in the same
+// browser, just reload with a different ?tenant=... value, or clear it with
+// localStorage.removeItem("tenantCode") in the browser console.
+// ----------------------------------------------------------------------------
+function getTenantCode(): string | null {
+  if (typeof window === "undefined") return null;
+  const fromUrl = new URLSearchParams(window.location.search).get("tenant");
+  if (fromUrl) {
+    localStorage.setItem("tenantCode", fromUrl.trim().toLowerCase());
+  }
+  return localStorage.getItem("tenantCode");
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const tenantCode = getTenantCode();
   const res = await fetch(`${API}${path}`, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(tenantCode ? { "X-Tenant-Code": tenantCode } : {}),
       ...options?.headers,
     },
     ...options,
@@ -138,8 +164,10 @@ export const api = {
     request<{ ok: boolean }>(`/students/${id}`, { method: "DELETE" }),
 
   downloadStudentPdf: async (id: number, name: string) => {
+    const tenantCode = getTenantCode();
     const res = await fetch(`${API}/students/${id}/pdf`, {
       credentials: "include",
+      headers: tenantCode ? { "X-Tenant-Code": tenantCode } : undefined,
     });
     if (!res.ok) throw new Error("PDF generation failed");
     const blob = await res.blob();
@@ -365,8 +393,10 @@ export const api = {
     request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/users/${id}`, { method: "DELETE" }),
 
   downloadBackup: async () => {
+    const tenantCode = getTenantCode();
     const res = await fetch(`${API}/backup`, {
       credentials: "include",
+      headers: tenantCode ? { "X-Tenant-Code": tenantCode } : undefined,
     });
     if (!res.ok) throw new Error("Backup failed");
     const disposition = res.headers.get("Content-Disposition") || "";
@@ -389,11 +419,13 @@ export const api = {
   runBackupNow: () => request<{ filename: string; localPath: string; config: BackupConfig }>("/backup/run", { method: "POST" }),
 
   previewBackup: async (file: File) => {
+    const tenantCode = getTenantCode();
     const res = await fetch(`${API}/backup/preview`, {
       method: "POST",
       credentials: "include",
       headers: {
         "Content-Type": "application/octet-stream",
+        ...(tenantCode ? { "X-Tenant-Code": tenantCode } : {}),
       },
       body: await file.arrayBuffer(),
     });
@@ -410,11 +442,13 @@ export const api = {
     ),
 
   restoreBackup: async (file: File) => {
+    const tenantCode = getTenantCode();
     const res = await fetch(`${API}/backup/restore`, {
       method: "POST",
       credentials: "include",
       headers: {
         "Content-Type": "application/octet-stream",
+        ...(tenantCode ? { "X-Tenant-Code": tenantCode } : {}),
       },
       body: await file.arrayBuffer(),
     });
