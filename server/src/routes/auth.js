@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
 const db = require("../db");
 const { signToken } = require("../middleware/auth");
+const registryDb = require("../registryDb");
 const { isUniqueViolation } = require("../pg");
 const nodemailer = require("nodemailer");
 const { passwordPolicyError } = require("../lib/passwordPolicy");
@@ -69,7 +70,11 @@ router.post("/register", validate(registerSchema), async (req, res) => {
       [name.trim(), email.trim().toLowerCase(), hash, "Super Admin", 1]
     );
     const user = await db.get("SELECT id, name, email, role FROM users WHERE id = $1", [result.insertId]);
-    const token = signToken(user);
+    // req.tenant is only set when MULTI_TENANT_MODE=true (tenantResolve
+    // middleware, Part 3). Passing it here bakes institutionCode into the
+    // token so it can't be replayed against a different institution's
+    // subdomain — see verifyRequestToken in middleware/auth.js (Part 4).
+    const token = signToken(user, req.tenant);
     res.cookie("token", token, cookieOptions);
     res.status(201).json({ user });
   } catch (e) {
@@ -111,8 +116,20 @@ router.post("/login", loginLimiter, validate(loginSchema), async (req, res) => {
     await db.run('UPDATE users SET "failedLoginAttempts" = 0, "lockedUntil" = NULL WHERE id = $1', [row.id]);
   }
 
+  // tenantResolve (Part 3) already blocked this request before it got here
+  // if the institution was suspended/expired at the time the request came
+  // in. This re-check guards the (small) window between that check and this
+  // point — e.g. a platform admin suspending the account via the CLI/
+  // Part-5 panel in the few hundred ms the password hash was being
+  // verified — so a login can't slip through with credentials that were
+  // valid a moment ago but shouldn't grant access right now. No-op (skipped
+  // entirely) in single-tenant deployments, where req.tenant is never set.
+  if (req.tenant && !registryDb.isAccessAllowed(req.tenant)) {
+    return res.status(403).json({ error: "এই প্রতিষ্ঠানের অ্যাক্সেস এই মুহূর্তে বন্ধ আছে।" });
+  }
+
   const user = publicUser(row);
-  const token = signToken(user);
+  const token = signToken(user, req.tenant);
   res.cookie("token", token, cookieOptions);
   res.json({ user });
 });
@@ -123,17 +140,20 @@ router.post("/logout", (_req, res) => {
 });
 
 router.get("/me", async (req, res) => {
-  const token = req.cookies?.token;
-  if (!token) return res.status(401).json({ error: "Not logged in" });
   try {
-    const jwt = require("jsonwebtoken");
-    const { JWT_SECRET } = require("../middleware/auth");
-    const payload = jwt.verify(token, JWT_SECRET);
+    // Same check requireAuth uses (verifyRequestToken, middleware/auth.js):
+    // rejects tokens issued for a different institution than the one this
+    // request resolved to, on top of the usual signature/expiry check. /me
+    // doesn't go through the requireAuth chain (it's called before the app
+    // knows if the user is logged in at all), so it must apply this itself
+    // rather than trusting jwt.verify() alone.
+    const { verifyRequestToken } = require("../middleware/auth");
+    const payload = verifyRequestToken(req);
     const user = await db.get("SELECT id, name, email, role FROM users WHERE id = $1", [payload.id]);
     if (!user) return res.status(401).json({ error: "User not found" });
     res.json({ user });
-  } catch {
-    res.status(401).json({ error: "Session expired" });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
   }
 });
 

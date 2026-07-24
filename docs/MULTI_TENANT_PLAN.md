@@ -10,8 +10,8 @@
 |---|-----|-----|-----------|
 | ১ | **Central Registry Database** | কোন কোন প্রতিষ্ঠান আছে, তাদের schema-নাম, status (trial/active/suspended) রাখার মাস্টার টেবিল | ✅ সম্পন্ন (এই ধাপ) |
 | ২ | **Schema Provisioning System** | নতুন প্রতিষ্ঠান যোগ হলে স্বয়ংক্রিয়ভাবে তার জন্য নতুন schema + ১৭টা টেবিল + ডিফল্ট অ্যাডমিন তৈরি | ✅ সম্পন্ন (এই ধাপ) |
-| ৩ | **Tenant Resolution Middleware** | রিকোয়েস্ট এলে সাবডোমেইন/কোড দেখে সঠিক schema-তে DB কানেকশন সেট করা (`pg.js`/`db.js` পরিবর্তন) | ⏳ বাকি |
-| ৪ | **Auth/JWT আপডেট** | টোকেনে `institution_code` যোগ, লগইনের সময় প্রতিষ্ঠান যাচাই, সাসপেন্ড থাকলে লগইন ব্লক | ⏳ বাকি |
+| ৩ | **Tenant Resolution Middleware** | রিকোয়েস্ট এলে সাবডোমেইন/কোড দেখে সঠিক schema-তে DB কানেকশন সেট করা (`pg.js`/`db.js` পরিবর্তন) | ✅ সম্পন্ন |
+| ৪ | **Auth/JWT আপডেট** | টোকেনে `institution_code` যোগ, লগইনের সময় প্রতিষ্ঠান যাচাই, সাসপেন্ড থাকলে লগইন ব্লক | ✅ সম্পন্ন (এই ধাপ) |
 | ৫ | **Super-Admin প্যানেল** | ওয়েব UI দিয়ে প্রতিষ্ঠান যোগ/সাসপেন্ড/স্ট্যাটাস দেখা (এখন পর্যন্ত এটা শুধু CLI দিয়ে করা যায়) | ⏳ বাকি |
 | ৬ | **Billing + Migration Tooling** | সাবস্ক্রিপশন/পেমেন্ট, মেয়াদ শেষে অটো-সাসপেন্ড, সব tenant schema-তে একসাথে migration চালানোর স্ক্রিপ্ট | ⏳ বাকি |
 
@@ -120,6 +120,79 @@
 
 ---
 
+## ভাগ ৩ — Tenant Resolution Middleware (এই ধাপে যা হয়েছে)
+
+### নতুন ফাইল
+
+- `server/src/tenantContext.js` — `AsyncLocalStorage` wrapper, প্রতি-রিকোয়েস্ট tenant client ধরে
+  রাখে।
+- `server/src/middleware/tenantResolve.js` — সাবডোমেইন/`X-Tenant-Code` হেডার থেকে কোড বের করে →
+  registry-তে লুকআপ → suspend/expired হলে ৪০৩ → allowed হলে dedicated connection checkout করে
+  `search_path` সেট করে পুরো রিকোয়েস্ট সেই context-এ চালায়।
+
+### পরিবর্তিত ফাইল
+
+- `server/src/pg.js` — `query`/`get`/`all`/`run`/`withTransaction` এখন প্রথমে tenant context চেক
+  করে; context না থাকলে (ডিফল্ট) আগের মতোই shared pool ব্যবহার করে।
+- `server/src/index.js` — `tenantResolve` middleware যোগ হয়েছে auth/public রুটের আগে।
+- `.env.example` — `MULTI_TENANT_MODE`, `PLATFORM_ROOT_DOMAIN` ডকুমেন্টেড।
+
+### কেন এভাবে
+
+২০+টা route ফাইলের **একটাও বদলাতে হয়নি** — `AsyncLocalStorage` দিয়ে middleware একবার client সেট
+করলে পুরো রিকোয়েস্ট চেইনে সেটা স্বয়ংক্রিয়ভাবে পাওয়া যায়। আর `MULTI_TENANT_MODE=true` সেট না করলে
+middleware প্রথম লাইনেই বেরিয়ে যায় — এখনকার single-tenant ডিপ্লয়মেন্ট একদম আগের মতোই চলবে।
+
+### পরের ধাপ (ভাগ ৪)
+
+এখন প্রতিটা রিকোয়েস্ট সঠিক `tenant_xxx` schema-তে চলে, কিন্তু JWT টোকেনে কোনো প্রতিষ্ঠানের
+পরিচয় নেই — তাই তাত্ত্বিকভাবে একজন ইউজার এক প্রতিষ্ঠানের সাবডোমেইনে লগইন করে পাওয়া টোকেন অন্য
+প্রতিষ্ঠানের সাবডোমেইনে ব্যবহার করে ফেলতে পারত (দুটোরই `JWT_SECRET` একই)। ভাগ ৪-এ টোকেনকে
+নির্দিষ্ট প্রতিষ্ঠানের সাথে বেঁধে দেওয়া হবে।
+
+---
+
+## ভাগ ৪ — Auth/JWT আপডেট (এই ধাপে যা হয়েছে)
+
+### পরিবর্তিত ফাইল
+
+- `server/src/middleware/auth.js`:
+  - `signToken(user, institution)` — `institution` (ঐচ্ছিক, শুধু `MULTI_TENANT_MODE=true`-এ পাস
+    করা হয়) দিলে টোকেনে `institutionId`/`institutionCode` ক্লেইম যোগ হয়। না দিলে টোকেনের গঠন আগের
+    মতোই অবিকল থাকে — single-tenant ডিপ্লয়মেন্টে কোনো পার্থক্য নেই।
+  - নতুন `verifyRequestToken(req)` — `requireAuth` আর `/api/auth/me` দুটোই এখন এই একই ফাংশন
+    ব্যবহার করে (আগে `/me`-এ আলাদা করে ম্যানুয়াল `jwt.verify` কল ছিল, দুই জায়গায় দুই রকম লজিক
+    থাকার ঝুঁকি ছিল)। এই ফাংশন সিগনেচার/মেয়াদ যাচাইয়ের পর, যদি রিকোয়েস্টটা কোনো tenant-এ resolve
+    হয়ে থাকে (`req.tenant` সেট থাকলে — মানে `MULTI_TENANT_MODE=true`), টোকেনের
+    `institutionCode`-এর সাথে `req.tenant.code` মিলছে কিনা চেক করে। না মিললে (ভিন্ন প্রতিষ্ঠানের
+    টোকেন, অথবা এই ফিচার আসার আগের পুরনো টোকেন) — সেশন-মেয়াদ-শেষ ধরে ৪০১ রিটার্ন করে, ফের লগইন
+    করতে বাধ্য করে।
+- `server/src/routes/auth.js`:
+  - `/login` — টোকেন সাইন করার ঠিক আগে `registryDb.isAccessAllowed(req.tenant)` আবার চেক করা
+    হয় — `tenantResolve` মিডলওয়্যার রিকোয়েস্টের শুরুতেই এটা চেক করে, কিন্তু পাসওয়ার্ড
+    ভেরিফাই করতে করতে ঐ অল্প সময়ের মধ্যে প্রতিষ্ঠান সাসপেন্ড হয়ে গেলে সেটাও ধরার জন্য এই
+    দ্বিতীয় চেক। তারপর `signToken(user, req.tenant)` কল করে টোকেনে institution বেঁধে দেওয়া হয়।
+  - `/register` — একই ভাবে `signToken(user, req.tenant)`।
+  - `/me` — এখন `verifyRequestToken` ব্যবহার করে, তাই `requireAuth`-এর মতোই tenant-বাইন্ডিং চেক
+    পায়।
+
+### কেন এভাবে
+
+শুধু টোকেনে `institutionCode` বসিয়ে দিলেই কিছু হতো না — সেটা কোথাও *চেক* না করলে স্রেফ একটা অকেজো
+ফিল্ড। তাই `institutionCode`-কে "verify request" পথে বাধ্যতামূলক করা হয়েছে: প্রতিটা authenticated
+রিকোয়েস্টে (শুধু লগইনে না) টোকেনের প্রতিষ্ঠান বনাম রিকোয়েস্টের প্রতিষ্ঠান মিলছে কিনা দেখা হয়। এতে
+একই `JWT_SECRET` শেয়ার করা সত্ত্বেও এক প্রতিষ্ঠানের টোকেন অন্য প্রতিষ্ঠানের সাবডোমেইনে খাটবে না।
+`MULTI_TENANT_MODE` বন্ধ থাকা অবস্থায় (`req.tenant` কখনো সেট হয় না) এই পুরো চেক স্কিপ হয়ে যায় —
+তাই বর্তমান single-tenant ডিপ্লয়মেন্টে লগইন/সেশন আচরণ একদম আগের মতোই থাকবে।
+
+### পরের ধাপ (ভাগ ৫)
+
+এখন প্রতিষ্ঠান তৈরি/সাসপেন্ড/স্ট্যাটাস-দেখা শুধু CLI (`registry-cli.js`) দিয়ে করা যায়। ভাগ ৫-এ এর
+জন্য একটা ওয়েব Super-Admin প্যানেল (`registry.platform_admins` দিয়ে লগইন) বসানো হবে, যাতে টার্মিনাল
+ছাড়াই এসব করা যায়।
+
+---
+
 ## চালানোর নির্দেশনা (এখনই টেস্ট করতে চাইলে)
 
 ```bash
@@ -133,3 +206,30 @@ node scripts/registry-cli.js list
 এটা আপনার বর্তমান `DATABASE_URL`-এ একটা নতুন `registry` schema এবং একটা নতুন `tenant_test_madrasah`
 schema (পুরো ১৭ টেবিল + একটা Super Admin লগইনসহ) তৈরি করবে — বিদ্যমান `public` schema-র
 students/payments/users ইত্যাদি টেবিলে কোনো হাত দেবে না।
+
+### ভাগ ৩ ও ৪ টেস্ট করতে (দুটো প্রতিষ্ঠান দিয়ে token-binding যাচাই)
+
+```bash
+# .env-এ MULTI_TENANT_MODE=true সেট করে সার্ভার চালু করুন, তারপর:
+
+node server/scripts/registry-cli.js create "মাদ্রাসা এ" madrasah-a a@example.com "Str0ngPass!"
+node server/scripts/registry-cli.js create "মাদ্রাসা বি" madrasah-b b@example.com "Str0ngPass!"
+
+# মাদ্রাসা এ-তে লগইন করে টোকেন নিন
+curl -i -c cookies-a.txt -X POST http://localhost:10000/api/auth/login \
+  -H "Content-Type: application/json" -H "X-Tenant-Code: madrasah-a" \
+  -d '{"email":"a@example.com","password":"Str0ngPass!"}'
+
+# এই cookie দিয়েই মাদ্রাসা বি-এর কোডে রিকোয়েস্ট পাঠান — ৪০১ (Session expired) আসা উচিত,
+# কারণ টোকেনের institutionCode "madrasah-a", কিন্তু রিকোয়েস্ট resolve হয়েছে "madrasah-b"-তে
+curl -i -b cookies-a.txt http://localhost:10000/api/auth/me -H "X-Tenant-Code: madrasah-b"
+
+# নিজের কোডে একই কুকি দিয়ে অ্যাক্সেস স্বাভাবিকভাবেই কাজ করবে
+curl -i -b cookies-a.txt http://localhost:10000/api/auth/me -H "X-Tenant-Code: madrasah-a"
+
+# সাসপেন্ড করে দেখুন লগইন ব্লক হয় কিনা
+node server/scripts/registry-cli.js status madrasah-b suspended
+curl -i -X POST http://localhost:10000/api/auth/login \
+  -H "Content-Type: application/json" -H "X-Tenant-Code: madrasah-b" \
+  -d '{"email":"b@example.com","password":"Str0ngPass!"}'   # 403 আসা উচিত
+```
