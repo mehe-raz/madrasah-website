@@ -38,6 +38,7 @@ const app = express();
 const db = require("./db");
 const { requireAuth, validateAuthConfig } = require("./middleware/auth");
 const { rbacMiddleware } = require("./middleware/rbac");
+const tenantResolve = require("./middleware/tenantResolve");
 
 validateAuthConfig();
 
@@ -119,6 +120,14 @@ app.use(
 
 app.use(cookieParser());
 app.use(express.json({ limit: "6mb" }));
+
+// Resolves which institution (tenant_xxx schema) this request belongs to
+// and scopes every DB call made for the rest of the request to it — must
+// run before auth (login itself queries the tenant's users table) and
+// before the "public" endpoints below (they read that tenant's site
+// content/settings, not a global one). No-op unless MULTI_TENANT_MODE=true;
+// see middleware/tenantResolve.js.
+app.use(tenantResolve);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

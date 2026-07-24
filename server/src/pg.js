@@ -1,4 +1,5 @@
 const { Pool } = require("pg");
+const tenantContext = require("./tenantContext");
 
 function normalizeDatabaseUrl(url) {
   if (!url) return url;
@@ -39,22 +40,34 @@ function clientHelpers(client) {
   };
 }
 
+// If tenant-resolution middleware (Part 3) has checked out a per-request
+// client with search_path already pointed at a tenant_xxx schema, use that
+// connection for everything in this request. Outside of any such context
+// (server boot, single-tenant deployments, MULTI_TENANT_MODE=false) this is
+// undefined and every call below behaves exactly as it did before Part 3 —
+// straight to the shared pool, `public` schema.
+function activeClient() {
+  return tenantContext.get()?.client;
+}
+
 async function query(text, params = []) {
+  const client = activeClient();
+  if (client) return client.query(text, params);
   return pool.query(text, params);
 }
 
 async function get(text, params = []) {
-  const result = await pool.query(text, params);
+  const result = await query(text, params);
   return result.rows[0];
 }
 
 async function all(text, params = []) {
-  const result = await pool.query(text, params);
+  const result = await query(text, params);
   return result.rows;
 }
 
 async function run(text, params = []) {
-  const result = await pool.query(text, params);
+  const result = await query(text, params);
   return {
     rowCount: result.rowCount,
     insertId: result.rows[0]?.id,
@@ -62,6 +75,26 @@ async function run(text, params = []) {
 }
 
 async function withTransaction(fn) {
+  const tenantClient = activeClient();
+  if (tenantClient) {
+    // Already inside a per-request tenant connection whose search_path is
+    // set to the right tenant_xxx schema. Nest the transaction on that same
+    // connection rather than checking out a second one from the pool — a
+    // second connection would default back to `public` and silently defeat
+    // tenant isolation. This connection's lifecycle (release, search_path
+    // reset) belongs to the tenant-resolution middleware, not to us, so no
+    // client.release() here.
+    await tenantClient.query("BEGIN");
+    try {
+      const result = await fn(clientHelpers(tenantClient));
+      await tenantClient.query("COMMIT");
+      return result;
+    } catch (err) {
+      await tenantClient.query("ROLLBACK");
+      throw err;
+    }
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
