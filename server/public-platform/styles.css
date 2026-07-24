@@ -1,0 +1,191 @@
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --border: #e2e4e9;
+  --text: #1f2430;
+  --muted: #6b7280;
+  --brand: #2563eb;
+  --brand-dark: #1d4ed8;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --warn: #d97706;
+  --warn-bg: #fffbeb;
+  --muted-bg: #f3f4f6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Noto Sans Bengali", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#app { min-height: 100vh; }
+
+/* ---------- login ---------- */
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.login-card h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+
+.login-card p.sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 24px;
+}
+
+/* ---------- layout ---------- */
+header.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+header.topbar h1 { font-size: 17px; margin: 0; }
+header.topbar .who { font-size: 13px; color: var(--muted); }
+
+main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbar .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- form controls ---------- */
+label { display: block; font-size: 13px; margin: 12px 0 4px; color: var(--muted); }
+
+input, select {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  background: #fff;
+  color: var(--text);
+}
+
+input:focus, select:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+
+button {
+  font-family: inherit;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 9px 16px;
+  cursor: pointer;
+  background: var(--brand);
+  color: #fff;
+}
+
+button:hover { background: var(--brand-dark); }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+button.secondary { background: #fff; color: var(--text); border-color: var(--border); }
+button.secondary:hover { background: var(--muted-bg); }
+
+button.danger { background: var(--danger); }
+button.danger:hover { background: #b91c1c; }
+
+button.small { padding: 5px 10px; font-size: 12.5px; }
+
+.error-box {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin: 12px 0;
+}
+
+/* ---------- cards / table ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: right; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+th { background: var(--muted-bg); font-weight: 600; color: var(--muted); font-size: 12.5px; }
+tr:last-child td { border-bottom: none; }
+
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge.trial { background: var(--warn-bg); color: var(--warn); }
+.badge.active { background: var(--success-bg); color: var(--success); }
+.badge.suspended { background: var(--danger-bg); color: var(--danger); }
+.badge.cancelled { background: var(--muted-bg); color: var(--muted); }
+
+.row-actions { display: flex; gap: 6px; justify-content: flex-start; flex-wrap: wrap; }
+
+.empty-state { padding: 40px 20px; text-align: center; color: var(--muted); }
+
+/* ---------- modal ---------- */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 18, 25, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  z-index: 50;
+}
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal h2 { margin: 0 0 4px; font-size: 17px; }
+.modal p.sub { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+.link-btn {
+  background: none; border: none; color: var(--brand); padding: 0;
+  font-size: 13px; cursor: pointer;
+}
+.link-btn:hover { text-decoration: underline; background: none; }
+
+.muted { color: var(--muted); }
+.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }

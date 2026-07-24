@@ -37,10 +37,12 @@ const path = require("path");
 const app = express();
 const db = require("./db");
 const { requireAuth, validateAuthConfig } = require("./middleware/auth");
+const { validatePlatformAuthConfig } = require("./middleware/platformAuth");
 const { rbacMiddleware } = require("./middleware/rbac");
 const tenantResolve = require("./middleware/tenantResolve");
 
 validateAuthConfig();
+validatePlatformAuthConfig();
 
 const PORT = process.env.PORT || 10000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN;
@@ -149,6 +151,18 @@ const admissionLimiter = rateLimit({
 });
 
 app.use("/api/auth", authLimiter, require("./routes/auth"));
+
+// Platform/Super-Admin panel (Part 5) — talks only to the registry schema,
+// never a tenant_xxx schema, so it's mounted here (before the tenant
+// requireAuth/rbac chain below) with its own auth (middleware/platformAuth.js,
+// requirePlatformAuth is applied inside routes/platform.js itself). Already
+// excluded from tenant resolution by tenantResolve's isSkippedPath().
+app.use("/api/platform", require("./routes/platform"));
+
+// Static Super-Admin panel UI (plain HTML/JS, no build step — see
+// server/public-platform/). Served directly by this Express app so it works
+// the same in dev and production, independent of the client's Vite build.
+app.use("/platform", express.static(path.join(__dirname, "..", "public-platform")));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

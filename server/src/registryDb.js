@@ -15,6 +15,7 @@
 const fs = require("fs");
 const path = require("path");
 const { Pool } = require("pg");
+const bcrypt = require("bcryptjs");
 const pg = require("./pg");
 
 const schemaPath = path.join(__dirname, "..", "sql", "registry_schema.sql");
@@ -179,6 +180,79 @@ function isAccessAllowed(institution) {
   return false;
 }
 
+// ============================================================================
+// Platform admins (Part 5 / 6 — Super-Admin panel)
+// ============================================================================
+// registry.platform_admins holds the platform operator logins (you/your
+// team) — completely separate from any institution's own users table.
+// Same bcrypt cost factor used everywhere else in this app (routes/auth.js,
+// tenantProvision.js) for consistency.
+const PLATFORM_SALT_ROUNDS = 12;
+
+async function getPlatformAdminByEmail(email) {
+  const result = await registryPool.query(
+    "SELECT * FROM registry.platform_admins WHERE lower(email) = lower($1)",
+    [email]
+  );
+  return result.rows[0];
+}
+
+async function createPlatformAdmin({ name, email, password }) {
+  if (!name || !name.trim()) {
+    const err = new Error("Name is required");
+    err.status = 400;
+    throw err;
+  }
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+    const err = new Error("A valid email is required");
+    err.status = 400;
+    throw err;
+  }
+  if (!password || password.length < 8) {
+    const err = new Error("Password must be at least 8 characters");
+    err.status = 400;
+    throw err;
+  }
+  const hash = await bcrypt.hash(password, PLATFORM_SALT_ROUNDS);
+  try {
+    const result = await registryPool.query(
+      `INSERT INTO registry.platform_admins (name, email, "passwordHash")
+       VALUES ($1, $2, $3) RETURNING id, name, email, created_at`,
+      [name.trim(), email.trim().toLowerCase(), hash]
+    );
+    return result.rows[0];
+  } catch (err) {
+    if (pg.isUniqueViolation(err)) {
+      const dup = new Error(`Platform admin "${email}" already exists`);
+      dup.status = 409;
+      throw dup;
+    }
+    throw err;
+  }
+}
+
+async function listAuditLogs({ institutionId, limit = 100 } = {}) {
+  if (institutionId) {
+    const result = await registryPool.query(
+      `SELECT al.*, i.name AS institution_name, i.code AS institution_code
+       FROM registry.audit_logs al
+       LEFT JOIN registry.institutions i ON i.id = al.institution_id
+       WHERE al.institution_id = $1
+       ORDER BY al.created_at DESC LIMIT $2`,
+      [institutionId, limit]
+    );
+    return result.rows;
+  }
+  const result = await registryPool.query(
+    `SELECT al.*, i.name AS institution_name, i.code AS institution_code
+     FROM registry.audit_logs al
+     LEFT JOIN registry.institutions i ON i.id = al.institution_id
+     ORDER BY al.created_at DESC LIMIT $1`,
+    [limit]
+  );
+  return result.rows;
+}
+
 module.exports = {
   registryPool,
   initRegistrySchema,
@@ -193,4 +267,7 @@ module.exports = {
   logAction,
   isAccessAllowed,
   STATUSES,
+  getPlatformAdminByEmail,
+  createPlatformAdmin,
+  listAuditLogs,
 };

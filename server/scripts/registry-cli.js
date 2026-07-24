@@ -14,6 +14,10 @@
 //                                                      working schema yet (e.g. Part 1-era row)
 //   list                                               List all institutions
 //   status <code> <trial|active|suspended|cancelled>   Change status
+//   platform-admin-create <name> <email> <password>    Create a login for the Super-Admin web panel
+//                                                      (Part 5) — there is no self-registration for
+//                                                      this by design, so the first one must be
+//                                                      created here.
 //
 // Examples:
 //   node server/scripts/registry-cli.js init
@@ -21,6 +25,7 @@
 //   node server/scripts/registry-cli.js provision al-madina admin@almadina.com "Str0ngPass!"
 //   node server/scripts/registry-cli.js list
 //   node server/scripts/registry-cli.js status al-madina suspended
+//   node server/scripts/registry-cli.js platform-admin-create "Your Name" you@example.com "Str0ngPass!"
 // ============================================================================
 
 require("dotenv").config({ quiet: true });
@@ -122,6 +127,19 @@ async function main() {
       break;
     }
 
+    case "platform-admin-create": {
+      const [name, email, password] = args;
+      if (!name || !email || !password) {
+        console.error('Usage: platform-admin-create "<Your Name>" <email> <password>');
+        process.exit(1);
+      }
+      const admin = await registryDb.createPlatformAdmin({ name, email, password });
+      console.log("Platform admin created:");
+      console.log(admin);
+      console.log(`\nLog in at /platform with ${admin.email}.`);
+      break;
+    }
+
     default: {
       console.log(
         [
@@ -131,6 +149,7 @@ async function main() {
           "  node server/scripts/registry-cli.js provision <code> <adminEmail> <adminPassword>",
           "  node server/scripts/registry-cli.js list",
           "  node server/scripts/registry-cli.js status <code> <trial|active|suspended|cancelled>",
+          '  node server/scripts/registry-cli.js platform-admin-create "<Your Name>" <email> <password>',
         ].join("\n")
       );
     }
