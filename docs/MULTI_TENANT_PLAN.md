@@ -9,7 +9,7 @@
 | # | ভাগ | কাজ | স্ট্যাটাস |
 |---|-----|-----|-----------|
 | ১ | **Central Registry Database** | কোন কোন প্রতিষ্ঠান আছে, তাদের schema-নাম, status (trial/active/suspended) রাখার মাস্টার টেবিল | ✅ সম্পন্ন (এই ধাপ) |
-| ২ | **Schema Provisioning System** | নতুন প্রতিষ্ঠান যোগ হলে স্বয়ংক্রিয়ভাবে তার জন্য নতুন schema + ১৭টা টেবিল + ডিফল্ট অ্যাডমিন তৈরি | ⏳ বাকি |
+| ২ | **Schema Provisioning System** | নতুন প্রতিষ্ঠান যোগ হলে স্বয়ংক্রিয়ভাবে তার জন্য নতুন schema + ১৭টা টেবিল + ডিফল্ট অ্যাডমিন তৈরি | ✅ সম্পন্ন (এই ধাপ) |
 | ৩ | **Tenant Resolution Middleware** | রিকোয়েস্ট এলে সাবডোমেইন/কোড দেখে সঠিক schema-তে DB কানেকশন সেট করা (`pg.js`/`db.js` পরিবর্তন) | ⏳ বাকি |
 | ৪ | **Auth/JWT আপডেট** | টোকেনে `institution_code` যোগ, লগইনের সময় প্রতিষ্ঠান যাচাই, সাসপেন্ড থাকলে লগইন ব্লক | ⏳ বাকি |
 | ৫ | **Super-Admin প্যানেল** | ওয়েব UI দিয়ে প্রতিষ্ঠান যোগ/সাসপেন্ড/স্ট্যাটাস দেখা (এখন পর্যন্ত এটা শুধু CLI দিয়ে করা যায়) | ⏳ বাকি |
@@ -67,15 +67,69 @@
 
 ---
 
+## ভাগ ২ — Schema Provisioning System (এই ধাপে যা হয়েছে)
+
+**এই ধাপও বিদ্যমান কোনো ফাইল ভাঙেনি।** `db.js`/`pg.js` এখনও শুধু `public` schema-তেই কথা বলে —
+এই ধাপ শুধু নতুন `tenant_xxx` schema তৈরির ক্ষমতা যোগ করেছে, বর্তমান single-tenant অ্যাপের
+কানেকশন-লজিক এখনো অপরিবর্তিত (সেটা ভাগ ৩-এ হবে)।
+
+### নতুন ফাইল
+
+- `server/src/tenantProvision.js` — মূল প্রোভিশনিং লজিক:
+  - `provisionTenantSchema(schemaName, { adminName, adminEmail, adminPassword })` — একটা
+    ট্রানজ্যাকশনে: schema তৈরি করে → `search_path` সেই schema-তে সেট করে → বিদ্যমান
+    `sql/supabase_schema.sql` (একই ফাইল, single-tenant অ্যাপও যেটা ব্যবহার করে) চালিয়ে ১৭টা
+    টেবিল বসায় → একটা Super Admin ইউজার + ডিফল্ট `incomeCategories` সেটিং তৈরি করে। মাঝপথে কিছু
+    ব্যর্থ হলে পুরো ট্রানজ্যাকশন রোলব্যাক হয়ে যায় — আধা-তৈরি schema থেকে যায় না।
+  - `dropTenantSchema(schemaName)` — শুধু ব্যর্থ provisioning-এর rollback path থেকে ব্যবহৃত হয়
+    (CLI/route থেকে সরাসরি এক্সপোজ করা হয়নি — ভুলবশত ডেটা মুছে যাওয়া ঠেকাতে)।
+  - `provisionInstitution({ name, code, adminEmail, adminPassword, ... })` — ভাগ ১-এর
+    `registryDb.createInstitution` আর উপরের `provisionTenantSchema` — দুটোকে একসাথে চালায়। schema
+    provisioning ব্যর্থ হলে registry-তে তৈরি হওয়া প্রতিষ্ঠানের সারিটাও মুছে দেয়, যাতে একই `code`
+    দিয়ে আবার চেষ্টা করা যায়।
+
+### পরিবর্তিত ফাইল
+
+- `server/scripts/registry-cli.js`:
+  - `create` কমান্ড এখন শুধু registry-তে সারি বসায় না — পুরো schema + admin login তৈরি করে দেয়।
+    নতুন সিগনেচার: `create "<Name>" <code> <adminEmail> <adminPassword> [phone]`
+  - নতুন কমান্ড `provision <code> <adminEmail> <adminPassword>` — যদি কোনো প্রতিষ্ঠান আগে থেকে
+    registry-তে আছে কিন্তু schema তৈরি হয়নি (যেমন ভাগ ১-এর সময় তৈরি পুরনো সারি), সেটার জন্য
+    schema বসাতে।
+
+### কেন এভাবে
+
+- Provisioning-এর পুরো কাজ (schema + ১৭ টেবিল + admin ইউজার + settings) একটাই DB কানেকশনে,
+  একটাই ট্রানজ্যাকশনে করা হয়েছে — Postgres-এ DDL (CREATE SCHEMA/TABLE) ট্রানজ্যাকশনাল, তাই মাঝে
+  কোনো ধাপ ব্যর্থ হলে (যেমন duplicate admin email) পুরোটাই রোলব্যাক হয়, কোনো "অর্ধেক তৈরি" tenant
+  থেকে যায় না।
+- `pool.connect()` দিয়ে একটা ডেডিকেটেড ক্লায়েন্ট নেওয়া হয়েছে (`pool.query()` না) — কারণ
+  `SET search_path` একটা নির্দিষ্ট কানেকশনের session-level সেটিং; পুল থেকে এলোমেলো কানেকশন
+  ব্যবহার করলে schema ঠিকমতো টার্গেট হতো না। কাজ শেষে `client.release()`-এর আগে `search_path`
+  আবার `public`-এ রিসেট করা হয়েছে, যাতে পুলে ফেরত যাওয়া কানেকশনটা পরে অন্য (single-tenant)
+  কোয়েরিতে ভুল schema-তে না চলে যায়।
+- একই `sql/supabase_schema.sql` ফাইল ব্যবহার করা হয়েছে যেটা এখনকার single-tenant অ্যাপও ব্যবহার
+  করে — আলাদা কোনো "tenant schema" ফাইল রাখা হয়নি, যাতে দুটো কখনো একে অপরের থেকে আলাদা
+  (drift) হয়ে না যায়।
+
+### পরের ধাপ (ভাগ ৩)
+
+এখন `tenant_xxx` schema-গুলো তৈরি হয়, কিন্তু অ্যাপ এখনো জানে না কোন রিকোয়েস্টের জন্য কোন schema
+ব্যবহার করতে হবে — `db.js`/`pg.js` সবসময় `public`-এ কথা বলে। ভাগ ৩-এ সাবডোমেইন/কোড দেখে সঠিক
+`tenant_xxx` schema-তে প্রতি-রিকোয়েস্ট কানেকশন সুইচ করার middleware বসবে।
+
+---
+
 ## চালানোর নির্দেশনা (এখনই টেস্ট করতে চাইলে)
 
 ```bash
 cd server
 npm install   # যদি আগে না করা থাকে
 node scripts/registry-cli.js init
-node scripts/registry-cli.js create "টেস্ট মাদ্রাসা" test-madrasah
+node scripts/registry-cli.js create "টেস্ট মাদ্রাসা" test-madrasah admin@test-madrasah.com "Str0ngPass!"
 node scripts/registry-cli.js list
 ```
 
-এটা আপনার বর্তমান `DATABASE_URL`-এ একটা নতুন `registry` schema তৈরি করবে — বিদ্যমান
+এটা আপনার বর্তমান `DATABASE_URL`-এ একটা নতুন `registry` schema এবং একটা নতুন `tenant_test_madrasah`
+schema (পুরো ১৭ টেবিল + একটা Super Admin লগইনসহ) তৈরি করবে — বিদ্যমান `public` schema-র
 students/payments/users ইত্যাদি টেবিলে কোনো হাত দেবে না।
