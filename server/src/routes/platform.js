@@ -18,6 +18,8 @@ const bcrypt = require("bcryptjs");
 const rateLimit = require("express-rate-limit");
 const registryDb = require("../registryDb");
 const tenantProvision = require("../tenantProvision");
+const migrateTenants = require("../migrateTenants");
+const billing = require("../billing");
 const { signPlatformToken, requirePlatformAuth, cookieOptions } = require("../middleware/platformAuth");
 
 const router = express.Router();
@@ -145,6 +147,104 @@ router.get("/audit-logs", async (req, res, next) => {
     const rows = await registryDb.listAuditLogs({ institutionId });
     res.json(rows);
   } catch (err) {
+    next(err);
+  }
+});
+
+// ============================================================================
+// Billing + Migration Tooling (Part 6 / 6)
+// ============================================================================
+
+router.get("/institutions/:id/payments", async (req, res, next) => {
+  try {
+    const institutionId = Number(req.params.id);
+    if (!Number.isInteger(institutionId)) return res.status(400).json({ error: "Invalid institution id" });
+    const rows = await registryDb.listPayments({ institutionId });
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Records a manually-confirmed payment (see sql/registry_schema.sql comment
+// on registry.payments for why this isn't a live gateway integration) and
+// extends/reactivates the institution's subscription in one step.
+router.post("/institutions/:id/payments", async (req, res, next) => {
+  try {
+    const institutionId = Number(req.params.id);
+    if (!Number.isInteger(institutionId)) return res.status(400).json({ error: "Invalid institution id" });
+    const { amount, currency, method, reference, periodDays, note } = req.body || {};
+    if (!amount) return res.status(400).json({ error: "amount is required" });
+    const payment = await registryDb.recordPayment(institutionId, {
+      amount: Number(amount),
+      currency,
+      method,
+      reference,
+      periodDays: periodDays ? Number(periodDays) : undefined,
+      recordedBy: req.platformAdmin.email,
+      note,
+    });
+    await registryDb.logAction(institutionId, req.platformAdmin.email, "payment_recorded", {
+      amount: payment.amount,
+      method: payment.method,
+      reference: payment.reference,
+      coversUntil: payment.covers_until,
+    });
+    res.status(201).json(payment);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// Manually trigger the same sweep the background job (src/billing.js) runs
+// on a schedule — useful right after changing BILLING_AUTOSUSPEND_INTERVAL_MINUTES,
+// or just to see the effect immediately instead of waiting for the next tick.
+router.post("/billing/expiry-scan", async (req, res, next) => {
+  try {
+    const suspended = await billing.runScanOnce();
+    await registryDb.logAction(null, req.platformAdmin.email, "expiry_scan_triggered", {
+      suspendedCount: suspended.length,
+      suspended: suspended.map((i) => i.code),
+    });
+    res.json({ suspended });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Lists every tenant schema currently in the registry, for the migration
+// tool's "which institutions will this affect" preview before running SQL
+// against all of them.
+router.get("/migrations/tenants", async (_req, res, next) => {
+  try {
+    const tenants = await migrateTenants.listTenantSchemas();
+    res.json(tenants);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Runs an arbitrary SQL statement across every tenant schema. Intentionally
+// requires the operator to paste the exact SQL (no "run the latest schema
+// file" shortcut) so nothing runs without the operator having read it first.
+// Every attempt is written to the audit log; the full per-tenant SQL text is
+// intentionally NOT stored in the log (only its length), since migration SQL
+// can be long and isn't itself sensitive-but-worth-repeating information.
+router.post("/migrations/run", async (req, res, next) => {
+  try {
+    const { sql } = req.body || {};
+    if (!sql || !sql.trim()) return res.status(400).json({ error: "sql is required" });
+    const result = await migrateTenants.migrateAllTenants(sql);
+    await registryDb.logAction(null, req.platformAdmin.email, "tenant_migration_run", {
+      total: result.total,
+      succeeded: result.succeeded.length,
+      failed: result.failed.map((f) => ({ code: f.code, error: f.error })),
+      sqlLength: sql.length,
+    });
+    res.json(result);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
   }
 });

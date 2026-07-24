@@ -263,6 +263,10 @@ if (process.env.NODE_ENV === "production") {
 async function start() {
   try {
     await db.init();
+    // Part 6 — periodic auto-suspend sweep for expired trials/subscriptions
+    // in the (optional) multi-tenant registry. No-op cost when the registry
+    // has no institutions yet, so safe to always start. See src/billing.js.
+    require("./billing").startExpiryScanJob();
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Madrasah ERP API running on port ${PORT}`);
     });

@@ -253,6 +253,139 @@ async function listAuditLogs({ institutionId, limit = 100 } = {}) {
   return result.rows;
 }
 
+// ============================================================================
+// Billing (Part 6 / 6 — Billing + Migration Tooling)
+// ============================================================================
+// See the comment above `registry.payments` in sql/registry_schema.sql for
+// why this is a manually-confirmed ledger rather than a live payment-gateway
+// integration.
+
+// Records one payment and, in the same transaction, extends the
+// institution's subscription: if it still has time left on its current
+// subscription_ends_at (or trial_ends_at, for a first-ever payment), the new
+// period is added ON TOP of that remaining time rather than from "now" —
+// paying early never costs the institution days. Also flips status to
+// 'active' (a suspended/trial institution that pays should regain access
+// immediately, without a separate manual status-change step).
+async function recordPayment(institutionId, {
+  amount,
+  currency = "BDT",
+  method = "manual",
+  reference,
+  periodDays = 30,
+  recordedBy,
+  note,
+}) {
+  if (!(Number(amount) > 0)) {
+    const err = new Error("Payment amount must be a positive number");
+    err.status = 400;
+    throw err;
+  }
+  if (!Number.isInteger(periodDays) || periodDays <= 0) {
+    const err = new Error("periodDays must be a positive integer");
+    err.status = 400;
+    throw err;
+  }
+
+  const client = await registryPool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const instRes = await client.query(
+      "SELECT * FROM registry.institutions WHERE id = $1 FOR UPDATE",
+      [institutionId]
+    );
+    const institution = instRes.rows[0];
+    if (!institution) {
+      const err = new Error("Institution not found");
+      err.status = 404;
+      throw err;
+    }
+
+    const now = new Date();
+    const currentEnd = [institution.subscription_ends_at, institution.trial_ends_at]
+      .map((d) => (d ? new Date(d) : null))
+      .filter((d) => d && d > now)
+      .sort((a, b) => b - a)[0]; // latest of the two, if still in the future
+    const base = currentEnd || now;
+    const coversUntil = new Date(base.getTime() + periodDays * 24 * 60 * 60 * 1000);
+
+    const paymentRes = await client.query(
+      `INSERT INTO registry.payments
+         (institution_id, amount, currency, method, reference, period_days, covers_until, recorded_by, note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [institutionId, amount, currency, method, reference || null, periodDays, coversUntil, recordedBy || null, note || null]
+    );
+
+    await client.query(
+      `UPDATE registry.institutions
+       SET status = 'active', subscription_ends_at = $1, updated_at = now()
+       WHERE id = $2`,
+      [coversUntil, institutionId]
+    );
+
+    await client.query("COMMIT");
+    return paymentRes.rows[0];
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function listPayments({ institutionId, limit = 100 } = {}) {
+  if (institutionId) {
+    const result = await registryPool.query(
+      `SELECT * FROM registry.payments WHERE institution_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [institutionId, limit]
+    );
+    return result.rows;
+  }
+  const result = await registryPool.query(
+    `SELECT p.*, i.name AS institution_name, i.code AS institution_code
+     FROM registry.payments p
+     LEFT JOIN registry.institutions i ON i.id = p.institution_id
+     ORDER BY p.created_at DESC LIMIT $1`,
+    [limit]
+  );
+  return result.rows;
+}
+
+// Auto-suspend sweep: finds every 'trial' or 'active' institution whose
+// relevant expiry date has already passed (same rule isAccessAllowed()
+// already reads) and flips its status to 'suspended', logging one audit
+// entry per institution with actor 'system:expiry-scan' so it's clearly
+// distinguishable from a manual suspension in the audit log. This is the
+// only place in the whole codebase that changes an institution's status
+// without a human clicking something — it exists because isAccessAllowed()
+// is read-only by design (see its comment), so nothing previously enforced
+// expiry automatically. Safe to call repeatedly (e.g. from a scheduled job
+// or an operator-triggered manual scan) — institutions already suspended
+// are simply not matched again.
+async function runExpiryScan() {
+  const result = await registryPool.query(
+    `SELECT * FROM registry.institutions
+     WHERE (status = 'active' AND subscription_ends_at IS NOT NULL AND subscription_ends_at < now())
+        OR (status = 'trial' AND trial_ends_at IS NOT NULL AND trial_ends_at < now())`
+  );
+  const suspended = [];
+  for (const institution of result.rows) {
+    await registryPool.query(
+      `UPDATE registry.institutions SET status = 'suspended', updated_at = now() WHERE id = $1`,
+      [institution.id]
+    );
+    await logAction(institution.id, "system:expiry-scan", "auto_suspended", {
+      previousStatus: institution.status,
+      subscription_ends_at: institution.subscription_ends_at,
+      trial_ends_at: institution.trial_ends_at,
+    });
+    suspended.push({ id: institution.id, name: institution.name, code: institution.code });
+  }
+  return suspended;
+}
+
 module.exports = {
   registryPool,
   initRegistrySchema,
@@ -270,4 +403,7 @@ module.exports = {
   getPlatformAdminByEmail,
   createPlatformAdmin,
   listAuditLogs,
+  recordPayment,
+  listPayments,
+  runExpiryScan,
 };

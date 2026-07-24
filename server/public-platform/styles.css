@@ -85,7 +85,7 @@ main { padding: 24px; max-width: 1100px; margin: 0 auto; }
 /* ---------- form controls ---------- */
 label { display: block; font-size: 13px; margin: 12px 0 4px; color: var(--muted); }
 
-input, select {
+input, select, textarea {
   width: 100%;
   padding: 9px 11px;
   border: 1px solid var(--border);
@@ -96,7 +96,9 @@ input, select {
   color: var(--text);
 }
 
-input:focus, select:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; resize: vertical; }
+
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
 
 button {
   font-family: inherit;
@@ -124,6 +126,16 @@ button.small { padding: 5px 10px; font-size: 12.5px; }
   background: var(--danger-bg);
   color: var(--danger);
   border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin: 12px 0;
+}
+
+.info-box {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid #bbf7d0;
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 13px;

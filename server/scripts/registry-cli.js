@@ -18,6 +18,15 @@
 //                                                      (Part 5) — there is no self-registration for
 //                                                      this by design, so the first one must be
 //                                                      created here.
+//   record-payment <code> <amount> [method] [reference] [periodDays]
+//                                                      Record a manually-confirmed payment (Part 6)
+//                                                      and extend/reactivate the subscription
+//   payments <code>                                    List payment history for an institution
+//   expiry-scan                                         Manually run the auto-suspend sweep once
+//                                                      (also runs automatically every hour — see
+//                                                      src/billing.js / BILLING_AUTOSUSPEND_INTERVAL_MINUTES)
+//   migrate-tenants <path-to-sql-file>                  Run a SQL file against every tenant schema
+//                                                      (Part 6 — see docs/MULTI_TENANT_PLAN.md)
 //
 // Examples:
 //   node server/scripts/registry-cli.js init
@@ -26,11 +35,17 @@
 //   node server/scripts/registry-cli.js list
 //   node server/scripts/registry-cli.js status al-madina suspended
 //   node server/scripts/registry-cli.js platform-admin-create "Your Name" you@example.com "Str0ngPass!"
+//   node server/scripts/registry-cli.js record-payment al-madina 5000 bkash "TRX123ABC" 30
+//   node server/scripts/registry-cli.js payments al-madina
+//   node server/scripts/registry-cli.js expiry-scan
+//   node server/scripts/registry-cli.js migrate-tenants ./some-migration.sql
 // ============================================================================
 
 require("dotenv").config({ quiet: true });
 const registryDb = require("../src/registryDb");
 const tenantProvision = require("../src/tenantProvision");
+const migrateTenants = require("../src/migrateTenants");
+const fs = require("fs");
 
 async function main() {
   const [, , command, ...args] = process.argv;
@@ -140,6 +155,101 @@ async function main() {
       break;
     }
 
+    case "record-payment": {
+      const [code, amountStr, method, reference, periodDaysStr] = args;
+      if (!code || !amountStr) {
+        console.error("Usage: record-payment <code> <amount> [method] [reference] [periodDays]");
+        process.exit(1);
+      }
+      const inst = await registryDb.getInstitutionByCode(code);
+      if (!inst) {
+        console.error(`No institution found with code "${code}"`);
+        process.exit(1);
+      }
+      const payment = await registryDb.recordPayment(inst.id, {
+        amount: Number(amountStr),
+        method: method || "manual",
+        reference,
+        periodDays: periodDaysStr ? Number(periodDaysStr) : undefined,
+        recordedBy: "cli",
+      });
+      await registryDb.logAction(inst.id, "cli", "payment_recorded", {
+        amount: payment.amount,
+        method: payment.method,
+        reference: payment.reference,
+        coversUntil: payment.covers_until,
+      });
+      console.log(`Payment recorded for "${inst.name}". Subscription now covers until: ${payment.covers_until}`);
+      break;
+    }
+
+    case "payments": {
+      const [code] = args;
+      if (!code) {
+        console.error("Usage: payments <code>");
+        process.exit(1);
+      }
+      const inst = await registryDb.getInstitutionByCode(code);
+      if (!inst) {
+        console.error(`No institution found with code "${code}"`);
+        process.exit(1);
+      }
+      const rows = await registryDb.listPayments({ institutionId: inst.id });
+      if (!rows.length) {
+        console.log(`No payments recorded yet for "${inst.name}".`);
+        break;
+      }
+      console.table(
+        rows.map((r) => ({
+          id: r.id,
+          amount: r.amount,
+          currency: r.currency,
+          method: r.method,
+          reference: r.reference,
+          covers_until: r.covers_until,
+          created_at: r.created_at,
+        }))
+      );
+      break;
+    }
+
+    case "expiry-scan": {
+      const suspended = await registryDb.runExpiryScan();
+      if (!suspended.length) {
+        console.log("No expired trials/subscriptions found. Nothing changed.");
+        break;
+      }
+      console.log(`Auto-suspended ${suspended.length} institution(s):`);
+      console.table(suspended);
+      break;
+    }
+
+    case "migrate-tenants": {
+      const [sqlFilePath] = args;
+      if (!sqlFilePath) {
+        console.error("Usage: migrate-tenants <path-to-sql-file>");
+        process.exit(1);
+      }
+      const sqlText = fs.readFileSync(sqlFilePath, "utf8");
+      const tenants = await migrateTenants.listTenantSchemas();
+      console.log(`Running SQL from "${sqlFilePath}" against ${tenants.length} tenant schema(s)...`);
+      const result = await migrateTenants.migrateAllTenants(sqlText);
+      await registryDb.logAction(null, "cli", "tenant_migration_run", {
+        total: result.total,
+        succeeded: result.succeeded.length,
+        failed: result.failed.map((f) => ({ code: f.code, error: f.error })),
+        sqlLength: sqlText.length,
+      });
+      console.log(`Succeeded: ${result.succeeded.length}/${result.total}`);
+      if (result.succeeded.length) console.table(result.succeeded);
+      if (result.failed.length) {
+        console.error(`Failed: ${result.failed.length}`);
+        console.table(result.failed);
+        process.exitCode = 1;
+      }
+      break;
+    }
+
     default: {
       console.log(
         [
@@ -150,6 +260,10 @@ async function main() {
           "  node server/scripts/registry-cli.js list",
           "  node server/scripts/registry-cli.js status <code> <trial|active|suspended|cancelled>",
           '  node server/scripts/registry-cli.js platform-admin-create "<Your Name>" <email> <password>',
+          "  node server/scripts/registry-cli.js record-payment <code> <amount> [method] [reference] [periodDays]",
+          "  node server/scripts/registry-cli.js payments <code>",
+          "  node server/scripts/registry-cli.js expiry-scan",
+          "  node server/scripts/registry-cli.js migrate-tenants <path-to-sql-file>",
         ].join("\n")
       );
     }

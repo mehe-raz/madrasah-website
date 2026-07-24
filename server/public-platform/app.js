@@ -20,7 +20,8 @@ let state = {
   statusFilter: "",
   loading: true,
   error: "",
-  modal: null, // { type: 'create' | 'subscription' | 'audit', ... }
+  info: "", // Part 6 — transient success message (expiry-scan / migration results)
+  modal: null, // { type: 'create' | 'subscription' | 'audit' | 'payment' | 'migration', ... }
 };
 
 async function api(path, opts = {}) {
@@ -141,6 +142,7 @@ function institutionRow(inst) {
           </select>
           <button class="small secondary apply-status" data-id="${inst.id}">আপডেট</button>
           <button class="small secondary open-subscription" data-id="${inst.id}">সাবস্ক্রিপশন</button>
+          <button class="small secondary open-payment" data-id="${inst.id}">পেমেন্ট</button>
           <button class="link-btn open-audit" data-id="${inst.id}">লগ</button>
         </div>
       </td>
@@ -167,10 +169,13 @@ function renderDashboard() {
               .join("")}
           </select>
           <button id="view-audit" class="secondary">সব অডিট লগ</button>
+          <button id="run-expiry-scan" class="secondary">মেয়াদ স্ক্যান চালান</button>
+          <button id="open-migration" class="secondary">মাইগ্রেশন টুল</button>
         </div>
         <button id="new-institution">+ নতুন প্রতিষ্ঠান</button>
       </div>
       ${state.error ? `<div class="error-box">${escapeHtml(state.error)}</div>` : ""}
+      ${state.info ? `<div class="info-box">${escapeHtml(state.info)}</div>` : ""}
       <div class="card">
         ${
           state.loading
@@ -198,6 +203,8 @@ function renderModal() {
   if (state.modal.type === "create") return renderCreateModal();
   if (state.modal.type === "subscription") return renderSubscriptionModal();
   if (state.modal.type === "audit") return renderAuditModal();
+  if (state.modal.type === "payment") return renderPaymentModal();
+  if (state.modal.type === "migration") return renderMigrationModal();
   return "";
 }
 
@@ -300,6 +307,117 @@ function renderAuditModal() {
   `;
 }
 
+function renderPaymentModal() {
+  const inst = state.institutions.find((i) => i.id === state.modal.institutionId);
+  if (!inst) return "";
+  const payments = state.modal.payments || [];
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal" style="max-width:520px;">
+        <h2>পেমেন্ট — ${escapeHtml(inst.name)}</h2>
+        <p class="sub">
+          পেমেন্ট নিশ্চিত হওয়ার পর এখানে যোগ করুন (bKash/Nagad/ব্যাংক ইত্যাদি) — এটা
+          স্বয়ংক্রিয়ভাবে সাবস্ক্রিপশনের মেয়াদ বাড়িয়ে দেবে ও অ্যাকাউন্ট সক্রিয় করে দেবে।
+        </p>
+        ${state.modal.error ? `<div class="error-box">${escapeHtml(state.modal.error)}</div>` : ""}
+        <form id="payment-form">
+          <label>পরিমাণ (টাকা) *</label>
+          <input name="amount" type="number" step="0.01" min="0.01" required />
+          <label>মাধ্যম</label>
+          <select name="method">
+            <option value="bkash">bKash</option>
+            <option value="nagad">Nagad</option>
+            <option value="bank">ব্যাংক</option>
+            <option value="cash">নগদ (হাতে)</option>
+            <option value="manual">অন্যান্য</option>
+          </select>
+          <label>রেফারেন্স / ট্রানজেকশন আইডি</label>
+          <input name="reference" placeholder="TRX..." />
+          <label>মেয়াদ (দিন)</label>
+          <input name="periodDays" type="number" min="1" placeholder="30" />
+          <label>নোট</label>
+          <input name="note" />
+          <div class="modal-actions">
+            <button type="button" class="secondary" id="modal-cancel">বন্ধ করুন</button>
+            <button type="submit">পেমেন্ট রেকর্ড করুন</button>
+          </div>
+        </form>
+        <p class="sub" style="margin-top:18px;">পূর্ববর্তী পেমেন্ট</p>
+        ${
+          state.modal.loading
+            ? `<p class="muted">লোড হচ্ছে…</p>`
+            : payments.length === 0
+            ? `<p class="muted">কোনো পেমেন্ট রেকর্ড নেই।</p>`
+            : `<div class="card" style="max-height:220px; overflow-y:auto;">
+                <table>
+                  <thead><tr><th>তারিখ</th><th>পরিমাণ</th><th>মাধ্যম</th><th>মেয়াদ পর্যন্ত</th></tr></thead>
+                  <tbody>
+                    ${payments
+                      .map(
+                        (p) => `
+                      <tr>
+                        <td class="muted">${fmtDate(p.created_at)}</td>
+                        <td>${escapeHtml(p.amount)} ${escapeHtml(p.currency)}</td>
+                        <td class="mono">${escapeHtml(p.method)}</td>
+                        <td class="muted">${fmtDate(p.covers_until)}</td>
+                      </tr>`
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+function renderMigrationModal() {
+  const result = state.modal.result;
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal" style="max-width:640px;">
+        <h2>মাইগ্রেশন টুল</h2>
+        <p class="sub">
+          এই SQL প্রতিটা প্রতিষ্ঠানের (tenant) schema-তে আলাদা আলাদা করে চালানো হবে।
+          idempotent SQL দিন (যেমন <span class="mono">ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...</span>) —
+          একটা প্রতিষ্ঠানে ব্যর্থ হলে বাকিগুলো তবুও চেষ্টা করা হবে।
+        </p>
+        ${state.modal.error ? `<div class="error-box">${escapeHtml(state.modal.error)}</div>` : ""}
+        <form id="migration-form">
+          <label>SQL</label>
+          <textarea name="sql" rows="8" required placeholder="ALTER TABLE students ADD COLUMN IF NOT EXISTS ..."></textarea>
+          <div class="modal-actions">
+            <button type="button" class="secondary" id="modal-cancel">বন্ধ করুন</button>
+            <button type="submit" id="migration-submit">সব প্রতিষ্ঠানে চালান</button>
+          </div>
+        </form>
+        ${
+          result
+            ? `<p class="sub" style="margin-top:18px;">ফলাফল — মোট ${result.total}টির মধ্যে ${result.succeeded.length}টি সফল</p>
+               <div class="card" style="max-height:220px; overflow-y:auto;">
+                 <table>
+                   <thead><tr><th>কোড</th><th>ফলাফল</th></tr></thead>
+                   <tbody>
+                     ${result.succeeded
+                       .map((t) => `<tr><td class="mono">${escapeHtml(t.code)}</td><td><span class="badge active">সফল</span></td></tr>`)
+                       .join("")}
+                     ${result.failed
+                       .map(
+                         (t) => `<tr><td class="mono">${escapeHtml(t.code)}</td>
+                           <td><span class="badge suspended">ব্যর্থ</span> <span class="muted">${escapeHtml(t.error)}</span></td></tr>`
+                       )
+                       .join("")}
+                   </tbody>
+                 </table>
+               </div>`
+            : ""
+        }
+      </div>
+    </div>
+  `;
+}
+
 // ---------------------------------------------------------------------------
 // Event wiring
 // ---------------------------------------------------------------------------
@@ -329,6 +447,30 @@ function wireDashboardEvents() {
 
   document.getElementById("view-audit").addEventListener("click", () => openAuditModal(null));
 
+  document.getElementById("run-expiry-scan").addEventListener("click", async (e) => {
+    const btn = e.target;
+    btn.disabled = true;
+    state.error = "";
+    state.info = "";
+    try {
+      const { suspended } = await api("/billing/expiry-scan", { method: "POST" });
+      state.info = suspended.length
+        ? `মেয়াদ শেষ হওয়ায় ${suspended.length}টি প্রতিষ্ঠান সাসপেন্ড করা হয়েছে: ${suspended.map((i) => i.code).join(", ")}`
+        : "মেয়াদ শেষ হওয়া কোনো প্রতিষ্ঠান পাওয়া যায়নি।";
+      await loadInstitutions();
+    } catch (err) {
+      state.error = err.message;
+      render();
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById("open-migration").addEventListener("click", () => {
+    state.modal = { type: "migration", error: "", result: null };
+    render();
+  });
+
   root.querySelectorAll(".apply-status").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = Number(btn.dataset.id);
@@ -353,6 +495,10 @@ function wireDashboardEvents() {
 
   root.querySelectorAll(".open-audit").forEach((btn) => {
     btn.addEventListener("click", () => openAuditModal(Number(btn.dataset.id)));
+  });
+
+  root.querySelectorAll(".open-payment").forEach((btn) => {
+    btn.addEventListener("click", () => openPaymentModal(Number(btn.dataset.id)));
   });
 
   const backdrop = document.getElementById("modal-backdrop");
@@ -406,6 +552,60 @@ function wireDashboardEvents() {
         render();
       }
     });
+  }
+
+  const paymentForm = document.getElementById("payment-form");
+  if (paymentForm) {
+    paymentForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(paymentForm);
+      const body = Object.fromEntries(fd.entries());
+      if (body.periodDays) body.periodDays = Number(body.periodDays);
+      else delete body.periodDays;
+      Object.keys(body).forEach((k) => { if (body[k] === "") delete body[k]; });
+      try {
+        await api(`/institutions/${state.modal.institutionId}/payments`, { method: "POST", body });
+        await openPaymentModal(state.modal.institutionId);
+        await loadInstitutions();
+      } catch (err) {
+        state.modal.error = err.message;
+        render();
+      }
+    });
+  }
+
+  const migrationForm = document.getElementById("migration-form");
+  if (migrationForm) {
+    migrationForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(migrationForm);
+      const submitBtn = document.getElementById("migration-submit");
+      submitBtn.disabled = true;
+      state.modal.error = "";
+      try {
+        const result = await api("/migrations/run", { method: "POST", body: { sql: fd.get("sql") } });
+        state.modal.result = result;
+        render();
+      } catch (err) {
+        state.modal.error = err.message;
+        render();
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
+}
+
+async function openPaymentModal(institutionId) {
+  state.modal = { type: "payment", institutionId, payments: [], loading: true, error: "" };
+  render();
+  try {
+    state.modal.payments = await api(`/institutions/${institutionId}/payments`);
+  } catch (err) {
+    state.modal.error = err.message;
+  } finally {
+    state.modal.loading = false;
+    render();
   }
 }
 
