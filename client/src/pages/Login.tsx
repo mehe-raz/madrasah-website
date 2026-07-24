@@ -117,6 +117,8 @@ export function Login() {
               <button type="button" onClick={() => setMode("forgot")} style={linkBtn}>{t.auth.forgotPassword}</button>
               <br />
               <button type="button" onClick={() => setMode("register")} style={linkBtn}>{t.auth.firstSetup}</button>
+              <br />
+              <button type="button" onClick={() => navigate("/?clearTenant=1")} style={linkBtn}>Public site</button>
             </>
           )}
           {mode !== "login" && (

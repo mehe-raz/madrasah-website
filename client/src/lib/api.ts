@@ -30,27 +30,36 @@ import type {
 const API = import.meta.env.VITE_API_URL || "/api";
 
 // ----------------------------------------------------------------------------
-// TEMPORARY multi-tenant testing helper (remove once real wildcard
-// subdomains are set up in production).
+// Temporary multi-tenant helper.
 //
-// Since a free Render/Vercel subdomain can't have its own wildcard
-// subdomains, the browser has no way to say "I'm madrasah-a" just from the
-// URL host the way it normally would (a.yourdomain.com vs b.yourdomain.com).
-// So instead: open the app once with ?tenant=<code> in the URL — e.g.
-//   https://your-app.onrender.com/login?tenant=madrasah-a
-// and this stores that code in localStorage. Every API request after that
-// sends it as an X-Tenant-Code header, which tenantResolve.js already reads
-// before it even looks at the hostname. To switch tenants in the same
-// browser, just reload with a different ?tenant=... value, or clear it with
-// localStorage.removeItem("tenantCode") in the browser console.
+// Until real wildcard subdomains are used, the browser needs an explicit
+// tenant hint in the URL. Open the app with ?tenant=<code> to store that
+// tenant in localStorage and send it as X-Tenant-Code on every API request.
+//
+// Use ?clearTenant=1 (or ?public=1) to clear the stored tenant and return
+// to public/non-tenant mode. This is what the demo portal uses for the
+// original/public site button.
 // ----------------------------------------------------------------------------
+const TENANT_STORAGE_KEY = "tenantCode";
+
 function getTenantCode(): string | null {
   if (typeof window === "undefined") return null;
-  const fromUrl = new URLSearchParams(window.location.search).get("tenant");
-  if (fromUrl) {
-    localStorage.setItem("tenantCode", fromUrl.trim().toLowerCase());
+
+  const params = new URLSearchParams(window.location.search);
+  const clearTenant = params.get("clearTenant");
+  const publicMode = params.get("public");
+
+  if (clearTenant === "1" || clearTenant === "true" || publicMode === "1" || publicMode === "true") {
+    localStorage.removeItem(TENANT_STORAGE_KEY);
+    return null;
   }
-  return localStorage.getItem("tenantCode");
+
+  const fromUrl = params.get("tenant");
+  if (fromUrl) {
+    localStorage.setItem(TENANT_STORAGE_KEY, fromUrl.trim().toLowerCase());
+  }
+
+  return localStorage.getItem(TENANT_STORAGE_KEY);
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
