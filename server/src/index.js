@@ -57,7 +57,15 @@ function isAllowedOrigin(origin) {
   if (allowedOrigins.includes(origin)) return true;
   try {
     const parsed = new URL(origin);
-    return parsed.hostname.endsWith(".vercel.app");
+    if (parsed.hostname.endsWith(".vercel.app")) return true;
+    const rootDomain = (process.env.PLATFORM_ROOT_DOMAIN || "").toLowerCase();
+    if (rootDomain) {
+      const host = parsed.hostname.toLowerCase();
+      // Accept the root domain itself and any subdomain of it
+      // (tenant-a.oriluxbd.com, www.oriluxbd.com, oriluxbd.com, ...).
+      if (host === rootDomain || host.endsWith(`.${rootDomain}`)) return true;
+    }
+    return false;
   } catch {
     return false;
   }

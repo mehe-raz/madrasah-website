@@ -29,46 +29,11 @@ import type {
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
-// ----------------------------------------------------------------------------
-// Temporary multi-tenant helper.
-//
-// Until real wildcard subdomains are used, the browser needs an explicit
-// tenant hint in the URL. Open the app with ?tenant=<code> to store that
-// tenant in localStorage and send it as X-Tenant-Code on every API request.
-//
-// Use ?clearTenant=1 (or ?public=1) to clear the stored tenant and return
-// to public/non-tenant mode. This is what the demo portal uses for the
-// original/public site button.
-// ----------------------------------------------------------------------------
-const TENANT_STORAGE_KEY = "tenantCode";
-
-function getTenantCode(): string | null {
-  if (typeof window === "undefined") return null;
-
-  const params = new URLSearchParams(window.location.search);
-  const clearTenant = params.get("clearTenant");
-  const publicMode = params.get("public");
-
-  if (clearTenant === "1" || clearTenant === "true" || publicMode === "1" || publicMode === "true") {
-    localStorage.removeItem(TENANT_STORAGE_KEY);
-    return null;
-  }
-
-  const fromUrl = params.get("tenant");
-  if (fromUrl) {
-    localStorage.setItem(TENANT_STORAGE_KEY, fromUrl.trim().toLowerCase());
-  }
-
-  return localStorage.getItem(TENANT_STORAGE_KEY);
-}
-
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const tenantCode = getTenantCode();
   const res = await fetch(`${API}${path}`, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(tenantCode ? { "X-Tenant-Code": tenantCode } : {}),
       ...options?.headers,
     },
     ...options,
@@ -173,10 +138,8 @@ export const api = {
     request<{ ok: boolean }>(`/students/${id}`, { method: "DELETE" }),
 
   downloadStudentPdf: async (id: number, name: string) => {
-    const tenantCode = getTenantCode();
     const res = await fetch(`${API}/students/${id}/pdf`, {
       credentials: "include",
-      headers: tenantCode ? { "X-Tenant-Code": tenantCode } : undefined,
     });
     if (!res.ok) throw new Error("PDF generation failed");
     const blob = await res.blob();
@@ -402,10 +365,8 @@ export const api = {
     request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/users/${id}`, { method: "DELETE" }),
 
   downloadBackup: async () => {
-    const tenantCode = getTenantCode();
     const res = await fetch(`${API}/backup`, {
       credentials: "include",
-      headers: tenantCode ? { "X-Tenant-Code": tenantCode } : undefined,
     });
     if (!res.ok) throw new Error("Backup failed");
     const disposition = res.headers.get("Content-Disposition") || "";
@@ -428,13 +389,11 @@ export const api = {
   runBackupNow: () => request<{ filename: string; localPath: string; config: BackupConfig }>("/backup/run", { method: "POST" }),
 
   previewBackup: async (file: File) => {
-    const tenantCode = getTenantCode();
     const res = await fetch(`${API}/backup/preview`, {
       method: "POST",
       credentials: "include",
       headers: {
         "Content-Type": "application/octet-stream",
-        ...(tenantCode ? { "X-Tenant-Code": tenantCode } : {}),
       },
       body: await file.arrayBuffer(),
     });
@@ -451,13 +410,11 @@ export const api = {
     ),
 
   restoreBackup: async (file: File) => {
-    const tenantCode = getTenantCode();
     const res = await fetch(`${API}/backup/restore`, {
       method: "POST",
       credentials: "include",
       headers: {
         "Content-Type": "application/octet-stream",
-        ...(tenantCode ? { "X-Tenant-Code": tenantCode } : {}),
       },
       body: await file.arrayBuffer(),
     });
