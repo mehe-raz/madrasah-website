@@ -515,18 +515,28 @@ router.get("/google/auth-url", async (req, res) => {
 });
 
 // Google redirects the browser here after the user approves/denies access.
-// This is a top-level navigation (not a fetch), so auth relies on the
-// "token" cookie rather than an Authorization header.
+// This is a top-level navigation (not a fetch), so it CANNOT rely on the
+// "token" cookie the way every other route in this file does: that cookie
+// is issued (and therefore only ever stored by the browser) for whichever
+// tenant subdomain the admin actually logged into (e.g.
+// dhaka-madrasah.example.com), because it's a host-only cookie with no
+// `domain` attribute. GOOGLE_DRIVE_REDIRECT_URI, by contrast, always points
+// at one fixed host registered once in Google Cloud Console (typically a
+// dedicated api.example.com — see .env.example) — a DIFFERENT host than the
+// tenant subdomain, for every single tenant. The browser therefore never
+// attaches that cookie to this request, so req.user is never trustworthy
+// here (this used to be read as req.user, which meant this route silently
+// failed for every multi-tenant deployment). tenantResolve.js's
+// isSkippedPath() also lets this request through without trying (and
+// failing) to match this fixed Host to an institution.
 //
-// Unlike every other route in this file, this one is NOT reached with
-// req.tenant already set: Google always redirects to one fixed URL
-// (GOOGLE_DRIVE_REDIRECT_URI, registered once in Google Cloud Console), so
-// this request's Host is this backend's own domain, never a tenant
-// subdomain — tenantResolve.js's isSkippedPath() lets it through without
-// trying (and failing) to match that Host to an institution. Instead, the
-// institution code that /google/auth-url signed into `state` is used below
-// to open the correct tenant's database context by hand, via
-// withTenantByCode, before touching anything that reads/writes tenant data.
+// Instead, identity is re-derived from the signed `state` param itself:
+// /google/auth-url below only ever mints it for a request that already
+// passed cookie auth as Super Admin, so its `uid`/`institutionCode` claims
+// are trustworthy. The institution code opens the correct tenant's database
+// context by hand via withTenantByCode, and the uid is then looked up
+// against *that* tenant's users table (not just decoded from the token) so
+// a stale/deleted/demoted account can't complete the connection.
 router.get("/google/callback", async (req, res) => {
   const { code, state, error } = req.query;
 
@@ -543,17 +553,20 @@ router.get("/google/callback", async (req, res) => {
 
   const finishConnection = async () => {
     if (error) throw new Error(String(error));
-    if (req.user?.role !== "Super Admin") throw new Error("Only Super Admin can connect Google Drive");
     if (!code || !state) throw new Error("Missing Google authorization code");
-    // Extra check (mirrors middleware/auth.js's institutionCode binding for
-    // normal requests, which is skipped here since req.tenant is never set
-    // for this route): a token issued for institution A's connect flow
-    // must not be usable to write into institution B's Drive settings, even
-    // though both share the same JWT_SECRET.
-    if (institutionCode && req.user?.institutionCode && req.user.institutionCode !== institutionCode) {
-      throw new Error("Invalid Google Drive connection request");
+    if (!statePayload || statePayload.purpose !== "google-drive-oauth" || !statePayload.uid) {
+      throw new Error("Google Drive connection link expired. Please try connecting again.");
     }
-    await googleDrive.handleCallback(String(code), String(state), req.user.id);
+    // Re-verify the connecting user against THIS tenant's own users table
+    // (rather than trusting req.user, which is unavailable here — see the
+    // comment above the route) so a token minted for institution A can
+    // never be replayed to connect institution B's Drive, and so a user
+    // who was demoted/removed after clicking "Connect" can't slip through.
+    const user = await db.get("SELECT id, role FROM users WHERE id = $1", [statePayload.uid]);
+    if (!user || user.role !== "Super Admin") {
+      throw new Error("Only Super Admin can connect Google Drive");
+    }
+    await googleDrive.handleCallback(String(code), String(state), user.id);
   };
 
   try {
