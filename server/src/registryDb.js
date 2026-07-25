@@ -122,6 +122,46 @@ async function createInstitution({
   return result.rows[0];
 }
 
+// Schema names are only ever produced by codeToSchemaName() above ("tenant_"
+// + lowercase letters/digits/underscores), but this is double-checked here
+// against that exact shape before being interpolated into DROP SCHEMA below
+// (identifiers can't be bind parameters) — same belt-and-braces pattern
+// tenantResolve.js uses before interpolating a schema name into SQL.
+const SAFE_SCHEMA_NAME = /^[a-z][a-z0-9_]*$/;
+
+// Permanently removes an institution: drops its entire tenant_xxx schema
+// (all students/payments/users/etc data) and deletes its registry row.
+// Wrapped in a transaction so a failure partway through can't leave the
+// institution half-deleted (e.g. schema gone but registry row still there,
+// or vice versa) — Postgres DDL participates in transactions like any other
+// statement, so DROP SCHEMA rolls back too if the DELETE that follows fails.
+// This is irreversible; the platform.js route requires the caller to
+// confirm by re-typing the institution's code before calling this.
+async function deleteInstitution(id) {
+  const institution = await getInstitutionById(id);
+  if (!institution) return null;
+
+  if (!SAFE_SCHEMA_NAME.test(institution.schema_name || "")) {
+    const err = new Error(`Refusing to delete institution ${id}: invalid schema name`);
+    err.status = 500;
+    throw err;
+  }
+
+  const client = await registryPool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`DROP SCHEMA IF EXISTS "${institution.schema_name}" CASCADE`);
+    await client.query("DELETE FROM registry.institutions WHERE id = $1", [id]);
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+  return institution;
+}
+
 async function updateStatus(id, status) {
   if (!STATUSES.includes(status)) {
     const err = new Error(`Status must be one of: ${STATUSES.join(", ")}`);
@@ -395,6 +435,7 @@ module.exports = {
   getInstitutionByCode,
   getInstitutionById,
   createInstitution,
+  deleteInstitution,
   updateStatus,
   updateSubscription,
   logAction,

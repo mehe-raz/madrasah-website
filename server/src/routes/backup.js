@@ -84,6 +84,49 @@ function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
+// Mirrors index.js's isAllowedOrigin() CORS check: an explicit CLIENT_ORIGIN
+// entry, any *.vercel.app (the client's default host), or the configured
+// PLATFORM_ROOT_DOMAIN and its subdomains (tenant-a.example.com, etc). Kept
+// as a separate small copy here rather than importing from index.js to
+// avoid a circular require (index.js is what requires this router).
+function isAllowedReturnOrigin(origin) {
+  if (!origin) return false;
+  const allowed = (process.env.CLIENT_ORIGIN || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  if (allowed.includes(origin)) return true;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.hostname.endsWith(".vercel.app")) return true;
+    const rootDomain = (process.env.PLATFORM_ROOT_DOMAIN || "").toLowerCase();
+    if (rootDomain) {
+      const host = parsed.hostname.toLowerCase();
+      if (host === rootDomain || host.endsWith(`.${rootDomain}`)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function safeOriginFromUrl(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+}
+
+function defaultClientOrigin() {
+  return (
+    (process.env.CLIENT_ORIGIN || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)[0] || "/"
+  );
+}
+
 function stamp() {
   return new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 }
@@ -453,7 +496,15 @@ router.get("/google/auth-url", async (req, res) => {
         error: "Google Drive integration is not configured on the server (missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_DRIVE_REDIRECT_URI).",
       });
     }
-    res.json({ url: googleDrive.getAuthUrl(req.user.id) });
+    // This app is multi-tenant (one subdomain per institution/training
+    // site), so remember which one this request came from — the OAuth
+    // callback below has no tenant context of its own and otherwise has no
+    // way to know where to send the popup back to. Only trust it if it's
+    // actually one of our allowed origins (same check CORS uses), so this
+    // can never be turned into an open redirect.
+    const rawOrigin = req.get("origin") || (req.get("referer") ? safeOriginFromUrl(req.get("referer")) : "");
+    const returnOrigin = isAllowedReturnOrigin(rawOrigin) ? rawOrigin : "";
+    res.json({ url: googleDrive.getAuthUrl(req.user.id, returnOrigin) });
   } catch (e) {
     res.status(500).json({ error: e.message || "Failed to start Google Drive connection" });
   }
@@ -463,12 +514,17 @@ router.get("/google/auth-url", async (req, res) => {
 // This is a top-level navigation (not a fetch), so auth relies on the
 // "token" cookie rather than an Authorization header.
 router.get("/google/callback", async (req, res) => {
-  const clientOrigin =
-    (process.env.CLIENT_ORIGIN || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)[0] || "/";
   const { code, state, error } = req.query;
+
+  // Prefer the tenant origin that was signed into `state` when the connect
+  // flow started (see /google/auth-url above); fall back to the single
+  // global CLIENT_ORIGIN for old links or single-tenant deployments. This
+  // has to be resolved before the try/catch below so error redirects (e.g.
+  // "access denied") also land back on the right tenant site instead of a
+  // hardcoded one.
+  const statePayload = typeof state === "string" ? googleDrive.decodeState(state) : null;
+  const clientOrigin =
+    statePayload?.origin && isAllowedReturnOrigin(statePayload.origin) ? statePayload.origin : defaultClientOrigin();
 
   try {
     if (error) throw new Error(String(error));

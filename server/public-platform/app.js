@@ -144,6 +144,7 @@ function institutionRow(inst) {
           <button class="small secondary open-subscription" data-id="${inst.id}">সাবস্ক্রিপশন</button>
           <button class="small secondary open-payment" data-id="${inst.id}">পেমেন্ট</button>
           <button class="link-btn open-audit" data-id="${inst.id}">লগ</button>
+          <button class="small danger open-delete" data-id="${inst.id}">মুছুন</button>
         </div>
       </td>
     </tr>
@@ -205,6 +206,7 @@ function renderModal() {
   if (state.modal.type === "audit") return renderAuditModal();
   if (state.modal.type === "payment") return renderPaymentModal();
   if (state.modal.type === "migration") return renderMigrationModal();
+  if (state.modal.type === "delete") return renderDeleteModal();
   return "";
 }
 
@@ -259,6 +261,28 @@ function renderSubscriptionModal() {
           <div class="modal-actions">
             <button type="button" class="secondary" id="modal-cancel">বাতিল</button>
             <button type="submit">সংরক্ষণ করুন</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderDeleteModal() {
+  const inst = state.institutions.find((i) => i.id === state.modal.institutionId);
+  if (!inst) return "";
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal">
+        <h2>প্রতিষ্ঠান মুছুন — ${escapeHtml(inst.name)}</h2>
+        <p class="sub">এই প্রতিষ্ঠানের সব তথ্য (শিক্ষার্থী, পেমেন্ট, ইউজার, সব কিছু) স্থায়ীভাবে মুছে যাবে। এটি আর ফেরত আনা যাবে না।</p>
+        ${state.modal.error ? `<div class="error-box">${escapeHtml(state.modal.error)}</div>` : ""}
+        <form id="delete-form">
+          <label>নিশ্চিত করতে প্রতিষ্ঠানের কোড লিখুন: <span class="mono">${escapeHtml(inst.code)}</span></label>
+          <input name="confirmCode" required autocomplete="off" placeholder="${escapeHtml(inst.code)}" />
+          <div class="modal-actions">
+            <button type="button" class="secondary" id="modal-cancel">বাতিল</button>
+            <button type="submit" id="delete-submit" class="danger">স্থায়ীভাবে মুছুন</button>
           </div>
         </form>
       </div>
@@ -501,6 +525,13 @@ function wireDashboardEvents() {
     btn.addEventListener("click", () => openPaymentModal(Number(btn.dataset.id)));
   });
 
+  root.querySelectorAll(".open-delete").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.modal = { type: "delete", institutionId: Number(btn.dataset.id), error: "" };
+      render();
+    });
+  });
+
   const backdrop = document.getElementById("modal-backdrop");
   if (backdrop) {
     backdrop.addEventListener("click", (e) => {
@@ -569,6 +600,28 @@ function wireDashboardEvents() {
         await loadInstitutions();
       } catch (err) {
         state.modal.error = err.message;
+        render();
+      }
+    });
+  }
+
+  const deleteForm = document.getElementById("delete-form");
+  if (deleteForm) {
+    deleteForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(deleteForm);
+      const submitBtn = document.getElementById("delete-submit");
+      submitBtn.disabled = true;
+      try {
+        await api(`/institutions/${state.modal.institutionId}`, {
+          method: "DELETE",
+          body: { confirmCode: fd.get("confirmCode") },
+        });
+        closeModal();
+        await loadInstitutions();
+      } catch (err) {
+        state.modal.error = err.message;
+        submitBtn.disabled = false;
         render();
       }
     });

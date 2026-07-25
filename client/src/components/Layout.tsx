@@ -31,6 +31,29 @@ export function Layout() {
     if (isMobile) setSidebarOpen(false);
   }, [location.pathname, isMobile]);
 
+  // While the mobile drawer is open, lock the page underneath in place.
+  // Without this, the sidebar is `position: fixed` sized with `100dvh`,
+  // but the page behind it can still scroll — on phones that recalculates
+  // the dynamic viewport height (address bar showing/hiding) as the sidebar
+  // opens, which is what made the whole background jump up and down instead
+  // of staying put.
+  useEffect(() => {
+    if (!isMobile || !sidebarOpen) return;
+    const { overflow, position, width } = document.body.style;
+    const scrollY = window.scrollY;
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    document.body.style.top = `-${scrollY}px`;
+    return () => {
+      document.body.style.overflow = overflow;
+      document.body.style.position = position;
+      document.body.style.width = width;
+      document.body.style.top = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, [isMobile, sidebarOpen]);
+
   const handleLogout = async () => {
     await logout();
     navigate("/");
@@ -56,6 +79,16 @@ export function Layout() {
           if (isMobile) setSidebarOpen(false);
         }}
       />
+      {/* Tapping outside the open mobile drawer should close it — this
+          backdrop is what makes that possible, same pattern already used
+          by PublicHeader.tsx's mobile menu. */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="drawer-backdrop"
+          style={{ position: "fixed", inset: 0, zIndex: 40 }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         <Topbar onToggleSidebar={() => setSidebarOpen((o) => !o)} onLogout={handleLogout} />
         <main className="main-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>

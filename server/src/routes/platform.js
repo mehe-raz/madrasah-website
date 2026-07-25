@@ -141,6 +141,43 @@ router.patch("/institutions/:id/subscription", async (req, res, next) => {
   }
 });
 
+// Permanently deletes an institution: its tenant_xxx schema (all students,
+// payments, users, etc.) is dropped and its registry row removed. This is
+// irreversible, so the caller must re-send the institution's own `code` as
+// `confirmCode` — a simple "are you sure" isn't enough for something this
+// destructive, and this mirrors the "type to confirm" pattern used for
+// dangerous actions elsewhere.
+router.delete("/institutions/:id", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid institution id" });
+
+    const institution = await registryDb.getInstitutionById(id);
+    if (!institution) return res.status(404).json({ error: "Institution not found" });
+
+    const { confirmCode } = req.body || {};
+    if (!confirmCode || confirmCode !== institution.code) {
+      return res.status(400).json({ error: "প্রতিষ্ঠান মুছে ফেলা নিশ্চিত করতে সঠিক কোড লিখুন" });
+    }
+
+    await registryDb.deleteInstitution(id);
+    // institutionId is intentionally omitted (not passed as the FK column)
+    // since the row it would reference no longer exists after the delete
+    // above — it's kept in `detail` instead so the log entry still shows
+    // which institution this was.
+    await registryDb.logAction(null, req.platformAdmin.email, "institution_deleted", {
+      institutionId: id,
+      name: institution.name,
+      code: institution.code,
+      schema: institution.schema_name,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
 router.get("/audit-logs", async (req, res, next) => {
   try {
     const institutionId = req.query.institutionId ? Number(req.query.institutionId) : undefined;

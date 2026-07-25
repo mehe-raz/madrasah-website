@@ -70,24 +70,42 @@ async function saveAuthState(patch) {
 }
 
 // Short-lived signed state token instead of server-side session storage,
-// to protect the OAuth redirect against CSRF while staying stateless.
-function buildStateToken(userId) {
-  return jwt.sign({ uid: userId, purpose: STATE_PURPOSE }, JWT_SECRET, { expiresIn: "10m" });
+// to protect the OAuth redirect against CSRF while staying stateless. Also
+// carries the origin (e.g. https://some-tenant.example.com) the connect
+// flow was started from, so the callback below can send the popup back to
+// that same tenant site instead of one hardcoded CLIENT_ORIGIN — this app
+// is multi-tenant (one subdomain per institution), so a single fixed
+// redirect target is wrong for anyone not on that one origin. Signing the
+// origin into the token (rather than trusting a query param on the
+// callback) means it can't be tampered with to build an open redirect.
+function buildStateToken(userId, origin) {
+  return jwt.sign({ uid: userId, purpose: STATE_PURPOSE, origin: origin || "" }, JWT_SECRET, { expiresIn: "10m" });
+}
+
+// Verifies signature + shape only, without throwing — used by the callback
+// route to recover the return origin even before/regardless of whether the
+// fuller verifyStateToken() check below (uid match, etc.) passes, so error
+// redirects can also go back to the right tenant site.
+function decodeState(state) {
+  try {
+    return jwt.verify(state, JWT_SECRET);
+  } catch {
+    return null;
+  }
 }
 
 function verifyStateToken(state, userId) {
-  let payload;
-  try {
-    payload = jwt.verify(state, JWT_SECRET);
-  } catch {
+  const payload = decodeState(state);
+  if (!payload) {
     throw new Error("Google Drive connection link expired. Please try connecting again.");
   }
   if (payload.purpose !== STATE_PURPOSE || payload.uid !== userId) {
     throw new Error("Invalid Google Drive connection request");
   }
+  return payload;
 }
 
-function getAuthUrl(userId) {
+function getAuthUrl(userId, returnOrigin) {
   const client = createOAuthClient();
   return client.generateAuthUrl({
     access_type: "offline",
@@ -95,7 +113,7 @@ function getAuthUrl(userId) {
     // even if this user authorized the app once before.
     prompt: "consent",
     scope: SCOPES,
-    state: buildStateToken(userId),
+    state: buildStateToken(userId, returnOrigin),
   });
 }
 
@@ -258,6 +276,7 @@ async function downloadBackupFile(fileId) {
 module.exports = {
   isConfigured,
   getAuthUrl,
+  decodeState,
   handleCallback,
   getStatus,
   disconnect,
