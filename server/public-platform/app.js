@@ -14,14 +14,23 @@ const STATUS_LABELS = {
   cancelled: "বাতিল",
 };
 
+// Platform-admin roles (registry.platform_admins.role — see
+// sql/registry_schema.sql for what each one is allowed to do).
+const ROLE_LABELS = {
+  super_admin: "সুপার এডমিন",
+  admin: "এডমিন",
+  manager: "ম্যানেজার",
+};
+
 let state = {
   admin: null,
   institutions: [],
+  admins: [], // platform admins (Part 5.1) — only loaded/shown for super_admin
   statusFilter: "",
   loading: true,
   error: "",
   info: "", // Part 6 — transient success message (expiry-scan / migration results)
-  modal: null, // { type: 'create' | 'subscription' | 'audit' | 'payment' | 'migration', ... }
+  modal: null, // { type: 'create' | 'subscription' | 'audit' | 'payment' | 'migration' | 'admins', ... }
 };
 
 async function api(path, opts = {}) {
@@ -134,6 +143,8 @@ function renderLogin() {
 
 function institutionRow(inst) {
   const status = inst.status;
+  const role = (state.admin && state.admin.role) || "super_admin";
+  const isSuperAdmin = role === "super_admin";
   return `
     <tr data-id="${inst.id}">
       <td data-label="নাম">${escapeHtml(inst.name)}</td>
@@ -153,7 +164,7 @@ function institutionRow(inst) {
           <button class="small secondary open-subscription" data-id="${inst.id}">সাবস্ক্রিপশন</button>
           <button class="small secondary open-payment" data-id="${inst.id}">পেমেন্ট</button>
           <button class="link-btn open-audit" data-id="${inst.id}">লগ</button>
-          <button class="small danger open-delete" data-id="${inst.id}">মুছুন</button>
+          ${isSuperAdmin ? `<button class="small danger open-delete" data-id="${inst.id}">মুছুন</button>` : ""}
         </div>
       </td>
     </tr>
@@ -172,6 +183,9 @@ function statCounts() {
 
 function renderDashboard() {
   const counts = statCounts();
+  const role = state.admin.role || "super_admin";
+  const isSuperAdmin = role === "super_admin";
+  const canManageInstitutions = role === "super_admin" || role === "admin";
   root.innerHTML = `
     <header class="topbar">
       <div class="brand-group">
@@ -180,6 +194,7 @@ function renderDashboard() {
       </div>
       <div class="who">
         <span class="name-chip">${escapeHtml(state.admin.name)}</span>
+        <span class="role-chip role-${role}">${ROLE_LABELS[role] || role}</span>
         <span>${escapeHtml(state.admin.email)}</span>
         <button id="logout-btn" class="secondary small">লগআউট</button>
       </div>
@@ -213,9 +228,10 @@ function renderDashboard() {
           </select>
           <button id="view-audit" class="secondary">সব অডিট লগ</button>
           <button id="run-expiry-scan" class="secondary">মেয়াদ স্ক্যান চালান</button>
-          <button id="open-migration" class="secondary">মাইগ্রেশন টুল</button>
+          ${isSuperAdmin ? `<button id="open-migration" class="secondary">মাইগ্রেশন টুল</button>` : ""}
+          ${isSuperAdmin ? `<button id="open-admins" class="secondary">👤 এডমিন ম্যানেজমেন্ট</button>` : ""}
         </div>
-        <button id="new-institution">+ নতুন প্রতিষ্ঠান</button>
+        ${canManageInstitutions ? `<button id="new-institution">+ নতুন প্রতিষ্ঠান</button>` : ""}
       </div>
       ${state.error ? `<div class="error-box">${escapeHtml(state.error)}</div>` : ""}
       ${state.info ? `<div class="info-box">${escapeHtml(state.info)}</div>` : ""}
@@ -249,6 +265,7 @@ function renderModal() {
   if (state.modal.type === "payment") return renderPaymentModal();
   if (state.modal.type === "migration") return renderMigrationModal();
   if (state.modal.type === "delete") return renderDeleteModal();
+  if (state.modal.type === "admins") return renderAdminsModal();
   return "";
 }
 
@@ -484,6 +501,79 @@ function renderMigrationModal() {
   `;
 }
 
+function adminRow(admin) {
+  const isSelf = state.admin && admin.id === state.admin.id;
+  return `
+    <tr data-id="${admin.id}">
+      <td data-label="নাম">
+        <div style="font-weight:700;">${escapeHtml(admin.name)}${isSelf ? ` <span class="muted" style="font-weight:500;">(আপনি)</span>` : ""}</div>
+        <div class="muted" style="font-size:12px;">${escapeHtml(admin.email)}</div>
+      </td>
+      <td data-label="রোল">
+        <select class="admin-role-select" data-id="${admin.id}" ${isSelf ? "disabled" : ""}>
+          ${Object.entries(ROLE_LABELS)
+            .map(([v, label]) => `<option value="${v}" ${v === admin.role ? "selected" : ""}>${label}</option>`)
+            .join("")}
+        </select>
+      </td>
+      <td class="row-actions-cell">
+        <div class="row-actions">
+          <button class="small secondary apply-admin-role" data-id="${admin.id}" ${isSelf ? "disabled" : ""}>আপডেট</button>
+          <button class="small danger open-delete-admin" data-id="${admin.id}" ${isSelf ? "disabled" : ""}>মুছুন</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderAdminsModal() {
+  const admins = state.modal.admins || [];
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal" style="max-width:640px;">
+        <h2>এডমিন ম্যানেজমেন্ট</h2>
+        <p class="sub">
+          প্ল্যাটফর্ম প্যানেলে লগইন করতে পারা অ্যাকাউন্টগুলো। সুপার এডমিন সব কিছু করতে পারেন;
+          এডমিন প্রতিষ্ঠান তৈরি/স্ট্যাটাস/সাবস্ক্রিপশন পরিবর্তন করতে পারেন কিন্তু মুছতে বা মাইগ্রেশন
+          চালাতে পারেন না; ম্যানেজার শুধু দেখতে ও পেমেন্ট/মেয়াদ-স্ক্যান চালাতে পারেন।
+        </p>
+        ${state.modal.error ? `<div class="error-box">${escapeHtml(state.modal.error)}</div>` : ""}
+        ${state.modal.info ? `<div class="info-box">${escapeHtml(state.modal.info)}</div>` : ""}
+        ${
+          state.modal.loading
+            ? `<p class="muted">লোড হচ্ছে…</p>`
+            : `<div class="card" style="max-height:280px; overflow-y:auto;">
+                <table>
+                  <thead><tr><th>নাম / ইমেইল</th><th>রোল</th><th>অ্যাকশন</th></tr></thead>
+                  <tbody>${admins.map(adminRow).join("")}</tbody>
+                </table>
+              </div>`
+        }
+
+        <p class="sub" style="margin-top:20px; font-weight:700; color:var(--text);">নতুন এডমিন যোগ করুন</p>
+        <form id="create-admin-form">
+          <label>নাম *</label>
+          <input name="name" required />
+          <label>ইমেইল *</label>
+          <input name="email" type="email" required />
+          <label>পাসওয়ার্ড * (৮+ ক্যারেক্টার)</label>
+          <input name="password" type="password" required minlength="8" />
+          <label>রোল</label>
+          <select name="role">
+            ${Object.entries(ROLE_LABELS)
+              .map(([v, label]) => `<option value="${v}" ${v === "admin" ? "selected" : ""}>${label}</option>`)
+              .join("")}
+          </select>
+          <div class="modal-actions">
+            <button type="button" class="secondary" id="modal-cancel">বন্ধ করুন</button>
+            <button type="submit" id="create-admin-submit">যোগ করুন</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
 // ---------------------------------------------------------------------------
 // Event wiring
 // ---------------------------------------------------------------------------
@@ -506,10 +596,13 @@ function wireDashboardEvents() {
     loadInstitutions();
   });
 
-  document.getElementById("new-institution").addEventListener("click", () => {
-    state.modal = { type: "create", error: "" };
-    render();
-  });
+  const newInstitutionBtn = document.getElementById("new-institution");
+  if (newInstitutionBtn) {
+    newInstitutionBtn.addEventListener("click", () => {
+      state.modal = { type: "create", error: "" };
+      render();
+    });
+  }
 
   document.getElementById("view-audit").addEventListener("click", () => openAuditModal(null));
 
@@ -532,10 +625,18 @@ function wireDashboardEvents() {
     }
   });
 
-  document.getElementById("open-migration").addEventListener("click", () => {
-    state.modal = { type: "migration", error: "", result: null };
-    render();
-  });
+  const openMigrationBtn = document.getElementById("open-migration");
+  if (openMigrationBtn) {
+    openMigrationBtn.addEventListener("click", () => {
+      state.modal = { type: "migration", error: "", result: null };
+      render();
+    });
+  }
+
+  const openAdminsBtn = document.getElementById("open-admins");
+  if (openAdminsBtn) {
+    openAdminsBtn.addEventListener("click", () => openAdminsModal());
+  }
 
   root.querySelectorAll(".apply-status").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -688,6 +789,88 @@ function wireDashboardEvents() {
         submitBtn.disabled = false;
       }
     });
+  }
+
+  const createAdminForm = document.getElementById("create-admin-form");
+  if (createAdminForm) {
+    createAdminForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(createAdminForm);
+      const body = Object.fromEntries(fd.entries());
+      const submitBtn = document.getElementById("create-admin-submit");
+      submitBtn.disabled = true;
+      state.modal.error = "";
+      try {
+        await api("/admins", { method: "POST", body });
+        createAdminForm.reset();
+        await refreshAdminsModal();
+      } catch (err) {
+        state.modal.error = err.message;
+        render();
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  root.querySelectorAll(".apply-admin-role").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = Number(btn.dataset.id);
+      const select = root.querySelector(`.admin-role-select[data-id="${id}"]`);
+      btn.disabled = true;
+      state.modal.error = "";
+      try {
+        await api(`/admins/${id}`, { method: "PATCH", body: { role: select.value } });
+        state.modal.info = "রোল আপডেট হয়েছে।";
+        await refreshAdminsModal();
+      } catch (err) {
+        state.modal.error = err.message;
+        render();
+      }
+    });
+  });
+
+  root.querySelectorAll(".open-delete-admin").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = Number(btn.dataset.id);
+      if (!window.confirm("এই এডমিন অ্যাকাউন্টটি স্থায়ীভাবে মুছে ফেলতে চান?")) return;
+      btn.disabled = true;
+      state.modal.error = "";
+      try {
+        await api(`/admins/${id}`, { method: "DELETE" });
+        await refreshAdminsModal();
+      } catch (err) {
+        state.modal.error = err.message;
+        render();
+      }
+    });
+  });
+}
+
+async function openAdminsModal() {
+  state.modal = { type: "admins", admins: [], loading: true, error: "", info: "" };
+  render();
+  try {
+    state.modal.admins = await api("/admins");
+  } catch (err) {
+    state.modal.error = err.message;
+  } finally {
+    state.modal.loading = false;
+    render();
+  }
+}
+
+// Re-fetches the admin list into the already-open modal (used after
+// create/update-role/delete) without closing it, so the operator can keep
+// making changes without reopening the modal each time.
+async function refreshAdminsModal() {
+  try {
+    state.modal.admins = await api("/admins");
+    state.modal.error = "";
+  } catch (err) {
+    state.modal.error = err.message;
+  } finally {
+    render();
   }
 }
 

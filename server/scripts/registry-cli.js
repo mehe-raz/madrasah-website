@@ -14,10 +14,11 @@
 //                                                      working schema yet (e.g. Part 1-era row)
 //   list                                               List all institutions
 //   status <code> <trial|active|suspended|cancelled>   Change status
-//   platform-admin-create <name> <email> <password>    Create a login for the Super-Admin web panel
-//                                                      (Part 5) — there is no self-registration for
-//                                                      this by design, so the first one must be
-//                                                      created here.
+//   platform-admin-create <name> <email> <password> [role]  Create a login for the Super-Admin web
+//                                                      panel (Part 5) — there is no self-registration
+//                                                      for this by design, so the first one must be
+//                                                      created here. [role] is super_admin (default),
+//                                                      admin, or manager — see sql/registry_schema.sql.
 //   record-payment <code> <amount> [method] [reference] [periodDays]
 //                                                      Record a manually-confirmed payment (Part 6)
 //                                                      and extend/reactivate the subscription
@@ -143,12 +144,16 @@ async function main() {
     }
 
     case "platform-admin-create": {
-      const [name, email, password] = args;
+      const [name, email, password, role] = args;
       if (!name || !email || !password) {
-        console.error('Usage: platform-admin-create "<Your Name>" <email> <password>');
+        console.error('Usage: platform-admin-create "<Your Name>" <email> <password> [role]');
         process.exit(1);
       }
-      const admin = await registryDb.createPlatformAdmin({ name, email, password });
+      // CLI-created accounts default to super_admin (this is how the very
+      // first bootstrap login gets created, before anyone exists who could
+      // grant a lesser role via the panel itself). Pass a role explicitly
+      // to create an 'admin' or 'manager' login instead.
+      const admin = await registryDb.createPlatformAdmin({ name, email, password, role: role || "super_admin" });
       console.log("Platform admin created:");
       console.log(admin);
       console.log(`\nLog in at /platform with ${admin.email}.`);
@@ -259,7 +264,7 @@ async function main() {
           "  node server/scripts/registry-cli.js provision <code> <adminEmail> <adminPassword>",
           "  node server/scripts/registry-cli.js list",
           "  node server/scripts/registry-cli.js status <code> <trial|active|suspended|cancelled>",
-          '  node server/scripts/registry-cli.js platform-admin-create "<Your Name>" <email> <password>',
+          '  node server/scripts/registry-cli.js platform-admin-create "<Your Name>" <email> <password> [role]',
           "  node server/scripts/registry-cli.js record-payment <code> <amount> [method] [reference] [periodDays]",
           "  node server/scripts/registry-cli.js payments <code>",
           "  node server/scripts/registry-cli.js expiry-scan",

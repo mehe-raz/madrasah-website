@@ -48,7 +48,7 @@ const cookieOptions = {
 
 function signPlatformToken(admin) {
   return jwt.sign(
-    { id: admin.id, email: admin.email, name: admin.name, type: "platform" },
+    { id: admin.id, email: admin.email, name: admin.name, role: admin.role, type: "platform" },
     PLATFORM_JWT_SECRET,
     { expiresIn: "12h" }
   );
@@ -67,9 +67,26 @@ function requirePlatformAuth(req, res, next) {
   }
 }
 
+// Restricts a route to specific platform-admin roles (super_admin/admin/
+// manager — see registry.platform_admins). Always used AFTER
+// requirePlatformAuth, so req.platformAdmin is already set. Tokens signed
+// before this role system existed have no `role` claim; they're treated as
+// 'super_admin' so an already-logged-in operator isn't suddenly locked out
+// mid-session — they'll get the real role from the DB on their next login.
+function requirePlatformRole(...allowedRoles) {
+  return (req, res, next) => {
+    const role = req.platformAdmin?.role || "super_admin";
+    if (!allowedRoles.includes(role)) {
+      return res.status(403).json({ error: "এই কাজের জন্য অনুমতি নেই" });
+    }
+    next();
+  };
+}
+
 module.exports = {
   signPlatformToken,
   requirePlatformAuth,
+  requirePlatformRole,
   validatePlatformAuthConfig,
   cookieOptions,
 };

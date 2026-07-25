@@ -228,6 +228,15 @@ function isAccessAllowed(institution) {
 // Same bcrypt cost factor used everywhere else in this app (routes/auth.js,
 // tenantProvision.js) for consistency.
 const PLATFORM_SALT_ROUNDS = 12;
+const PLATFORM_ROLES = ["super_admin", "admin", "manager"];
+
+function assertValidPlatformRole(role) {
+  if (!PLATFORM_ROLES.includes(role)) {
+    const err = new Error(`Role must be one of: ${PLATFORM_ROLES.join(", ")}`);
+    err.status = 400;
+    throw err;
+  }
+}
 
 async function getPlatformAdminByEmail(email) {
   const result = await registryPool.query(
@@ -237,7 +246,7 @@ async function getPlatformAdminByEmail(email) {
   return result.rows[0];
 }
 
-async function createPlatformAdmin({ name, email, password }) {
+async function createPlatformAdmin({ name, email, password, role = "admin" }) {
   if (!name || !name.trim()) {
     const err = new Error("Name is required");
     err.status = 400;
@@ -253,12 +262,13 @@ async function createPlatformAdmin({ name, email, password }) {
     err.status = 400;
     throw err;
   }
+  assertValidPlatformRole(role);
   const hash = await bcrypt.hash(password, PLATFORM_SALT_ROUNDS);
   try {
     const result = await registryPool.query(
-      `INSERT INTO registry.platform_admins (name, email, "passwordHash")
-       VALUES ($1, $2, $3) RETURNING id, name, email, created_at`,
-      [name.trim(), email.trim().toLowerCase(), hash]
+      `INSERT INTO registry.platform_admins (name, email, "passwordHash", role)
+       VALUES ($1, $2, $3, $4) RETURNING id, name, email, role, created_at`,
+      [name.trim(), email.trim().toLowerCase(), hash, role]
     );
     return result.rows[0];
   } catch (err) {
@@ -269,6 +279,78 @@ async function createPlatformAdmin({ name, email, password }) {
     }
     throw err;
   }
+}
+
+// Every platform admin except the passwordHash, for the management list in
+// the Super-Admin panel.
+async function listPlatformAdmins() {
+  const result = await registryPool.query(
+    `SELECT id, name, email, role, created_at FROM registry.platform_admins ORDER BY created_at ASC`
+  );
+  return result.rows;
+}
+
+async function countSuperAdmins() {
+  const result = await registryPool.query(
+    `SELECT count(*)::int AS count FROM registry.platform_admins WHERE role = 'super_admin'`
+  );
+  return result.rows[0].count;
+}
+
+// Updates a platform admin's name/role. Guards against locking everyone out
+// of admin-management by demoting the last remaining super_admin.
+async function updatePlatformAdmin(id, { name, role }) {
+  if (role) assertValidPlatformRole(role);
+  if (role && role !== "super_admin") {
+    const current = await registryPool.query(
+      "SELECT role FROM registry.platform_admins WHERE id = $1",
+      [id]
+    );
+    const row = current.rows[0];
+    if (!row) return null;
+    if (row.role === "super_admin") {
+      const remaining = await countSuperAdmins();
+      if (remaining <= 1) {
+        const err = new Error("অন্তত একজন Super Admin থাকা আবশ্যক — শেষজনের রোল পরিবর্তন করা যাবে না");
+        err.status = 400;
+        throw err;
+      }
+    }
+  }
+  const result = await registryPool.query(
+    `UPDATE registry.platform_admins
+     SET name = COALESCE($1, name),
+         role = COALESCE($2, role)
+     WHERE id = $3
+     RETURNING id, name, email, role, created_at`,
+    [name ? name.trim() : null, role || null, id]
+  );
+  return result.rows[0];
+}
+
+// Permanently removes a platform admin login. Refuses to delete the last
+// remaining super_admin so the panel can never end up with nobody able to
+// manage admins.
+async function deletePlatformAdmin(id) {
+  const current = await registryPool.query(
+    "SELECT role FROM registry.platform_admins WHERE id = $1",
+    [id]
+  );
+  const row = current.rows[0];
+  if (!row) return null;
+  if (row.role === "super_admin") {
+    const remaining = await countSuperAdmins();
+    if (remaining <= 1) {
+      const err = new Error("অন্তত একজন Super Admin থাকা আবশ্যক — শেষজনকে মুছে ফেলা যাবে না");
+      err.status = 400;
+      throw err;
+    }
+  }
+  const result = await registryPool.query(
+    "DELETE FROM registry.platform_admins WHERE id = $1 RETURNING id",
+    [id]
+  );
+  return result.rows[0];
 }
 
 async function listAuditLogs({ institutionId, limit = 100 } = {}) {
@@ -443,6 +525,12 @@ module.exports = {
   STATUSES,
   getPlatformAdminByEmail,
   createPlatformAdmin,
+  listPlatformAdmins,
+  updatePlatformAdmin,
+  deletePlatformAdmin,
+  countSuperAdmins,
+  assertValidPlatformRole,
+  PLATFORM_ROLES,
   listAuditLogs,
   recordPayment,
   listPayments,

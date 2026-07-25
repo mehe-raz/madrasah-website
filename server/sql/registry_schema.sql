@@ -77,6 +77,23 @@ create table if not exists registry.platform_admins (
 create unique index if not exists platform_admins_email_unique
   on registry.platform_admins (lower(email));
 
+-- Multiple platform-level operator accounts (Part 5.1): every existing row
+-- predates this column and represents an account that already had full
+-- control of the panel, so the default keeps that behavior unchanged for
+-- them ('super_admin'). New accounts created afterwards specify their own
+-- role explicitly (see registryDb.createPlatformAdmin).
+--   super_admin -> everything, including managing other platform admins
+--   admin       -> full institution management, cannot manage other admins
+--   manager     -> read-only + routine actions (status/subscription/payments),
+--                  cannot delete institutions, run migrations, or manage admins
+alter table registry.platform_admins
+  add column if not exists role text not null default 'super_admin';
+
+alter table registry.platform_admins drop constraint if exists platform_admins_role_check;
+alter table registry.platform_admins
+  add constraint platform_admins_role_check
+  check (role in ('super_admin', 'admin', 'manager'));
+
 -- Lightweight audit trail for platform-level actions (create/suspend/etc).
 -- Kept separate from the existing tenant-level audit_logs table.
 create table if not exists registry.audit_logs (

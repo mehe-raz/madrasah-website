@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import type { Notification } from "../types";
 
 const POLL_INTERVAL_MS = 45_000;
@@ -23,6 +24,10 @@ export function NotificationBell() {
   const [items, setItems] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Same breakpoint the rest of the app uses (see .hide-mobile in index.css).
+  // Below this width the dropdown can no longer anchor itself to the bell
+  // button's own position (see the panel style below for why).
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const load = () => {
     api
@@ -109,20 +114,42 @@ export function NotificationBell() {
 
       {open && (
         <div
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 44,
-            zIndex: 20,
-            width: 320,
-            maxWidth: "90vw",
-            maxHeight: 420,
-            overflowY: "auto",
-            background: C.card,
-            border: `1px solid ${C.border}`,
-            borderRadius: 14,
-            boxShadow: "0 18px 40px rgba(15,23,42,0.14)",
-          }}
+          style={
+            isMobile
+              ? {
+                  // The bell isn't the last item in the topbar (logout button
+                  // and avatar sit after it — see Topbar.tsx), so anchoring a
+                  // fixed-width panel to the bell's own right edge via
+                  // `position: absolute; right: 0` could push part of it past
+                  // the left edge of a narrow screen. Fixed + viewport-relative
+                  // insets keep it fully on-screen no matter where the bell sits.
+                  position: "fixed",
+                  left: 12,
+                  right: 12,
+                  top: 64,
+                  zIndex: 20,
+                  maxHeight: "min(420px, 70vh)",
+                  overflowY: "auto",
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 14,
+                  boxShadow: "0 18px 40px rgba(15,23,42,0.14)",
+                }
+              : {
+                  position: "absolute",
+                  right: 0,
+                  top: 44,
+                  zIndex: 20,
+                  width: 320,
+                  maxWidth: "90vw",
+                  maxHeight: 420,
+                  overflowY: "auto",
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 14,
+                  boxShadow: "0 18px 40px rgba(15,23,42,0.14)",
+                }
+          }
         >
           <div
             style={{

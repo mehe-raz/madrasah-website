@@ -20,7 +20,7 @@ const registryDb = require("../registryDb");
 const tenantProvision = require("../tenantProvision");
 const migrateTenants = require("../migrateTenants");
 const billing = require("../billing");
-const { signPlatformToken, requirePlatformAuth, cookieOptions } = require("../middleware/platformAuth");
+const { signPlatformToken, requirePlatformAuth, requirePlatformRole, cookieOptions } = require("../middleware/platformAuth");
 
 const router = express.Router();
 
@@ -37,7 +37,7 @@ const platformLoginLimiter = rateLimit({
 });
 
 function publicAdmin(row) {
-  return { id: row.id, name: row.name, email: row.email };
+  return { id: row.id, name: row.name, email: row.email, role: row.role || "super_admin" };
 }
 
 router.post("/auth/login", platformLoginLimiter, async (req, res) => {
@@ -62,7 +62,14 @@ router.post("/auth/logout", (_req, res) => {
 });
 
 router.get("/auth/me", requirePlatformAuth, (req, res) => {
-  res.json({ admin: { id: req.platformAdmin.id, name: req.platformAdmin.name, email: req.platformAdmin.email } });
+  res.json({
+    admin: {
+      id: req.platformAdmin.id,
+      name: req.platformAdmin.name,
+      email: req.platformAdmin.email,
+      role: req.platformAdmin.role || "super_admin",
+    },
+  });
 });
 
 // Everything below requires a logged-in platform admin.
@@ -81,7 +88,7 @@ router.get("/institutions", async (req, res, next) => {
   }
 });
 
-router.post("/institutions", async (req, res, next) => {
+router.post("/institutions", requirePlatformRole("super_admin", "admin"), async (req, res, next) => {
   try {
     const { name, code, contactName, contactPhone, plan, trialDays, adminName, adminEmail, adminPassword } =
       req.body || {};
@@ -109,7 +116,7 @@ router.post("/institutions", async (req, res, next) => {
   }
 });
 
-router.patch("/institutions/:id/status", async (req, res, next) => {
+router.patch("/institutions/:id/status", requirePlatformRole("super_admin", "admin"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { status } = req.body || {};
@@ -124,7 +131,7 @@ router.patch("/institutions/:id/status", async (req, res, next) => {
   }
 });
 
-router.patch("/institutions/:id/subscription", async (req, res, next) => {
+router.patch("/institutions/:id/subscription", requirePlatformRole("super_admin", "admin"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid institution id" });
@@ -147,7 +154,7 @@ router.patch("/institutions/:id/subscription", async (req, res, next) => {
 // `confirmCode` — a simple "are you sure" isn't enough for something this
 // destructive, and this mirrors the "type to confirm" pattern used for
 // dangerous actions elsewhere.
-router.delete("/institutions/:id", async (req, res, next) => {
+router.delete("/institutions/:id", requirePlatformRole("super_admin"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid institution id" });
@@ -253,7 +260,7 @@ router.post("/billing/expiry-scan", async (req, res, next) => {
 // Lists every tenant schema currently in the registry, for the migration
 // tool's "which institutions will this affect" preview before running SQL
 // against all of them.
-router.get("/migrations/tenants", async (_req, res, next) => {
+router.get("/migrations/tenants", requirePlatformRole("super_admin"), async (_req, res, next) => {
   try {
     const tenants = await migrateTenants.listTenantSchemas();
     res.json(tenants);
@@ -268,7 +275,7 @@ router.get("/migrations/tenants", async (_req, res, next) => {
 // Every attempt is written to the audit log; the full per-tenant SQL text is
 // intentionally NOT stored in the log (only its length), since migration SQL
 // can be long and isn't itself sensitive-but-worth-repeating information.
-router.post("/migrations/run", async (req, res, next) => {
+router.post("/migrations/run", requirePlatformRole("super_admin"), async (req, res, next) => {
   try {
     const { sql } = req.body || {};
     if (!sql || !sql.trim()) return res.status(400).json({ error: "sql is required" });
@@ -280,6 +287,80 @@ router.post("/migrations/run", async (req, res, next) => {
       sqlLength: sql.length,
     });
     res.json(result);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// ============================================================================
+// Platform admin management (Part 5.1 — multiple admin/manager logins)
+// ============================================================================
+// Lets an existing super_admin add/edit/remove other operator logins
+// (super_admin / admin / manager — see sql/registry_schema.sql comment on
+// registry.platform_admins for what each role can do). Restricted to
+// super_admin only, since granting/revoking access to the panel itself is
+// the most sensitive action here.
+
+router.get("/admins", requirePlatformRole("super_admin"), async (_req, res, next) => {
+  try {
+    const rows = await registryDb.listPlatformAdmins();
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/admins", requirePlatformRole("super_admin"), async (req, res, next) => {
+  try {
+    const { name, email, password, role } = req.body || {};
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "name, email and password are required" });
+    }
+    const admin = await registryDb.createPlatformAdmin({ name, email, password, role });
+    await registryDb.logAction(null, req.platformAdmin.email, "platform_admin_created", {
+      newAdminEmail: admin.email,
+      role: admin.role,
+    });
+    res.status(201).json(admin);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+router.patch("/admins/:id", requirePlatformRole("super_admin"), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid admin id" });
+    const { name, role } = req.body || {};
+    const updated = await registryDb.updatePlatformAdmin(id, { name, role });
+    if (!updated) return res.status(404).json({ error: "Admin not found" });
+    await registryDb.logAction(null, req.platformAdmin.email, "platform_admin_updated", {
+      targetAdminId: id,
+      name,
+      role,
+    });
+    res.json(updated);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+router.delete("/admins/:id", requirePlatformRole("super_admin"), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid admin id" });
+    if (id === req.platformAdmin.id) {
+      return res.status(400).json({ error: "নিজেকে মুছে ফেলা যাবে না" });
+    }
+    const deleted = await registryDb.deletePlatformAdmin(id);
+    if (!deleted) return res.status(404).json({ error: "Admin not found" });
+    await registryDb.logAction(null, req.platformAdmin.email, "platform_admin_deleted", {
+      targetAdminId: id,
+    });
+    res.json({ ok: true });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
