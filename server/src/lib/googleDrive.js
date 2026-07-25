@@ -73,19 +73,24 @@ async function saveAuthState(patch) {
 // to protect the OAuth redirect against CSRF while staying stateless. Also
 // carries the origin (e.g. https://some-tenant.example.com) the connect
 // flow was started from, so the callback below can send the popup back to
-// that same tenant site instead of one hardcoded CLIENT_ORIGIN — this app
-// is multi-tenant (one subdomain per institution), so a single fixed
-// redirect target is wrong for anyone not on that one origin. Signing the
-// origin into the token (rather than trusting a query param on the
-// callback) means it can't be tampered with to build an open redirect.
-function buildStateToken(userId, origin) {
-  return jwt.sign({ uid: userId, purpose: STATE_PURPOSE, origin: origin || "" }, JWT_SECRET, { expiresIn: "10m" });
+// that same tenant site instead of one hardcoded CLIENT_ORIGIN, AND the
+// institution code, so the callback (which Google always sends to one
+// fixed backend URL with no tenant subdomain of its own) knows which
+// tenant's schema to save the connection into. Signing both into the token
+// (rather than trusting query params on the callback) means neither can be
+// tampered with to build an open redirect or write into the wrong tenant.
+function buildStateToken(userId, origin, institutionCode) {
+  return jwt.sign(
+    { uid: userId, purpose: STATE_PURPOSE, origin: origin || "", institutionCode: institutionCode || "" },
+    JWT_SECRET,
+    { expiresIn: "10m" }
+  );
 }
 
 // Verifies signature + shape only, without throwing — used by the callback
-// route to recover the return origin even before/regardless of whether the
-// fuller verifyStateToken() check below (uid match, etc.) passes, so error
-// redirects can also go back to the right tenant site.
+// route to recover the return origin/institution even before/regardless of
+// whether the fuller verifyStateToken() check below (uid match, etc.)
+// passes, so error redirects can also go back to the right tenant site.
 function decodeState(state) {
   try {
     return jwt.verify(state, JWT_SECRET);
@@ -105,7 +110,7 @@ function verifyStateToken(state, userId) {
   return payload;
 }
 
-function getAuthUrl(userId, returnOrigin) {
+function getAuthUrl(userId, returnOrigin, institutionCode) {
   const client = createOAuthClient();
   return client.generateAuthUrl({
     access_type: "offline",
@@ -113,7 +118,7 @@ function getAuthUrl(userId, returnOrigin) {
     // even if this user authorized the app once before.
     prompt: "consent",
     scope: SCOPES,
-    state: buildStateToken(userId, returnOrigin),
+    state: buildStateToken(userId, returnOrigin, institutionCode),
   });
 }
 

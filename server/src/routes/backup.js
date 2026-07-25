@@ -8,6 +8,7 @@ const backupEncryption = require("../lib/backupEncryption");
 const { withRestoreLock, RestoreLockError } = require("../lib/restoreLock");
 const { recordBackupEvent } = require("../lib/backupAudit");
 const { recordAudit } = require("../lib/auditLog");
+const tenantResolve = require("../middleware/tenantResolve");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -499,12 +500,15 @@ router.get("/google/auth-url", async (req, res) => {
     // This app is multi-tenant (one subdomain per institution/training
     // site), so remember which one this request came from — the OAuth
     // callback below has no tenant context of its own and otherwise has no
-    // way to know where to send the popup back to. Only trust it if it's
-    // actually one of our allowed origins (same check CORS uses), so this
-    // can never be turned into an open redirect.
+    // way to know where to send the popup back to, or which tenant's schema
+    // to save the connection into. Only trust the origin if it's actually
+    // one of our allowed origins (same check CORS uses), so this can never
+    // be turned into an open redirect. req.tenant is set by tenantResolve
+    // from this request's own Host (this route IS reached tenant-aware,
+    // unlike the callback below — see middleware/tenantResolve.js).
     const rawOrigin = req.get("origin") || (req.get("referer") ? safeOriginFromUrl(req.get("referer")) : "");
     const returnOrigin = isAllowedReturnOrigin(rawOrigin) ? rawOrigin : "";
-    res.json({ url: googleDrive.getAuthUrl(req.user.id, returnOrigin) });
+    res.json({ url: googleDrive.getAuthUrl(req.user.id, returnOrigin, req.tenant?.code || "") });
   } catch (e) {
     res.status(500).json({ error: e.message || "Failed to start Google Drive connection" });
   }
@@ -513,6 +517,16 @@ router.get("/google/auth-url", async (req, res) => {
 // Google redirects the browser here after the user approves/denies access.
 // This is a top-level navigation (not a fetch), so auth relies on the
 // "token" cookie rather than an Authorization header.
+//
+// Unlike every other route in this file, this one is NOT reached with
+// req.tenant already set: Google always redirects to one fixed URL
+// (GOOGLE_DRIVE_REDIRECT_URI, registered once in Google Cloud Console), so
+// this request's Host is this backend's own domain, never a tenant
+// subdomain — tenantResolve.js's isSkippedPath() lets it through without
+// trying (and failing) to match that Host to an institution. Instead, the
+// institution code that /google/auth-url signed into `state` is used below
+// to open the correct tenant's database context by hand, via
+// withTenantByCode, before touching anything that reads/writes tenant data.
 router.get("/google/callback", async (req, res) => {
   const { code, state, error } = req.query;
 
@@ -525,12 +539,29 @@ router.get("/google/callback", async (req, res) => {
   const statePayload = typeof state === "string" ? googleDrive.decodeState(state) : null;
   const clientOrigin =
     statePayload?.origin && isAllowedReturnOrigin(statePayload.origin) ? statePayload.origin : defaultClientOrigin();
+  const institutionCode = statePayload?.institutionCode || "";
 
-  try {
+  const finishConnection = async () => {
     if (error) throw new Error(String(error));
     if (req.user?.role !== "Super Admin") throw new Error("Only Super Admin can connect Google Drive");
     if (!code || !state) throw new Error("Missing Google authorization code");
+    // Extra check (mirrors middleware/auth.js's institutionCode binding for
+    // normal requests, which is skipped here since req.tenant is never set
+    // for this route): a token issued for institution A's connect flow
+    // must not be usable to write into institution B's Drive settings, even
+    // though both share the same JWT_SECRET.
+    if (institutionCode && req.user?.institutionCode && req.user.institutionCode !== institutionCode) {
+      throw new Error("Invalid Google Drive connection request");
+    }
     await googleDrive.handleCallback(String(code), String(state), req.user.id);
+  };
+
+  try {
+    if (institutionCode && process.env.MULTI_TENANT_MODE === "true") {
+      await tenantResolve.withTenantByCode(institutionCode, finishConnection);
+    } else {
+      await finishConnection();
+    }
     res.redirect(`${clientOrigin}/settings?googleDrive=connected`);
   } catch (e) {
     res.redirect(`${clientOrigin}/settings?googleDrive=error&message=${encodeURIComponent(e.message || "Google Drive connection failed")}`);

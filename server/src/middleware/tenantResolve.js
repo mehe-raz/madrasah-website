@@ -25,6 +25,15 @@ const registryDb = require("../registryDb");
 function isSkippedPath(path) {
   if (path === "/api/health") return true;
   if (path.startsWith("/api/platform")) return true;
+  // Google's OAuth redirect URI is one fixed URL, registered once in Google
+  // Cloud Console, that always points at this backend's own domain (it's
+  // handed to Google, not to the frontend) — it can never carry a tenant's
+  // subdomain the way a normal frontend fetch does. Host-based lookup below
+  // would 404 here for every tenant. routes/backup.js's /google/callback
+  // handler resolves the correct tenant itself instead (via withTenantByCode
+  // below), using the institution code embedded in the signed `state` param
+  // it received back from Google.
+  if (path === "/api/backup/google/callback") return true;
   return false;
 }
 
@@ -35,6 +44,51 @@ function isSkippedPath(path) {
 // against that exact shape before use — belt-and-braces against a corrupted
 // or hand-edited registry row.
 const SAFE_SCHEMA_NAME = /^[a-z][a-z0-9_]*$/;
+
+// Resolves `code` to an institution, checks out a dedicated pg client with
+// search_path pointed at its tenant_xxx schema, and runs fn(institution)
+// inside tenantContext.run() so every db.*() call made during fn() — however
+// deeply nested — transparently targets that institution's schema, exactly
+// like the tenantResolve middleware below does for normal Host-routed
+// requests. Used directly by routes/backup.js for the one route that can't
+// rely on Host-based routing (see isSkippedPath above).
+async function withTenantByCode(code, fn) {
+  const institution = await registryDb.getInstitutionByCode(code);
+  if (!institution) {
+    const err = new Error("প্রতিষ্ঠান খুঁজে পাওয়া যায়নি");
+    err.status = 404;
+    throw err;
+  }
+  if (!registryDb.isAccessAllowed(institution)) {
+    const messages = {
+      suspended: "এই অ্যাকাউন্টটি সাসপেন্ড করা হয়েছে। বিস্তারিত জানতে যোগাযোগ করুন।",
+      cancelled: "এই অ্যাকাউন্টটি বাতিল করা হয়েছে।",
+    };
+    const err = new Error(messages[institution.status] || "ট্রায়াল/সাবস্ক্রিপশনের মেয়াদ শেষ হয়ে গেছে।");
+    err.status = 403;
+    throw err;
+  }
+  if (!SAFE_SCHEMA_NAME.test(institution.schema_name || "")) {
+    throw new Error(`Invalid tenant schema name for institution ${institution.id}`);
+  }
+
+  const client = await pg.pool.connect();
+  try {
+    await client.query(`SET search_path TO "${institution.schema_name}", public`);
+    return await tenantContext.run({ client, institution }, () => fn(institution));
+  } finally {
+    try {
+      // Reset before returning to the pool so a later single-tenant/public
+      // query picked up by a re-used pooled connection never accidentally
+      // runs against a leftover tenant schema.
+      await client.query("SET search_path TO public");
+    } catch (err) {
+      console.error("Failed to reset search_path before releasing tenant client:", err.message);
+    } finally {
+      client.release();
+    }
+  }
+}
 
 function extractTenantCode(req) {
   // Header override: lets local development and any environment without
@@ -126,3 +180,4 @@ async function tenantResolve(req, res, next) {
 }
 
 module.exports = tenantResolve;
+module.exports.withTenantByCode = withTenantByCode;
