@@ -36,11 +36,11 @@ export function Gallery() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
             <div>
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.violetL, color: C.violetD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
-                গ্যালারি
+                {content.galleryHeroBadge}
               </span>
-              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>ক্যাম্পাসের ছবিতে কিছু মুহূর্ত</h1>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>{content.galleryHeroTitle}</h1>
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
-                প্রতিষ্ঠানের কার্যক্রম, অনুষ্ঠান ও দৈনন্দিন পরিবেশের কিছু ছবি এখানে দেখা যাবে।
+                {content.galleryHeroSubtitle}
               </p>
             </div>
 
@@ -62,10 +62,10 @@ export function Gallery() {
       <section className="section-shell page-section section-pop">
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
-            মুহূর্তসমূহ
+            {content.galleryIntroBadge}
           </span>
-          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>ক্যাম্পাস জীবনের স্মরণীয় মুহূর্ত</h2>
-          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>ছবিগুলো Website সেকশন থেকে নিয়মিত আপডেট করা হয়।</p>
+          <h2 className="section-heading" style={{ margin: "0 0 10px" }}>{content.galleryIntroTitle}</h2>
+          <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>{content.galleryIntroSubtitle}</p>
         </div>
 
         {loading ? (

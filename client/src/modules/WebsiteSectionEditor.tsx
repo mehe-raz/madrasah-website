@@ -4,7 +4,7 @@ import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { compressImageToLimit, dataUrlBytes } from "../lib/imageCompress";
 import { C } from "../theme/colors";
-import type { SiteClassItem, SiteContent, SiteDepartment, SiteGalleryItem, SiteHighlight, SiteNotice } from "../types";
+import type { SiteAdmissionStep, SiteClassItem, SiteContent, SiteDepartment, SiteGalleryItem, SiteHighlight, SiteNotice } from "../types";
 
 const EMPTY_CONTENT: SiteContent = {
   badge: "",
@@ -16,6 +16,16 @@ const EMPTY_CONTENT: SiteContent = {
   aboutIntro: "",
   aboutMission: "",
   gallery: [],
+  admissionBadge: "",
+  admissionTitle: "",
+  admissionSubtitle: "",
+  admissionSteps: [],
+  galleryHeroBadge: "",
+  galleryHeroTitle: "",
+  galleryHeroSubtitle: "",
+  galleryIntroBadge: "",
+  galleryIntroTitle: "",
+  galleryIntroSubtitle: "",
 };
 
 const SECTION_LIMITS = {
@@ -24,6 +34,7 @@ const SECTION_LIMITS = {
   classes: 24,
   notices: 60,
   gallery: 24,
+  admissionSteps: 6,
 } as const;
 
 const MAX_GALLERY_UPLOAD_BYTES = 950_000; // final upload size cap, under server's 1MB decoded limit
@@ -44,7 +55,7 @@ const inputStyle = {
 
 const iconInputStyle = { ...inputStyle, width: 72, textAlign: "center" as const, flexShrink: 0 };
 
-type SectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery";
+type SectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery" | "admission";
 
 const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: string }> = {
   hero: {
@@ -80,7 +91,12 @@ const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: s
   gallery: {
     title: "গ্যালারি",
     subtitle: "পাবলিক গ্যালারি পেজ",
-    note: "ছবি আপলোড করুন এবং প্রতিটির সাথে সংক্ষিপ্ত ক্যাপশন যোগ করুন।",
+    note: "হিরো/ইন্ট্রো টেক্সট এবং ছবি — দুটোই এখান থেকে আপডেট হবে।",
+  },
+  admission: {
+    title: "ভর্তি পেজের কন্টেন্ট",
+    subtitle: "পাবলিক ভর্তি পেজের হিরো ও ধাপসমূহ",
+    note: "ব্যাজ, শিরোনাম, বর্ণনা এবং \"কীভাবে কাজ করে\" ধাপগুলো এখান থেকে আপডেট হবে।",
   },
 };
 
@@ -250,6 +266,10 @@ export function WebsiteSectionEditor() {
     setContent((prev) => ({ ...prev, gallery: prev.gallery.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
   };
 
+  const updateAdmissionStep = (index: number, patch: Partial<SiteAdmissionStep>) => {
+    setContent((prev) => ({ ...prev, admissionSteps: prev.admissionSteps.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
+  };
+
   const addHighlight = () => {
     if (content.highlights.length >= SECTION_LIMITS.highlights) return;
     setContent((prev) => ({ ...prev, highlights: [...prev.highlights, { icon: "✨", label: "" }] }));
@@ -269,6 +289,11 @@ export function WebsiteSectionEditor() {
     if (content.notices.length >= SECTION_LIMITS.notices) return;
     const today = new Date().toISOString().slice(0, 10);
     setContent((prev) => ({ ...prev, notices: [{ title: "", date: today, body: "" }, ...prev.notices] }));
+  };
+
+  const addAdmissionStep = () => {
+    if (content.admissionSteps.length >= SECTION_LIMITS.admissionSteps) return;
+    setContent((prev) => ({ ...prev, admissionSteps: [...prev.admissionSteps, { icon: "✓", title: "", desc: "" }] }));
   };
 
   const uploadGalleryPhoto = async (file: File | null) => {
@@ -310,6 +335,7 @@ export function WebsiteSectionEditor() {
   const removeDepartment = (index: number) => setContent((prev) => ({ ...prev, departments: prev.departments.filter((_, i) => i !== index) }));
   const removeClassItem = (index: number) => setContent((prev) => ({ ...prev, classes: prev.classes.filter((_, i) => i !== index) }));
   const removeNotice = (index: number) => setContent((prev) => ({ ...prev, notices: prev.notices.filter((_, i) => i !== index) }));
+  const removeAdmissionStep = (index: number) => setContent((prev) => ({ ...prev, admissionSteps: prev.admissionSteps.filter((_, i) => i !== index) }));
 
   // Reordering: public site renders each section in array order, so moving
   // an item up/down here directly controls what visitors see first.
@@ -318,6 +344,7 @@ export function WebsiteSectionEditor() {
   const moveClassItem = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, classes: moveItem(prev.classes, index, dir) }));
   const moveNotice = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, notices: moveItem(prev.notices, index, dir) }));
   const moveGalleryItem = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, gallery: moveItem(prev.gallery, index, dir) }));
+  const moveAdmissionStep = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, admissionSteps: moveItem(prev.admissionSteps, index, dir) }));
   // Removes the photo from the list immediately (so the editor stays
   // responsive) and, separately, asks the server to delete the underlying
   // Cloudinary asset so it doesn't keep sitting in storage unreferenced.
@@ -631,6 +658,62 @@ export function WebsiteSectionEditor() {
       {sectionContent === "gallery" && (
         <SectionCard title={meta.title} subtitle={meta.subtitle}>
           <div style={{ display: "grid", gap: 14 }}>
+            <Field label={`হিরো ব্যাজ — ${content.galleryHeroBadge.length}/60`}>
+              <input
+                value={content.galleryHeroBadge}
+                maxLength={60}
+                onChange={(e) => setContent((prev) => ({ ...prev, galleryHeroBadge: e.target.value }))}
+                style={inputStyle}
+                placeholder="গ্যালারি"
+              />
+            </Field>
+            <Field label={`হিরো শিরোনাম — ${content.galleryHeroTitle.length}/120`}>
+              <input
+                value={content.galleryHeroTitle}
+                maxLength={120}
+                onChange={(e) => setContent((prev) => ({ ...prev, galleryHeroTitle: e.target.value }))}
+                style={inputStyle}
+                placeholder="ক্যাম্পাসের ছবিতে কিছু মুহূর্ত"
+              />
+            </Field>
+            <Field label={`হিরো বর্ণনা — ${content.galleryHeroSubtitle.length}/300`}>
+              <textarea
+                value={content.galleryHeroSubtitle}
+                maxLength={300}
+                rows={2}
+                onChange={(e) => setContent((prev) => ({ ...prev, galleryHeroSubtitle: e.target.value }))}
+                style={{ ...inputStyle, resize: "vertical" as const }}
+                placeholder="প্রতিষ্ঠানের কার্যক্রম, অনুষ্ঠান ও দৈনন্দিন পরিবেশের কিছু ছবি..."
+              />
+            </Field>
+            <Field label={`ইন্ট্রো ব্যাজ — ${content.galleryIntroBadge.length}/60`}>
+              <input
+                value={content.galleryIntroBadge}
+                maxLength={60}
+                onChange={(e) => setContent((prev) => ({ ...prev, galleryIntroBadge: e.target.value }))}
+                style={inputStyle}
+                placeholder="মুহূর্তসমূহ"
+              />
+            </Field>
+            <Field label={`ইন্ট্রো শিরোনাম — ${content.galleryIntroTitle.length}/120`}>
+              <input
+                value={content.galleryIntroTitle}
+                maxLength={120}
+                onChange={(e) => setContent((prev) => ({ ...prev, galleryIntroTitle: e.target.value }))}
+                style={inputStyle}
+                placeholder="ক্যাম্পাস জীবনের স্মরণীয় মুহূর্ত"
+              />
+            </Field>
+            <Field label={`ইন্ট্রো বর্ণনা — ${content.galleryIntroSubtitle.length}/300`}>
+              <input
+                value={content.galleryIntroSubtitle}
+                maxLength={300}
+                onChange={(e) => setContent((prev) => ({ ...prev, galleryIntroSubtitle: e.target.value }))}
+                style={inputStyle}
+                placeholder="ছবিগুলো Website সেকশন থেকে নিয়মিত আপডেট করা হয়।"
+              />
+            </Field>
+
             <div
               style={{
                 display: "grid",
@@ -700,6 +783,96 @@ export function WebsiteSectionEditor() {
             </div>
             {!content.gallery.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো ছবি আপলোড করা হয়নি। ছবি যোগ করে নিচের "সংরক্ষণ করুন" বাটনে ক্লিক করলে তবেই সেটি পাবলিক গ্যালারি পেজে দেখা যাবে।</p>}
             <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>ছবি আপলোডের সময় স্বয়ংক্রিয়ভাবে সংকুচিত হবে, সর্বোচ্চ {SECTION_LIMITS.gallery}টি ছবি। পরিবর্তন পাবলিক পেজে দেখাতে "সংরক্ষণ করুন" বাটনে ক্লিক করতে ভুলবেন না।</p>
+          </div>
+        </SectionCard>
+      )}
+
+      {sectionContent === "admission" && (
+        <SectionCard title={meta.title} subtitle={meta.subtitle}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <Field label={`ব্যাজ টেক্সট — ${content.admissionBadge.length}/60`}>
+              <input
+                value={content.admissionBadge}
+                maxLength={60}
+                onChange={(e) => setContent((prev) => ({ ...prev, admissionBadge: e.target.value }))}
+                style={inputStyle}
+                placeholder="ভর্তি"
+              />
+            </Field>
+            <Field label={`শিরোনাম — ${content.admissionTitle.length}/120`}>
+              <input
+                value={content.admissionTitle}
+                maxLength={120}
+                onChange={(e) => setContent((prev) => ({ ...prev, admissionTitle: e.target.value }))}
+                style={inputStyle}
+                placeholder="দ্রুত ও সহজ ভর্তি প্রক্রিয়া"
+              />
+            </Field>
+            <Field label={`বর্ণনা — ${content.admissionSubtitle.length}/300`}>
+              <textarea
+                value={content.admissionSubtitle}
+                maxLength={300}
+                rows={2}
+                onChange={(e) => setContent((prev) => ({ ...prev, admissionSubtitle: e.target.value }))}
+                style={{ ...inputStyle, resize: "vertical" as const }}
+                placeholder="একটি ক্লাস বেছে নিন, বিস্তারিত দেখুন এবং ফর্মে এগিয়ে যান..."
+              />
+            </Field>
+
+            <div>
+              <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 8, fontWeight: 700 }}>
+                "কীভাবে কাজ করে" ধাপসমূহ
+              </span>
+              <div style={{ display: "grid", gap: 12 }}>
+                {content.admissionSteps.map((item, index) => (
+                  <div key={index} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                      <input value={item.icon} maxLength={8} onChange={(e) => updateAdmissionStep(index, { icon: e.target.value })} style={iconInputStyle} placeholder="①" />
+                      <input
+                        value={item.title}
+                        maxLength={60}
+                        onChange={(e) => updateAdmissionStep(index, { title: e.target.value })}
+                        style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+                        placeholder="ধাপের শিরোনাম"
+                      />
+                      <ListEntryButtons
+                        onRemove={() => removeAdmissionStep(index)}
+                        onMoveUp={() => moveAdmissionStep(index, -1)}
+                        onMoveDown={() => moveAdmissionStep(index, 1)}
+                        moveUpDisabled={index === 0}
+                        moveDownDisabled={index === content.admissionSteps.length - 1}
+                      />
+                    </div>
+                    <textarea
+                      value={item.desc}
+                      maxLength={220}
+                      rows={2}
+                      onChange={(e) => updateAdmissionStep(index, { desc: e.target.value })}
+                      style={{ ...inputStyle, resize: "vertical" as const }}
+                      placeholder="সংক্ষিপ্ত বিবরণ"
+                    />
+                  </div>
+                ))}
+                {!content.admissionSteps.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো ধাপ যোগ করা হয়নি।</p>}
+                <button
+                  type="button"
+                  onClick={addAdmissionStep}
+                  disabled={content.admissionSteps.length >= SECTION_LIMITS.admissionSteps}
+                  style={{
+                    border: `1px dashed ${C.border}`,
+                    background: "transparent",
+                    color: content.admissionSteps.length >= SECTION_LIMITS.admissionSteps ? C.muted : C.emerald,
+                    borderRadius: 10,
+                    padding: "10px 12px",
+                    fontWeight: 800,
+                    cursor: content.admissionSteps.length >= SECTION_LIMITS.admissionSteps ? "not-allowed" : "pointer",
+                    width: "fit-content",
+                  }}
+                >
+                  + নতুন ধাপ
+                </button>
+              </div>
+            </div>
           </div>
         </SectionCard>
       )}

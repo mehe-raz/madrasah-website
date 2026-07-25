@@ -184,6 +184,12 @@ export interface SiteNotice {
   body: string;
 }
 
+export interface SiteAdmissionStep {
+  icon: string;
+  title: string;
+  desc: string;
+}
+
 // One uploaded photo on the public Gallery page. `url` comes back from
 // POST /api/uploads (Cloudinary secure_url) — the editor never lets the
 // admin type an arbitrary URL by hand, only upload a file. `publicId` is
@@ -210,6 +216,18 @@ export interface SiteContent {
   // Public "গ্যালারি" page. Empty by default; admin uploads real campus
   // photos from the Website module. Same pattern as classes/notices above.
   gallery: SiteGalleryItem[];
+  // Public "ভর্তি" (Admission) page hero + "কীভাবে কাজ করে" steps.
+  admissionBadge: string;
+  admissionTitle: string;
+  admissionSubtitle: string;
+  admissionSteps: SiteAdmissionStep[];
+  // Public "গ্যালারি" page hero + intro section text.
+  galleryHeroBadge: string;
+  galleryHeroTitle: string;
+  galleryHeroSubtitle: string;
+  galleryIntroBadge: string;
+  galleryIntroTitle: string;
+  galleryIntroSubtitle: string;
 }
 
 // What the public "ভর্তি" (admission) form submits. Stored server-side in

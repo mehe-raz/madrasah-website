@@ -8,6 +8,7 @@ const MAX_LIST = 8;
 const MAX_CLASSES = 24;
 const MAX_NOTICES = 60;
 const MAX_GALLERY = 24;
+const MAX_ADMISSION_STEPS = 6;
 
 const DEFAULT_CONTENT = {
   badge: "ডেমো ওয়েবসাইট — শীঘ্রই সম্পূর্ণ চালু হচ্ছে",
@@ -37,6 +38,26 @@ const DEFAULT_CONTENT = {
   // Public "গ্যালারি" page. Empty by default — admin uploads real photos
   // (Cloudinary URLs, via /api/uploads) from the Website module.
   gallery: [],
+  // Public "ভর্তি" (Admission) page hero + "কীভাবে কাজ করে" steps. These
+  // used to be hardcoded literals in Admission.tsx; defaults here match
+  // that old copy exactly so nothing visually changes until an admin
+  // edits them from the Website module.
+  admissionBadge: "ভর্তি",
+  admissionTitle: "দ্রুত ও সহজ ভর্তি প্রক্রিয়া",
+  admissionSubtitle: "একটি ক্লাস বেছে নিন, বিস্তারিত দেখুন এবং ফর্মে এগিয়ে যান — পুরো প্রক্রিয়াটি সহজ ও মোবাইল-বান্ধব।",
+  admissionSteps: [
+    { icon: "①", title: "ক্লাস নির্বাচন করুন", desc: "শিক্ষার্থীর বয়স ও পর্যায় অনুযায়ী উপযুক্ত ক্লাস বেছে নিন।" },
+    { icon: "②", title: "ফর্ম পূরণ করুন", desc: "ভর্তি ফর্ম খুলে প্রয়োজনীয় তথ্য দিয়ে পূরণ করুন।" },
+    { icon: "③", title: "যোগাযোগের অপেক্ষা করুন", desc: "আমাদের দল আবেদন পর্যালোচনা করে দ্রুত যোগাযোগ করবে।" },
+  ],
+  // Public "গ্যালারি" page hero + intro section text. Previously hardcoded
+  // literals in Gallery.tsx; defaults match that old copy exactly.
+  galleryHeroBadge: "গ্যালারি",
+  galleryHeroTitle: "ক্যাম্পাসের ছবিতে কিছু মুহূর্ত",
+  galleryHeroSubtitle: "প্রতিষ্ঠানের কার্যক্রম, অনুষ্ঠান ও দৈনন্দিন পরিবেশের কিছু ছবি এখানে দেখা যাবে।",
+  galleryIntroBadge: "মুহূর্তসমূহ",
+  galleryIntroTitle: "ক্যাম্পাস জীবনের স্মরণীয় মুহূর্ত",
+  galleryIntroSubtitle: "ছবিগুলো Website সেকশন থেকে নিয়মিত আপডেট করা হয়।",
 };
 
 function cleanText(value, maxLen) {
@@ -107,6 +128,24 @@ function sanitizeContent(input) {
     aboutIntro: cleanText(body.aboutIntro, 500),
     aboutMission: cleanText(body.aboutMission, 500),
     gallery: sanitizeGallery(body.gallery),
+    admissionBadge: cleanText(body.admissionBadge, 60),
+    admissionTitle: cleanText(body.admissionTitle, 120),
+    admissionSubtitle: cleanText(body.admissionSubtitle, 300),
+    admissionSteps: sanitizeList(
+      body.admissionSteps,
+      [
+        ["icon", 8],
+        ["title", 60],
+        ["desc", 220],
+      ],
+      MAX_ADMISSION_STEPS
+    ),
+    galleryHeroBadge: cleanText(body.galleryHeroBadge, 60),
+    galleryHeroTitle: cleanText(body.galleryHeroTitle, 120),
+    galleryHeroSubtitle: cleanText(body.galleryHeroSubtitle, 300),
+    galleryIntroBadge: cleanText(body.galleryIntroBadge, 60),
+    galleryIntroTitle: cleanText(body.galleryIntroTitle, 120),
+    galleryIntroSubtitle: cleanText(body.galleryIntroSubtitle, 300),
   };
 }
 

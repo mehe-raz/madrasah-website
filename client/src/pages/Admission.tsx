@@ -5,12 +5,6 @@ import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { C } from "../theme/colors";
 
-const steps = [
-  { icon: "①", title: "ক্লাস নির্বাচন করুন", desc: "শিক্ষার্থীর বয়স ও পর্যায় অনুযায়ী উপযুক্ত ক্লাস বেছে নিন।" },
-  { icon: "②", title: "ফর্ম পূরণ করুন", desc: "ভর্তি ফর্ম খুলে প্রয়োজনীয় তথ্য দিয়ে পূরণ করুন।" },
-  { icon: "③", title: "যোগাযোগের অপেক্ষা করুন", desc: "আমাদের দল আবেদন পর্যালোচনা করে দ্রুত যোগাযোগ করবে।" },
-];
-
 export function Admission() {
   const { site, content, loading } = usePublicSite();
   const navigate = useNavigate();
@@ -30,11 +24,11 @@ export function Admission() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, alignItems: "center" }}>
             <div>
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.amberL, color: C.amberD, fontSize: 12, fontWeight: 900, marginBottom: 12 }}>
-                ভর্তি
+                {content.admissionBadge}
               </span>
-              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>দ্রুত ও সহজ ভর্তি প্রক্রিয়া</h1>
+              <h1 className="section-heading" style={{ margin: "0 0 12px" }}>{content.admissionTitle}</h1>
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.85, color: C.muted }}>
-                একটি ক্লাস বেছে নিন, বিস্তারিত দেখুন এবং ফর্মে এগিয়ে যান — পুরো প্রক্রিয়াটি সহজ ও মোবাইল-বান্ধব।
+                {content.admissionSubtitle}
               </p>
             </div>
 
@@ -64,8 +58,8 @@ export function Admission() {
         </div>
 
         <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          {steps.map((step) => (
-            <div key={step.title} className="soft-panel hover-lift" style={{ padding: 20 }}>
+          {(loading ? [] : content.admissionSteps).map((step, i) => (
+            <div key={`${step.title}-${i}`} className="soft-panel hover-lift" style={{ padding: 20 }}>
               <div style={{ fontSize: 24, marginBottom: 12 }}>{step.icon}</div>
               <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{step.title}</h3>
               <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{step.desc}</p>

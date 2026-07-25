@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
 
-type WebsiteSectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery" | "admissions";
+type WebsiteSectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery" | "admissions" | "admissionContent";
 
 interface WebsiteSectionCard {
   id: WebsiteSectionId;
@@ -62,6 +62,13 @@ const SECTIONS: WebsiteSectionCard[] = [
     subtitle: "পাবলিক গ্যালারি পেজ",
     summary: "ক্যাম্পাসের ছবি আপলোড করুন যা পাবলিক গ্যালারি পেজে দেখা যাবে।",
     route: "/website/gallery",
+  },
+  {
+    id: "admissionContent",
+    title: "ভর্তি পেজের কন্টেন্ট",
+    subtitle: "পাবলিক ভর্তি পেজের হিরো ও ধাপসমূহ",
+    summary: "ব্যাজ, শিরোনাম, বর্ণনা এবং \"কীভাবে কাজ করে\" ধাপগুলো এখান থেকে সম্পাদনা করুন।",
+    route: "/website/admission",
   },
   {
     id: "admissions",

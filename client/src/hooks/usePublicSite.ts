@@ -35,6 +35,16 @@ export function usePublicSite() {
           aboutIntro: data.aboutIntro ?? "",
           aboutMission: data.aboutMission ?? "",
           gallery: data.gallery ?? [],
+          admissionBadge: data.admissionBadge ?? "",
+          admissionTitle: data.admissionTitle ?? "",
+          admissionSubtitle: data.admissionSubtitle ?? "",
+          admissionSteps: data.admissionSteps ?? [],
+          galleryHeroBadge: data.galleryHeroBadge ?? "",
+          galleryHeroTitle: data.galleryHeroTitle ?? "",
+          galleryHeroSubtitle: data.galleryHeroSubtitle ?? "",
+          galleryIntroBadge: data.galleryIntroBadge ?? "",
+          galleryIntroTitle: data.galleryIntroTitle ?? "",
+          galleryIntroSubtitle: data.galleryIntroSubtitle ?? "",
         });
       }
       if (settingsResult.status === "fulfilled") {
