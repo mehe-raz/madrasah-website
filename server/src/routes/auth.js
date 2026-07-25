@@ -168,22 +168,43 @@ router.post("/forgot-password", validate(forgotPasswordSchema), async (req, res)
   await db.run('DELETE FROM password_resets WHERE "userId" = $1', [row.id]);
   await db.run('INSERT INTO password_resets ("userId", token, "expiresAt") VALUES ($1, $2, $3)', [row.id, token, expires]);
 
-  try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || "smtp.gmail.com",
-      port: process.env.EMAIL_PORT || 587,
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+  // Respond as soon as the reset record itself is saved — the user's request
+  // has already succeeded at that point. Previously this handler awaited
+  // transporter.verify() + sendMail() before responding at all: on hosts
+  // whose outbound network silently drops SMTP traffic (common on free-tier
+  // PaaS, which often block ports 25/465/587 to fight spam), that await
+  // never resolves — or only fails after a very long default socket
+  // timeout — so the browser's fetch() sits open until the platform's own
+  // proxy eventually kills the connection, which surfaces to the user as a
+  // slow "Failed to fetch" for every tenant, not just one. Sending the email
+  // fire-and-forget after responding fixes the hang regardless of the
+  // underlying SMTP issue; EMAIL_HOST/EMAIL_USER/EMAIL_PASS should still be
+  // checked in the server logs so the email itself actually arrives.
+  res.json({
+    ok: true,
+    message: "If email exists, reset link was sent",
+  });
 
-    await transporter.verify();
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: process.env.EMAIL_PORT || 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    // Fail fast instead of hanging indefinitely when SMTP is unreachable
+    // (e.g. the host's outbound network blocks these ports) — without an
+    // explicit timeout a stuck connection attempt can hang for minutes.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 10_000,
+  });
 
-    const resetUrl = `${process.env.CLIENT_ORIGIN || "http://localhost:5173"}/reset-password?token=${token}`;
+  const resetUrl = `${process.env.CLIENT_ORIGIN || "http://localhost:5173"}/reset-password?token=${token}`;
 
-    const info = await transporter.sendMail({
+  transporter
+    .sendMail({
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: email.trim().toLowerCase(),
       subject: "Password Reset - Madrasah ERP",
@@ -195,16 +216,9 @@ router.post("/forgot-password", validate(forgotPasswordSchema), async (req, res)
         <p>This link will expire in 1 hour.</p>
         <p>If you didn't request this, please ignore this email.</p>
       `,
-    });
-    console.log("Password reset email sent:", info.messageId);
-  } catch (emailError) {
-    console.error("Email sending failed:", emailError);
-  }
-
-  res.json({
-    ok: true,
-    message: "If email exists, reset link was sent",
-  });
+    })
+    .then((info) => console.log("Password reset email sent:", info.messageId))
+    .catch((emailError) => console.error("Email sending failed:", emailError));
 });
 
 router.post("/reset-password", validate(resetPasswordSchema), async (req, res) => {
