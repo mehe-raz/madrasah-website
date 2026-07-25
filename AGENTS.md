@@ -39,7 +39,9 @@ server). There is no CI and no second reviewer — this file, plus
 3. Run `npm run check` (see below for what it does).
 4. If it fails: read the error, fix only what it points at, re-run. Repeat
    until it passes.
-5. Report what changed, and explicitly confirm `npm run check` passed.
+5. Report what changed, and explicitly confirm `npm run check` passed. If the
+   Standards checklist below applied, answer each checked item in the report
+   too — don't just say "done."
 
 ## What `npm run check` does
 
@@ -63,6 +65,83 @@ Run it manually after touching anything in server/src/routes/backup.js,
 restoreLock.js, or backupEncryption.js: it seeds data, backs it up, mutates
 the data, restores, and checks the database matches the pre-mutation state
 exactly, plus a few rejection/concurrency cases.
+
+## Standards checklist for new work
+
+This project already has a security + performance baseline (Helmet/CSP, CORS
+allowlist, JWT+tenant binding, RBAC, tenant isolation via Postgres
+search_path, CSRF double-submit, rate limiting, Zod validation, audit
+logging, lazy-loaded routes, service worker caching, compressed responses,
+long-term asset caching, client-side image compression). New work should
+extend that baseline, not quietly skip it or reinvent it.
+
+**Applies only when the current task itself creates** a new public-facing
+endpoint, a new sensitive action (delete/restore/role-change/payment), or a
+new user-facing page/asset. Do not use this as a reason to touch or
+"upgrade" existing, unrelated code to match it — that violates Rule 1 above.
+
+**Already automatic — don't re-implement these:**
+- Auth + CSRF + tenant isolation: automatic for any route mounted under the
+  existing authenticated routers (see the `app.use("/api", ...)` chain in
+  `index.js`). No manual check needed unless the new route deliberately sits
+  outside that chain (like the existing `/api/public/*` routes).
+- Rate limiting: reuse an existing limiter (`apiLimiter`, `authLimiter`,
+  `admissionLimiter`, `resultLookupLimiter` in `index.js`) instead of
+  defining a new one, unless none of them fit.
+- Sensitive/write-action logging: reuse `recordAudit()` from
+  `lib/auditLog.js`.
+- Role/permission gating: reuse `requirePermission()` from
+  `middleware/rbac.js`.
+- Input validation: follow the existing Zod pattern in `lib/*Schemas.js` —
+  add to the matching file, or add a new file in the same style.
+- Client image handling: reuse `client/src/lib/imageCompress.ts` before
+  upload rather than writing a new compressor.
+- Client code-splitting: new top-level pages go through `lazy()` in
+  `App.tsx`, same as the existing pages.
+- Static asset caching / offline shell: already global via
+  `client/public/sw.js` — don't touch it for a single new asset.
+
+**New backend route/endpoint — check before reporting done:**
+- [ ] Sits inside an existing authenticated router, OR is deliberately
+      public and uses one of the rate limiters above
+- [ ] Request body/query validated (Zod schema or equivalent)
+- [ ] If it deletes, restores, changes roles, or touches money:
+      `recordAudit()` call added
+- [ ] If Super-Admin-only or role-restricted: explicit role/permission
+      check present (defense-in-depth, same pattern as `routes/backup.js`)
+
+**New frontend page/asset — check before reporting done:**
+- [ ] New route/page added via `lazy()`, not a static top-level import
+- [ ] Any new image-upload path runs through `imageCompress.ts`
+- [ ] No large new dependency added without flagging it first (Rule 5)
+
+This checklist is not automatically enforced by `npm run check` — treat it
+as a self-review step, not a guarantee. It exists so nothing gets silently
+skipped, not to replace judgment.
+
+## Reusable building blocks
+
+Living list of pieces in this codebase that were deliberately built to be
+reused — check here before writing something new that might already exist.
+When a task deliberately creates a new reusable piece (a shared middleware,
+a new Zod schema module, a shared component/utility meant for repeat use —
+**not** one-off feature logic for a single task), append one line to this
+list. Append only — don't edit, reorder, or "clean up" existing entries as
+part of an unrelated task.
+
+- Rate limiters (`server/src/index.js`): `apiLimiter`, `authLimiter`,
+  `admissionLimiter`, `resultLookupLimiter`
+- Validation schemas (`server/src/lib/*Schemas.js`): `authSchemas.js`,
+  `financeSchemas.js`, `opsSchemas.js`
+- Audit logging: `recordAudit()` in `server/src/lib/auditLog.js`
+- Permission gating: `requirePermission()` in `server/src/middleware/rbac.js`
+- Backup/restore audit trail: `recordBackupEvent()` in
+  `server/src/lib/backupAudit.js`
+- Google Drive backup integration: `server/src/lib/googleDrive.js` (upload,
+  list, prune, restore)
+- Client image compression: `client/src/lib/imageCompress.ts`
+- Client code-splitting pattern: `lazy()` imports in `client/src/App.tsx`
+- Service worker / asset caching: `client/public/sw.js`
 
 ## Single source of truth
 
