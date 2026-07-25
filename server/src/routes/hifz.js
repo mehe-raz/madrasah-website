@@ -3,6 +3,8 @@ const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { LIST_COLUMNS } = require("../models/studentAdmission");
 const { recordAudit } = require("../lib/auditLog");
+const { validate } = require("../middleware/validate");
+const { hifzParaSchema, hifzSabaqSchema } = require("../lib/opsSchemas");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -13,11 +15,11 @@ router.get("/", async (_req, res) => {
   res.json(students);
 });
 
-router.patch("/:studentId/para", async (req, res) => {
+router.patch("/:studentId/para", validate(hifzParaSchema), async (req, res) => {
   const { para } = req.body;
   const student = await db.get("SELECT * FROM students WHERE id = $1", [req.params.studentId]);
   if (!student || student.dept !== "Hifz") return res.status(404).json({ error: "হিফজ ছাত্র পাওয়া যায়নি" });
-  const clampedPara = Math.min(30, Math.max(0, Number(para)));
+  const clampedPara = para;
   await db.run("UPDATE students SET para = $1 WHERE id = $2", [clampedPara, student.id]);
   await recordAudit({
     action: "hifz.para_updated",
@@ -30,7 +32,7 @@ router.patch("/:studentId/para", async (req, res) => {
   res.json(await db.get("SELECT * FROM students WHERE id = $1", [student.id]));
 });
 
-router.post("/:studentId/sabaq", async (req, res) => {
+router.post("/:studentId/sabaq", validate(hifzSabaqSchema), async (req, res) => {
   const { sabaq } = req.body;
   const date = new Date().toISOString().slice(0, 10);
   const result = await db.run(

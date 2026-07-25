@@ -2,6 +2,8 @@ const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
+const { validate } = require("../middleware/validate");
+const { attendanceSaveSchema } = require("../lib/opsSchemas");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -28,26 +30,12 @@ router.get("/", async (req, res) => {
   res.json({ date, dept: dept || "সব", students: rows });
 });
 
-// Postgres allows up to 65535 bound parameters per statement; each record
-// here uses 3, so this comfortably covers any realistic single-batch save
-// (a madrasah with tens of thousands of students in one attendance sheet
-// is not a real scenario) while still protecting against a malformed
-// request trying to build an absurdly large statement.
-const MAX_BATCH_RECORDS = 5000;
-
-router.post("/", async (req, res) => {
+// The 5000-record cap on a single save is enforced in the zod schema
+// (lib/opsSchemas.js attendanceSaveSchema) rather than here.
+router.post("/", validate(attendanceSaveSchema), async (req, res) => {
   const { date: reqDate, records } = req.body;
   const date = reqDate || today();
-  if (!Array.isArray(records)) return res.status(400).json({ error: "records আবশ্যক" });
   if (records.length === 0) return res.json({ ok: true, date });
-  if (records.length > MAX_BATCH_RECORDS) {
-    return res.status(400).json({ error: `একবারে সর্বোচ্চ ${MAX_BATCH_RECORDS} রেকর্ড পাঠানো যাবে` });
-  }
-  for (const r of records) {
-    if (!r || r.studentId == null || r.status == null) {
-      return res.status(400).json({ error: "প্রতিটি রেকর্ডে studentId ও status আবশ্যক" });
-    }
-  }
 
   // Single multi-row INSERT instead of one round-trip per student — with a
   // few hundred students this turns Save from N sequential DB calls into

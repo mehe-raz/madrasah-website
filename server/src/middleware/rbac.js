@@ -6,7 +6,11 @@ const { ROLE_PERMISSIONS, ROUTE_PERMISSION } = require("../config/roles");
 function canAccess(role, permission) {
   const perms = ROLE_PERMISSIONS[role] || [];
   if (perms.includes("*")) return true;
-  return perms.includes(permission);
+  // `permission` may be a single key ("students") or an array of
+  // alternatives (["website", "websiteGallery", "websiteNotices"]) — see
+  // ROUTE_PERMISSION in config/roles.js. Any one match is enough.
+  const required = Array.isArray(permission) ? permission : [permission];
+  return required.some((p) => perms.includes(p));
 }
 
 function requirePermission(permission) {

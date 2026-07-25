@@ -188,6 +188,31 @@ async function updateSubscription(id, { plan, subscriptionEndsAt }) {
   return result.rows[0];
 }
 
+// The institution's name/contact info is stored twice: once here in
+// registry.institutions (read by the Super Admin panel), and again per-tenant
+// in that tenant's own `settings` table (read by the public site + admin
+// Settings page). Nothing kept them in sync — a tenant renaming itself from
+// Settings would leave the Super Admin panel showing the old name forever.
+// This is called (best-effort) from routes/settings.js whenever a tenant
+// saves one of these fields, so registry.institutions stays the mirror of
+// whatever the tenant itself considers current. It intentionally only
+// pushes tenant -> registry, never the other direction, so there's still a
+// single clear source of truth for "what does the tenant currently say
+// their name/contact info is" (their own Settings page).
+async function updateInstitutionContact(id, { name, contactEmail, contactPhone }) {
+  const result = await registryPool.query(
+    `UPDATE registry.institutions
+     SET name = COALESCE($1, name),
+         contact_email = COALESCE($2, contact_email),
+         contact_phone = COALESCE($3, contact_phone),
+         updated_at = now()
+     WHERE id = $4
+     RETURNING *`,
+    [name || null, contactEmail || null, contactPhone || null, id]
+  );
+  return result.rows[0];
+}
+
 async function logAction(institutionId, actorEmail, action, detail = {}) {
   await registryPool.query(
     `INSERT INTO registry.audit_logs (institution_id, actor_email, action, detail) VALUES ($1, $2, $3, $4)`,
@@ -520,6 +545,7 @@ module.exports = {
   deleteInstitution,
   updateStatus,
   updateSubscription,
+  updateInstitutionContact,
   logAction,
   isAccessAllowed,
   STATUSES,

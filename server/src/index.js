@@ -40,6 +40,7 @@ const { requireAuth, validateAuthConfig } = require("./middleware/auth");
 const { validatePlatformAuthConfig } = require("./middleware/platformAuth");
 const { rbacMiddleware } = require("./middleware/rbac");
 const tenantResolve = require("./middleware/tenantResolve");
+const { issueCsrfToken, verifyCsrfToken } = require("./middleware/csrf");
 
 validateAuthConfig();
 validatePlatformAuthConfig();
@@ -129,6 +130,11 @@ app.use(
 );
 
 app.use(cookieParser());
+// Defense-in-depth CSRF protection (double-submit cookie) — see
+// middleware/csrf.js. issueCsrfToken just sets a readable cookie, so it's
+// safe to run globally before routes; verifyCsrfToken (the actual check) is
+// only applied to the authenticated /api chain below, after requireAuth.
+app.use(issueCsrfToken);
 app.use(express.json({ limit: "6mb" }));
 
 // Resolves which institution (tenant_xxx schema) this request belongs to
@@ -224,7 +230,7 @@ app.get("/api/public/results", resultLookupLimiter, async (req, res) => {
   }
 });
 
-app.use("/api", apiLimiter, requireAuth, rbacMiddleware);
+app.use("/api", apiLimiter, requireAuth, verifyCsrfToken, rbacMiddleware);
 
 app.use("/api/students", require("./routes/students"));
 app.use("/api/attendance", require("./routes/attendance"));

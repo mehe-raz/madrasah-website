@@ -10,7 +10,12 @@
 
 const ROLE_PERMISSIONS = {
   "Super Admin": ["*"],
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "results"],
+  // "websiteGallery" and "websiteNotices" are finer-grained slices of
+  // "website", added so a future limited role (e.g. a volunteer who only
+  // manages gallery photos) can be granted just that slice without full
+  // website-content access. Admin keeps all three today — this is additive,
+  // not a behavior change for any existing role.
+  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "websiteGallery", "websiteNotices", "results"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
   Teacher: ["attendance", "hifz", "results"],
   "Hostel Manager": ["dashboard", "students", "attendance"],
@@ -31,7 +36,13 @@ const ROUTE_PERMISSION = {
   "/api/backup": "settings",
   "/api/reports": "reports",
   "/api/audit-logs": "settings",
-  "/api/site-content": "website",
+  // Array = "any one of these is enough to reach the route" — site-content
+  // bundles hero/about/admission/gallery/notices into one JSON blob (see
+  // lib/siteContent.js), so someone with only "websiteGallery" or
+  // "websiteNotices" still needs to reach GET/PUT here; the route itself
+  // (routes/siteContent.js) then restricts *which* fields they're allowed
+  // to actually change.
+  "/api/site-content": ["website", "websiteGallery", "websiteNotices"],
   "/api/admissions": "website",
 };
 

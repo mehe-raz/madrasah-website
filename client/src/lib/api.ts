@@ -29,11 +29,24 @@ import type {
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
+// Defense-in-depth CSRF protection (double-submit cookie) — see
+// server/src/middleware/csrf.js. The server sets a readable `csrfToken`
+// cookie on every response; we just echo its current value back as a
+// header on every request that carries the auth cookie. A cross-site
+// attacker can trigger the request but, per same-origin policy, can't read
+// this cookie to forge a matching header.
+function readCsrfToken(): string | null {
+  const match = document.cookie.match(/(?:^|; )csrfToken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const csrfToken = readCsrfToken();
   const res = await fetch(`${API}${path}`, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       ...options?.headers,
     },
     ...options,
@@ -389,11 +402,13 @@ export const api = {
   runBackupNow: () => request<{ filename: string; localPath: string; config: BackupConfig }>("/backup/run", { method: "POST" }),
 
   previewBackup: async (file: File) => {
+    const csrfToken = readCsrfToken();
     const res = await fetch(`${API}/backup/preview`, {
       method: "POST",
       credentials: "include",
       headers: {
         "Content-Type": "application/octet-stream",
+        ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       },
       body: await file.arrayBuffer(),
     });
@@ -410,11 +425,13 @@ export const api = {
     ),
 
   restoreBackup: async (file: File) => {
+    const csrfToken = readCsrfToken();
     const res = await fetch(`${API}/backup/restore`, {
       method: "POST",
       credentials: "include",
       headers: {
         "Content-Type": "application/octet-stream",
+        ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       },
       body: await file.arrayBuffer(),
     });

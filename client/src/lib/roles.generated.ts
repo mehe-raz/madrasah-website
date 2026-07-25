@@ -16,6 +16,8 @@ export const ROLE_PERMISSIONS = {
     "reports",
     "settings",
     "website",
+    "websiteGallery",
+    "websiteNotices",
     "results"
   ],
   "Accountant": [
@@ -51,6 +53,10 @@ export const ROUTE_PERMISSION = {
   "/api/backup": "settings",
   "/api/reports": "reports",
   "/api/audit-logs": "settings",
-  "/api/site-content": "website",
+  "/api/site-content": [
+    "website",
+    "websiteGallery",
+    "websiteNotices"
+  ],
   "/api/admissions": "website"
 } as const;

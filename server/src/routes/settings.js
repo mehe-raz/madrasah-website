@@ -2,6 +2,8 @@ const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
+const registryDb = require("../registryDb");
+const tenantContext = require("../tenantContext");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -50,6 +52,29 @@ router.put("/", async (req, res) => {
       details: { keys: changedKeys, values: changedKeys.reduce((acc, k) => ({ ...acc, [k]: after[k] }), {}) },
     });
   }
+
+  // #7 fix: registry.institutions keeps its own copy of name/contact info
+  // (read by the Super Admin panel) that used to never learn about changes
+  // made here. No-op outside multi-tenant mode (tenantContext.get() is only
+  // populated when MULTI_TENANT_MODE=true — see middleware/tenantResolve.js)
+  // and deliberately best-effort: a registry sync failure must never block a
+  // tenant from saving their own settings.
+  const relevantChange = ["name", "email", "phone"].some((k) => changedKeys.includes(k));
+  if (relevantChange) {
+    const ctx = tenantContext.get();
+    if (ctx?.institution) {
+      try {
+        await registryDb.updateInstitutionContact(ctx.institution.id, {
+          name: after.name,
+          contactEmail: after.email,
+          contactPhone: after.phone,
+        });
+      } catch (err) {
+        console.error("Failed to sync settings to registry.institutions:", err.message);
+      }
+    }
+  }
+
   res.json(after);
 });
 

@@ -3,6 +3,8 @@ const db = require("../db");
 const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests");
 const { requirePermission } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
+const { validate } = require("../middleware/validate");
+const { expenseCreateSchema } = require("../lib/opsSchemas");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -18,10 +20,8 @@ router.get("/", async (req, res) => {
   res.json(await db.all("SELECT * FROM expenses ORDER BY id DESC"));
 });
 
-router.post("/", async (req, res) => {
-  const { cat, amount, note } = req.body;
-  const amt = Number(amount);
-  if (!cat || !amt || amt <= 0) return res.status(400).json({ error: "ক্যাটাগরি ও সঠিক পরিমাণ আবশ্যক" });
+router.post("/", validate(expenseCreateSchema), async (req, res) => {
+  const { cat, amount: amt, note } = req.body;
   const date = new Date().toISOString().slice(0, 10);
   const result = await db.run(
     "INSERT INTO expenses (cat, amount, date, note) VALUES ($1, $2, $3, $4) RETURNING id",
