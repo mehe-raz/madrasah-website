@@ -10,6 +10,7 @@ const nodemailer = require("nodemailer");
 const { passwordPolicyError } = require("../lib/passwordPolicy");
 const { validate } = require("../middleware/validate");
 const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } = require("../lib/authSchemas");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -76,6 +77,13 @@ router.post("/register", validate(registerSchema), async (req, res) => {
     // subdomain — see verifyRequestToken in middleware/auth.js (Part 4).
     const token = signToken(user, req.tenant);
     res.cookie("token", token, cookieOptions);
+    await recordAudit({
+      action: "auth.register",
+      actor: user,
+      entityType: "user",
+      entityId: user.id,
+      label: `Registered first Super Admin account: ${user.name}`,
+    });
     res.status(201).json({ user });
   } catch (e) {
     if (isUniqueViolation(e)) return res.status(409).json({ error: "Email already registered" });
@@ -104,11 +112,27 @@ router.post("/login", loginLimiter, validate(loginSchema), async (req, res) => {
         'UPDATE users SET "failedLoginAttempts" = 0, "lockedUntil" = $1 WHERE id = $2',
         [lockedUntil, row.id]
       );
+      await recordAudit({
+        action: "auth.account_locked",
+        actor: null,
+        entityType: "user",
+        entityId: row.id,
+        label: `Account locked after ${MAX_FAILED_ATTEMPTS} failed login attempts: ${row.email}`,
+        details: { email: row.email },
+      });
       return res.status(423).json({
         error: `Too many failed attempts. This account is now locked for ${Math.round(LOCK_DURATION_MS / 60000)} minutes.`,
       });
     }
     await db.run('UPDATE users SET "failedLoginAttempts" = $1 WHERE id = $2', [attempts, row.id]);
+    await recordAudit({
+      action: "auth.login_failed",
+      actor: null,
+      entityType: "user",
+      entityId: row.id,
+      label: `Failed login attempt: ${row.email}`,
+      details: { email: row.email, attempts },
+    });
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
@@ -131,10 +155,34 @@ router.post("/login", loginLimiter, validate(loginSchema), async (req, res) => {
   const user = publicUser(row);
   const token = signToken(user, req.tenant);
   res.cookie("token", token, cookieOptions);
+  await recordAudit({
+    action: "auth.login",
+    actor: user,
+    entityType: "user",
+    entityId: user.id,
+    label: `Logged in: ${user.name}`,
+  });
   res.json({ user });
 });
 
-router.post("/logout", (_req, res) => {
+router.post("/logout", async (req, res) => {
+  // /api/auth isn't behind requireAuth (see index.js), so req.user is never
+  // populated here. Best-effort decode the existing cookie just for the
+  // audit trail — logout still succeeds even if the token is missing,
+  // expired, or invalid, since clearing the cookie is the point either way.
+  try {
+    const { verifyRequestToken } = require("../middleware/auth");
+    const payload = verifyRequestToken(req);
+    await recordAudit({
+      action: "auth.logout",
+      actor: payload,
+      entityType: "user",
+      entityId: payload.id,
+      label: `Logged out: ${payload.name}`,
+    });
+  } catch {
+    // No valid session to attribute the logout to — nothing to log.
+  }
   res.clearCookie("token", cookieOptions);
   res.json({ ok: true });
 });
@@ -236,6 +284,13 @@ router.post("/reset-password", validate(resetPasswordSchema), async (req, res) =
   const hash = await bcrypt.hash(password, SALT_ROUNDS);
   await db.run('UPDATE users SET "passwordHash" = $1 WHERE id = $2', [hash, row.userId]);
   await db.run('DELETE FROM password_resets WHERE "userId" = $1', [row.userId]);
+  await recordAudit({
+    action: "auth.password_reset",
+    actor: null,
+    entityType: "user",
+    entityId: row.userId,
+    label: "Password reset via emailed reset link",
+  });
   res.json({ ok: true, message: "Password updated" });
 });
 

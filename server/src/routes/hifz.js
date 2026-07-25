@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { LIST_COLUMNS } = require("../models/studentAdmission");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -16,7 +17,16 @@ router.patch("/:studentId/para", async (req, res) => {
   const { para } = req.body;
   const student = await db.get("SELECT * FROM students WHERE id = $1", [req.params.studentId]);
   if (!student || student.dept !== "Hifz") return res.status(404).json({ error: "হিফজ ছাত্র পাওয়া যায়নি" });
-  await db.run("UPDATE students SET para = $1 WHERE id = $2", [Math.min(30, Math.max(0, Number(para))), student.id]);
+  const clampedPara = Math.min(30, Math.max(0, Number(para)));
+  await db.run("UPDATE students SET para = $1 WHERE id = $2", [clampedPara, student.id]);
+  await recordAudit({
+    action: "hifz.para_updated",
+    actor: req.user,
+    entityType: "student",
+    entityId: student.id,
+    label: `Updated para for ${student.name} (Roll ${student.roll}): ${student.para} → ${clampedPara}`,
+    details: { from: student.para, to: clampedPara },
+  });
   res.json(await db.get("SELECT * FROM students WHERE id = $1", [student.id]));
 });
 
@@ -27,6 +37,15 @@ router.post("/:studentId/sabaq", async (req, res) => {
     'INSERT INTO hifz_logs ("studentId", date, sabaq) VALUES ($1, $2, $3) RETURNING id',
     [req.params.studentId, date, sabaq || ""]
   );
+  const student = await db.get("SELECT name, roll FROM students WHERE id = $1", [req.params.studentId]);
+  await recordAudit({
+    action: "hifz.sabaq_logged",
+    actor: req.user,
+    entityType: "student",
+    entityId: Number(req.params.studentId),
+    label: `Logged sabaq for ${student?.name || "student #" + req.params.studentId} (${date})`,
+    details: { date, sabaq },
+  });
   res.status(201).json({ id: result.insertId, studentId: Number(req.params.studentId), date, sabaq });
 });
 

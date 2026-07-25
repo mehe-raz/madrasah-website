@@ -4,6 +4,7 @@ const { getIncomeCategories, setIncomeCategories } = require("../lib/incomeCateg
 const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests");
 const { requirePermission } = require("../middleware/rbac");
 const { nextReceipt } = require("../lib/receiptCounter");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -159,6 +160,14 @@ router.post("/", async (req, res) => {
   });
 
   const row = await db.get("SELECT * FROM income WHERE id = $1", [insertId]);
+  await recordAudit({
+    action: "income.created",
+    actor: req.user,
+    entityType: "income",
+    entityId: row.id,
+    label: `Recorded income: ${row.receipt} — ${row.category}, ৳${row.amount}`,
+    details: { category: row.category, amount: row.amount, studentId: row.studentId },
+  });
   res.status(201).json(row);
 });
 
@@ -202,7 +211,16 @@ router.patch("/:id", async (req, res) => {
     }
   });
 
-  res.json(await db.get("SELECT * FROM income WHERE id = $1", [id]));
+  const updated = await db.get("SELECT * FROM income WHERE id = $1", [id]);
+  await recordAudit({
+    action: "income.updated",
+    actor: req.user,
+    entityType: "income",
+    entityId: id,
+    label: `Updated income: ${updated.receipt} — ${updated.category}, ৳${updated.amount}`,
+    details: { before: { category: existing.category, amount: existing.amount }, after: { category: updated.category, amount: updated.amount } },
+  });
+  res.json(updated);
 });
 
 router.delete("/:id", async (req, res) => {
@@ -226,6 +244,13 @@ router.delete("/:id", async (req, res) => {
   if (existing.category === "Student Fee" && existing.studentId) {
     await db.run("UPDATE students SET due = due + $1 WHERE id = $2", [existing.amount, existing.studentId]);
   }
+  await recordAudit({
+    action: "income.deleted",
+    actor: req.user,
+    entityType: "income",
+    entityId: id,
+    label: `Deleted income: ${existing.receipt} — ${existing.category}, ৳${existing.amount}`,
+  });
   res.json({ ok: true });
 });
 

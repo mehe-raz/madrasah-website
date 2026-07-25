@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -66,6 +67,17 @@ router.post("/", async (req, res) => {
      ON CONFLICT ("studentId", date) DO UPDATE SET status = EXCLUDED.status`,
     params
   );
+  // One summary entry per save, not one per student record — a single
+  // attendance sheet can cover hundreds of students, and per-row entries
+  // would drown out everything else in the audit log without adding
+  // meaningful detail over "who saved attendance for which date".
+  await recordAudit({
+    action: "attendance.saved",
+    actor: req.user,
+    entityType: "attendance",
+    label: `Saved attendance for ${date} (${records.length} student(s))`,
+    details: { date, count: records.length },
+  });
   res.json({ ok: true, date });
 });
 
