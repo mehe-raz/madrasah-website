@@ -90,16 +90,25 @@ function renderLogin() {
   root.innerHTML = `
     <div class="login-shell">
       <div class="login-card">
-        <h1>Super-Admin প্যানেল</h1>
-        <p class="sub">প্ল্যাটফর্ম অ্যাডমিন লগইন — শুধু আপনার/আপনার টিমের জন্য</p>
+        <div class="brand-wrap">
+          <div class="brand-mark">🕌</div>
+          <h1>Super-Admin প্যানেল</h1>
+          <p class="sub">প্ল্যাটফর্ম অ্যাডমিন লগইন — শুধু আপনার/আপনার টিমের জন্য</p>
+        </div>
         ${state.error ? `<div class="error-box">${escapeHtml(state.error)}</div>` : ""}
         <form id="login-form">
           <label>ইমেইল</label>
-          <input type="email" name="email" required autocomplete="username" />
+          <div class="field-icon-wrap">
+            <span class="icon">✉️</span>
+            <input type="email" name="email" required autocomplete="username" placeholder="you@example.com" />
+          </div>
           <label>পাসওয়ার্ড</label>
-          <input type="password" name="password" required autocomplete="current-password" />
-          <div class="modal-actions" style="justify-content:stretch; margin-top:20px;">
-            <button type="submit" style="width:100%;">লগইন</button>
+          <div class="field-icon-wrap">
+            <span class="icon">🔒</span>
+            <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••" />
+          </div>
+          <div class="modal-actions" style="justify-content:stretch; margin-top:22px;">
+            <button type="submit" style="width:100%;">লগইন করুন</button>
           </div>
         </form>
       </div>
@@ -127,13 +136,13 @@ function institutionRow(inst) {
   const status = inst.status;
   return `
     <tr data-id="${inst.id}">
-      <td>${escapeHtml(inst.name)}</td>
-      <td class="mono">${escapeHtml(inst.code)}</td>
-      <td><span class="badge ${status}">${STATUS_LABELS[status] || status}</span></td>
-      <td>${escapeHtml(inst.plan)}</td>
-      <td class="muted">${fmtDate(inst.trial_ends_at)}</td>
-      <td class="muted">${fmtDate(inst.subscription_ends_at)}</td>
-      <td>
+      <td data-label="নাম">${escapeHtml(inst.name)}</td>
+      <td class="mono" data-label="কোড">${escapeHtml(inst.code)}</td>
+      <td data-label="স্ট্যাটাস"><span class="badge ${status}">${STATUS_LABELS[status] || status}</span></td>
+      <td data-label="প্ল্যান">${escapeHtml(inst.plan)}</td>
+      <td class="muted" data-label="ট্রায়াল শেষ">${fmtDate(inst.trial_ends_at)}</td>
+      <td class="muted" data-label="সাবস্ক্রিপশন শেষ">${fmtDate(inst.subscription_ends_at)}</td>
+      <td class="row-actions-cell">
         <div class="row-actions">
           <select class="status-select" data-id="${inst.id}">
             ${Object.entries(STATUS_LABELS)
@@ -151,16 +160,49 @@ function institutionRow(inst) {
   `;
 }
 
+function statCounts() {
+  const list = state.institutions || [];
+  return {
+    total: list.length,
+    active: list.filter((i) => i.status === "active").length,
+    trial: list.filter((i) => i.status === "trial").length,
+    suspended: list.filter((i) => i.status === "suspended" || i.status === "cancelled").length,
+  };
+}
+
 function renderDashboard() {
+  const counts = statCounts();
   root.innerHTML = `
     <header class="topbar">
-      <h1>Super-Admin প্যানেল</h1>
+      <div class="brand-group">
+        <div class="brand-mark">🕌</div>
+        <h1>Super-Admin প্যানেল</h1>
+      </div>
       <div class="who">
-        ${escapeHtml(state.admin.name)} (${escapeHtml(state.admin.email)})
-        <button id="logout-btn" class="secondary small" style="margin-inline-start:10px;">লগআউট</button>
+        <span class="name-chip">${escapeHtml(state.admin.name)}</span>
+        <span>${escapeHtml(state.admin.email)}</span>
+        <button id="logout-btn" class="secondary small">লগআউট</button>
       </div>
     </header>
     <main>
+      <div class="stat-grid">
+        <div class="stat-card total">
+          <div class="stat-icon">🏫</div>
+          <div><div class="stat-num">${counts.total}</div><div class="stat-label">মোট প্রতিষ্ঠান</div></div>
+        </div>
+        <div class="stat-card active">
+          <div class="stat-icon">✅</div>
+          <div><div class="stat-num">${counts.active}</div><div class="stat-label">সক্রিয়</div></div>
+        </div>
+        <div class="stat-card trial">
+          <div class="stat-icon">⏳</div>
+          <div><div class="stat-num">${counts.trial}</div><div class="stat-label">ট্রায়াল</div></div>
+        </div>
+        <div class="stat-card suspended">
+          <div class="stat-icon">⛔</div>
+          <div><div class="stat-num">${counts.suspended}</div><div class="stat-label">সাসপেন্ড/বাতিল</div></div>
+        </div>
+      </div>
       <div class="toolbar">
         <div class="filters">
           <select id="status-filter">
@@ -182,7 +224,7 @@ function renderDashboard() {
           state.loading
             ? `<div class="empty-state">লোড হচ্ছে…</div>`
             : state.institutions.length === 0
-            ? `<div class="empty-state">কোনো প্রতিষ্ঠান পাওয়া যায়নি। "+ নতুন প্রতিষ্ঠান" দিয়ে যোগ করুন।</div>`
+            ? `<div class="empty-state"><span class="empty-icon">🏫</span>কোনো প্রতিষ্ঠান পাওয়া যায়নি। "+ নতুন প্রতিষ্ঠান" দিয়ে যোগ করুন।</div>`
             : `<table>
                 <thead>
                   <tr>
