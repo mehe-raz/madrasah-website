@@ -109,6 +109,7 @@ export interface BackupConfig {
   enabled: boolean;
   intervalHours: number;
   keepLocalCopies: number;
+  keepDriveCopies: number;
   destinations: string[];
   lastRunAt?: string;
   driveEncryptionEnabled?: boolean;

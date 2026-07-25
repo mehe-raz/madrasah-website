@@ -238,6 +238,41 @@ async function uploadBackupFile(localPath, filename, mimeType) {
   }
 }
 
+// Deletes the oldest files in the app's Drive folder beyond `keepCount`,
+// newest-first. Drive itself never rotates on its own the way the local
+// backups/ folder does (see keepLocalCopies in routes/backup.js) — without
+// this, every backup that DOES contain new data would just pile up in Drive
+// forever. No-ops if Drive isn't connected or keepCount isn't a usable
+// number, and never throws (called as a best-effort step right after a
+// successful upload, same spirit as uploadBackupFile itself).
+async function pruneOldBackups(keepCount) {
+  const conn = await getDriveClient();
+  if (!conn) return;
+  const keep = Math.max(1, Number(keepCount) || 14);
+
+  try {
+    const folder = await ensureFolder(conn.drive, conn.state.folderId);
+    const res = await conn.drive.files.list({
+      q: `'${folder.id}' in parents and trashed = false`,
+      fields: "files(id, name, createdTime)",
+      orderBy: "createdTime desc",
+      pageSize: 1000,
+      spaces: "drive",
+    });
+    const files = res.data.files || [];
+    const toDelete = files.slice(keep);
+    for (const f of toDelete) {
+      try {
+        await conn.drive.files.delete({ fileId: f.id });
+      } catch (err) {
+        console.warn(`Failed to prune old Drive backup "${f.name}":`, err.message);
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to list Drive backups for pruning:", err.message);
+  }
+}
+
 // Lists backup files sitting in the app's Drive folder, newest first, with
 // size and created date so the UI can show something like WhatsApp's
 // "last backed up X, size Y" list. Returns [] when Drive isn't connected.
@@ -286,6 +321,7 @@ module.exports = {
   getStatus,
   disconnect,
   uploadBackupFile,
+  pruneOldBackups,
   listBackupFiles,
   downloadBackupFile,
 };

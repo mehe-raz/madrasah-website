@@ -230,6 +230,19 @@ app.get("/api/public/results", resultLookupLimiter, async (req, res) => {
   }
 });
 
+// Google's OAuth redirect lands the browser here as a top-level, cross-
+// origin navigation (it goes to GOOGLE_DRIVE_REDIRECT_URI, one fixed host
+// registered in Google Cloud Console — never the tenant subdomain the admin
+// is actually logged into), so it never carries the tenant's "token"
+// cookie. That used to mean this request fell through to the global
+// requireAuth chain just below, which replied 401 {"error":"Login
+// required"} before routes/backup.js's own callback handler — which
+// re-derives identity from the signed `state` param instead of a cookie —
+// ever got a chance to run. Registering it here, before that chain, is what
+// actually fixes that; see routes/backup.js's googleCallbackHandler for the
+// full explanation and the identity re-verification logic.
+app.get("/api/backup/google/callback", require("./routes/backup").googleCallbackHandler);
+
 app.use("/api", apiLimiter, requireAuth, verifyCsrfToken, rbacMiddleware);
 
 app.use("/api/students", require("./routes/students"));

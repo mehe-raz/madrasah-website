@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const googleDrive = require("../lib/googleDrive");
@@ -40,8 +41,16 @@ function defaultConfig() {
     enabled: false,
     intervalHours: 24,
     keepLocalCopies: 14,
+    // Separate cap from keepLocalCopies because Drive has no automatic
+    // rotation of its own (see pruneOldBackups in lib/googleDrive.js) — left
+    // unbounded, every scheduled run would just add another file forever.
+    keepDriveCopies: 14,
     destinations: ["", "", ""],
     lastRunAt: "",
+    // Sha256 of the last backup's table contents (see computeDataHash
+    // below). Lets createBackup() detect "nothing changed since last time"
+    // and skip uploading a byte-for-byte duplicate to Drive.
+    lastBackupHash: "",
   };
 }
 
@@ -72,6 +81,7 @@ async function saveConfig(config) {
     ...config,
     intervalHours: Math.max(1, Number(config.intervalHours) || 24),
     keepLocalCopies: Math.max(1, Number(config.keepLocalCopies) || 14),
+    keepDriveCopies: Math.max(1, Number(config.keepDriveCopies) || 14),
     destinations,
   };
   await db.run(
@@ -148,6 +158,17 @@ async function exportJsonBackup() {
   };
 }
 
+// Hashes only the table contents — never `exportedAt`, which is different
+// on every single call by definition and would make every backup "look"
+// changed even when the underlying data is byte-for-byte identical. Two
+// exports of the same data always produce the same hash, so createBackup()
+// below can tell "nothing changed since the last backup" apart from "real
+// new data" and only upload to Drive (and only count against
+// keepDriveCopies) in the second case.
+function computeDataHash(snapshot) {
+  return crypto.createHash("sha256").update(JSON.stringify(snapshot.tables)).digest("hex");
+}
+
 function normalizeBackupDocument(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new Error("Invalid madrasah backup file");
@@ -221,6 +242,7 @@ async function createBackup(config = null) {
   const localPath = path.join(backupDir, filename);
 
   const snapshot = await exportJsonBackup();
+  const dataHash = computeDataHash(snapshot);
   fs.writeFileSync(localPath, JSON.stringify(snapshot, null, 2));
 
   activeConfig.destinations
@@ -238,36 +260,65 @@ async function createBackup(config = null) {
     .reverse();
   copies.slice(activeConfig.keepLocalCopies).forEach((f) => fs.unlinkSync(path.join(backupDir, f)));
 
-  let tempEncPath = null;
-  try {
-    let uploadPath = localPath;
-    let uploadFilename = filename;
-    let uploadMimeType = "application/json";
-
-    if (backupEncryption.isConfigured()) {
-      tempEncPath = `${localPath}.enc`;
-      backupEncryption.encryptFile(localPath, tempEncPath);
-      uploadPath = tempEncPath;
-      uploadFilename = `${filename}.enc`;
-      uploadMimeType = "application/octet-stream";
-    } else {
-      console.warn(
-        "BACKUP_ENCRYPTION_KEY is not set — backups uploaded to Google Drive will be plain, readable JSON."
-      );
-    }
-
-    const uploaded = await googleDrive.uploadBackupFile(uploadPath, uploadFilename, uploadMimeType);
-    if (uploaded) console.log(`Backup uploaded to Google Drive: ${uploadFilename}`);
-  } catch (err) {
-    // Google Drive upload is best-effort, same as the local folder destinations above:
-    // a failed upload should never block the backup itself from completing.
-    console.warn("Google Drive backup upload failed:", err.message);
-  } finally {
-    if (tempEncPath && fs.existsSync(tempEncPath)) fs.unlinkSync(tempEncPath);
+  // Same content as the last backup that actually reached Drive? Then
+  // there's nothing new to preserve there — uploading again would just be
+  // an identical file sitting next to the old one, and every scheduled run
+  // between now and the next real change would keep repeating that.
+  // (The local copy above still happens every time regardless — it's cheap,
+  // already rotated by keepLocalCopies, and "Download backup" always needs
+  // a fresh file to hand to the browser.)
+  const driveUploadSkipped = Boolean(dataHash && activeConfig.lastBackupHash && dataHash === activeConfig.lastBackupHash);
+  if (driveUploadSkipped) {
+    console.log(`Backup data unchanged since the last Drive upload — skipping Drive upload for ${filename} (kept locally only).`);
   }
 
-  const saved = await saveConfig({ ...activeConfig, lastRunAt: new Date().toISOString() });
-  return { filename, localPath, format: "json", config: saved };
+  let tempEncPath = null;
+  if (!driveUploadSkipped) {
+    try {
+      let uploadPath = localPath;
+      let uploadFilename = filename;
+      let uploadMimeType = "application/json";
+
+      if (backupEncryption.isConfigured()) {
+        tempEncPath = `${localPath}.enc`;
+        backupEncryption.encryptFile(localPath, tempEncPath);
+        uploadPath = tempEncPath;
+        uploadFilename = `${filename}.enc`;
+        uploadMimeType = "application/octet-stream";
+      } else {
+        console.warn(
+          "BACKUP_ENCRYPTION_KEY is not set — backups uploaded to Google Drive will be plain, readable JSON."
+        );
+      }
+
+      const uploaded = await googleDrive.uploadBackupFile(uploadPath, uploadFilename, uploadMimeType);
+      if (uploaded) console.log(`Backup uploaded to Google Drive: ${uploadFilename}`);
+
+      // Only trim once something new actually landed — running this on a
+      // skipped upload would do nothing useful and just cost an extra
+      // Drive API round trip.
+      await googleDrive.pruneOldBackups(activeConfig.keepDriveCopies);
+    } catch (err) {
+      // Google Drive upload is best-effort, same as the local folder destinations above:
+      // a failed upload should never block the backup itself from completing.
+      console.warn("Google Drive backup upload failed:", err.message);
+    } finally {
+      if (tempEncPath && fs.existsSync(tempEncPath)) fs.unlinkSync(tempEncPath);
+    }
+  }
+
+  const saved = await saveConfig({
+    ...activeConfig,
+    lastRunAt: new Date().toISOString(),
+    // Keep the previous hash on record if this run's upload was skipped due
+    // to a Drive error inside the try/catch above (dataHash would still be
+    // set from this run, but we only want to "commit" it once we know it's
+    // actually the hash of what's in Drive) — but a clean skip (identical
+    // data) or a clean upload should both persist today's hash so the next
+    // comparison is against this run either way.
+    lastBackupHash: dataHash || activeConfig.lastBackupHash,
+  });
+  return { filename, localPath, format: "json", config: saved, driveUploadSkipped };
 }
 
 async function restoreJsonBackup(data) {
@@ -537,7 +588,18 @@ router.get("/google/auth-url", async (req, res) => {
 // context by hand via withTenantByCode, and the uid is then looked up
 // against *that* tenant's users table (not just decoded from the token) so
 // a stale/deleted/demoted account can't complete the connection.
-router.get("/google/callback", async (req, res) => {
+// Pulled out as a standalone named function (not just an inline router
+// callback) so index.js can mount it directly on the Express app at
+// /api/backup/google/callback BEFORE the global `app.use("/api", ...,
+// requireAuth, ..., rbacMiddleware)` chain. That global chain used to run
+// first for every /api/* path — including this one — and since Google's
+// redirect never carries the tenant cookie (see the big comment above),
+// requireAuth rejected the request with 401 "Login required" before this
+// handler ever ran, no matter how carefully IT avoided depending on
+// req.user. Mounting it earlier in index.js fixes that; it's still also
+// wired up on the router below so a direct `/api/backup/google/callback`
+// hit through the normal router (e.g. in tests) keeps working the same way.
+async function googleCallbackHandler(req, res) {
   const { code, state, error } = req.query;
 
   // Prefer the tenant origin that was signed into `state` when the connect
@@ -579,7 +641,9 @@ router.get("/google/callback", async (req, res) => {
   } catch (e) {
     res.redirect(`${clientOrigin}/settings?googleDrive=error&message=${encodeURIComponent(e.message || "Google Drive connection failed")}`);
   }
-});
+}
+
+router.get("/google/callback", googleCallbackHandler);
 
 router.get("/google/files", async (_req, res) => {
   try {
@@ -692,5 +756,11 @@ router.__test__ = {
   BACKUP_TABLES,
   RESTORE_REQUIRED_TABLES,
 };
+
+// Exposed separately (not just reachable through the router below) so
+// index.js can mount it directly on the app, ahead of the global
+// requireAuth/rbac chain — see the big comment above googleCallbackHandler
+// for why that's required.
+router.googleCallbackHandler = googleCallbackHandler;
 
 module.exports = router;

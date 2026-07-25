@@ -420,6 +420,7 @@ export function Settings() {
                 <div style={{ marginTop: 12 }}>
                   <InfoRow label="Automatic backup" value={backupConfig.enabled ? "Enabled" : "Disabled"} />
                   <InfoRow label="Interval" value={`${backupConfig.intervalHours} hours`} />
+                  <InfoRow label="Keep Drive copies" value={String(backupConfig.keepDriveCopies ?? 14)} />
                   <InfoRow label="Last backup" value={backupConfig.lastRunAt ? new Date(backupConfig.lastRunAt).toLocaleString() : "-"} />
                   {driveStatus?.configured && (
                     <InfoRow
@@ -509,6 +510,7 @@ export function Settings() {
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
                     <Field label="Backup interval (hours)" value={String(backupConfig.intervalHours)} onChange={(v) => setBackupConfig({ ...backupConfig, intervalHours: Number(v) || 24 })} type="number" />
                     <Field label="Keep local copies" value={String(backupConfig.keepLocalCopies)} onChange={(v) => setBackupConfig({ ...backupConfig, keepLocalCopies: Number(v) || 14 })} type="number" />
+                    <Field label="Keep Drive copies" value={String(backupConfig.keepDriveCopies ?? 14)} onChange={(v) => setBackupConfig({ ...backupConfig, keepDriveCopies: Number(v) || 14 })} type="number" />
                   </div>
                   {[0, 1, 2].map((i) => (
                     <Field
