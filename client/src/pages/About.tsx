@@ -13,7 +13,7 @@ const principles = [
 ];
 
 export function About() {
-  const { site, content } = usePublicSite();
+  const { site, content, loading } = usePublicSite();
 
   useEffect(() => {
     document.title = `আমাদের সম্পর্কে — ${site.name}`;
@@ -32,9 +32,11 @@ export function About() {
                 আমাদের সম্পর্কে
               </span>
               <h1 className="section-heading" style={{ margin: "0 0 12px" }}>{site.name}</h1>
-              <p style={{ fontSize: 15, lineHeight: 1.85, color: C.muted, margin: 0, maxWidth: 680 }}>
-                {content.aboutIntro || "যত্ন, শৃঙ্খলা এবং প্রতিটি শিক্ষার্থীর ধারাবাহিক উন্নতিকে কেন্দ্র করে গড়ে ওঠা একটি প্রতিষ্ঠান।"}
-              </p>
+              {(loading || content.aboutIntro) && (
+                <p style={{ fontSize: 15, lineHeight: 1.85, color: C.muted, margin: 0, maxWidth: 680 }}>
+                  {loading ? "যত্ন, শৃঙ্খলা এবং প্রতিটি শিক্ষার্থীর ধারাবাহিক উন্নতিকে কেন্দ্র করে গড়ে ওঠা একটি প্রতিষ্ঠান।" : content.aboutIntro}
+                </p>
+              )}
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
                 <Link to="/admission" className="pill hover-lift" style={{ background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", textDecoration: "none", padding: "12px 18px", fontWeight: 900 }}>
                   ভর্তি হন
@@ -88,14 +90,16 @@ export function About() {
         </div>
       </section>
 
-      <section className="section-shell page-section section-pop">
-        <div className="soft-panel" style={{ padding: 22 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 10px" }}>আমাদের লক্ষ্য</h3>
-          <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.85, margin: 0, maxWidth: 780 }}>
-            {content.aboutMission || "আমাদের লক্ষ্য প্রতিটি পরিবারকে একটি নিরাপদ ও যত্নশীল শিক্ষার পরিবেশ দেওয়া — যেখানে একাডেমিক উন্নতি চরিত্র গঠন ও সমাজের সাথে একসাথে এগিয়ে চলে।"}
-          </p>
-        </div>
-      </section>
+      {(loading || content.aboutMission) && (
+        <section className="section-shell page-section section-pop">
+          <div className="soft-panel" style={{ padding: 22 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 10px" }}>আমাদের লক্ষ্য</h3>
+            <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.85, margin: 0, maxWidth: 780 }}>
+              {loading ? "আমাদের লক্ষ্য প্রতিটি পরিবারকে একটি নিরাপদ ও যত্নশীল শিক্ষার পরিবেশ দেওয়া — যেখানে একাডেমিক উন্নতি চরিত্র গঠন ও সমাজের সাথে একসাথে এগিয়ে চলে।" : content.aboutMission}
+            </p>
+          </div>
+        </section>
+      )}
 
       <section className="section-shell page-section section-pop">
         <div className="soft-panel-strong" style={{ padding: 22 }}>

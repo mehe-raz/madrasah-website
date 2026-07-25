@@ -1,10 +1,14 @@
 import type { PublicSettings, SiteContent } from "../types";
 
-// Used only when the public API can't be reached at all (e.g. offline /
-// server down) — usePublicSite falls back to this so the page still renders
-// something instead of a blank screen. Kept in Bengali and madrasah-themed
-// so it matches the real DEFAULT_CONTENT in server/src/lib/siteContent.js
-// instead of showing an unrelated English kindergarten demo.
+// Used ONLY when the public API request fails outright (offline / server
+// down) — usePublicSite now passes through whatever the admin actually
+// saved (including an intentionally empty field) on any successful
+// response, so this constant never overrides real data anymore. It is
+// deliberately NOT the same text as server/src/lib/siteContent.js's
+// DEFAULT_CONTENT: that one is shown when an institution hasn't configured
+// its site content yet (a prompt to go fill it in), while this one is a
+// generic "something's temporarily wrong" placeholder for an outage — two
+// different situations that don't need to match.
 export const FALLBACK_SETTINGS: PublicSettings = {
   name: "মাদ্রাসা",
   logo: "",

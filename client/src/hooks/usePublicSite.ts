@@ -20,19 +20,27 @@ export function usePublicSite() {
       const [contentResult, settingsResult] = results;
       if (contentResult.status === "fulfilled") {
         const data = contentResult.value;
+        // Respect whatever the admin actually saved, including a field left
+        // deliberately empty — do NOT substitute FALLBACK_CONTENT here. That
+        // constant is only for the "API unreachable" case below (initial
+        // state + the branch this `if` skips on rejection), never for a
+        // successful response that happens to contain an empty string/array.
         setContent({
-          badge: data.badge || FALLBACK_CONTENT.badge,
-          heroSubtitle: data.heroSubtitle || FALLBACK_CONTENT.heroSubtitle,
-          highlights: data.highlights?.length ? data.highlights : FALLBACK_CONTENT.highlights,
-          departments: data.departments?.length ? data.departments : FALLBACK_CONTENT.departments,
-          classes: data.classes || [],
-          notices: data.notices || [],
-          aboutIntro: data.aboutIntro || FALLBACK_CONTENT.aboutIntro,
-          aboutMission: data.aboutMission || FALLBACK_CONTENT.aboutMission,
-          gallery: data.gallery || [],
+          badge: data.badge ?? "",
+          heroSubtitle: data.heroSubtitle ?? "",
+          highlights: data.highlights ?? [],
+          departments: data.departments ?? [],
+          classes: data.classes ?? [],
+          notices: data.notices ?? [],
+          aboutIntro: data.aboutIntro ?? "",
+          aboutMission: data.aboutMission ?? "",
+          gallery: data.gallery ?? [],
         });
       }
       if (settingsResult.status === "fulfilled") {
+        // Spread (not `||`) so an intentionally-cleared field ("") from the
+        // API always wins over FALLBACK_SETTINGS — only a genuinely missing
+        // key falls back.
         setSite({ ...FALLBACK_SETTINGS, ...settingsResult.value });
       }
       setLoading(false);

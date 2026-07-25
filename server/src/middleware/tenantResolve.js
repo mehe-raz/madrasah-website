@@ -94,10 +94,17 @@ function extractTenantCode(req) {
   // Header override: lets local development and any environment without
   // wildcard DNS/subdomains (e.g. testing against localhost:10000) select a
   // tenant explicitly. Only ever changes *which schema* a request reads —
-  // it grants no extra privilege, since every route past this middleware
-  // still enforces its own auth/RBAC exactly as before.
-  const headerCode = req.get("x-tenant-code");
-  if (headerCode) return headerCode.trim().toLowerCase();
+  // it grants no extra privilege on its own, since every route past this
+  // middleware still enforces its own auth/RBAC exactly as before (a JWT's
+  // institutionCode is checked against the resolved tenant in auth.js).
+  // Still, in production the documented model is "Host decides the tenant"
+  // — so the header override is disabled there, closing off tenant
+  // enumeration / cross-tenant probing on public routes via a spoofed
+  // header instead of relying solely on the JWT check downstream.
+  if (process.env.NODE_ENV !== "production") {
+    const headerCode = req.get("x-tenant-code");
+    if (headerCode) return headerCode.trim().toLowerCase();
+  }
 
   const host = (req.hostname || "").toLowerCase();
   if (!host) return null;

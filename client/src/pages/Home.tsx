@@ -15,7 +15,7 @@ function formatNoticeDate(iso: string) {
 const defaultBadges = ["হিফজ", "নাজেরা", "কিতাব", "জেনারেল"];
 
 export function Home() {
-  const { site, content } = usePublicSite();
+  const { site, content, loading } = usePublicSite();
   const fallbackName = site.name || "মাদ্রাসা";
 
   useEffect(() => {
@@ -80,9 +80,11 @@ export function Home() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 28, alignItems: "center" }}>
             <div style={{ position: "relative", zIndex: 1 }}>
-              <span className="pill" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 12px", background: C.amberL, color: C.amberD, fontSize: 12, fontWeight: 900, marginBottom: 16 }}>
-                ✨ {content.badge || "দ্বীনি ও আধুনিক শিক্ষার সমন্বয়"}
-              </span>
+              {(loading || content.badge) && (
+                <span className="pill" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 12px", background: C.amberL, color: C.amberD, fontSize: 12, fontWeight: 900, marginBottom: 16 }}>
+                  ✨ {loading ? "দ্বীনি ও আধুনিক শিক্ষার সমন্বয়" : content.badge}
+                </span>
+              )}
 
               <h1 className="text-balance" style={{ fontSize: "clamp(34px, 5vw, 60px)", lineHeight: 1.02, letterSpacing: "-0.04em", fontWeight: 900, margin: "0 0 14px" }}>
                 {fallbackName}
