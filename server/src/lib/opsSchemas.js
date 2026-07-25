@@ -1,12 +1,12 @@
 // server/src/lib/opsSchemas.js
 //
-// Zod schemas for the routes that previously had only ad-hoc/no shape
-// validation: expenses, attendance, hifz. (students.js, income.js, and
-// results.js already run comparable hand-written validation of similar
-// strength — validateAdmission() / lib/results.js's upsertResult / income's
-// own category+amount checks — so converting those too was left out of this
-// batch to keep the diff reviewable; flagging here in case that's wanted
-// as a follow-up.)
+// Zod schemas for expenses, attendance, hifz — these had only ad-hoc/no
+// shape validation before. (income.js and results.js are now covered by
+// lib/financeSchemas.js. students.js's validateAdmission() is deliberately
+// left as-is: it's already a thorough, well-tested required-field +
+// enum-whitelist + document-shape validator, and converting it to Zod would
+// be a large rewrite of business logic for little extra safety — higher
+// regression risk than value for this batch.)
 
 const { z } = require("zod");
 

@@ -5,6 +5,8 @@ const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests")
 const { requirePermission } = require("../middleware/rbac");
 const { nextReceipt } = require("../lib/receiptCounter");
 const { recordAudit } = require("../lib/auditLog");
+const { validate } = require("../middleware/validate");
+const { incomeCreateSchema, incomeUpdateSchema } = require("../lib/financeSchemas");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -118,14 +120,13 @@ router.get("/", async (req, res) => {
   );
 });
 
-router.post("/", async (req, res) => {
+router.post("/", validate(incomeCreateSchema), async (req, res) => {
   const { category, amount, note, method, studentId, date } = req.body;
   const CATEGORIES = await getIncomeCategories();
   if (!category || !CATEGORIES.includes(category)) {
     return res.status(400).json({ error: "Invalid category" });
   }
-  const amt = Number(amount);
-  if (!amt || amt <= 0) return res.status(400).json({ error: "Invalid amount" });
+  const amt = amount;
 
   let student = null;
   if (studentId) {
@@ -171,7 +172,7 @@ router.post("/", async (req, res) => {
   res.status(201).json(row);
 });
 
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", validate(incomeUpdateSchema), async (req, res) => {
   const id = Number(req.params.id);
   const existing = await db.get("SELECT * FROM income WHERE id = $1", [id]);
   if (!existing) return res.status(404).json({ error: "Not found" });
@@ -183,7 +184,7 @@ router.patch("/:id", async (req, res) => {
   }
 
   const nextCategory = category ?? existing.category;
-  const nextAmount = amount != null ? Number(amount) : existing.amount;
+  const nextAmount = amount != null ? amount : existing.amount;
 
   await db.withTransaction(async (tx) => {
     await tx.run(
@@ -194,7 +195,7 @@ router.patch("/:id", async (req, res) => {
         method = COALESCE($4, method),
         date = COALESCE($5, date)
        WHERE id = $6`,
-      [category ?? null, amount != null ? Number(amount) : null, note ?? null, method ?? null, date ?? null, id]
+      [category ?? null, amount != null ? amount : null, note ?? null, method ?? null, date ?? null, id]
     );
 
     // Keep the linked student's due balance correct: undo the old effect on

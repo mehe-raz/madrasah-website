@@ -3,6 +3,8 @@ const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { listResults, upsertResult, setPublished, deleteResult } = require("../lib/results");
 const { recordAudit } = require("../lib/auditLog");
+const { validate } = require("../middleware/validate");
+const { resultSaveSchema } = require("../lib/financeSchemas");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -30,7 +32,7 @@ router.get("/", async (req, res) => {
   res.json(await listResults({ class: className, examName, year }));
 });
 
-router.post("/", async (req, res) => {
+router.post("/", validate(resultSaveSchema), async (req, res) => {
   try {
     const row = await upsertResult(req.body);
     await recordAudit({
