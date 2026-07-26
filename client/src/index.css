@@ -420,6 +420,22 @@ img {
   border-radius: 0 !important;
 }
 
+/* --- গ্যালারি: মোবাইলে ছবিগুলো ইনস্টাগ্রাম/ইউটিউবের মতো ফুল-ব্লিড (edge-to-edge) ---
+   ছবির গ্রিড স্ক্রিনের দুই কিনারা পর্যন্ত টেনে দেওয়া হয়েছে, গ্যাপও কমিয়ে
+   টাইট গ্রিড করা হয়েছে। উপরের হেডিং/টেক্সট/বাটন স্বাভাবিক section-shell
+   মার্জিনেই থাকবে — শুধু ছবির গ্রিডটাই কিনারা ছুঁয়ে দেখাবে। */
+@media (max-width: 768px) {
+  .gallery-photo-grid {
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    gap: 2px !important;
+  }
+}
+
 @media (max-width: 768px) {
   .hide-mobile {
     display: none !important;
