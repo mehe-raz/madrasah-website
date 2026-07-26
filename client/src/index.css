@@ -396,13 +396,28 @@ img {
 
 @media (max-width: 900px) {
   .section-shell {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
   .hero-shell {
     padding-top: 28px;
   }
+}
+
+@media (max-width: 480px) {
+  .section-shell {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
+
+/* --- পাবলিক সাইট: বর্গাকার (sharp corner) ডিজাইন ---
+   পাবলিক পেজের ছবি, কার্ড ও সেকশনের গোল কোণা (border-radius) সরিয়ে
+   বর্গাকার/চার-কোনা রাখা হয়েছে। শুধু বাটন (<button> ট্যাগ ও .pill ক্লাস,
+   যেমন CTA বাটন/নেভিগেশন চিপ) আগের মতোই কার্ভ/গোল থাকবে। */
+.page-shell *:not(button):not(.pill) {
+  border-radius: 0 !important;
 }
 
 @media (max-width: 768px) {
