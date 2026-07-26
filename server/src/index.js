@@ -290,27 +290,46 @@ if (process.env.NODE_ENV === "production") {
 async function start() {
   try {
     await db.init();
-    // registry.* (Part 5/6 — platform/Super-Admin panel: institutions,
-    // platform_admins incl. its `role` column, audit_logs, payments) was
-    // never actually being created/migrated on boot — initRegistrySchema()
-    // existed and was exported but nothing called it. That left production
-    // databases without the `role` column added later, so any query that
-    // selected it (e.g. GET /api/platform/admins, opening "এডমিন
-    // ম্যানেজমেন্ট" in the Super-Admin panel) failed with a 500. Must run
-    // before the platform routes can serve any request.
-    await require("./registryDb").initRegistrySchema();
-    // Part 6 — periodic auto-suspend sweep for expired trials/subscriptions
-    // in the (optional) multi-tenant registry. No-op cost when the registry
-    // has no institutions yet, so safe to always start. See src/billing.js.
-    require("./billing").startExpiryScanJob();
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Madrasah ERP API running on port ${PORT}`);
-    });
   } catch (err) {
     console.error("Database initialization failed:", err.message);
     if (err.stack) console.error(err.stack);
     process.exit(1);
   }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Madrasah ERP API running on port ${PORT}`);
+  });
+
+  // registry.* (Part 5/6 — platform/Super-Admin panel: institutions,
+  // platform_admins incl. its `role` column, audit_logs, payments) still
+  // needs its schema created/migrated on boot (see initRegistrySchema),
+  // but that must never (a) delay the app from accepting normal requests,
+  // or (b) crash the whole app if it fails — this is an OPTIONAL feature
+  // for the multi-tenant Super-Admin panel, completely separate from the
+  // core single-tenant app that every institution's login/logout/public
+  // site depends on. Previously this was awaited before app.listen() and
+  // shared db.init()'s process.exit(1) on failure, which meant: every
+  // boot/cold-start paid its full round-trip before serving any request,
+  // and any hiccup running it (permissions, a transient connection issue,
+  // etc.) took the entire site down and could trigger a crash-restart
+  // loop — exactly the site-wide slowness this is fixing. Now it runs in
+  // the background after the server is already listening, and a failure
+  // here only logs a warning; the Super-Admin panel simply stays broken
+  // until it's fixed, instead of taking every tenant's app down with it.
+  require("./registryDb")
+    .initRegistrySchema()
+    .then(() => {
+      // Part 6 — periodic auto-suspend sweep for expired trials/subscriptions
+      // in the (optional) multi-tenant registry. No-op cost when the registry
+      // has no institutions yet, so safe to always start. See src/billing.js.
+      require("./billing").startExpiryScanJob();
+    })
+    .catch((err) => {
+      console.error(
+        "[registry] schema init failed — the Super-Admin platform panel may not work until this is fixed (rest of the app is unaffected):",
+        err.message
+      );
+    });
 }
 
 start();
