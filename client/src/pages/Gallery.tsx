@@ -71,9 +71,7 @@ export function Gallery() {
           <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>{content.galleryIntroSubtitle}</p>
         </div>
 
-        {loading ? (
-          <div style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</div>
-        ) : photos.length ? (
+        {photos.length ? (
           <div className="card-grid gallery-photo-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
             {photos.map((item, i) => (
               <figure

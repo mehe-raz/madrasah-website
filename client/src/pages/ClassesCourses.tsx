@@ -62,9 +62,7 @@ export function ClassesCourses() {
           <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>হোম, পরিচিতি, ভর্তি ও ফলাফল পেজেও একই ডিজাইন বজায় রাখা হয়েছে।</p>
         </div>
 
-        {loading ? (
-          <div style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</div>
-        ) : content.classes.length ? (
+        {content.classes.length ? (
           <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
             {content.classes.map((c, i) => (
               <button

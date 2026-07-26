@@ -92,11 +92,8 @@ export function Notices() {
           <p style={{ margin: 0, color: C.muted, fontSize: 14 }}>পেজটি সংক্ষিপ্ত রাখতে শুধু গত ৬ মাসের নোটিশ দেখানো হয়।</p>
         </div>
 
-        {loading ? (
-          <div style={{ textAlign: "center", color: C.muted, fontSize: 13 }}>লোড হচ্ছে…</div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 18, alignItems: "start" }}>
-            <div style={{ display: "grid", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 18, alignItems: "start" }}>
+          <div style={{ display: "grid", gap: 12 }}>
               {recent.length ? recent.map((n, i) => (
                 <article key={`${n.title}-${i}`} className="soft-panel hover-lift" style={{ padding: 18, display: "grid", gap: 10, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", minWidth: 0 }}>
@@ -131,9 +128,8 @@ export function Notices() {
                   )}
                 </div>
               )}
-            </div>
           </div>
-        )}
+        </div>
       </section>
 
       <PublicFooter site={site} />
