@@ -16,19 +16,6 @@ if (cached) {
 }
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
-  // hadController: false on a visitor's very first-ever visit (nothing was
-  // controlling the page yet, so there's nothing to "update" — no reload
-  // needed). true on every later deploy, once a previous Service Worker is
-  // already active — that's the case this reload is actually for: without
-  // it, a tab left open across a deploy silently keeps running the old
-  // build until the person happens to refresh on their own.
-  const hadController = Boolean(navigator.serviceWorker.controller);
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (refreshing || !hadController) return;
-    refreshing = true;
-    window.location.reload();
-  });
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
