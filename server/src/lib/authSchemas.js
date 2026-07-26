@@ -22,7 +22,14 @@ const forgotPasswordSchema = z.object({
 });
 
 const resetPasswordSchema = z.object({
-  token: z.string().min(1, "Reset token is required"),
+  // Reset "token" is now a 6-digit OTP code emailed to the user (see
+  // routes/auth.js forgot-password/reset-password) instead of a long random
+  // link token, so it's shaped/validated as exactly 6 digits.
+  token: z
+    .string()
+    .trim()
+    .min(1, "Reset code is required")
+    .regex(/^\d{6}$/, "Reset code must be the 6-digit code emailed to you"),
   password: z.string().min(1, "Password is required"),
 });
 

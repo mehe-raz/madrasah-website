@@ -290,6 +290,15 @@ if (process.env.NODE_ENV === "production") {
 async function start() {
   try {
     await db.init();
+    // registry.* (Part 5/6 — platform/Super-Admin panel: institutions,
+    // platform_admins incl. its `role` column, audit_logs, payments) was
+    // never actually being created/migrated on boot — initRegistrySchema()
+    // existed and was exported but nothing called it. That left production
+    // databases without the `role` column added later, so any query that
+    // selected it (e.g. GET /api/platform/admins, opening "এডমিন
+    // ম্যানেজমেন্ট" in the Super-Admin panel) failed with a 500. Must run
+    // before the platform routes can serve any request.
+    await require("./registryDb").initRegistrySchema();
     // Part 6 — periodic auto-suspend sweep for expired trials/subscriptions
     // in the (optional) multi-tenant registry. No-op cost when the registry
     // has no institutions yet, so safe to always start. See src/billing.js.

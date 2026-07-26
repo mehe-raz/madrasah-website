@@ -82,7 +82,7 @@ export const api = {
   me: () => request<{ user: AuthUser }>("/auth/me"),
 
   forgotPassword: (email: string) =>
-    request<{ ok: boolean; resetToken?: string; message: string }>("/auth/forgot-password", {
+    request<{ ok: boolean; message: string }>("/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify({ email }),
     }),

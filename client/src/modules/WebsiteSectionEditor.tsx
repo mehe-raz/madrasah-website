@@ -67,46 +67,54 @@ const iconInputStyle = { ...inputStyle, width: 72, textAlign: "center" as const,
 
 type SectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery" | "admission";
 
-const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: string }> = {
+const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: string; icon: string }> = {
   hero: {
     title: "হিরো সেকশন",
     subtitle: "পাবলিক হোমপেজের প্রথম ভিজিটর অভিজ্ঞতা",
     note: "ব্যাজ এবং মূল বর্ণনা এখান থেকে সম্পাদনা করুন।",
+    icon: "🏠",
   },
   about: {
     title: "এবাউট পেজ",
     subtitle: "শুধু About পেজে দেখা যাবে",
     note: "পরিচিতি ও লক্ষ্য/মিশন অংশ আলাদা করে নিয়ন্ত্রণ করুন।",
+    icon: "📖",
   },
   highlights: {
     title: "হাইলাইটস",
     subtitle: "হোমপেজে ছোট বৈশিষ্ট্য",
     note: "সংক্ষিপ্ত icon + text আইটেমগুলো এখানে আপডেট হবে।",
+    icon: "✨",
   },
   departments: {
     title: "বিভাগসমূহ",
     subtitle: "পাবলিক প্রোগ্রাম লিস্ট",
     note: "প্রতিটি বিভাগের নাম, আইকন এবং সংক্ষিপ্ত বিবরণ দিন। চাইলে প্রতিটি বিভাগে একটি ছবিও যোগ করতে পারেন — ছবি না দিলে আগের মতোই আইকন কার্ড দেখাবে।",
+    icon: "🏛️",
   },
   classes: {
     title: "ক্লাস ও কোর্স",
     subtitle: "ভর্তি ও ক্লাস পেজ",
     note: "ক্লাস/কোর্স লিস্ট আলাদাভাবে এডিট করা যাবে। চাইলে প্রতিটি ক্লাসে একটি ছবিও যোগ করা যাবে (ঐচ্ছিক)।",
+    icon: "🎓",
   },
   notices: {
     title: "নোটিশ",
     subtitle: "পাবলিক নোটিশ বোর্ড",
     note: "শিরোনাম, তারিখ, এবং বিস্তারিত নোটিশ এখানে আপডেট হবে।",
+    icon: "📢",
   },
   gallery: {
     title: "গ্যালারি",
     subtitle: "পাবলিক গ্যালারি পেজ",
     note: "হিরো/ইন্ট্রো টেক্সট এবং ছবি — দুটোই এখান থেকে আপডেট হবে।",
+    icon: "🖼️",
   },
   admission: {
     title: "ভর্তি পেজের কন্টেন্ট",
     subtitle: "পাবলিক ভর্তি পেজের হিরো ও ধাপসমূহ",
     note: "ব্যাজ, শিরোনাম, বর্ণনা এবং \"কীভাবে কাজ করে\" ধাপগুলো এখান থেকে আপডেট হবে। প্রতিটি ধাপে চাইলে একটি ছবিও যোগ করা যাবে (ঐচ্ছিক)।",
+    icon: "📝",
   },
 };
 
@@ -505,16 +513,51 @@ export function WebsiteSectionEditor() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
-            <Link to="/website" style={{ color: C.teal, textDecoration: "none", fontSize: 13, fontWeight: 800 }}>
-              ← লিস্টে ফিরুন
-            </Link>
-            <span style={{ fontSize: 12, color: C.muted }}>/{sectionId}</span>
-          </div>
-          <h2 style={{ fontSize: 22, fontWeight: 900, color: C.text, margin: 0 }}>{meta.title}</h2>
-          <p style={{ fontSize: 13, color: C.muted, margin: "6px 0 0", lineHeight: 1.7, maxWidth: 760 }}>{meta.subtitle}</p>
+      <div
+        className="soft-panel-strong gradient-border"
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          padding: 20,
+          marginBottom: 18,
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: "auto -70px -70px auto",
+            width: 180,
+            height: 180,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(16,185,129,0.14), transparent 70%)",
+          }}
+        />
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: 14,
+            display: "grid",
+            placeItems: "center",
+            fontSize: 26,
+            background: C.slateL,
+            flexShrink: 0,
+            position: "relative",
+          }}
+        >
+          {meta.icon}
+        </div>
+        <div style={{ minWidth: 0, flex: 1, position: "relative" }}>
+          <Link to="/website" style={{ color: C.teal, textDecoration: "none", fontSize: 12.5, fontWeight: 800 }}>
+            ← সব সেকশনের লিস্টে ফিরুন
+          </Link>
+          <h2 style={{ fontSize: 21, fontWeight: 900, color: C.text, margin: "4px 0 0" }}>{meta.title}</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: "4px 0 0", lineHeight: 1.6, maxWidth: 640 }}>{meta.subtitle}</p>
         </div>
       </div>
 
@@ -525,7 +568,7 @@ export function WebsiteSectionEditor() {
       )}
 
       <div style={{ marginBottom: 16, padding: 14, borderRadius: 12, border: `1px solid ${C.border}`, background: C.slateL, color: C.muted, fontSize: 13, lineHeight: 1.7 }}>
-        {meta.note}
+        💡 {meta.note}
       </div>
 
       {sectionContent === "hero" && (

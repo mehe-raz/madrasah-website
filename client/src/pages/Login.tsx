@@ -58,8 +58,8 @@ export function Login() {
         await register(name, email, password);
         navigate("/");
       } else if (mode === "forgot") {
-        const res = await api.forgotPassword(email);
-        setInfo(res.message + (res.resetToken ? ` Token: ${res.resetToken}` : ""));
+        await api.forgotPassword(email);
+        setInfo(t.auth.otpSentHint);
         setMode("reset");
       } else if (mode === "reset") {
         await api.resetPassword(resetToken, password);
@@ -98,8 +98,21 @@ export function Login() {
           {(mode === "login" || mode === "register" || mode === "forgot") && (
             <input required type="email" placeholder={t.auth.email} value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
           )}
+          {mode === "forgot" && (
+            <p style={{ fontSize: 12, color: C.muted, margin: 0, lineHeight: 1.6 }}>{t.auth.otpEmailNote}</p>
+          )}
           {mode === "reset" && (
-            <input required placeholder={t.auth.resetToken} value={resetToken} onChange={(e) => setResetToken(e.target.value)} style={inputStyle} />
+            <input
+              required
+              inputMode="numeric"
+              pattern="\d{6}"
+              maxLength={6}
+              autoComplete="one-time-code"
+              placeholder={t.auth.resetToken}
+              value={resetToken}
+              onChange={(e) => setResetToken(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              style={{ ...inputStyle, textAlign: "center", fontSize: 22, fontWeight: 800, letterSpacing: 10, fontFamily: "monospace" }}
+            />
           )}
           {(mode === "login" || mode === "register" || mode === "reset") && (
             <input required type="password" placeholder={t.auth.passwordMin} value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} minLength={8} />

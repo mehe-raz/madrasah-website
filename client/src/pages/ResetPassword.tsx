@@ -23,13 +23,13 @@ export function ResetPassword() {
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Emails now contain a plain 6-digit code, not a clickable link, so this
+  // page no longer requires a ?token= query param — the code is typed in by
+  // hand below. Still pre-fill from the URL for anyone with an old bookmark/
+  // link, but it's optional rather than required.
   useEffect(() => {
     const tokenFromUrl = searchParams.get("token");
-    if (tokenFromUrl) {
-      setToken(tokenFromUrl);
-    } else {
-      setError("Invalid or missing reset token");
-    }
+    if (tokenFromUrl) setToken(tokenFromUrl.replace(/\D/g, "").slice(0, 6));
   }, [searchParams]);
 
   const submit = async (e: FormEvent) => {
@@ -56,10 +56,21 @@ export function ResetPassword() {
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <span style={{ fontSize: 40 }}>🔑</span>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: "8px 0 4px" }}>Reset Password</h1>
-          <p style={{ fontSize: 13, color: C.muted }}>Enter your new password</p>
+          <p style={{ fontSize: 13, color: C.muted }}>Enter the 6-digit code we emailed you and your new password</p>
         </div>
 
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <input
+            required
+            inputMode="numeric"
+            pattern="\d{6}"
+            maxLength={6}
+            autoComplete="one-time-code"
+            placeholder="6-digit code"
+            value={token}
+            onChange={(e) => setToken(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            style={{ ...inputStyle, textAlign: "center", fontSize: 22, fontWeight: 800, letterSpacing: 10, fontFamily: "monospace" }}
+          />
           <input
             required
             type="password"

@@ -41,6 +41,23 @@ const loginLimiter = rateLimit({
   message: { error: "Too many failed login attempts from this network. Please try again later." },
 });
 
+// Dedicated limiter for the OTP-based reset flow, on top of the broader
+// authLimiter already applied to all of /api/auth in index.js. A 6-digit
+// numeric code only has 900,000 possibilities, so — unlike the old random
+// 32-byte link token, which was unguessable regardless of rate limiting —
+// this one needs its own tight per-IP cap so guessing a live code by
+// brute-forcing /reset-password isn't practical. Failed attempts only
+// (skipSuccessfulRequests) so a real user re-entering a mistyped digit or
+// two isn't punished.
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: "Too many attempts. Please try again later." },
+});
+
 function publicUser(row) {
   return { id: row.id, name: row.name, email: row.email, role: row.role };
 }
@@ -205,16 +222,40 @@ router.get("/me", async (req, res) => {
   }
 });
 
-router.post("/forgot-password", validate(forgotPasswordSchema), async (req, res) => {
+// Generates a 6-digit numeric OTP code (e.g. "042917") — human-friendly to
+// read out of an email and re-type, unlike a long hex token. crypto.randomInt
+// is used (not Math.random) since this is a security-sensitive code.
+function generateOtpCode() {
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+}
+
+router.post("/forgot-password", otpLimiter, validate(forgotPasswordSchema), async (req, res) => {
   const { email } = req.body;
   const row = await db.get("SELECT id, name FROM users WHERE email = $1", [email.trim().toLowerCase()]);
   if (!row) {
-    return res.json({ ok: true, message: "If email exists, reset link was generated" });
+    return res.json({ ok: true, message: "If email exists, a reset code was sent" });
   }
-  const token = crypto.randomBytes(32).toString("hex");
-  const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  // 10 minutes — deliberately shorter than the old link's 1 hour, since a
+  // 6-digit code has far less entropy than a 32-byte token and should be
+  // used (or discarded) quickly.
+  const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   await db.run('DELETE FROM password_resets WHERE "userId" = $1', [row.id]);
-  await db.run('INSERT INTO password_resets ("userId", token, "expiresAt") VALUES ($1, $2, $3)', [row.id, token, expires]);
+
+  // The `token` column is UNIQUE. A 6-digit code (1,000,000 possibilities)
+  // can collide across different users far more easily than the old 32-byte
+  // hex token could, so retry on the rare conflict instead of assuming
+  // success.
+  let token;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    token = generateOtpCode();
+    try {
+      await db.run('INSERT INTO password_resets ("userId", token, "expiresAt") VALUES ($1, $2, $3)', [row.id, token, expires]);
+      break;
+    } catch (e) {
+      if (isUniqueViolation(e) && attempt < 4) continue;
+      throw e;
+    }
+  }
 
   // Respond as soon as the reset record itself is saved — the user's request
   // has already succeeded at that point. Previously this handler awaited
@@ -232,28 +273,30 @@ router.post("/forgot-password", validate(forgotPasswordSchema), async (req, res)
   // API instead of raw SMTP.
   res.json({
     ok: true,
-    message: "If email exists, reset link was sent",
+    message: "If email exists, a reset code was sent",
   });
 
-  const resetUrl = `${process.env.CLIENT_ORIGIN || "http://localhost:5173"}/reset-password?token=${token}`;
-
+  // No clickable link is sent anymore — just the 6-digit code itself. The
+  // user (or a Super Admin resetting on their behalf) copies it into the
+  // "Reset code" field on the login page. Styled as a large, spaced-out,
+  // monospace block so it's easy to read and re-type correctly.
   sendMail({
     to: email.trim().toLowerCase(),
-    subject: "Password Reset - Madrasah ERP",
+    subject: "Password Reset Code - Madrasah ERP",
     html: `
       <h2>Password Reset Request</h2>
       <p>Hello ${row.name},</p>
-      <p>You requested a password reset. Click the link below to reset your password:</p>
-      <p><a href="${resetUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
-      <p>This link will expire in 1 hour.</p>
-      <p>If you didn't request this, please ignore this email.</p>
+      <p>Use the code below to reset your password. Enter it on the reset-password screen along with your new password.</p>
+      <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; background: #f1f5f9; color: #0f172a; padding: 14px 18px; border-radius: 8px; text-align: center; font-family: monospace;">${token}</p>
+      <p>This code will expire in 10 minutes and can only be used once.</p>
+      <p>If you didn't request this, please ignore this email — your password will remain unchanged.</p>
     `,
   })
     .then((info) => console.log("Password reset email sent:", info.id))
     .catch((emailError) => console.error("Email sending failed:", emailError));
 });
 
-router.post("/reset-password", validate(resetPasswordSchema), async (req, res) => {
+router.post("/reset-password", otpLimiter, validate(resetPasswordSchema), async (req, res) => {
   const { token, password } = req.body;
   const pwError = passwordPolicyError(password);
   if (pwError) return res.status(400).json({ error: pwError });
@@ -263,7 +306,7 @@ router.post("/reset-password", validate(resetPasswordSchema), async (req, res) =
      WHERE pr.token = $1 AND pr."expiresAt"::timestamptz > NOW()`,
     [token]
   );
-  if (!row) return res.status(400).json({ error: "Invalid or expired token" });
+  if (!row) return res.status(400).json({ error: "Invalid or expired code" });
 
   const hash = await bcrypt.hash(password, SALT_ROUNDS);
   await db.run('UPDATE users SET "passwordHash" = $1 WHERE id = $2', [hash, row.userId]);
@@ -273,7 +316,7 @@ router.post("/reset-password", validate(resetPasswordSchema), async (req, res) =
     actor: null,
     entityType: "user",
     entityId: row.userId,
-    label: "Password reset via emailed reset link",
+    label: "Password reset via emailed OTP code",
   });
   res.json({ ok: true, message: "Password updated" });
 });
