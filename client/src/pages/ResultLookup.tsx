@@ -3,6 +3,7 @@ import { usePublicSite } from "../hooks/usePublicSite";
 import { api } from "../lib/api";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
+import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { C } from "../theme/colors";
 import type { PublicResult } from "../types";
 
@@ -18,7 +19,7 @@ const inputStyle = {
 };
 
 export function ResultLookup() {
-  const { site, content } = usePublicSite();
+  const { site, content, loading: siteLoading } = usePublicSite();
   const [className, setClassName] = useState("");
   const [roll, setRoll] = useState("");
   const [searched, setSearched] = useState(false);
@@ -45,6 +46,8 @@ export function ResultLookup() {
       setLoading(false);
     }
   };
+
+  if (siteLoading) return <PublicPageSkeleton />;
 
   return (
     <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>

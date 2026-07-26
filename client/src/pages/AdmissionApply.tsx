@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
+import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
 import type { AdmissionApplicationInput } from "../types";
@@ -43,7 +44,7 @@ const EMPTY: AdmissionApplicationInput = {
 };
 
 export function AdmissionApply() {
-  const { site, content } = usePublicSite();
+  const { site, content, loading } = usePublicSite();
   const [params] = useSearchParams();
   const preselected = params.get("class") || "";
 
@@ -80,6 +81,8 @@ export function AdmissionApply() {
       setSubmitting(false);
     }
   };
+
+  if (loading) return <PublicPageSkeleton />;
 
   return (
     <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>

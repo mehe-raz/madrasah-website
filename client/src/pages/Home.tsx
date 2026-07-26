@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
+import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { C } from "../theme/colors";
 import heroImage from "../assets/hero.png";
 import type { SiteDepartment } from "../types";
@@ -44,6 +45,8 @@ export function Home() {
         { icon: "📚", title: "কিতাব বিভাগ", desc: "ইসলামী শিক্ষার ধারাবাহিক পাঠ্যক্রম।" },
         { icon: "🎓", title: "জেনারেল বিভাগ", desc: "জাতীয় শিক্ষাক্রম অনুসরণে সাধারণ শিক্ষা।" },
       ];
+
+  if (loading) return <PublicPageSkeleton />;
 
   return (
     <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>

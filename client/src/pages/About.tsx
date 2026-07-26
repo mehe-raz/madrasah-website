@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
+import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { C } from "../theme/colors";
 
 const principles = [
@@ -18,6 +19,8 @@ export function About() {
   useEffect(() => {
     document.title = `আমাদের সম্পর্কে — ${site.name}`;
   }, [site.name]);
+
+  if (loading) return <PublicPageSkeleton />;
 
   return (
     <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>

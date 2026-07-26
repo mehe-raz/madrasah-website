@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
+import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { C } from "../theme/colors";
 
 export function Admission() {
@@ -13,6 +14,8 @@ export function Admission() {
     document.title = `ভর্তি — ${site.name}`;
     window.scrollTo(0, 0);
   }, [site.name]);
+
+  if (loading) return <PublicPageSkeleton />;
 
   return (
     <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>

@@ -4,6 +4,7 @@ import { usePublicSite } from "../hooks/usePublicSite";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { C } from "../theme/colors";
 
 export function ClassesCourses() {
@@ -15,6 +16,8 @@ export function ClassesCourses() {
     document.title = `ক্লাস ও কোর্সসমূহ — ${site.name}`;
     window.scrollTo(0, 0);
   }, [site.name]);
+
+  if (loading) return <PublicPageSkeleton />;
 
   return (
     <div className="app-shell page-shell" style={{ minHeight: "100vh", color: C.text }}>
