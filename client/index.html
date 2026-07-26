@@ -12,9 +12,174 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        try {
+          var cached = localStorage.getItem("madrasah-settings");
+          if (cached) {
+            var theme = JSON.parse(cached).theme;
+            document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+          }
+        } catch (e) {}
+        try {
+          var nav = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
+          var isReload =
+            (nav && nav.type === "reload") ||
+            (window.performance && window.performance.navigation && window.performance.navigation.type === 1);
+          if (isReload) document.documentElement.classList.add("rs-reload");
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      #reload-splash {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+        background: #f7fbff;
+        transition: opacity 0.35s ease;
+      }
+      :root[data-theme="dark"] #reload-splash {
+        background: #07101c;
+      }
+      .rs-reload #reload-splash {
+        display: flex;
+      }
+      #reload-splash.rs-hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .rs-orbit {
+        position: relative;
+        width: 110px;
+        height: 110px;
+        filter: drop-shadow(0 0 5px rgba(14, 165, 233, 0.45));
+      }
+      .rs-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        border-radius: 50%;
+        color: #0ea5e9;
+      }
+      :root[data-theme="dark"] .rs-ring {
+        color: #22d3ee;
+      }
+      .rs-ring--r1 {
+        width: 110px;
+        height: 110px;
+        margin: -55px 0 0 -55px;
+        border: 2px dashed currentColor;
+        opacity: 0.9;
+        animation: rs-spin 5s linear infinite;
+      }
+      .rs-ring--r2 {
+        width: 92px;
+        height: 92px;
+        margin: -46px 0 0 -46px;
+        animation: rs-spin-rev 3.4s linear infinite;
+      }
+      .rs-ring--r3 {
+        width: 74px;
+        height: 74px;
+        margin: -37px 0 0 -37px;
+        border: 2px solid currentColor;
+        opacity: 0.55;
+        animation: rs-spin 7s linear infinite;
+      }
+      .rs-ring--r4 {
+        width: 56px;
+        height: 56px;
+        margin: -28px 0 0 -28px;
+        border: 2px dashed currentColor;
+        opacity: 0.8;
+        animation: rs-spin-rev 2.2s linear infinite;
+      }
+      .rs-ring--r5 {
+        width: 34px;
+        height: 34px;
+        margin: -17px 0 0 -17px;
+        border: 2px dotted currentColor;
+        opacity: 0.9;
+        animation: rs-spin 1.3s linear infinite;
+      }
+      .rs-dot {
+        position: absolute;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 5px currentColor;
+      }
+      .rs-dot:nth-child(1) {
+        top: -2.5px;
+        left: 50%;
+        margin-left: -2.5px;
+      }
+      .rs-dot:nth-child(2) {
+        top: 50%;
+        right: -2.5px;
+        margin-top: -2.5px;
+      }
+      .rs-dot:nth-child(3) {
+        bottom: -2.5px;
+        left: 50%;
+        margin-left: -2.5px;
+      }
+      .rs-dot:nth-child(4) {
+        top: 50%;
+        left: -2.5px;
+        margin-top: -2.5px;
+      }
+      @keyframes rs-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes rs-spin-rev {
+        to {
+          transform: rotate(-360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rs-ring {
+          animation: none !important;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="reload-splash" aria-hidden="true">
+      <div class="rs-orbit">
+        <div class="rs-ring rs-ring--r1"></div>
+        <div class="rs-ring rs-ring--r2">
+          <span class="rs-dot"></span>
+          <span class="rs-dot"></span>
+          <span class="rs-dot"></span>
+          <span class="rs-dot"></span>
+        </div>
+        <div class="rs-ring rs-ring--r3"></div>
+        <div class="rs-ring rs-ring--r4"></div>
+        <div class="rs-ring rs-ring--r5"></div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        function hideSplash() {
+          var el = document.getElementById("reload-splash");
+          if (!el) return;
+          el.classList.add("rs-hide");
+          setTimeout(function () {
+            el.style.display = "none";
+          }, 400);
+        }
+        window.addEventListener("app:ready", hideSplash, { once: true });
+        setTimeout(hideSplash, 4000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
