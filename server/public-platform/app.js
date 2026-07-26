@@ -60,6 +60,28 @@ function escapeHtml(str) {
   })[c]);
 }
 
+// Same reusable ring spinner as the reload splash (classes defined in
+// styles.css) — the only loading indicator used anywhere in this panel.
+// Small variant, centered, for list/table loading placeholders.
+function spinnerHtml() {
+  return `
+    <div style="display:flex; justify-content:center; padding:16px;">
+      <div class="rs-orbit rs-orbit--sm">
+        <div class="rs-ring rs-ring--r1"></div>
+        <div class="rs-ring rs-ring--r2">
+          <span class="rs-dot"></span>
+          <span class="rs-dot"></span>
+          <span class="rs-dot"></span>
+          <span class="rs-dot"></span>
+        </div>
+        <div class="rs-ring rs-ring--r3"></div>
+        <div class="rs-ring rs-ring--r4"></div>
+        <div class="rs-ring rs-ring--r5"></div>
+      </div>
+    </div>
+  `;
+}
+
 function fmtDate(v) {
   if (!v) return "—";
   const d = new Date(v);
@@ -238,7 +260,7 @@ function renderDashboard() {
       <div class="card">
         ${
           state.loading
-            ? `<div class="empty-state">লোড হচ্ছে…</div>`
+            ? spinnerHtml()
             : state.institutions.length === 0
             ? `<div class="empty-state"><span class="empty-icon">🏫</span>কোনো প্রতিষ্ঠান পাওয়া যায়নি। "+ নতুন প্রতিষ্ঠান" দিয়ে যোগ করুন।</div>`
             : `<table>
@@ -360,7 +382,7 @@ function renderAuditModal() {
         <h2>অডিট লগ ${inst ? "— " + escapeHtml(inst.name) : "(সব প্রতিষ্ঠান)"}</h2>
         ${
           state.modal.loading
-            ? `<p class="muted">লোড হচ্ছে…</p>`
+            ? spinnerHtml()
             : logs.length === 0
             ? `<p class="muted">কোনো লগ নেই।</p>`
             : `<div class="card" style="max-height:360px; overflow-y:auto;">
@@ -428,7 +450,7 @@ function renderPaymentModal() {
         <p class="sub" style="margin-top:18px;">পূর্ববর্তী পেমেন্ট</p>
         ${
           state.modal.loading
-            ? `<p class="muted">লোড হচ্ছে…</p>`
+            ? spinnerHtml()
             : payments.length === 0
             ? `<p class="muted">কোনো পেমেন্ট রেকর্ড নেই।</p>`
             : `<div class="card" style="max-height:220px; overflow-y:auto;">
@@ -541,7 +563,7 @@ function renderAdminsModal() {
         ${state.modal.info ? `<div class="info-box">${escapeHtml(state.modal.info)}</div>` : ""}
         ${
           state.modal.loading
-            ? `<p class="muted">লোড হচ্ছে…</p>`
+            ? spinnerHtml()
             : `<div class="card" style="max-height:280px; overflow-y:auto;">
                 <table>
                   <thead><tr><th>নাম / ইমেইল</th><th>রোল</th><th>অ্যাকশন</th></tr></thead>

@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Badge } from "../components/Badge";
+import { HudSpinner } from "../components/HudSpinner";
 import { ReceiptModal } from "../components/ReceiptModal";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { StatCard } from "../components/StatCard";
@@ -257,9 +258,8 @@ export function Income() {
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.income.title}</h2>
       {msg && <p style={{ color: msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("invalid") ? C.rose : C.teal, fontSize: 13, marginTop: -8, marginBottom: 12 }}>{msg}</p>}
       {loading && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.muted, fontSize: 13, marginTop: -8, marginBottom: 12 }}>
-          <span style={{ width: 14, height: 14, border: `2px solid ${C.border}`, borderTopColor: C.teal, borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-          {t.common.loading}
+        <div style={{ display: "flex", alignItems: "center", marginTop: -8, marginBottom: 12 }}>
+          <HudSpinner size={20} />
         </div>
       )}
 

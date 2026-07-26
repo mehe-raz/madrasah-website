@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Badge } from "../components/Badge";
+import { HudSpinner } from "../components/HudSpinner";
 import { C } from "../theme/colors";
 import { api } from "../lib/api";
 import { useLanguage } from "../context/AppSettingsContext";
@@ -72,7 +73,9 @@ export function AdmissionsReview() {
       )}
 
       {loading ? (
-        <div style={{ color: C.muted, fontSize: 13 }}>{t.common.loading}</div>
+        <div style={{ display: "flex", justifyContent: "center", padding: 24 }}>
+          <HudSpinner size={32} />
+        </div>
       ) : rows.length === 0 ? (
         <div
           style={{

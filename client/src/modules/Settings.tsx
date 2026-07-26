@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HudSpinner } from "../components/HudSpinner";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -448,7 +449,9 @@ export function Settings() {
                   />
                   <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>Upload a downloaded madrasah backup to restore old students, income, users and settings.</p>
                   {restorePreviewLoading && !restorePreview && (
-                    <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>Reading backup file…</p>
+                    <div style={{ display: "flex", marginTop: 8 }}>
+                      <HudSpinner size={18} />
+                    </div>
                   )}
                 </div>
               )}
@@ -583,7 +586,11 @@ export function Settings() {
                                   {t.settings.driveFilesRefresh}
                                 </button>
                               </div>
-                              {driveFilesLoading && <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{t.settings.driveFilesLoading}</p>}
+                              {driveFilesLoading && (
+                                <div style={{ display: "flex" }}>
+                                  <HudSpinner size={18} />
+                                </div>
+                              )}
                               {!driveFilesLoading && driveFiles?.length === 0 && (
                                 <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{t.settings.driveFilesEmpty}</p>
                               )}

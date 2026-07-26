@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { HudSpinner } from "../components/HudSpinner";
 import { StatCard } from "../components/StatCard";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
@@ -111,9 +112,8 @@ export function Expenses() {
       </div>
 
       {loading && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.muted, fontSize: 13, marginBottom: 16 }}>
-          <span style={{ width: 14, height: 14, border: `2px solid ${C.border}`, borderTopColor: C.amber, borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-          {t.common.loading}
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
+          <HudSpinner size={20} />
         </div>
       )}
 

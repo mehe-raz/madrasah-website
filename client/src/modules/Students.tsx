@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
+import { HudSpinner } from "../components/HudSpinner";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
@@ -732,7 +733,13 @@ export function Students() {
               </div>
             </div>
 
-            {historyLoading ? <div style={{ color: C.muted, marginBottom: 12 }}>{t.common.loading}</div> : historyError ? <div style={{ color: C.rose, marginBottom: 12 }}>{historyError}</div> : null}
+            {historyLoading ? (
+              <div style={{ display: "flex", marginBottom: 12 }}>
+                <HudSpinner size={22} />
+              </div>
+            ) : historyError ? (
+              <div style={{ color: C.rose, marginBottom: 12 }}>{historyError}</div>
+            ) : null}
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
               {detailSections.map((section) => (

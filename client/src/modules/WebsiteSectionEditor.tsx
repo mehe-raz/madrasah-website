@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { HudSpinner } from "../components/HudSpinner";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { compressImageToLimit, dataUrlBytes } from "../lib/imageCompress";
@@ -495,7 +496,11 @@ export function WebsiteSectionEditor() {
   }
 
   if (loading) {
-    return <div style={{ color: C.muted, padding: 20 }}>{t.common.loading}</div>;
+    return (
+      <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+        <HudSpinner size={40} />
+      </div>
+    );
   }
 
   return (

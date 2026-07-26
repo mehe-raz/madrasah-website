@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HudSpinner } from "../components/HudSpinner";
 import { api } from "../lib/api";
 import { useLanguage } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
@@ -240,7 +241,11 @@ export function Results() {
       {selectedClass && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14 }}>{t.results.savedResults}</h3>
-          {loadingList && <p style={{ color: C.muted, fontSize: 13 }}>{t.common.loading}</p>}
+          {loadingList && (
+            <div style={{ display: "flex", padding: "6px 0" }}>
+              <HudSpinner size={22} />
+            </div>
+          )}
           {!loadingList && !savedResults.length && <p style={{ color: C.muted, fontSize: 13 }}>{t.results.noResults}</p>}
           <div style={{ display: "grid", gap: 8 }}>
             {savedResults.map((row) => (
