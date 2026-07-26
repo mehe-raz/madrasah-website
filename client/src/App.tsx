@@ -1,9 +1,8 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
-import { useLanguage } from "./context/AppSettingsContext";
 
 const About = lazy(() => import("./pages/About").then((m) => ({ default: m.About })));
 const Admission = lazy(() => import("./pages/Admission").then((m) => ({ default: m.Admission })));
@@ -29,11 +28,24 @@ const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login
 const ResetPassword = lazy(() => import("./pages/ResetPassword").then((m) => ({ default: m.ResetPassword })));
 
 function PageFallback() {
-  const { t } = useLanguage();
-  return <div style={{ minHeight: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)" }}>{t.common.loading}</div>;
+  // Intentionally not a spinner: in-app navigation should feel like the page
+  // is already there and quietly finishing up, not "loading" from scratch.
+  // The HUD spinner is reserved for an actual browser reload (index.html).
+  return (
+    <div className="page-loading-bar" role="status" aria-live="polite">
+      <span className="page-loading-bar__fill" />
+    </div>
+  );
 }
 
 export default function App() {
+  useEffect(() => {
+    // Tells the reload-only splash screen (index.html / reload-splash.js)
+    // that the app shell has mounted, so it can fade out. No effect on
+    // normal in-app navigation.
+    window.dispatchEvent(new Event("app:ready"));
+  }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>

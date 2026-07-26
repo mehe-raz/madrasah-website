@@ -921,4 +921,7 @@ function render() {
   } else {
     render();
   }
+  // Signals the reload-only splash screen (index.html / reload-splash.js)
+  // that the panel has finished its first render, so it can fade out.
+  window.dispatchEvent(new Event("app:ready"));
 })();

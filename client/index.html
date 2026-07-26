@@ -12,24 +12,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <script>
-      (function () {
-        try {
-          var cached = localStorage.getItem("madrasah-settings");
-          if (cached) {
-            var theme = JSON.parse(cached).theme;
-            document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
-          }
-        } catch (e) {}
-        try {
-          var nav = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
-          var isReload =
-            (nav && nav.type === "reload") ||
-            (window.performance && window.performance.navigation && window.performance.navigation.type === 1);
-          if (isReload) document.documentElement.classList.add("rs-reload");
-        } catch (e) {}
-      })();
-    </script>
+    <!--
+      This app's CSP is script-src 'self' (no 'unsafe-inline'), so the reload
+      splash logic lives in an external same-origin file — an inline <script>
+      here would be silently blocked by the browser and never run.
+    -->
+    <script src="/reload-splash.js"></script>
     <style>
       #reload-splash {
         display: none;
@@ -166,20 +154,6 @@
         <div class="rs-ring rs-ring--r5"></div>
       </div>
     </div>
-    <script>
-      (function () {
-        function hideSplash() {
-          var el = document.getElementById("reload-splash");
-          if (!el) return;
-          el.classList.add("rs-hide");
-          setTimeout(function () {
-            el.style.display = "none";
-          }, 400);
-        }
-        window.addEventListener("app:ready", hideSplash, { once: true });
-        setTimeout(hideSplash, 4000);
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
