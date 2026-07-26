@@ -42,6 +42,15 @@ const MAX_GALLERY_SOURCE_BYTES = 25 * 1024 * 1024; // 25MB — sanity check on t
 const GALLERY_MAX_DIMENSION = 1600; // px — plenty for gallery cards/lightbox, invisible to the eye
 const GALLERY_JPEG_QUALITY = 0.85; // visually lossless, big size reduction
 
+// Same upload/compression pattern as gallery photos above, reused for the
+// optional per-card image on departments/classes/admission-step entries.
+// Smaller max dimension since these render as small card thumbnails, not
+// full gallery photos.
+const MAX_ITEM_IMAGE_UPLOAD_BYTES = 950_000;
+const MAX_ITEM_IMAGE_SOURCE_BYTES = 25 * 1024 * 1024;
+const ITEM_IMAGE_MAX_DIMENSION = 1200;
+const ITEM_IMAGE_JPEG_QUALITY = 0.85;
+
 const inputStyle = {
   width: "100%",
   border: `1px solid ${C.border}`,
@@ -76,12 +85,12 @@ const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: s
   departments: {
     title: "বিভাগসমূহ",
     subtitle: "পাবলিক প্রোগ্রাম লিস্ট",
-    note: "প্রতিটি বিভাগের নাম, আইকন এবং সংক্ষিপ্ত বিবরণ দিন।",
+    note: "প্রতিটি বিভাগের নাম, আইকন এবং সংক্ষিপ্ত বিবরণ দিন। চাইলে প্রতিটি বিভাগে একটি ছবিও যোগ করতে পারেন — ছবি না দিলে আগের মতোই আইকন কার্ড দেখাবে।",
   },
   classes: {
     title: "ক্লাস ও কোর্স",
     subtitle: "ভর্তি ও ক্লাস পেজ",
-    note: "ক্লাস/কোর্স লিস্ট আলাদাভাবে এডিট করা যাবে।",
+    note: "ক্লাস/কোর্স লিস্ট আলাদাভাবে এডিট করা যাবে। চাইলে প্রতিটি ক্লাসে একটি ছবিও যোগ করা যাবে (ঐচ্ছিক)।",
   },
   notices: {
     title: "নোটিশ",
@@ -96,7 +105,7 @@ const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: s
   admission: {
     title: "ভর্তি পেজের কন্টেন্ট",
     subtitle: "পাবলিক ভর্তি পেজের হিরো ও ধাপসমূহ",
-    note: "ব্যাজ, শিরোনাম, বর্ণনা এবং \"কীভাবে কাজ করে\" ধাপগুলো এখান থেকে আপডেট হবে।",
+    note: "ব্যাজ, শিরোনাম, বর্ণনা এবং \"কীভাবে কাজ করে\" ধাপগুলো এখান থেকে আপডেট হবে। প্রতিটি ধাপে চাইলে একটি ছবিও যোগ করা যাবে (ঐচ্ছিক)।",
   },
 };
 
@@ -193,6 +202,74 @@ function ListEntryButtons({
   );
 }
 
+// Optional per-card photo picker, shared by the departments/classes/
+// admission-step editors below. Purely additive: an item with no image
+// keeps rendering as the plain icon card it always was, both here and on
+// the public pages — this only offers a way to attach one.
+function ItemImagePicker({
+  image,
+  uploading,
+  onUpload,
+  onRemove,
+}: {
+  image?: string;
+  uploading: boolean;
+  onUpload: (file: File) => void;
+  onRemove: () => void;
+}) {
+  if (image) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+        <img
+          src={image}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.border}`, flexShrink: 0 }}
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          style={{ border: "none", background: C.roseL, color: C.roseD, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+        >
+          ছবি সরান
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <label
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        marginTop: 8,
+        border: `1px dashed ${C.border}`,
+        borderRadius: 8,
+        padding: "6px 10px",
+        fontSize: 12,
+        fontWeight: 800,
+        color: uploading ? C.muted : C.emerald,
+        cursor: uploading ? "not-allowed" : "pointer",
+      }}
+    >
+      <span>{uploading ? "আপলোড হচ্ছে…" : "＋ ছবি যোগ করুন (ঐচ্ছিক)"}</span>
+      <input
+        type="file"
+        accept="image/*"
+        disabled={uploading}
+        onChange={(e) => {
+          const file = e.target.files?.[0] || null;
+          if (file) onUpload(file);
+          e.target.value = "";
+        }}
+        style={{ display: "none" }}
+      />
+    </label>
+  );
+}
+
 export function WebsiteSectionEditor() {
   const { t } = useLanguage();
   const params = useParams<{ sectionId: SectionId }>();
@@ -205,6 +282,10 @@ export function WebsiteSectionEditor() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [galleryUploading, setGalleryUploading] = useState(false);
+  // Tracks in-flight uploads for the optional per-card images on
+  // departments/classes/admission-steps, keyed as "<section>-<index>" so
+  // uploading one item's photo doesn't disable the others.
+  const [itemImageUploading, setItemImageUploading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -328,6 +409,52 @@ export function WebsiteSectionEditor() {
       setError(err instanceof Error ? err.message : "ছবি আপলোড ব্যর্থ হয়েছে");
     } finally {
       setGalleryUploading(false);
+    }
+  };
+
+  // Shared by the departments/classes/admission-step editors: compress +
+  // upload one optional card photo, then hand the resulting
+  // {image, imagePublicId} back to the caller's own update function. `key`
+  // (e.g. "departments-2") scopes the in-flight flag to just that card.
+  const uploadItemImage = async (key: string, file: File | null, onDone: (patch: { image: string; imagePublicId: string }) => void) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("শুধু ছবি ফাইল আপলোড করা যাবে।");
+      return;
+    }
+    if (file.size > MAX_ITEM_IMAGE_SOURCE_BYTES) {
+      setError("ছবির আকার সর্বোচ্চ ২৫ মেগাবাইট হতে হবে।");
+      return;
+    }
+    setError("");
+    setItemImageUploading((prev) => ({ ...prev, [key]: true }));
+    try {
+      const compressed = await compressImageToLimit(file, MAX_ITEM_IMAGE_UPLOAD_BYTES, {
+        maxWidth: ITEM_IMAGE_MAX_DIMENSION,
+        maxHeight: ITEM_IMAGE_MAX_DIMENSION,
+        quality: ITEM_IMAGE_JPEG_QUALITY,
+      });
+      if (dataUrlBytes(compressed) > MAX_ITEM_IMAGE_UPLOAD_BYTES) {
+        setError("ছবিটি সংকুচিত করার পরও আকার বেশি বড়। অন্য একটি ছবি চেষ্টা করুন।");
+        return;
+      }
+      const { url, publicId } = await api.uploadFile(compressed, "website-cards");
+      onDone({ image: url, imagePublicId: publicId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ছবি আপলোড ব্যর্থ হয়েছে");
+    } finally {
+      setItemImageUploading((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
+  // Best-effort Cloudinary cleanup, same reasoning as removeGalleryItem
+  // below: the card's image field is cleared immediately either way, this
+  // just avoids leaving the asset orphaned in storage.
+  const removeItemImage = (imagePublicId: string | undefined) => {
+    if (imagePublicId) {
+      api.deleteUpload(imagePublicId).catch((err) => {
+        console.error("Cloudinary cleanup failed for", imagePublicId, err);
+      });
     }
   };
 
@@ -523,6 +650,15 @@ export function WebsiteSectionEditor() {
                   style={{ ...inputStyle, resize: "vertical" as const }}
                   placeholder="সংক্ষিপ্ত বিবরণ"
                 />
+                <ItemImagePicker
+                  image={item.image}
+                  uploading={!!itemImageUploading[`departments-${index}`]}
+                  onUpload={(file) => uploadItemImage(`departments-${index}`, file, (patch) => updateDepartment(index, patch))}
+                  onRemove={() => {
+                    removeItemImage(item.imagePublicId);
+                    updateDepartment(index, { image: undefined, imagePublicId: undefined });
+                  }}
+                />
               </div>
             ))}
             {!content.departments.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো বিভাগ যোগ করা হয়নি।</p>}
@@ -576,6 +712,15 @@ export function WebsiteSectionEditor() {
                   onChange={(e) => updateClassItem(index, { desc: e.target.value })}
                   style={{ ...inputStyle, resize: "vertical" as const }}
                   placeholder="সংক্ষিপ্ত বিবরণ (ঐচ্ছিক)"
+                />
+                <ItemImagePicker
+                  image={item.image}
+                  uploading={!!itemImageUploading[`classes-${index}`]}
+                  onUpload={(file) => uploadItemImage(`classes-${index}`, file, (patch) => updateClassItem(index, patch))}
+                  onRemove={() => {
+                    removeItemImage(item.imagePublicId);
+                    updateClassItem(index, { image: undefined, imagePublicId: undefined });
+                  }}
                 />
               </div>
             ))}
@@ -850,6 +995,15 @@ export function WebsiteSectionEditor() {
                       onChange={(e) => updateAdmissionStep(index, { desc: e.target.value })}
                       style={{ ...inputStyle, resize: "vertical" as const }}
                       placeholder="সংক্ষিপ্ত বিবরণ"
+                    />
+                    <ItemImagePicker
+                      image={item.image}
+                      uploading={!!itemImageUploading[`admissionSteps-${index}`]}
+                      onUpload={(file) => uploadItemImage(`admissionSteps-${index}`, file, (patch) => updateAdmissionStep(index, patch))}
+                      onRemove={() => {
+                        removeItemImage(item.imagePublicId);
+                        updateAdmissionStep(index, { image: undefined, imagePublicId: undefined });
+                      }}
                     />
                   </div>
                 ))}

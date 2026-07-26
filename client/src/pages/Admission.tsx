@@ -59,10 +59,21 @@ export function Admission() {
 
         <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
           {(loading ? [] : content.admissionSteps).map((step, i) => (
-            <div key={`${step.title}-${i}`} className="soft-panel hover-lift" style={{ padding: 20 }}>
-              <div style={{ fontSize: 24, marginBottom: 12 }}>{step.icon}</div>
-              <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{step.title}</h3>
-              <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{step.desc}</p>
+            <div key={`${step.title}-${i}`} className="soft-panel hover-lift" style={{ padding: 0, overflow: "hidden" }}>
+              {step.image && (
+                <img
+                  src={step.image}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block" }}
+                />
+              )}
+              <div style={{ padding: 20 }}>
+                <div style={{ fontSize: 24, marginBottom: 12 }}>{step.icon}</div>
+                <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{step.title}</h3>
+                <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{step.desc}</p>
+              </div>
             </div>
           ))}
         </div>

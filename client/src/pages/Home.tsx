@@ -5,6 +5,7 @@ import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { C } from "../theme/colors";
 import heroImage from "../assets/hero.png";
+import type { SiteDepartment } from "../types";
 
 function formatNoticeDate(iso: string) {
   const d = new Date(iso);
@@ -35,7 +36,7 @@ export function Home() {
   ];
 
 
-  const programs = content.departments.length
+  const programs: SiteDepartment[] = content.departments.length
     ? content.departments
     : [
         { icon: "📖", title: "হিফজ বিভাগ", desc: "পূর্ণাঙ্গ কুরআন মুখস্থকরণ প্রোগ্রাম।" },
@@ -160,13 +161,24 @@ export function Home() {
               key={`${d.title}-${i}`}
               to="/classes"
               className="soft-panel hover-lift shine-on-hover"
-              style={{ textDecoration: "none", color: C.text, padding: 20, display: "block" }}
+              style={{ textDecoration: "none", color: C.text, display: "block", overflow: "hidden" }}
             >
-              <div style={{ width: 52, height: 52, borderRadius: 18, background: i % 3 === 0 ? C.emeraldL : i % 3 === 1 ? C.amberL : C.slateL, display: "grid", placeItems: "center", fontSize: 22, marginBottom: 14 }}>
-                {d.icon}
+              {d.image && (
+                <img
+                  src={d.image}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block" }}
+                />
+              )}
+              <div style={{ padding: 20 }}>
+                <div style={{ width: 52, height: 52, borderRadius: 18, background: i % 3 === 0 ? C.emeraldL : i % 3 === 1 ? C.amberL : C.slateL, display: "grid", placeItems: "center", fontSize: 22, marginBottom: 14 }}>
+                  {d.icon}
+                </div>
+                <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{d.title}</h3>
+                <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{d.desc}</p>
               </div>
-              <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{d.title}</h3>
-              <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{d.desc}</p>
             </Link>
           ))}
         </div>

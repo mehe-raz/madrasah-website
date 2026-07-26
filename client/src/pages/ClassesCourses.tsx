@@ -69,14 +69,25 @@ export function ClassesCourses() {
                 type="button"
                 onClick={() => setPendingClass(c.title)}
                 className="soft-panel hover-lift shine-on-hover"
-                style={{ textAlign: "left", background: C.card, border: `1px solid ${C.border}`, padding: 20, cursor: "pointer" }}
+                style={{ textAlign: "left", background: C.card, border: `1px solid ${C.border}`, padding: 0, cursor: "pointer", overflow: "hidden" }}
               >
-                <div style={{ width: 50, height: 50, borderRadius: 17, background: C.emeraldL, display: "grid", placeItems: "center", fontSize: 22, marginBottom: 14 }}>
-                  {c.icon || "🎓"}
+                {c.image && (
+                  <img
+                    src={c.image}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block" }}
+                  />
+                )}
+                <div style={{ padding: 20 }}>
+                  <div style={{ width: 50, height: 50, borderRadius: 17, background: C.emeraldL, display: "grid", placeItems: "center", fontSize: 22, marginBottom: 14 }}>
+                    {c.icon || "🎓"}
+                  </div>
+                  <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{c.title}</h3>
+                  {c.desc && <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{c.desc}</p>}
+                  <div style={{ marginTop: 14, fontSize: 12, fontWeight: 900, color: C.emeraldD }}>ভর্তিতে এগিয়ে যান →</div>
                 </div>
-                <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{c.title}</h3>
-                {c.desc && <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{c.desc}</p>}
-                <div style={{ marginTop: 14, fontSize: 12, fontWeight: 900, color: C.emeraldD }}>ভর্তিতে এগিয়ে যান →</div>
               </button>
             ))}
           </div>

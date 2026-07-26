@@ -167,16 +167,25 @@ export interface SiteHighlight {
   label: string;
 }
 
+// `image`/`imagePublicId` are optional so existing icon-only entries keep
+// working untouched — the admin can attach a photo per card from the
+// Website editor, and the public pages fall back to the plain icon card
+// whenever no image was uploaded. Same url/publicId pattern as
+// SiteGalleryItem below (Cloudinary secure_url + publicId for cleanup).
 export interface SiteDepartment {
   icon: string;
   title: string;
   desc: string;
+  image?: string;
+  imagePublicId?: string;
 }
 
 export interface SiteClassItem {
   icon: string;
   title: string;
   desc: string;
+  image?: string;
+  imagePublicId?: string;
 }
 
 export interface SiteNotice {
@@ -189,6 +198,8 @@ export interface SiteAdmissionStep {
   icon: string;
   title: string;
   desc: string;
+  image?: string;
+  imagePublicId?: string;
 }
 
 // One uploaded photo on the public Gallery page. `url` comes back from
