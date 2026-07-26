@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { AppSettingsProvider } from "./context/AppSettingsContext";
+import { PublicSiteProvider } from "./context/PublicSiteContext";
 import "./index.css";
 
 const cached = localStorage.getItem("madrasah-settings");
@@ -23,7 +24,9 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AppSettingsProvider>
-      <App />
+      <PublicSiteProvider>
+        <App />
+      </PublicSiteProvider>
     </AppSettingsProvider>
   </StrictMode>
 );

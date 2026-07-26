@@ -140,6 +140,9 @@ part of an unrelated task.
 - Google Drive backup integration: `server/src/lib/googleDrive.js` (upload,
   list, prune, restore)
 - Client image compression: `client/src/lib/imageCompress.ts`
+- Client Cloudinary URL resizing (request a smaller/auto-format delivery
+  variant instead of the original upload): `client/src/lib/cloudinaryImage.ts`
+  (`cloudinaryResize`)
 - Client code-splitting pattern: `lazy()` imports in `client/src/App.tsx`
 - Service worker / asset caching: `client/public/sw.js`
 

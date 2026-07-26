@@ -3,6 +3,7 @@ import { usePublicSite } from "../hooks/usePublicSite";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
+import { cloudinaryResize } from "../lib/cloudinaryImage";
 import { C } from "../theme/colors";
 
 export function Gallery() {
@@ -86,7 +87,7 @@ export function Gallery() {
                   style={{ border: "none", padding: 0, margin: 0, background: "none", cursor: "zoom-in", display: "block", width: "100%" }}
                 >
                   <img
-                    src={item.url}
+                    src={cloudinaryResize(item.url, "f_auto,q_auto,w_500")}
                     alt={item.caption || "গ্যালারি ছবি"}
                     loading="lazy"
                     decoding="async"
@@ -150,7 +151,7 @@ export function Gallery() {
             style={{ margin: 0, maxWidth: "min(92vw, 900px)", maxHeight: "88vh", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}
           >
             <img
-              src={photos[openIndex].url}
+              src={cloudinaryResize(photos[openIndex].url, "f_auto,q_auto,w_1200")}
               alt={photos[openIndex].caption || "গ্যালারি ছবি"}
               style={{ maxWidth: "100%", maxHeight: "78vh", objectFit: "contain", borderRadius: 10 }}
             />
