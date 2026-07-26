@@ -184,12 +184,13 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 // Must be registered before the requireAuth chain below, same as /api/health.
 app.get("/api/public/site-content", async (_req, res) => {
   const { getSiteContent } = require("./lib/siteContent");
-  // Content only changes when an admin saves the Website module, so a
-  // short public cache is safe — repeat visits/route changes within a
-  // minute reuse the browser's copy instead of re-fetching. Express's
-  // default weak ETag still applies on top of this for a cheap
-  // conditional-GET revalidation once the 60s window passes.
-  res.setHeader("Cache-Control", "public, max-age=60");
+  // NOT max-age: this same endpoint is also read by the admin
+  // WebsiteSectionEditor on mount, so a timed cache could show stale
+  // content there right after a save. "no-cache" still lets the browser
+  // skip re-downloading the body via a 304 (Express's default weak ETag
+  // handles that) but always revalidates with the server first — same
+  // bandwidth savings, no risk of showing outdated data anywhere.
+  res.setHeader("Cache-Control", "no-cache");
   res.json(await getSiteContent());
 });
 
@@ -200,9 +201,11 @@ app.get("/api/public/site-content", async (_req, res) => {
 // exposes.
 app.get("/api/public/settings", async (_req, res) => {
   const { getPublicSettings } = require("./lib/publicSettings");
-  // Same reasoning as /api/public/site-content above: rarely changes,
-  // short public cache is safe.
-  res.setHeader("Cache-Control", "public, max-age=60");
+  // Same reasoning as /api/public/site-content above: rarely changes, but
+  // no-cache (not max-age) so an admin editing name/logo/contact info in
+  // Settings never has to wait out a browser cache window to see it
+  // reflected on the public pages.
+  res.setHeader("Cache-Control", "no-cache");
   res.json(await getPublicSettings());
 });
 
