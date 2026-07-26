@@ -35,31 +35,55 @@ export function Expenses() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // Pagination: the table used to fetch every expense row in one request,
+  // which got slower as the table grew. Now it only asks the server for
+  // one page at a time, and totals come from a dedicated summary query
+  // instead of being reduced over the full row set on the client.
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(25);
+  const [totalRows, setTotalRows] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [summaryTotal, setSummaryTotal] = useState(0);
+  const [summaryByCategory, setSummaryByCategory] = useState<{ cat: string; total: number }[]>([]);
+
+  const load = async (targetPage: number) => {
     // Previously `.then(setExpenses)` had no `.catch()` — a failed load
     // left the (originally fake mock) expense list on screen with no
     // indication real data never arrived.
     setLoading(true);
-    api
-      .getExpenses()
-      .then((list) => {
-        setExpenses(list);
-        setLoadError(false);
-      })
-      .catch(() => setLoadError(true))
-      .finally(() => setLoading(false));
-  }, []);
+    try {
+      const [summary, pageData] = await Promise.all([
+        api.getExpensesSummary(),
+        api.getExpensesPage({ page: targetPage, limit: pageSize }),
+      ]);
+      setSummaryTotal(Number(summary?.total) || 0);
+      setSummaryByCategory(Array.isArray(summary?.byCategory) ? summary.byCategory : []);
+      setExpenses(Array.isArray(pageData?.items) ? pageData.items : []);
+      setTotalRows(Number(pageData?.total) || 0);
+      setTotalPages(Number(pageData?.totalPages) || 1);
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  useEffect(() => {
+    load(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize]);
+
+  const total = summaryTotal;
 
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {};
     EXPENSE_CATEGORIES.forEach((c) => (map[c] = 0));
-    expenses.forEach((e) => {
-      map[e.cat] = (map[e.cat] || 0) + e.amount;
+    summaryByCategory.forEach((r) => {
+      map[r.cat] = r.total;
     });
     return map;
-  }, [expenses]);
+  }, [summaryByCategory]);
 
 
   const openAdd = (cat?: string) => {
@@ -72,10 +96,13 @@ export function Expenses() {
     setSaving(true);
     setError("");
     try {
-      const created = await api.createExpense({ cat: form.cat, amount: Number(form.amount), note: form.note });
-      setExpenses((prev) => [created, ...prev]);
+      await api.createExpense({ cat: form.cat, amount: Number(form.amount), note: form.note });
       setForm({ cat: "", amount: "", note: "" });
       setShowAdd(false);
+      // A new row changes both the current page and the summary totals,
+      // so re-fetch from the server rather than patching local state.
+      if (page === 1) load(1);
+      else setPage(1);
     } catch (err) {
       // Previously a failed save fabricated a fake local row (fake id,
       // date "আজ") so the expense LOOKED added even though it never
@@ -95,10 +122,9 @@ export function Expenses() {
         alert("Delete request sent for Admin approval.");
         return;
       }
-      // Only drop the row once the server confirms the delete — previously
-      // this ran unconditionally even after a failed request, so the row
-      // could disappear from the screen while still existing in the database.
-      setExpenses((prev) => prev.filter((e) => e.id !== id));
+      // Re-fetch the current page + summary now that the server confirmed
+      // the delete, instead of just filtering the row out locally.
+      load(page);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.requestFailed);
     }
@@ -198,7 +224,7 @@ export function Expenses() {
             {loading && expenses.length === 0 && <SkeletonTableRows rows={6} columns={6} />}
             {expenses.map((e, i) => (
               <tr key={e.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
-                <td style={{ padding: "10px 14px", color: C.muted }}>{i + 1}</td>
+                <td style={{ padding: "10px 14px", color: C.muted }}>{(page - 1) * pageSize + i + 1}</td>
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text }}>{e.cat}</td>
                 <td style={{ padding: "10px 14px", fontWeight: 700, color: C.rose }}>{fmt(e.amount)}</td>
                 <td style={{ padding: "10px 14px", color: C.muted }}>{e.date}</td>
@@ -218,6 +244,28 @@ export function Expenses() {
           </tfoot>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 12, fontSize: 13, color: C.muted }}>
+          <button
+            type="button"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            style={{ border: `1px solid ${C.border}`, background: C.card, borderRadius: 6, padding: "6px 12px", cursor: page <= 1 || loading ? "not-allowed" : "pointer", opacity: page <= 1 || loading ? 0.5 : 1 }}
+          >
+            ‹
+          </button>
+          <span>{page} / {totalPages} ({fmt(totalRows)})</span>
+          <button
+            type="button"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            style={{ border: `1px solid ${C.border}`, background: C.card, borderRadius: 6, padding: "6px 12px", cursor: page >= totalPages || loading ? "not-allowed" : "pointer", opacity: page >= totalPages || loading ? 0.5 : 1 }}
+          >
+            ›
+          </button>
+        </div>
+      )}
     </div>
   );
 }

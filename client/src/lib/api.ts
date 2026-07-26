@@ -248,6 +248,25 @@ export const api = {
     return request<Expense[]>(`/expenses${q ? `?${q}` : ""}`);
   },
 
+  // Totals + by-category breakdown for the Expenses screen's summary cards.
+  getExpensesSummary: (params?: { from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    const q = qs.toString();
+    return request<IncomeSummary>(`/expenses/summary${q ? `?${q}` : ""}`);
+  },
+
+  // Paginated expense list for the Expenses screen's table.
+  getExpensesPage: (params?: { page?: number; limit?: number; from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(params?.page ?? 1));
+    qs.set("limit", String(params?.limit ?? 25));
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    return request<PaginatedResult<Expense>>(`/expenses?${qs.toString()}`);
+  },
+
   getReportAttendance: (from: string, to: string) =>
     request<{ from: string; to: string; rows: { date: string; status: string; name: string; roll: string; class: string; dept: string }[] }>(
       `/reports/attendance?from=${from}&to=${to}`

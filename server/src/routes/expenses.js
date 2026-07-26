@@ -10,14 +10,70 @@ const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 router.use(requirePermission("expenses"));
 
+function clampInt(value, fallback, min, max) {
+  const n = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function parseListOptions(query) {
+  const limit = clampInt(query.limit, 25, 1, 100);
+  const page = clampInt(query.page, 1, 1, 100000);
+  const paginate = query.paginate === "1" || query.paginate === "true" || query.page != null || query.limit != null;
+  return { limit, page, paginate };
+}
+
+// Totals + by-category breakdown for the Expenses screen's summary cards,
+// computed in SQL instead of requiring the full row set on the client.
+router.get("/summary", async (req, res) => {
+  const { from, to } = req.query;
+  const params = [];
+  let where = "";
+  if (from && to) {
+    params.push(from, to);
+    where = `WHERE date >= $1 AND date <= $2`;
+  }
+  const [totalRow, catRows] = await Promise.all([
+    db.get(`SELECT COUNT(*)::int AS count, COALESCE(SUM(amount), 0)::int AS total FROM expenses ${where}`, params),
+    db.all(`SELECT cat, COALESCE(SUM(amount), 0)::int AS total FROM expenses ${where} GROUP BY cat ORDER BY total DESC`, params),
+  ]);
+  res.json({
+    total: totalRow?.total || 0,
+    count: totalRow?.count || 0,
+    byCategory: catRows.map((r) => ({ cat: r.cat, total: r.total })),
+  });
+});
+
 router.get("/", async (req, res) => {
   const { from, to } = req.query;
+  const { limit, page, paginate } = parseListOptions(req.query);
+  const conditions = [];
+  const params = [];
   if (from && to) {
-    return res.json(
-      await db.all("SELECT * FROM expenses WHERE date >= $1 AND date <= $2 ORDER BY id DESC", [from, to])
-    );
+    params.push(from, to);
+    conditions.push(`date >= $${params.length - 1} AND date <= $${params.length}`);
   }
-  res.json(await db.all("SELECT * FROM expenses ORDER BY id DESC"));
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  if (paginate) {
+    const totalRow = await db.get(`SELECT COUNT(*)::int AS total FROM expenses ${where}`, params);
+    const total = totalRow?.total || 0;
+    const offset = (page - 1) * limit;
+    const rows = await db.all(
+      `SELECT * FROM expenses ${where} ORDER BY id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+    return res.json({
+      items: rows,
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    });
+  }
+
+  const rows = await db.all(`SELECT * FROM expenses ${where} ORDER BY id DESC`, params);
+  res.json(rows);
 });
 
 router.post("/", validate(expenseCreateSchema), async (req, res) => {
