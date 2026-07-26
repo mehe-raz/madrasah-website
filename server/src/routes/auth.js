@@ -6,7 +6,7 @@ const db = require("../db");
 const { signToken } = require("../middleware/auth");
 const registryDb = require("../registryDb");
 const { isUniqueViolation } = require("../pg");
-const nodemailer = require("nodemailer");
+const { sendMail } = require("../lib/mailer");
 const { passwordPolicyError } = require("../lib/passwordPolicy");
 const { validate } = require("../middleware/validate");
 const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } = require("../lib/authSchemas");
@@ -219,53 +219,37 @@ router.post("/forgot-password", validate(forgotPasswordSchema), async (req, res)
   // Respond as soon as the reset record itself is saved — the user's request
   // has already succeeded at that point. Previously this handler awaited
   // transporter.verify() + sendMail() before responding at all: on hosts
-  // whose outbound network silently drops SMTP traffic (common on free-tier
-  // PaaS, which often block ports 25/465/587 to fight spam), that await
-  // never resolves — or only fails after a very long default socket
-  // timeout — so the browser's fetch() sits open until the platform's own
-  // proxy eventually kills the connection, which surfaces to the user as a
-  // slow "Failed to fetch" for every tenant, not just one. Sending the email
-  // fire-and-forget after responding fixes the hang regardless of the
-  // underlying SMTP issue; EMAIL_HOST/EMAIL_USER/EMAIL_PASS should still be
-  // checked in the server logs so the email itself actually arrives.
+  // whose outbound network blocks/silently drops SMTP traffic (Render's free
+  // tier blocks ports 25/465/587 outright; port 25 stays blocked even on
+  // paid plans), that await never resolves — or only fails after a long
+  // socket timeout — so the browser's fetch() sits open until the platform's
+  // own proxy eventually kills the connection, which surfaces to the user as
+  // a slow "Failed to fetch" for every tenant, not just one. Sending the
+  // email fire-and-forget after responding avoids that hang regardless of
+  // the underlying email-provider issue; RESEND_API_KEY/EMAIL_FROM should
+  // still be checked in the server logs so the email itself actually
+  // arrives — see server/src/lib/mailer.js for why this uses Resend's HTTPS
+  // API instead of raw SMTP.
   res.json({
     ok: true,
     message: "If email exists, reset link was sent",
   });
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || "smtp.gmail.com",
-    port: process.env.EMAIL_PORT || 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    // Fail fast instead of hanging indefinitely when SMTP is unreachable
-    // (e.g. the host's outbound network blocks these ports) — without an
-    // explicit timeout a stuck connection attempt can hang for minutes.
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 10_000,
-  });
-
   const resetUrl = `${process.env.CLIENT_ORIGIN || "http://localhost:5173"}/reset-password?token=${token}`;
 
-  transporter
-    .sendMail({
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: email.trim().toLowerCase(),
-      subject: "Password Reset - Madrasah ERP",
-      html: `
-        <h2>Password Reset Request</h2>
-        <p>Hello ${row.name},</p>
-        <p>You requested a password reset. Click the link below to reset your password:</p>
-        <p><a href="${resetUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
-        <p>This link will expire in 1 hour.</p>
-        <p>If you didn't request this, please ignore this email.</p>
-      `,
-    })
-    .then((info) => console.log("Password reset email sent:", info.messageId))
+  sendMail({
+    to: email.trim().toLowerCase(),
+    subject: "Password Reset - Madrasah ERP",
+    html: `
+      <h2>Password Reset Request</h2>
+      <p>Hello ${row.name},</p>
+      <p>You requested a password reset. Click the link below to reset your password:</p>
+      <p><a href="${resetUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
+      <p>This link will expire in 1 hour.</p>
+      <p>If you didn't request this, please ignore this email.</p>
+    `,
+  })
+    .then((info) => console.log("Password reset email sent:", info.id))
     .catch((emailError) => console.error("Email sending failed:", emailError));
 });
 
