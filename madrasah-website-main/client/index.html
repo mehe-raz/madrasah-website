@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="bn">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕌</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0891b2" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Madrasah ERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        try {
+          var cached = localStorage.getItem("madrasah-settings");
+          if (cached) {
+            var theme = JSON.parse(cached).theme;
+            document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+          }
+        } catch (e) {}
+        try {
+          var nav = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
+          var isReload =
+            (nav && nav.type === "reload") ||
+            (window.performance && window.performance.navigation && window.performance.navigation.type === 1);
+          if (isReload) document.documentElement.classList.add("rs-reload");
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      #reload-splash {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+        background: #f7fbff;
+        transition: opacity 0.35s ease;
+      }
+      :root[data-theme="dark"] #reload-splash {
+        background: #07101c;
+      }
+      .rs-reload #reload-splash {
+        display: flex;
+      }
+      #reload-splash.rs-hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .rs-orbit {
+        position: relative;
+        width: 92px;
+        height: 92px;
+      }
+      .rs-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        border-radius: 50%;
+        color: #0ea5e9;
+      }
+      :root[data-theme="dark"] .rs-ring {
+        color: #22d3ee;
+      }
+      .rs-ring--outer {
+        width: 92px;
+        height: 92px;
+        margin: -46px 0 0 -46px;
+        border: 3px dashed currentColor;
+        opacity: 0.85;
+        animation: rs-spin 3.2s linear infinite;
+      }
+      .rs-ring--mid {
+        width: 66px;
+        height: 66px;
+        margin: -33px 0 0 -33px;
+        border: 3px dotted currentColor;
+        opacity: 0.65;
+        animation: rs-spin-rev 2.1s linear infinite;
+      }
+      .rs-ring--inner {
+        width: 40px;
+        height: 40px;
+        margin: -20px 0 0 -20px;
+        border: 3px solid transparent;
+        border-top-color: currentColor;
+        border-right-color: currentColor;
+        animation: rs-spin 1s linear infinite;
+      }
+      .rs-core {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 22px;
+        animation: rs-pulse 1.6s ease-in-out infinite;
+      }
+      @keyframes rs-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes rs-spin-rev {
+        to {
+          transform: rotate(-360deg);
+        }
+      }
+      @keyframes rs-pulse {
+        0%,
+        100% {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.12);
+          opacity: 0.75;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rs-ring,
+        .rs-core {
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="reload-splash" aria-hidden="true">
+      <div class="rs-orbit">
+        <div class="rs-ring rs-ring--outer"></div>
+        <div class="rs-ring rs-ring--mid"></div>
+        <div class="rs-ring rs-ring--inner"></div>
+        <div class="rs-core">🕌</div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        function hideSplash() {
+          var el = document.getElementById("reload-splash");
+          if (!el) return;
+          el.classList.add("rs-hide");
+          setTimeout(function () {
+            el.style.display = "none";
+          }, 400);
+        }
+        window.addEventListener("app:ready", hideSplash, { once: true });
+        setTimeout(hideSplash, 4000);
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
