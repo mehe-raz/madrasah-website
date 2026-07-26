@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { HudSpinner } from "../components/HudSpinner";
+import { SkeletonTableRows } from "../components/Skeleton";
 import { StatCard } from "../components/StatCard";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
@@ -111,12 +111,6 @@ export function Expenses() {
         <button type="button" onClick={() => openAdd()} style={{ background: C.amber, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>+ {t.expenses.addNew}</button>
       </div>
 
-      {loading && (
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
-          <HudSpinner size={20} />
-        </div>
-      )}
-
       {loadError && (
         <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>{t.common.requestFailed}</div>
       )}
@@ -201,6 +195,7 @@ export function Expenses() {
             </tr>
           </thead>
           <tbody>
+            {loading && expenses.length === 0 && <SkeletonTableRows rows={6} columns={6} />}
             {expenses.map((e, i) => (
               <tr key={e.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
                 <td style={{ padding: "10px 14px", color: C.muted }}>{i + 1}</td>

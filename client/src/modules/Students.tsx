@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { HudSpinner } from "../components/HudSpinner";
+import { SkeletonTableRows } from "../components/Skeleton";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
@@ -733,13 +733,7 @@ export function Students() {
               </div>
             </div>
 
-            {historyLoading ? (
-              <div style={{ display: "flex", marginBottom: 12 }}>
-                <HudSpinner size={22} />
-              </div>
-            ) : historyError ? (
-              <div style={{ color: C.rose, marginBottom: 12 }}>{historyError}</div>
-            ) : null}
+            {historyError && <div style={{ color: C.rose, marginBottom: 12 }}>{historyError}</div>}
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
               {detailSections.map((section) => (
@@ -775,6 +769,7 @@ export function Students() {
                     </tr>
                   </thead>
                   <tbody>
+                    {historyLoading && <SkeletonTableRows rows={5} columns={2} />}
                     {attendanceHistory.map((row, index) => (
                       <tr key={`${row.date}-${index}`} style={{ borderBottom: `1px solid ${C.border}` }}>
                         <td style={{ padding: "10px 12px", color: C.text }}>{row.date}</td>

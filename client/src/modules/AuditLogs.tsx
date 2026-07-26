@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "../components/Badge";
 import { HudSpinner } from "../components/HudSpinner";
+import { SkeletonTableRows } from "../components/Skeleton";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
@@ -242,15 +243,7 @@ export function AuditLogs() {
             </tr>
           </thead>
           <tbody>
-            {loading && items.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ padding: 24 }}>
-                  <div style={{ display: "flex", justifyContent: "center" }}>
-                    <HudSpinner size={28} />
-                  </div>
-                </td>
-              </tr>
-            )}
+            {loading && items.length === 0 && <SkeletonTableRows rows={8} columns={6} />}
             {!loading && items.length === 0 && (
               <tr>
                 <td colSpan={6} style={{ padding: 24, textAlign: "center", color: C.muted }}>

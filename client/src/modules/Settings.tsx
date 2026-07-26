@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { HudSpinner } from "../components/HudSpinner";
+import { SkeletonRows } from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -586,11 +587,7 @@ export function Settings() {
                                   {t.settings.driveFilesRefresh}
                                 </button>
                               </div>
-                              {driveFilesLoading && (
-                                <div style={{ display: "flex" }}>
-                                  <HudSpinner size={18} />
-                                </div>
-                              )}
+                              {driveFilesLoading && <SkeletonRows count={3} />}
                               {!driveFilesLoading && driveFiles?.length === 0 && (
                                 <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{t.settings.driveFilesEmpty}</p>
                               )}

@@ -1,8 +1,8 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Badge } from "../components/Badge";
-import { HudSpinner } from "../components/HudSpinner";
 import { ReceiptModal } from "../components/ReceiptModal";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
+import { SkeletonCardList, SkeletonTableRows } from "../components/Skeleton";
 import { StatCard } from "../components/StatCard";
 import { useLanguage } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -257,12 +257,6 @@ export function Income() {
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.income.title}</h2>
       {msg && <p style={{ color: msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("invalid") ? C.rose : C.teal, fontSize: 13, marginTop: -8, marginBottom: 12 }}>{msg}</p>}
-      {loading && (
-        <div style={{ display: "flex", alignItems: "center", marginTop: -8, marginBottom: 12 }}>
-          <HudSpinner size={20} />
-        </div>
-      )}
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
         <StatCard label={t.income.total} value={fmt(totalIncome)} icon="💰" color={C.emerald} />
         {byCategory.filter((b) => b.total > 0).slice(0, 3).map((b) => (
@@ -288,6 +282,9 @@ export function Income() {
             ))}
           </div>
           {isMobile ? (
+            loading && entries.length === 0 ? (
+              <SkeletonCardList count={4} lines={3} />
+            ) : (
             <RecordCardList>
               {entries.map((e) => (
                 <RecordCard
@@ -313,6 +310,7 @@ export function Income() {
                 <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>No entries found.</div>
               )}
             </RecordCardList>
+            )
           ) : (
           <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
@@ -324,6 +322,7 @@ export function Income() {
                 </tr>
               </thead>
               <tbody>
+                {loading && entries.length === 0 && <SkeletonTableRows rows={6} columns={7} />}
                 {entries.map((e, i) => (
                   <tr key={e.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
                     <td style={{ padding: "10px 14px", fontFamily: "monospace", color: C.teal, fontWeight: 600 }}>{e.receipt}</td>

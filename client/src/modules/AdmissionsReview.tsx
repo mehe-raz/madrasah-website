@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Badge } from "../components/Badge";
-import { HudSpinner } from "../components/HudSpinner";
+import { SkeletonCardList } from "../components/Skeleton";
 import { C } from "../theme/colors";
 import { api } from "../lib/api";
 import { useLanguage } from "../context/AppSettingsContext";
@@ -73,9 +73,7 @@ export function AdmissionsReview() {
       )}
 
       {loading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: 24 }}>
-          <HudSpinner size={32} />
-        </div>
+        <SkeletonCardList count={4} lines={2} />
       ) : rows.length === 0 ? (
         <div
           style={{
