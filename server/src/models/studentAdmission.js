@@ -219,10 +219,16 @@ const RETURNING_COLUMNS = `
 // certificate — sometimes still legacy base64 for older records). The list
 // table never displays these, only the single-student detail view does, so
 // list requests shouldn't pay to transfer them for every row.
+//
+// Also without "studentPhoto": it's often a base64 data URL, so pulling it
+// for every row on every list/dropdown load (Students table, Fees/Income
+// student picker) is the single heaviest part of those requests. Only the
+// single-student detail view (GET /students/:id, which uses
+// RETURNING_COLUMNS) needs it.
 const LIST_COLUMNS = `
   id, name, "nameEn", roll, class, dept, type, fee, due, phone, blood, para, status,
   "admissionNumber", "admissionDate", "academicYear", session, section,
-  "dateOfBirth", "birthRegistrationNumber", gender, religion, "studentPhoto",
+  "dateOfBirth", "birthRegistrationNumber", gender, religion,
   "fatherName", "fatherMobile", "fatherOccupation",
   "motherName", "motherMobile", "motherOccupation",
   "guardianName", "guardianRelationship", "guardianMobile",

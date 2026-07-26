@@ -182,6 +182,14 @@ function clampInt(value, fallback, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
+// Real LIMIT/OFFSET pagination with the search filter applied in SQL
+// (previously: fetched every matching row into memory, filtered `search`
+// with a JS .includes() pass, then sliced the array for the requested
+// page — so page 2 of a search still paid to transfer and scan every
+// row). Same opt-in pattern as /income and /payments: only kicks in when
+// the client asks for it (page/limit/paginate present in the query
+// string), so the existing plain-array callers (getStudents, used by
+// export reports) keep working unchanged.
 router.get("/", async (req, res) => {
   const { dept, search, status, class: cls } = req.query;
   const conditions = [];
@@ -198,31 +206,26 @@ router.get("/", async (req, res) => {
     params.push(dept);
     conditions.push(`dept = $${params.length}`);
   }
-  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  let rows = await db.all(`SELECT ${LIST_COLUMNS} FROM students ${where} ORDER BY roll`, params);
   if (search) {
-    const q = String(search).toLowerCase();
-    rows = rows.filter(
-      (s) =>
-        (s.name || "").includes(search) ||
-        (s.nameEn || "").toLowerCase().includes(q) ||
-        (s.roll || "").includes(search) ||
-        (s.admissionNumber || "").toLowerCase().includes(q) ||
-        (s.birthRegistrationNumber || "").includes(search)
+    params.push(`%${search}%`);
+    const idx = params.length;
+    conditions.push(
+      `(name ILIKE $${idx} OR "nameEn" ILIKE $${idx} OR roll ILIKE $${idx} OR "admissionNumber" ILIKE $${idx} OR "birthRegistrationNumber" ILIKE $${idx})`
     );
   }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  // Pagination: only kicks in when the client asks for it (page/limit/paginate
-  // present in the query string), so the existing plain-array callers
-  // (getStudents) keep working unchanged. This is what backs the client's
-  // getStudentsBasic(), same opt-in pattern as /income and /payments.
   const paginate = req.query.paginate === "1" || req.query.paginate === "true" || req.query.page != null || req.query.limit != null;
   if (paginate) {
     const limit = clampInt(req.query.limit, 25, 1, 200);
     const page = clampInt(req.query.page, 1, 1, 100000);
-    const total = rows.length;
-    const start = (page - 1) * limit;
-    const items = rows.slice(start, start + limit);
+    const offset = (page - 1) * limit;
+    const totalRow = await db.get(`SELECT COUNT(*)::int AS total FROM students ${where}`, params);
+    const total = totalRow?.total || 0;
+    const items = await db.all(
+      `SELECT ${LIST_COLUMNS} FROM students ${where} ORDER BY roll LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
     return res.json({
       items,
       page,
@@ -232,6 +235,7 @@ router.get("/", async (req, res) => {
     });
   }
 
+  const rows = await db.all(`SELECT ${LIST_COLUMNS} FROM students ${where} ORDER BY roll`, params);
   res.json(rows);
 });
 

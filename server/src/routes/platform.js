@@ -188,8 +188,9 @@ router.delete("/institutions/:id", requirePlatformRole("super_admin"), async (re
 router.get("/audit-logs", async (req, res, next) => {
   try {
     const institutionId = req.query.institutionId ? Number(req.query.institutionId) : undefined;
-    const rows = await registryDb.listAuditLogs({ institutionId });
-    res.json(rows);
+    const { page, limit, from, to } = req.query;
+    const result = await registryDb.listAuditLogs({ institutionId, page, limit, from, to });
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -203,8 +204,9 @@ router.get("/institutions/:id/payments", async (req, res, next) => {
   try {
     const institutionId = Number(req.params.id);
     if (!Number.isInteger(institutionId)) return res.status(400).json({ error: "Invalid institution id" });
-    const rows = await registryDb.listPayments({ institutionId });
-    res.json(rows);
+    const { page, limit, from, to } = req.query;
+    const result = await registryDb.listPayments({ institutionId, page, limit, from, to });
+    res.json(result);
   } catch (err) {
     next(err);
   }

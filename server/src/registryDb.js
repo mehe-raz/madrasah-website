@@ -378,26 +378,61 @@ async function deletePlatformAdmin(id) {
   return result.rows[0];
 }
 
-async function listAuditLogs({ institutionId, limit = 100 } = {}) {
+function clampInt(value, fallback, min, max) {
+  const n = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+// Real LIMIT/OFFSET pagination plus an optional created_at date-range filter
+// (previously this just capped at `limit` rows with no page/offset or date
+// filter — fine while there were only a handful of institutions, but it
+// silently hid everything past the cap once audit history grew). Mirrors the
+// tenant-side pattern in routes/auditLogs.js.
+async function listAuditLogs({ institutionId, page = 1, limit = 100, from, to } = {}) {
+  const clampedLimit = clampInt(limit, 100, 1, 200);
+  const clampedPage = clampInt(page, 1, 1, 100000);
+  const offset = (clampedPage - 1) * clampedLimit;
+
+  const conditions = [];
+  const params = [];
   if (institutionId) {
-    const result = await registryPool.query(
-      `SELECT al.*, i.name AS institution_name, i.code AS institution_code
-       FROM registry.audit_logs al
-       LEFT JOIN registry.institutions i ON i.id = al.institution_id
-       WHERE al.institution_id = $1
-       ORDER BY al.created_at DESC LIMIT $2`,
-      [institutionId, limit]
-    );
-    return result.rows;
+    params.push(institutionId);
+    conditions.push(`al.institution_id = $${params.length}`);
   }
+  if (from) {
+    params.push(`${from} 00:00:00`);
+    conditions.push(`al.created_at >= $${params.length}`);
+  }
+  if (to) {
+    params.push(`${to} 23:59:59`);
+    conditions.push(`al.created_at <= $${params.length}`);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const totalRow = await registryPool.query(
+    `SELECT COUNT(*)::int AS total FROM registry.audit_logs al ${where}`,
+    params
+  );
+  const total = totalRow.rows[0]?.total || 0;
+
   const result = await registryPool.query(
     `SELECT al.*, i.name AS institution_name, i.code AS institution_code
      FROM registry.audit_logs al
      LEFT JOIN registry.institutions i ON i.id = al.institution_id
-     ORDER BY al.created_at DESC LIMIT $1`,
-    [limit]
+     ${where}
+     ORDER BY al.created_at DESC
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, clampedLimit, offset]
   );
-  return result.rows;
+
+  return {
+    items: result.rows,
+    page: clampedPage,
+    limit: clampedLimit,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / clampedLimit)),
+  };
 }
 
 // ============================================================================
@@ -482,22 +517,52 @@ async function recordPayment(institutionId, {
   }
 }
 
-async function listPayments({ institutionId, limit = 100 } = {}) {
+// Same real page/offset + date-range pagination as listAuditLogs above,
+// instead of a bare `limit`-capped, unfiltered query.
+async function listPayments({ institutionId, page = 1, limit = 100, from, to } = {}) {
+  const clampedLimit = clampInt(limit, 100, 1, 200);
+  const clampedPage = clampInt(page, 1, 1, 100000);
+  const offset = (clampedPage - 1) * clampedLimit;
+
+  const conditions = [];
+  const params = [];
   if (institutionId) {
-    const result = await registryPool.query(
-      `SELECT * FROM registry.payments WHERE institution_id = $1 ORDER BY created_at DESC LIMIT $2`,
-      [institutionId, limit]
-    );
-    return result.rows;
+    params.push(institutionId);
+    conditions.push(`p.institution_id = $${params.length}`);
   }
+  if (from) {
+    params.push(`${from} 00:00:00`);
+    conditions.push(`p.created_at >= $${params.length}`);
+  }
+  if (to) {
+    params.push(`${to} 23:59:59`);
+    conditions.push(`p.created_at <= $${params.length}`);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const totalRow = await registryPool.query(
+    `SELECT COUNT(*)::int AS total FROM registry.payments p ${where}`,
+    params
+  );
+  const total = totalRow.rows[0]?.total || 0;
+
   const result = await registryPool.query(
     `SELECT p.*, i.name AS institution_name, i.code AS institution_code
      FROM registry.payments p
      LEFT JOIN registry.institutions i ON i.id = p.institution_id
-     ORDER BY p.created_at DESC LIMIT $1`,
-    [limit]
+     ${where}
+     ORDER BY p.created_at DESC
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, clampedLimit, offset]
   );
-  return result.rows;
+
+  return {
+    items: result.rows,
+    page: clampedPage,
+    limit: clampedLimit,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / clampedLimit)),
+  };
 }
 
 // Auto-suspend sweep: finds every 'trial' or 'active' institution whose

@@ -376,10 +376,17 @@ function renderAuditModal() {
     ? state.institutions.find((i) => i.id === state.modal.institutionId)
     : null;
   const logs = state.modal.logs || [];
+  const page = state.modal.page || 1;
+  const totalPages = state.modal.totalPages || 1;
   return `
     <div class="modal-backdrop" id="modal-backdrop">
       <div class="modal" style="max-width:560px;">
         <h2>অডিট লগ ${inst ? "— " + escapeHtml(inst.name) : "(সব প্রতিষ্ঠান)"}</h2>
+        <form id="audit-filter-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px;">
+          <label style="margin:0; font-size:12px;">শুরু<br /><input name="from" type="date" value="${escapeHtml(state.modal.from || "")}" /></label>
+          <label style="margin:0; font-size:12px;">শেষ<br /><input name="to" type="date" value="${escapeHtml(state.modal.to || "")}" /></label>
+          <button type="submit" class="secondary small">ফিল্টার করুন</button>
+        </form>
         ${
           state.modal.loading
             ? spinnerHtml()
@@ -404,7 +411,12 @@ function renderAuditModal() {
                 </table>
               </div>`
         }
-        <div class="modal-actions">
+        <div class="modal-actions" style="justify-content:space-between;">
+          <div class="pager">
+            <button type="button" class="secondary small" id="audit-prev" ${page <= 1 ? "disabled" : ""}>আগের</button>
+            <span class="muted" style="margin:0 8px;">${page} / ${totalPages} (মোট ${state.modal.total || 0})</span>
+            <button type="button" class="secondary small" id="audit-next" ${page >= totalPages ? "disabled" : ""}>পরের</button>
+          </div>
           <button type="button" class="secondary" id="modal-cancel">বন্ধ করুন</button>
         </div>
       </div>
@@ -447,7 +459,14 @@ function renderPaymentModal() {
             <button type="submit">পেমেন্ট রেকর্ড করুন</button>
           </div>
         </form>
-        <p class="sub" style="margin-top:18px;">পূর্ববর্তী পেমেন্ট</p>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:18px; flex-wrap:wrap;">
+          <p class="sub" style="margin:0;">পূর্ববর্তী পেমেন্ট</p>
+          <form id="payment-filter-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin:0;">
+            <label style="margin:0; font-size:12px;">শুরু<br /><input name="from" type="date" value="${escapeHtml(state.modal.from || "")}" /></label>
+            <label style="margin:0; font-size:12px;">শেষ<br /><input name="to" type="date" value="${escapeHtml(state.modal.to || "")}" /></label>
+            <button type="submit" class="secondary small">ফিল্টার করুন</button>
+          </form>
+        </div>
         ${
           state.modal.loading
             ? spinnerHtml()
@@ -472,6 +491,13 @@ function renderPaymentModal() {
                 </table>
               </div>`
         }
+        <div class="modal-actions" style="justify-content:space-between;">
+          <div class="pager">
+            <button type="button" class="secondary small" id="payment-prev" ${(state.modal.page || 1) <= 1 ? "disabled" : ""}>আগের</button>
+            <span class="muted" style="margin:0 8px;">${state.modal.page || 1} / ${state.modal.totalPages || 1} (মোট ${state.modal.total || 0})</span>
+            <button type="button" class="secondary small" id="payment-next" ${(state.modal.page || 1) >= (state.modal.totalPages || 1) ? "disabled" : ""}>পরের</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -761,12 +787,70 @@ function wireDashboardEvents() {
       Object.keys(body).forEach((k) => { if (body[k] === "") delete body[k]; });
       try {
         await api(`/institutions/${state.modal.institutionId}/payments`, { method: "POST", body });
-        await openPaymentModal(state.modal.institutionId);
+        await openPaymentModal(state.modal.institutionId, { page: 1, from: state.modal.from, to: state.modal.to });
         await loadInstitutions();
       } catch (err) {
         state.modal.error = err.message;
         render();
       }
+    });
+  }
+
+  const paymentFilterForm = document.getElementById("payment-filter-form");
+  if (paymentFilterForm) {
+    paymentFilterForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fd = new FormData(paymentFilterForm);
+      openPaymentModal(state.modal.institutionId, { page: 1, from: fd.get("from") || "", to: fd.get("to") || "" });
+    });
+  }
+  const paymentPrevBtn = document.getElementById("payment-prev");
+  if (paymentPrevBtn) {
+    paymentPrevBtn.addEventListener("click", () => {
+      openPaymentModal(state.modal.institutionId, {
+        page: Math.max(1, (state.modal.page || 1) - 1),
+        from: state.modal.from,
+        to: state.modal.to,
+      });
+    });
+  }
+  const paymentNextBtn = document.getElementById("payment-next");
+  if (paymentNextBtn) {
+    paymentNextBtn.addEventListener("click", () => {
+      openPaymentModal(state.modal.institutionId, {
+        page: Math.min(state.modal.totalPages || 1, (state.modal.page || 1) + 1),
+        from: state.modal.from,
+        to: state.modal.to,
+      });
+    });
+  }
+
+  const auditFilterForm = document.getElementById("audit-filter-form");
+  if (auditFilterForm) {
+    auditFilterForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fd = new FormData(auditFilterForm);
+      openAuditModal(state.modal.institutionId, { page: 1, from: fd.get("from") || "", to: fd.get("to") || "" });
+    });
+  }
+  const auditPrevBtn = document.getElementById("audit-prev");
+  if (auditPrevBtn) {
+    auditPrevBtn.addEventListener("click", () => {
+      openAuditModal(state.modal.institutionId, {
+        page: Math.max(1, (state.modal.page || 1) - 1),
+        from: state.modal.from,
+        to: state.modal.to,
+      });
+    });
+  }
+  const auditNextBtn = document.getElementById("audit-next");
+  if (auditNextBtn) {
+    auditNextBtn.addEventListener("click", () => {
+      openAuditModal(state.modal.institutionId, {
+        page: Math.min(state.modal.totalPages || 1, (state.modal.page || 1) + 1),
+        from: state.modal.from,
+        to: state.modal.to,
+      });
     });
   }
 
@@ -896,11 +980,30 @@ async function refreshAdminsModal() {
   }
 }
 
-async function openPaymentModal(institutionId) {
-  state.modal = { type: "payment", institutionId, payments: [], loading: true, error: "" };
+async function openPaymentModal(institutionId, { page = 1, from = "", to = "" } = {}) {
+  const prevModal = state.modal && state.modal.type === "payment" ? state.modal : null;
+  state.modal = {
+    type: "payment",
+    institutionId,
+    payments: [],
+    page,
+    totalPages: 1,
+    total: 0,
+    from: from || (prevModal ? prevModal.from : ""),
+    to: to || (prevModal ? prevModal.to : ""),
+    loading: true,
+    error: "",
+  };
   render();
   try {
-    state.modal.payments = await api(`/institutions/${institutionId}/payments`);
+    const qs = new URLSearchParams({ page: String(page), limit: "20" });
+    if (state.modal.from) qs.set("from", state.modal.from);
+    if (state.modal.to) qs.set("to", state.modal.to);
+    const result = await api(`/institutions/${institutionId}/payments?${qs.toString()}`);
+    state.modal.payments = result.items || [];
+    state.modal.page = result.page || 1;
+    state.modal.totalPages = result.totalPages || 1;
+    state.modal.total = result.total || 0;
   } catch (err) {
     state.modal.error = err.message;
   } finally {
@@ -909,13 +1012,30 @@ async function openPaymentModal(institutionId) {
   }
 }
 
-async function openAuditModal(institutionId) {
-  state.modal = { type: "audit", institutionId, logs: [], loading: true };
+async function openAuditModal(institutionId, { page = 1, from = "", to = "" } = {}) {
+  const prevModal = state.modal && state.modal.type === "audit" ? state.modal : null;
+  state.modal = {
+    type: "audit",
+    institutionId,
+    logs: [],
+    page,
+    totalPages: 1,
+    total: 0,
+    from: from || (prevModal ? prevModal.from : ""),
+    to: to || (prevModal ? prevModal.to : ""),
+    loading: true,
+  };
   render();
   try {
-    const qs = institutionId ? `?institutionId=${institutionId}` : "";
-    const logs = await api(`/audit-logs${qs}`);
-    state.modal.logs = logs;
+    const qs = new URLSearchParams({ page: String(page), limit: "20" });
+    if (institutionId) qs.set("institutionId", String(institutionId));
+    if (state.modal.from) qs.set("from", state.modal.from);
+    if (state.modal.to) qs.set("to", state.modal.to);
+    const result = await api(`/audit-logs?${qs.toString()}`);
+    state.modal.logs = result.items || [];
+    state.modal.page = result.page || 1;
+    state.modal.totalPages = result.totalPages || 1;
+    state.modal.total = result.total || 0;
   } catch (err) {
     state.error = err.message;
   } finally {

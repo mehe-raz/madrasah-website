@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { SkeletonTableRows } from "../components/Skeleton";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
@@ -178,6 +178,10 @@ export function Students() {
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("All");
   const [status, setStatus] = useState("All");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(25);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [form, setForm] = useState<AdmissionForm>(emptyForm);
   const [editing, setEditing] = useState<Student | null>(null);
   const [viewing, setViewing] = useState<Student | null>(null);
@@ -191,15 +195,26 @@ export function Students() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
 
+  // Real server-side pagination (LIST_COLUMNS only, no studentPhoto/documents)
+  // instead of pulling every student's full record into the browser and
+  // filtering/slicing client-side — the previous approach re-downloaded
+  // every student's photo on every keystroke of the search box.
   const load = useCallback(async () => {
-    const data = await api.getStudents({
+    const data = await api.getStudentsBasic({
       dept: department !== "All" ? department : undefined,
       search: search || undefined,
       status: status !== "All" ? status : undefined,
+      page,
+      limit: pageSize,
     });
-    setStudents(data);
-  }, [department, search, status]);
+    setStudents(data.items);
+    setTotal(data.total);
+    setTotalPages(data.totalPages);
+  }, [department, search, status, page, pageSize]);
 
+  // Any filter change should restart from page 1, since the current page
+  // number may no longer exist under the new filter (see setSearch/
+  // setDepartment/setStatus handlers below, which reset page alongside it).
   useEffect(() => {
     const timer = window.setTimeout(load, 250);
     return () => window.clearTimeout(timer);
@@ -243,26 +258,6 @@ export function Students() {
     };
   }, [viewing, t.students.totalAttendance]);
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return students.filter((student) => {
-      const matchesDepartment = department === "All" || student.dept === department;
-      const matchesStatus = status === "All" || student.status === status;
-      const haystack = [
-        student.name,
-        student.nameEn,
-        student.roll,
-        student.admissionNumber,
-        student.birthRegistrationNumber,
-        student.fatherMobile,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return matchesDepartment && matchesStatus && haystack.includes(q);
-    });
-  }, [department, search, status, students]);
-
   const setField = (field: AdmissionField, value: string | number | StudentDocuments) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => {
@@ -282,7 +277,12 @@ export function Students() {
     setShowForm(true);
   };
 
-  const startEdit = (student: Student) => {
+  // The list row (from the paginated /students results) no longer carries
+  // studentPhoto or documents — those are fetched here from the single-
+  // student detail endpoint before opening the form, so editing still shows
+  // (and re-saves) the existing photo/documents instead of silently
+  // clearing them.
+  const startEdit = async (student: Student) => {
     setEditing(student);
     setViewing(null);
     setErrors({});
@@ -290,6 +290,26 @@ export function Students() {
     setForm(normalizeStudent(student));
     setStep(0);
     setShowForm(true);
+    try {
+      const full = await api.getStudent(student.id);
+      setEditing(full);
+      setForm(normalizeStudent(full));
+    } catch {
+      // Keep the row-level data already shown; the save button below will
+      // still work, just without a previously-uploaded photo/documents.
+    }
+  };
+
+  // Same idea as startEdit above: the list row lacks studentPhoto, so fetch
+  // the full record for the "view" modal too.
+  const openView = async (student: Student) => {
+    setViewing(student);
+    try {
+      const full = await api.getStudent(student.id);
+      setViewing(full);
+    } catch {
+      // Keep showing what we already have from the list row.
+    }
   };
 
   const saveAdmission = async () => {
@@ -303,7 +323,7 @@ export function Students() {
     try {
       const payload = { ...form, studentPhoto: form.documents.studentPhoto || form.studentPhoto || "" };
       const saved = editing ? await api.updateStudent(editing.id, payload) : await api.createStudent(payload);
-      setStudents((prev) => (editing ? prev.map((student) => (student.id === saved.id ? saved : student)) : [saved, ...prev]));
+      await load();
       setEditing(saved);
       setViewing(saved);
       setShowForm(false);
@@ -497,15 +517,15 @@ export function Students() {
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t.students.admissionSearch} style={{ ...fieldStyle(), flex: 1, minWidth: 240 }} />
-        <select value={department} onChange={(event) => setDepartment(event.target.value)} style={{ ...fieldStyle(), width: 150 }}>
+        <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder={t.students.admissionSearch} style={{ ...fieldStyle(), flex: 1, minWidth: 240 }} />
+        <select value={department} onChange={(event) => { setDepartment(event.target.value); setPage(1); }} style={{ ...fieldStyle(), width: 150 }}>
           {(["All", ...departmentOptions] as string[]).map((option) => (
             <option key={option} value={option}>
               {option === "All" ? t.common.all : deptLabel(option)}
             </option>
           ))}
         </select>
-        <select value={status} onChange={(event) => setStatus(event.target.value)} style={{ ...fieldStyle(), width: 150 }}>
+        <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} style={{ ...fieldStyle(), width: 150 }}>
           {(["All", t.students.active, t.students.inactive] as string[]).map((option) => (
             <option key={option} value={option === t.students.active ? "Active" : option === t.students.inactive ? "Inactive" : option}>
               {option}
@@ -647,7 +667,7 @@ export function Students() {
       {isMobile ? (
         <div style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, padding: 12 }}>
           <RecordCardList>
-            {filtered.map((student) => (
+            {students.map((student) => (
               <RecordCard
                 key={student.id}
                 title={student.name}
@@ -658,14 +678,21 @@ export function Students() {
                 ]}
                 actions={
                   <>
-                    <button type="button" onClick={() => setViewing(student)} style={{ flex: 1, border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>{t.students.view}</button>
+                    <button type="button" onClick={() => openView(student)} style={{ flex: 1, border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>{t.students.view}</button>
                     <button type="button" onClick={() => startEdit(student)} style={{ flex: 1, border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>{t.common.edit}</button>
                   </>
                 }
               />
             ))}
           </RecordCardList>
-          <div style={{ padding: "12px 4px 0", color: C.muted, fontSize: 12 }}>{tr("students.totalStudentsLine", { count: filtered.length })}</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 4px 0", flexWrap: "wrap" }}>
+            <div style={{ color: C.muted, fontSize: 12 }}>{tr("students.totalStudentsLine", { count: total })}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ border: `1px solid ${C.border}`, background: C.card, color: page <= 1 ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: 12 }}>Prev</button>
+              <span style={{ color: C.muted, fontSize: 12 }}>{page} / {totalPages}</span>
+              <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ border: `1px solid ${C.border}`, background: C.card, color: page >= totalPages ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page >= totalPages ? "not-allowed" : "pointer", fontSize: 12 }}>Next</button>
+            </div>
+          </div>
         </div>
       ) : (
       <div className="table-wrap" style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: "auto" }}>
@@ -678,7 +705,7 @@ export function Students() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((student, index) => (
+            {students.map((student, index) => (
               <tr key={student.id} style={{ borderBottom: `1px solid ${C.border}`, background: index % 2 === 0 ? C.card : "var(--row-alt)" }}>
                 <td style={{ padding: "10px 12px", fontWeight: 700, color: C.text }}>
                   <div>{student.name}</div>
@@ -687,14 +714,21 @@ export function Students() {
                 <td style={{ padding: "10px 12px", color: C.muted }}>{student.class}</td>
                 <td style={{ padding: "10px 12px", color: C.text }}>{student.roll}</td>
                 <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                  <button type="button" onClick={() => setViewing(student)} style={{ border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", marginRight: 6, fontWeight: 700 }}>{t.students.view}</button>
+                  <button type="button" onClick={() => openView(student)} style={{ border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", marginRight: 6, fontWeight: 700 }}>{t.students.view}</button>
                   <button type="button" onClick={() => startEdit(student)} style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontWeight: 700 }}>{t.common.edit}</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div style={{ padding: "10px 12px", color: C.muted, fontSize: 12, borderTop: `1px solid ${C.border}` }}>{tr("students.totalStudentsLine", { count: filtered.length })}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.border}`, flexWrap: "wrap" }}>
+          <div style={{ color: C.muted, fontSize: 12 }}>{tr("students.totalStudentsLine", { count: total })}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ border: `1px solid ${C.border}`, background: C.card, color: page <= 1 ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: 12 }}>Prev</button>
+            <span style={{ color: C.muted, fontSize: 12 }}>{page} / {totalPages}</span>
+            <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ border: `1px solid ${C.border}`, background: C.card, color: page >= totalPages ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page >= totalPages ? "not-allowed" : "pointer", fontSize: 12 }}>Next</button>
+          </div>
+        </div>
       </div>
       )}
 
