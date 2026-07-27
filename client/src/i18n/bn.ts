@@ -372,6 +372,12 @@ export const bn = {
     fileReadFailed: "ফাইল পড়া যায়নি",
     uploadFailed: "আপলোড ব্যর্থ হয়েছে",
     saveFailed: "ভর্তি সংরক্ষণ করা যায়নি",
+    admissionQueued: "অফলাইনে সংরক্ষিত হয়েছে — সংযোগ ফিরলে সিঙ্ক হবে",
+    pendingAdmissionsTitle: "সিঙ্ক বাকি ভর্তি",
+    temporary: "অস্থায়ী",
+    syncIssuesTitle: "সিঙ্ক সমস্যা — পর্যালোচনা প্রয়োজন",
+    syncIssueHint: "এই এন্ট্রিটি সার্ভারে সংরক্ষণ করা যায়নি। বাতিল করে সঠিক তথ্য দিয়ে আবার ভর্তি করুন।",
+    discardEntry: "বাতিল করুন",
   },
   hifz: {
     title: "হিফজ ট্র্যাকিং",

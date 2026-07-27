@@ -93,3 +93,14 @@ export async function countPendingOutboxEntries(): Promise<number> {
   const pending = await getPendingOutboxEntries();
   return pending.length;
 }
+
+/**
+ * All outbox entries (any status) for one endpoint — e.g. every queued or
+ * failed admission (`"/students"`, `"POST"`). Used by a screen's own
+ * "pending"/"needs review" panel (see modules/Students.tsx, Phase 4) rather
+ * than the generic count in useOnlineStatus, which only needs a total.
+ */
+export async function getOutboxEntriesFor(path: string, method: string): Promise<OutboxEntry[]> {
+  const all = await getAllOutboxEntries();
+  return all.filter((entry) => entry.path === path && entry.method === method);
+}

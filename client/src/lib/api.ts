@@ -240,6 +240,16 @@ export const api = {
   createStudent: (body: Partial<Student>) =>
     request<Student>("/students", { method: "POST", body: JSON.stringify(body) }),
 
+  // Offline-first Phase 4: admission can be queued when there's no
+  // connection, unlike createStudent above. Safe to queue because the
+  // server (a) assigns the real roll/admission number itself rather than
+  // trusting one from the client, and (b) re-runs its duplicate check at
+  // sync time and returns 409 rather than silently overwriting — see
+  // server/src/routes/students.js and offlineSync.ts's 4xx handling, which
+  // keeps a 409'd entry around as "failed" for modules/Students.tsx's
+  // review panel instead of discarding it.
+  createStudentOrQueue: (body: Partial<Student>) => requestOrQueue<Student>("/students", "POST", body),
+
   updateStudent: (id: number, body: Partial<Student>) =>
     request<Student>(`/students/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 

@@ -1,12 +1,12 @@
 /**
  * Flushes the offline outbox (see offlineDb.ts) once the browser reports it
- * is back online, and exposes a manual trigger for later phases' "Pending
+ * is back online, and exposes a manual trigger for a screen's "Pending
  * Sync" UI to call directly.
  *
- * Phase 0 only: nothing currently puts entries into the outbox, so
- * flushOutbox() runs against an empty queue in production today. It's wired
- * up now so Phase 2 (attendance) only needs to add the enqueue call at the
- * point of failure, not build this retry machinery from scratch.
+ * As of Phase 4 (admission), two screens enqueue into this: attendance
+ * (Phase 3, upsert-safe — a resend never conflicts) and admission (queued
+ * entries get a real roll/admission number assigned server-side at sync
+ * time, and may come back 409 on a duplicate — see the 4xx branch below).
  */
 import { getPendingOutboxEntries, removeOutboxEntry, updateOutboxEntryStatus } from "./offlineDb";
 
@@ -41,14 +41,21 @@ export async function flushOutbox(): Promise<FlushResult> {
         },
         body: entry.body != null ? JSON.stringify(entry.body) : undefined,
       });
-      if (res.ok || res.status === 409) {
-        // 409 (e.g. duplicate admission number) is a resolved outcome, not a
-        // transient failure — the server has already given a definitive
-        // answer, so retrying it again would just get the same answer.
-        // Surfacing it for manual review is a later-phase "Pending Sync" UI
-        // concern, not this foundation layer's job.
+      if (res.ok) {
         await removeOutboxEntry(entry.clientRequestId);
         synced += 1;
+      } else if (res.status >= 400 && res.status < 500) {
+        // A 4xx here is a definitive answer from the server (validation
+        // failure, duplicate admission number, etc) — retrying the exact
+        // same payload would just fail identically. Phase 4: rather than
+        // treating 409 as silently "resolved" (the old behavior), keep the
+        // entry as "failed" with the server's message so a screen's own
+        // "sync issues" panel can surface it for manual review — see
+        // modules/Students.tsx, which lists these next to the pending
+        // (still-queued) admissions.
+        const body = await res.json().catch(() => ({}) as { error?: string });
+        await updateOutboxEntryStatus(entry.clientRequestId, "failed", body.error || `HTTP ${res.status}`);
+        failed += 1;
       } else {
         await updateOutboxEntryStatus(entry.clientRequestId, "failed", `HTTP ${res.status}`);
         failed += 1;

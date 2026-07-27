@@ -374,6 +374,12 @@ export const en = {
     fileReadFailed: "Could not read file",
     uploadFailed: "Upload failed",
     saveFailed: "Admission could not be saved",
+    admissionQueued: "Saved offline — will sync when connection returns",
+    pendingAdmissionsTitle: "Admissions pending sync",
+    temporary: "Temporary",
+    syncIssuesTitle: "Sync issues — needs review",
+    syncIssueHint: "This entry could not be saved to the server. Discard it and re-enter the admission with corrected details.",
+    discardEntry: "Discard",
   },
   hifz: {
     title: "Hifz Tracking",

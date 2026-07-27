@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { SkeletonTableRows } from "../components/Skeleton";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
+import { Badge } from "../components/Badge";
 import { Button, Card, Field, Input, Select, Textarea } from "../components/ui";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { deptLabel, typeLabel } from "../lib/labels";
+import { getOutboxEntriesFor, removeOutboxEntry, type OutboxEntry } from "../lib/offlineDb";
 import { printAdmissionForm, printReportTable } from "../lib/printReport";
+import { C } from "../theme/colors";
 import type { Student, StudentDocuments } from "../types";
 import { useLanguage } from "../context/AppSettingsContext";
 import type { Dict } from "../i18n/bn";
@@ -182,6 +185,8 @@ export function Students() {
   const [attendanceSummary, setAttendanceSummary] = useState({ total: 0, present: 0, absent: 0, late: 0 });
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [pendingAdmissions, setPendingAdmissions] = useState<OutboxEntry[]>([]);
+  const [queuedMessage, setQueuedMessage] = useState("");
 
   // Real server-side pagination (LIST_COLUMNS only, no studentPhoto/documents)
   // instead of pulling every student's full record into the browser and
@@ -199,6 +204,40 @@ export function Students() {
     setTotal(data.total);
     setTotalPages(data.totalPages);
   }, [department, search, status, page, pageSize]);
+
+  // Locally-queued admissions (not yet on the server) and any that came
+  // back with a definitive error (e.g. duplicate admission number) at sync
+  // time — see offlineDb.ts / offlineSync.ts. Polled rather than event-
+  // driven for the same reason as useOnlineStatus's pendingCount: the
+  // outbox changes from several independent places (this screen's own
+  // submit, and the background flush on "online"), and polling is simpler
+  // than a pub/sub layer at this queue size.
+  //
+  // A .then()/.catch() chain rather than async/await so the effect below
+  // never calls setState synchronously in its own body (react-hooks
+  // set-state-in-effect) — same shape as useOnlineStatus.ts's refresh().
+  const loadPendingAdmissions = useCallback(() => {
+    getOutboxEntriesFor("/students", "POST")
+      .then((entries) => setPendingAdmissions(entries))
+      .catch(() => {
+        // IndexedDB unavailable (private browsing etc.) — not critical.
+      });
+  }, []);
+
+  useEffect(() => {
+    loadPendingAdmissions();
+    const interval = window.setInterval(loadPendingAdmissions, 5000);
+    window.addEventListener("online", loadPendingAdmissions);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("online", loadPendingAdmissions);
+    };
+  }, [loadPendingAdmissions]);
+
+  const discardOutboxEntry = async (clientRequestId: string) => {
+    await removeOutboxEntry(clientRequestId);
+    loadPendingAdmissions();
+  };
 
   // Any filter change should restart from page 1, since the current page
   // number may no longer exist under the new filter (see setSearch/
@@ -305,19 +344,43 @@ export function Students() {
     const nextErrors = validateFields(form, allRequired, t);
     setErrors(nextErrors);
     setMessage("");
+    setQueuedMessage("");
     if (Object.keys(nextErrors).length) return;
 
     const printWindow = window.open("", "_blank", "width=980,height=760");
     setSaving(true);
     try {
       const payload = { ...form, studentPhoto: form.documents.studentPhoto || form.studentPhoto || "" };
-      const saved = editing ? await api.updateStudent(editing.id, payload) : await api.createStudent(payload);
-      await load();
-      setEditing(saved);
-      setViewing(saved);
-      setShowForm(false);
-      setStep(0);
-      if (printWindow) printAdmissionForm(saved, printWindow);
+      if (editing) {
+        const saved = await api.updateStudent(editing.id, payload);
+        await load();
+        setEditing(saved);
+        setViewing(saved);
+        setShowForm(false);
+        setStep(0);
+        if (printWindow) printAdmissionForm(saved, printWindow);
+        return;
+      }
+
+      // New admission: offline-first Phase 4. The server assigns the real
+      // roll/admission number at sync time, so a queued entry has nothing
+      // to print yet — the popup opened above (needed synchronously, before
+      // any await, so browsers don't block it as a popup) is closed unused.
+      const result = await api.createStudentOrQueue(payload);
+      if (result.queued) {
+        if (printWindow && !printWindow.closed) printWindow.close();
+        loadPendingAdmissions();
+        setShowForm(false);
+        setStep(0);
+        setQueuedMessage(t.students.admissionQueued);
+      } else if (result.data) {
+        await load();
+        setEditing(result.data);
+        setViewing(result.data);
+        setShowForm(false);
+        setStep(0);
+        if (printWindow) printAdmissionForm(result.data, printWindow);
+      }
     } catch (err) {
       if (printWindow && !printWindow.closed) printWindow.close();
       setMessage(err instanceof Error ? err.message : t.students.saveFailed);
@@ -485,6 +548,9 @@ export function Students() {
     });
   };
 
+  const queuedAdmissions = pendingAdmissions.filter((entry) => entry.status !== "failed");
+  const failedAdmissions = pendingAdmissions.filter((entry) => entry.status === "failed");
+
   return (
     <div>
       <div className="page-header">
@@ -520,7 +586,45 @@ export function Students() {
         </Select>
       </div>
 
+      {queuedMessage && <div className="alert alert--amber">{queuedMessage}</div>}
       {message && <div className="alert alert--rose">{message}</div>}
+
+      {queuedAdmissions.length > 0 && (
+        <div className="alert alert--amber">
+          <div className="sync-panel__title">
+            {t.students.pendingAdmissionsTitle} ({queuedAdmissions.length})
+          </div>
+          {queuedAdmissions.map((entry) => {
+            const body = entry.body as Partial<Student>;
+            return (
+              <div key={entry.clientRequestId} className="row row--gap-8 row--wrap sync-panel__row">
+                <Badge label={t.students.temporary} color={C.amber} />
+                <span>{body.name || "—"}</span>
+                <span className="table-pagination__info">{body.class}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {failedAdmissions.length > 0 && (
+        <div className="alert alert--rose">
+          <div className="sync-panel__title">{t.students.syncIssuesTitle}</div>
+          <div className="sync-panel__hint">{t.students.syncIssueHint}</div>
+          {failedAdmissions.map((entry) => {
+            const body = entry.body as Partial<Student>;
+            return (
+              <div key={entry.clientRequestId} className="row row--gap-8 row--wrap sync-panel__row">
+                <span>{body.name || "—"}</span>
+                <span className="table-pagination__info">{entry.lastError}</span>
+                <Button variant="outline" onClick={() => discardOutboxEntry(entry.clientRequestId)}>
+                  {t.students.discardEntry}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {showForm && (
         <div className="form-section">

@@ -513,6 +513,24 @@ img {
   background: #ffe4e6; /* C.roseL */
 }
 
+.alert--amber {
+  color: #b45309; /* C.amberD */
+  background: #fef3c7; /* C.amberL */
+}
+
+.sync-panel__title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.sync-panel__hint {
+  margin-bottom: 8px;
+}
+
+.sync-panel__row {
+  margin-bottom: 6px;
+}
+
 /* Reports module */
 .reports-grid {
   display: grid;
