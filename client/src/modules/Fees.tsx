@@ -1,17 +1,25 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../components/Badge";
+import { Button } from "../components/ui/Button";
 import { ReceiptModal } from "../components/ReceiptModal";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { StatCard } from "../components/StatCard";
+import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
+import { getOutboxEntriesFor, removeOutboxEntry, type OutboxEntry } from "../lib/offlineDb";
 import { C } from "../theme/colors";
 import type { Payment, Student } from "../types";
 
 export function Fees() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  // Mirrors the server's isApprovalRole() in lib/deleteRequests.js — kept
+  // as an inline check here rather than a new shared util (AGENTS.md Rule 1:
+  // minimal diff; this is the only place on the client that needs it today).
+  const canReviewFlags = user?.role === "Super Admin" || user?.role === "Admin";
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [tab, setTab] = useState("payments");
   const [showReceipt, setShowReceipt] = useState<Payment | null>(null);
@@ -23,6 +31,12 @@ export function Fees() {
   const payPageSize = 25;
   const [loadError, setLoadError] = useState(false);
   const [method, setMethod] = useState("নগদ");
+  const [paySaving, setPaySaving] = useState(false);
+  const [payError, setPayError] = useState("");
+  const [queuedMessage, setQueuedMessage] = useState("");
+  const [pendingPayments, setPendingPayments] = useState<OutboxEntry[]>([]);
+  const [flaggedPayments, setFlaggedPayments] = useState<Payment[]>([]);
+  const [resolveError, setResolveError] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -54,28 +68,118 @@ export function Fees() {
     };
   }, [payPage, payPageSize]);
 
+  // Locally-queued payments not yet reached the server (offline-first
+  // Phase 5, see lib/offlineDb.ts / offlineSync.ts) — same polling pattern
+  // as modules/Students.tsx's pendingAdmissions (Phase 4): the outbox
+  // changes from this screen's own submit AND the background flush on
+  // "online", so polling is simpler here than a pub/sub layer.
+  const loadPendingPayments = useCallback(() => {
+    getOutboxEntriesFor("/payments", "POST")
+      .then((entries) => setPendingPayments(entries))
+      .catch(() => {
+        // IndexedDB unavailable (private browsing etc.) — not critical.
+      });
+  }, []);
+
+  // Payments that reached the server but were flagged instead of
+  // auto-processed (see server/src/routes/payments.js isConflict). Only
+  // Admin/Super Admin can see or resolve these.
+  const loadFlaggedPayments = useCallback(() => {
+    if (!canReviewFlags) return;
+    api
+      .getFlaggedPayments()
+      .then((rows) => setFlaggedPayments(rows))
+      .catch(() => {
+        // Best-effort — the flagged panel just stays empty/stale.
+      });
+  }, [canReviewFlags]);
+
+  useEffect(() => {
+    loadPendingPayments();
+    loadFlaggedPayments();
+    const interval = window.setInterval(() => {
+      loadPendingPayments();
+      loadFlaggedPayments();
+    }, 5000);
+    window.addEventListener("online", loadPendingPayments);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("online", loadPendingPayments);
+    };
+  }, [loadPendingPayments, loadFlaggedPayments]);
+
+  const discardQueuedPayment = async (clientRequestId: string) => {
+    await removeOutboxEntry(clientRequestId);
+    loadPendingPayments();
+  };
+
+  const resolveFlag = async (id: number, action: "confirm" | "void") => {
+    setResolveError("");
+    try {
+      await api.resolvePaymentFlag(id, action);
+      setFlaggedPayments((prev) => prev.filter((p) => p.id !== id));
+      // A confirmed flag now has a real income entry / due deduction on
+      // the server — refresh the lists so the payments/due tabs reflect it
+      // instead of waiting for the next unrelated navigation.
+      const [paymentData, studentData] = await Promise.all([
+        api.getPaymentsPage({ page: payPage, limit: payPageSize }),
+        api.getStudentsBasic({ status: "Active" }),
+      ]);
+      setPayments(Array.isArray(paymentData?.items) ? paymentData.items : []);
+      setStudents(Array.isArray(studentData?.items) ? studentData.items : []);
+    } catch (err) {
+      setResolveError(err instanceof Error ? err.message : t.fees.resolveFailed);
+    }
+  };
+
   const dueStudents = students.filter((s) => s.due > 0);
   const totalCollected = payments.reduce((s, p) => s + (p.amount || 0), 0);
 
+  // Existing pre-Phase-5 code compared status to "সম্পন্ন" (Bengali) even
+  // though the server sends "Completed" (English) — left as-is per
+  // AGENTS.md Rule 1 (not this task's scope). Flagged/Voided are new
+  // statuses introduced by this task, so they're handled explicitly here.
+  const paymentStatusColor = (status: string) => {
+    if (status === "Flagged") return C.rose;
+    if (status === "Voided") return C.muted;
+    return status === "সম্পন্ন" ? C.emerald : C.amber;
+  };
+
+  // Offline-first Phase 5: queue on no connection instead of the old
+  // behavior of fabricating a fake receipt in the UI on ANY error (which
+  // showed "success" without saving or queuing anything). A real HTTP
+  // error (e.g. student not found, invalid amount) is now shown as an
+  // error rather than masked.
   const handlePayment = async () => {
     if (!payStudent) return;
+    setPayError("");
+    setQueuedMessage("");
     const amount = Number(payAmount) || payStudent.fee;
+    setPaySaving(true);
     try {
-      const p = await api.createPayment({ studentId: payStudent.id, amount, method });
-      setPayments((prev) => [p, ...prev]);
-      setStudents((prev) => prev.map((s) => (s.id === payStudent.id ? { ...s, due: Math.max(0, s.due - amount) } : s)));
-      setShowReceipt(p);
-    } catch {
-      setShowReceipt({
-        id: payments.length + 1,
-        student: payStudent.name,
-        roll: payStudent.roll,
-        amount,
-        date: new Date().toLocaleDateString("bn-BD"),
-        receipt: `RCP-2025-${String(payments.length + 1).padStart(3, "0")}`,
-        method,
-        status: "সম্পন্ন",
-      });
+      const result = await api.createPaymentOrQueue({ studentId: payStudent.id, amount, method });
+      if (result.queued) {
+        loadPendingPayments();
+        setQueuedMessage(t.fees.paymentQueued);
+      } else if (result.data) {
+        const savedPayment = result.data;
+        setPayments((prev) => [savedPayment, ...prev]);
+        if (result.data.status === "Flagged") {
+          // Reached the server, but the due was already 0 by then — this
+          // is not a normal success, so no receipt is printed yet; it
+          // shows up in the review panel below instead (see loadFlaggedPayments).
+          loadFlaggedPayments();
+        } else {
+          setStudents((prev) =>
+            prev.map((s) => (s.id === payStudent.id ? { ...s, due: Math.max(0, s.due - amount) } : s))
+          );
+          setShowReceipt(result.data);
+        }
+      }
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : t.students.saveFailed);
+    } finally {
+      setPaySaving(false);
     }
     setPayAmount("");
     setTab("payments");
@@ -105,6 +209,54 @@ export function Fees() {
         ))}
       </div>
 
+      {queuedMessage && <div className="alert alert--amber">{queuedMessage}</div>}
+      {payError && <div className="alert alert--rose">{payError}</div>}
+      {resolveError && <div className="alert alert--rose">{resolveError}</div>}
+
+      {pendingPayments.length > 0 && (
+        <div className="alert alert--amber">
+          <div className="sync-panel__title">
+            {t.fees.pendingPaymentsTitle} ({pendingPayments.length})
+          </div>
+          <div className="sync-panel__hint">{t.fees.provisionalReceiptHint}</div>
+          {pendingPayments.map((entry) => {
+            const body = entry.body as { studentId?: number; amount?: number; method?: string };
+            const student = students.find((s) => s.id === body.studentId);
+            return (
+              <div key={entry.clientRequestId} className="row row--gap-8 row--wrap sync-panel__row">
+                <Badge label={t.fees.provisionalReceiptTitle} color={C.amber} />
+                <span>{student?.name || `#${body.studentId ?? "—"}`}</span>
+                <span className="table-pagination__info">{fmt(body.amount || 0)}</span>
+                <Button variant="outline" onClick={() => discardQueuedPayment(entry.clientRequestId)}>
+                  {t.fees.discardQueuedPayment}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {canReviewFlags && flaggedPayments.length > 0 && (
+        <div className="alert alert--rose">
+          <div className="sync-panel__title">
+            {t.fees.flaggedPaymentsTitle} ({flaggedPayments.length})
+          </div>
+          <div className="sync-panel__hint">{t.fees.flaggedPaymentHint}</div>
+          {flaggedPayments.map((p) => (
+            <div key={p.id} className="row row--gap-8 row--wrap sync-panel__row">
+              <span style={{ fontWeight: 600 }}>{p.student}</span>
+              <span className="table-pagination__info">{fmt(p.amount)} — {p.receipt}</span>
+              <Button variant="emerald" onClick={() => resolveFlag(p.id, "confirm")}>
+                {t.fees.confirmFlag}
+              </Button>
+              <Button variant="rose" onClick={() => resolveFlag(p.id, "void")}>
+                {t.fees.voidFlag}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {tab === "payments" && (
         isMobile ? (
           <RecordCardList>
@@ -118,7 +270,7 @@ export function Fees() {
                   { label: "রসিদ নং", value: <span style={{ fontFamily: "monospace", color: C.teal, fontWeight: 600 }}>{p.receipt}</span> },
                   { label: "তারিখ", value: p.date },
                   { label: "মাধ্যম", value: <Badge label={p.method} color={C.sky} /> },
-                  { label: "স্ট্যাটাস", value: <Badge label={p.status} color={p.status === "সম্পন্ন" ? C.emerald : C.amber} /> },
+                  { label: "স্ট্যাটাস", value: <Badge label={p.status} color={paymentStatusColor(p.status)} /> },
                 ]}
                 actions={
                   <button type="button" onClick={() => setShowReceipt(p)} style={{ flex: 1, background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🧾 রসিদ</button>
@@ -150,7 +302,7 @@ export function Fees() {
                   <td style={{ padding: "10px 14px", fontWeight: 700, color: C.emerald }}>{fmt(p.amount)}</td>
                   <td style={{ padding: "10px 14px", color: C.muted }}>{p.date}</td>
                   <td style={{ padding: "10px 14px" }}><Badge label={p.method} color={C.sky} /></td>
-                  <td style={{ padding: "10px 14px" }}><Badge label={p.status} color={p.status === "সম্পন্ন" ? C.emerald : C.amber} /></td>
+                  <td style={{ padding: "10px 14px" }}><Badge label={p.status} color={paymentStatusColor(p.status)} /></td>
                   <td style={{ padding: "10px 14px" }}>
                     <button type="button" onClick={() => setShowReceipt(p)} style={{ background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🧾 রসিদ</button>
                   </td>
@@ -243,8 +395,8 @@ export function Fees() {
                 ))}
               </div>
             </div>
-            <button type="button" onClick={handlePayment} style={{ width: "100%", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>
-              ✅ বেতন গ্রহণ করুন ও রসিদ তৈরি করুন
+            <button type="button" disabled={paySaving} onClick={handlePayment} style={{ width: "100%", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: paySaving ? "default" : "pointer", fontSize: 15, opacity: paySaving ? 0.7 : 1 }}>
+              {paySaving ? "⏳ সংরক্ষণ হচ্ছে..." : "✅ বেতন গ্রহণ করুন ও রসিদ তৈরি করুন"}
             </button>
           </div>
         </div>

@@ -70,6 +70,8 @@ export interface Payment {
   receipt: string;
   method: string;
   status: string;
+  /** Only set when status is "Flagged" — why it needs Super Admin/Admin review (see payments.js). */
+  flagReason?: string;
 }
 
 export interface IncomeEntry {

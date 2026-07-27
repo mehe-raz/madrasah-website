@@ -145,6 +145,15 @@ export interface QueuedResult<T> {
  * request rather than creating a duplicate, even if the live attempt had
  * actually reached the server before the connection dropped.
  */
+// Phase 6 kill-switch: set VITE_OFFLINE_QUEUE_ENABLED=false (and redeploy)
+// to instantly revert every screen that calls requestOrQueue back to
+// "fails normally when offline, nothing queues" — the pre-Phase-3
+// behavior — without a code change. Meant for the staged rollout in
+// docs/OFFLINE_FIRST_TESTING.md: if the sync/flag mechanism itself turns
+// out to have a problem, this is the fast rollback lever while a real fix
+// is prepared.
+const OFFLINE_QUEUE_ENABLED = import.meta.env.VITE_OFFLINE_QUEUE_ENABLED !== "false";
+
 async function requestOrQueue<T>(path: string, method: string, body: unknown): Promise<QueuedResult<T>> {
   const clientRequestId = generateClientRequestId();
   try {
@@ -156,6 +165,7 @@ async function requestOrQueue<T>(path: string, method: string, body: unknown): P
     return { data, queued: false };
   } catch (e) {
     if (!(e instanceof NetworkError)) throw e;
+    if (!OFFLINE_QUEUE_ENABLED) throw e;
     await enqueueOutboxEntry({ clientRequestId, path, method, body });
     return { data: null, queued: true };
   }
@@ -296,6 +306,22 @@ export const api = {
 
   createPayment: (body: { studentId: number; amount: number; method: string }) =>
     request<Payment>("/payments", { method: "POST", body: JSON.stringify(body) }),
+
+  // Offline-first Phase 5: fee collection can be queued the same way as
+  // admission (Phase 4, see createStudentOrQueue). The client only queues
+  // and later re-fetches — server/src/routes/payments.js decides at sync
+  // time whether the payment is safe to auto-process or needs Super
+  // Admin/Admin review (see its isConflict check).
+  createPaymentOrQueue: (body: { studentId: number; amount: number; method: string }) =>
+    requestOrQueue<Payment>("/payments", "POST", body),
+
+  getFlaggedPayments: () => request<Payment[]>("/payments/flagged"),
+
+  resolvePaymentFlag: (id: number, action: "confirm" | "void") =>
+    request<{ ok: boolean; status: string }>(`/payments/${id}/resolve-flag`, {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    }),
 
   getIncomeCategories: () => request<string[]>("/income/categories"),
 
