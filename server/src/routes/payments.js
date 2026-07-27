@@ -3,6 +3,7 @@ const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { nextReceipt } = require("../lib/receiptCounter");
 const { recordAudit } = require("../lib/auditLog");
+const { idempotent } = require("../middleware/idempotency");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -38,7 +39,7 @@ router.get("/", async (req, res) => {
   res.json(await db.all("SELECT * FROM payments ORDER BY id DESC"));
 });
 
-router.post("/", async (req, res) => {
+router.post("/", idempotent(async (req, res) => {
   const { studentId, amount, method } = req.body;
   const student = await db.get("SELECT id, name, roll, due FROM students WHERE id = $1", [studentId]);
   if (!student) return res.status(404).json({ error: "Student not found" });
@@ -95,7 +96,7 @@ router.post("/", async (req, res) => {
   });
 
   res.status(201).json({ id: insertId, ...payment });
-});
+}));
 
 // Exposed for unit testing only; does not affect route behavior.
 router.clampInt = clampInt;

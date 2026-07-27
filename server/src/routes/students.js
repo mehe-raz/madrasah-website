@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
+const { idempotent } = require("../middleware/idempotency");
 const PDFDocument = require("pdfkit");
 const {
   RETURNING_COLUMNS,
@@ -259,7 +260,7 @@ router.get("/:id", async (req, res) => {
   res.json({ ...row, attendanceSummary });
 });
 
-router.post("/", async (req, res) => {
+router.post("/", idempotent(async (req, res) => {
   const student = admissionFromBody(req.body, { status: "Active", due: 0, discount: 0, para: 0 });
   if (!student.admissionNumber) student.admissionNumber = await nextAdmissionNumber(student.admissionDate);
 
@@ -294,7 +295,7 @@ router.post("/", async (req, res) => {
     if (duplicateMessage) return res.status(409).json({ error: duplicateMessage });
     throw err;
   }
-});
+}));
 
 router.patch("/:id", async (req, res) => {
   const existing = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);

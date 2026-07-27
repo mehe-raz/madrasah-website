@@ -40,13 +40,30 @@ function readCsrfToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+// Phase 0 of the offline-first work: every mutating request now carries a
+// client-generated id, whether or not the offline queue (a later phase)
+// ever touches it. The server's idempotency middleware
+// (server/src/middleware/idempotency.js) uses this to recognize "this exact
+// request was already processed" if a flaky connection causes a retry — so
+// wiring it in now, before any form actually queues offline, means later
+// phases only have to add the enqueue call, not touch this plumbing.
+function generateClientRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const csrfToken = readCsrfToken();
+  const method = (options?.method || "GET").toUpperCase();
+  const isMutation = method !== "GET" && method !== "HEAD";
   const res = await fetch(`${API}${path}`, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+      ...(isMutation ? { "X-Client-Request-Id": generateClientRequestId() } : {}),
       ...options?.headers,
     },
     ...options,

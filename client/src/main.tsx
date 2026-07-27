@@ -3,7 +3,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { AppSettingsProvider } from "./context/AppSettingsContext";
 import { PublicSiteProvider } from "./context/PublicSiteContext";
+import { initOfflineSync } from "./lib/offlineSync";
 import "./index.css";
+
+initOfflineSync();
 
 const cached = localStorage.getItem("madrasah-settings");
 if (cached) {
