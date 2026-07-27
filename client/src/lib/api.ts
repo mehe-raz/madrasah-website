@@ -26,6 +26,7 @@ import type {
   StudentResult,
   User,
 } from "../types";
+import { cacheGetResponse, getCachedGetResponse } from "./offlineCache";
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
@@ -58,16 +59,32 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const csrfToken = readCsrfToken();
   const method = (options?.method || "GET").toUpperCase();
   const isMutation = method !== "GET" && method !== "HEAD";
-  const res = await fetch(`${API}${path}`, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-      ...(isMutation ? { "X-Client-Request-Id": generateClientRequestId() } : {}),
-      ...options?.headers,
-    },
-    ...options,
-  });
+
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+        ...(isMutation ? { "X-Client-Request-Id": generateClientRequestId() } : {}),
+        ...options?.headers,
+      },
+      ...options,
+    });
+  } catch (networkError) {
+    // fetch() itself throwing (as opposed to resolving with a non-ok
+    // status) means there was no round trip at all — offline, DNS failure,
+    // connection refused. Only THIS case falls back to the cache; a real
+    // HTTP error response from a reachable server should never be masked
+    // by stale data (see the res.ok check below, which does not fall back).
+    if (!isMutation) {
+      const cached = await getCachedGetResponse<T>(path);
+      if (cached) return cached.value;
+    }
+    throw networkError;
+  }
+
   if (res.status === 401) {
     throw new Error("UNAUTHORIZED");
   }
@@ -76,7 +93,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(err.error || `HTTP ${res.status}`);
   }
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const data = (await res.json()) as T;
+  if (!isMutation) {
+    // Fire-and-forget: caching is a courtesy for the next offline visit,
+    // never something the current request should wait on or fail over.
+    cacheGetResponse(path, data).catch(() => {});
+  }
+  return data;
 }
 
 export const api = {

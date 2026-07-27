@@ -15,6 +15,13 @@ export const en = {
     settings: "Settings",
     auditLogs: "Audit Logs",
   },
+  offline: {
+    online: "Online",
+    offline: "Offline — no internet connection",
+    viewingCached: "Showing saved data",
+    cachedAt: "Last updated: {time}",
+    pendingSync: "{count} entries pending sync",
+  },
   common: {
     select: "Select",
     save: "Save",

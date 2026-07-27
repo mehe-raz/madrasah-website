@@ -13,6 +13,13 @@ export const bn = {
     settings: "সেটিংস",
     auditLogs: "অডিট লগ",
   },
+  offline: {
+    online: "অনলাইন",
+    offline: "অফলাইন — ইন্টারনেট সংযোগ নেই",
+    viewingCached: "সংরক্ষিত তথ্য দেখানো হচ্ছে",
+    cachedAt: "সর্বশেষ আপডেট: {time}",
+    pendingSync: "{count} টি এন্ট্রি সিঙ্ক বাকি",
+  },
   common: {
     select: "নির্বাচন করুন",
     save: "সংরক্ষণ করুন",

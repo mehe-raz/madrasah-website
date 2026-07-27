@@ -1963,3 +1963,48 @@ img {
   border-radius: 20px;
   white-space: nowrap;
 }
+
+/* OfflineStatusBar — connectivity/outbox banner shown across every
+   authenticated screen (see Layout.tsx). Colors are a fixed two-state
+   design choice (online/offline), not per-instance dynamic data, so they
+   are static classes rather than an inline-style eslint-disable exception. */
+.offline-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.offline-bar--online {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.offline-bar--offline {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.offline-bar__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.offline-bar--online .offline-bar__dot {
+  background: #0ea5e9;
+}
+
+.offline-bar--offline .offline-bar__dot {
+  background: #f59e0b;
+}
+
+.offline-bar__pending {
+  color: var(--muted);
+  font-weight: 500;
+}

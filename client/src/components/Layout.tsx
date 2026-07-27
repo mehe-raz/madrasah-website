@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
+import { OfflineStatusBar } from "./OfflineStatusBar";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -91,6 +92,7 @@ export function Layout() {
       )}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         <Topbar onToggleSidebar={() => setSidebarOpen((o) => !o)} onLogout={handleLogout} />
+        <OfflineStatusBar />
         <main className="main-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
           <Outlet />
         </main>
