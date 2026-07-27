@@ -12,6 +12,7 @@ export function Attendance() {
   const [dept, setDept] = useState<string>("All");
   const [att, setAtt] = useState<Student[]>([]);
   const [saved, setSaved] = useState(false);
+  const [queued, setQueued] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -40,13 +41,21 @@ export function Attendance() {
     setSaving(true);
     setError("");
     try {
-      await api.saveAttendance(
+      const result = await api.saveAttendance(
         att.map((s) => ({ studentId: s.id, status: s.att || "উপস্থিত" })),
         date
       );
-      load();
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      if (result.queued) {
+        // Nothing actually reached the server yet — reloading now would
+        // just overwrite these selections with the (stale) server state.
+        // The outbox flushes automatically once the connection returns.
+        setQueued(true);
+        setTimeout(() => setQueued(false), 3000);
+      } else {
+        load();
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
     } catch (err) {
       // Previously this was swallowed and the button still flashed "Saved"
       // even when nothing reached the server — a teacher could believe
@@ -70,9 +79,12 @@ export function Attendance() {
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 8px", fontSize: 13, color: C.text, background: C.card }} />
           </div>
         </div>
-        <button type="button" disabled={saving} onClick={handleSave} style={{ background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", fontSize: 14, opacity: saving ? 0.7 : 1 }}>
-          {saving ? "…" : saved ? t.common.saved : t.common.save}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {queued && <Badge label={t.offline.queuedForSync} color={C.amber} />}
+          <button type="button" disabled={saving} onClick={handleSave} style={{ background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", fontSize: 14, opacity: saving ? 0.7 : 1 }}>
+            {saving ? "…" : saved ? t.common.saved : t.common.save}
+          </button>
+        </div>
       </div>
 
       {error && (

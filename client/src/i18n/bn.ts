@@ -19,6 +19,7 @@ export const bn = {
     viewingCached: "সংরক্ষিত তথ্য দেখানো হচ্ছে",
     cachedAt: "সর্বশেষ আপডেট: {time}",
     pendingSync: "{count} টি এন্ট্রি সিঙ্ক বাকি",
+    queuedForSync: "অফলাইনে সংরক্ষিত — অনলাইন হলে সিঙ্ক হবে",
   },
   common: {
     select: "নির্বাচন করুন",

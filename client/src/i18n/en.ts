@@ -21,6 +21,7 @@ export const en = {
     viewingCached: "Showing saved data",
     cachedAt: "Last updated: {time}",
     pendingSync: "{count} entries pending sync",
+    queuedForSync: "Saved offline — will sync when back online",
   },
   common: {
     select: "Select",

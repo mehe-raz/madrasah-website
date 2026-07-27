@@ -4,6 +4,7 @@ const { requirePermission } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
 const { attendanceSaveSchema } = require("../lib/opsSchemas");
+const { idempotent } = require("../middleware/idempotency");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -32,7 +33,7 @@ router.get("/", async (req, res) => {
 
 // The 5000-record cap on a single save is enforced in the zod schema
 // (lib/opsSchemas.js attendanceSaveSchema) rather than here.
-router.post("/", validate(attendanceSaveSchema), async (req, res) => {
+router.post("/", validate(attendanceSaveSchema), idempotent(async (req, res) => {
   const { date: reqDate, records } = req.body;
   const date = reqDate || today();
   if (records.length === 0) return res.json({ ok: true, date });
@@ -67,6 +68,6 @@ router.post("/", validate(attendanceSaveSchema), async (req, res) => {
     details: { date, count: records.length },
   });
   res.json({ ok: true, date });
-});
+}));
 
 module.exports = router;

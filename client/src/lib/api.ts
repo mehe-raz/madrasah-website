@@ -27,6 +27,7 @@ import type {
   User,
 } from "../types";
 import { cacheGetResponse, getCachedGetResponse } from "./offlineCache";
+import { enqueueOutboxEntry } from "./offlineDb";
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
@@ -55,22 +56,40 @@ function generateClientRequestId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+// Thrown only when fetch() itself failed to complete a round trip (offline,
+// DNS failure, connection refused) — never for an HTTP error response that
+// did reach the server. requestOrQueue() below relies on this distinction
+// to decide whether a failed mutation is safe to queue for later retry: an
+// HTTP 400/403/etc is a definitive answer already, so queuing it would just
+// fail again identically once synced.
+export class NetworkError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = "NetworkError";
+  }
+}
+
+async function request<T>(path: string, options?: RequestInit & { clientRequestId?: string }): Promise<T> {
+  // Pulled out separately (rather than left inside the spread below) so a
+  // caller-supplied id — used by requestOrQueue() to keep the SAME id
+  // between the live attempt and the outbox entry — always wins, and so it
+  // never leaks into the native fetch() call as a stray RequestInit key.
+  const { clientRequestId: explicitClientRequestId, ...fetchOptions } = options ?? {};
   const csrfToken = readCsrfToken();
-  const method = (options?.method || "GET").toUpperCase();
+  const method = (fetchOptions.method || "GET").toUpperCase();
   const isMutation = method !== "GET" && method !== "HEAD";
 
   let res: Response;
   try {
     res = await fetch(`${API}${path}`, {
+      ...fetchOptions,
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-        ...(isMutation ? { "X-Client-Request-Id": generateClientRequestId() } : {}),
-        ...options?.headers,
+        ...(isMutation ? { "X-Client-Request-Id": explicitClientRequestId ?? generateClientRequestId() } : {}),
+        ...fetchOptions.headers,
       },
-      ...options,
     });
   } catch (networkError) {
     // fetch() itself throwing (as opposed to resolving with a non-ok
@@ -82,7 +101,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       const cached = await getCachedGetResponse<T>(path);
       if (cached) return cached.value;
     }
-    throw networkError;
+    throw new NetworkError(networkError);
   }
 
   if (res.status === 401) {
@@ -100,6 +119,46 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     cacheGetResponse(path, data).catch(() => {});
   }
   return data;
+}
+
+export interface QueuedResult<T> {
+  /** null when queued — nothing came back from the server yet. */
+  data: T | null;
+  /** true if this was saved to the offline outbox instead of reaching the
+   *  server; the caller (see modules/Attendance.tsx) should show a "pending
+   *  sync" state rather than treating it as a normal success. */
+  queued: boolean;
+}
+
+/**
+ * Offline-first Phase 3: for mutations where losing connectivity mid-submit
+ * shouldn't be a hard failure — currently only attendance, since its
+ * ON CONFLICT upsert makes a retried save safe to resend as-is (see
+ * server/src/routes/attendance.js). Admission and payment forms still call
+ * `request()` directly and fail normally offline; they need their own
+ * conflict-handling (temporary numbers, 409 review flagging — Phases 4/5)
+ * before it's safe to queue them the same way.
+ *
+ * The SAME clientRequestId is used for the live attempt and, if that fails
+ * with a NetworkError, the outbox entry — so when offlineSync.ts resends it
+ * later, the server's idempotency middleware recognizes it as the same
+ * request rather than creating a duplicate, even if the live attempt had
+ * actually reached the server before the connection dropped.
+ */
+async function requestOrQueue<T>(path: string, method: string, body: unknown): Promise<QueuedResult<T>> {
+  const clientRequestId = generateClientRequestId();
+  try {
+    const data = await request<T>(path, {
+      method,
+      body: JSON.stringify(body),
+      clientRequestId,
+    });
+    return { data, queued: false };
+  } catch (e) {
+    if (!(e instanceof NetworkError)) throw e;
+    await enqueueOutboxEntry({ clientRequestId, path, method, body });
+    return { data: null, queued: true };
+  }
 }
 
 export const api = {
@@ -213,10 +272,7 @@ export const api = {
   },
 
   saveAttendance: (records: { studentId: number; status: string }[], date?: string) =>
-    request<{ ok: boolean }>("/attendance", {
-      method: "POST",
-      body: JSON.stringify({ date, records }),
-    }),
+    requestOrQueue<{ ok: boolean; date?: string }>("/attendance", "POST", { date, records }),
 
   getPayments: () => request<Payment[]>("/payments"),
 
