@@ -97,4 +97,7 @@ router.post("/", async (req, res) => {
   res.status(201).json({ id: insertId, ...payment });
 });
 
+// Exposed for unit testing only; does not affect route behavior.
+router.clampInt = clampInt;
+
 module.exports = router;
