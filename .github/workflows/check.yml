@@ -1,0 +1,33 @@
+name: CI Check
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install client dependencies
+        run: npm install --prefix client
+
+      - name: Install server dependencies
+        run: npm install --prefix server
+
+      - name: Run project check (sync-roles + lint/typecheck + build + server syntax check)
+        run: npm run check
