@@ -1,0 +1,6 @@
+{
+  "name": "Madrasah Website Dev",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "postCreateCommand": "npm install && npm install --prefix client && npm install --prefix server",
+  "forwardPorts": [5173, 10000]
+}
