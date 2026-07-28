@@ -1,5 +1,17 @@
 require("dotenv").config({ quiet: true });
 
+// Error monitoring (optional): initialized before any other require() so it
+// can catch errors thrown during startup too. No-ops completely when
+// SENTRY_DSN is unset (local/dev/CI), so this is safe to leave in without a
+// Sentry account — see .env.example for how to enable it.
+const Sentry = require("@sentry/node");
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  enabled: Boolean(process.env.SENTRY_DSN),
+  environment: process.env.NODE_ENV || "development",
+  tracesSampleRate: 0.1,
+});
+
 function validateEnv() {
   console.log(`Booting NODE_ENV=${process.env.NODE_ENV || "undefined"}`);
   console.log(`PORT=${process.env.PORT || "10000 (default)"}`);
@@ -276,6 +288,12 @@ app.use("/api/site-content", require("./routes/siteContent"));
 app.use("/api/admissions", require("./routes/admissions"));
 app.use("/api/notifications", require("./routes/notifications"));
 
+// Reports any error thrown/passed to next() by the routes above to Sentry
+// (no-op when SENTRY_DSN is unset, same as Sentry.init above) — must be
+// registered after all routes and before any other error-handling
+// middleware so it sees the original error.
+Sentry.setupExpressErrorHandler(app);
+
 if (process.env.NODE_ENV === "production") {
   app.use(
     express.static(clientDist, {
@@ -298,6 +316,12 @@ if (process.env.NODE_ENV === "production") {
     res.sendFile(path.join(clientDist, "index.html"));
   });
 }
+
+// Background jobs (registry schema init, billing's auto-suspend sweep below)
+// and any other async code that runs outside a request never passes through
+// Sentry.setupExpressErrorHandler above, so catch those here too.
+process.on("unhandledRejection", (err) => Sentry.captureException(err));
+process.on("uncaughtException", (err) => Sentry.captureException(err));
 
 async function start() {
   try {
