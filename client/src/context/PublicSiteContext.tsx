@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -86,6 +87,16 @@ export function PublicSiteProvider({ children }: { children: ReactNode }) {
   const [content, setContent] = useState<SiteContent>(cached?.content ?? FALLBACK_CONTENT);
   const [loading, setLoading] = useState(!cached);
   const fetchedRef = useRef(false);
+
+  // Public pages read this as var(--brand) instead of a hardcoded hex, so an
+  // institution's chosen color (Settings > brandColor) takes effect without
+  // any component needing to know where the value came from. Scoped to
+  // documentElement here (not a plain <style> on the public layout) because
+  // this provider only ever wraps public pages — it never runs on the
+  // authenticated admin dashboard, so this can't bleed into it.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--brand", site.brandColor || FALLBACK_SETTINGS.brandColor);
+  }, [site.brandColor]);
 
   const ensureLoaded = useCallback(() => {
     // Admin/dashboard pages never call usePublicSite(), so this never runs

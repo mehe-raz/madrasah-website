@@ -20,7 +20,12 @@ async function getAllSettings() {
 // could silently overwrite backupConfig with an unvalidated value, bypassing
 // the number-clamping and destination-path checks in routes/backup.js
 // saveConfig(). backupConfig now has to go through that route instead.
-const ALLOWED_KEYS = new Set(["name", "address", "phone", "email", "footer", "logo", "lang", "theme", "currency"]);
+const ALLOWED_KEYS = new Set(["name", "address", "phone", "email", "footer", "logo", "lang", "theme", "currency", "brandColor"]);
+
+// brandColor is rendered straight into inline CSS on the public site (see
+// client's usePublicSite), so it's validated as a strict 6-digit hex color
+// here rather than accepted as free text like the other keys.
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 router.get("/", async (_req, res) => {
   res.json(await getAllSettings());
@@ -33,6 +38,7 @@ router.put("/", async (req, res) => {
     for (const [k, v] of Object.entries(req.body)) {
       if (!ALLOWED_KEYS.has(k)) continue;
       const value = String(v);
+      if (k === "brandColor" && !HEX_COLOR_RE.test(value)) continue;
       applied[k] = value;
       await tx.run(
         "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",

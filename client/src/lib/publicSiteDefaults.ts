@@ -16,6 +16,7 @@ export const FALLBACK_SETTINGS: PublicSettings = {
   phone: "",
   email: "",
   footer: "দ্বীনি ও আধুনিক শিক্ষার সমন্বয়ে একটি নির্ভরযোগ্য প্রতিষ্ঠান।",
+  brandColor: "#0ea5e9",
 };
 
 export const FALLBACK_CONTENT: SiteContent = {

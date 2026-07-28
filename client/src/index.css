@@ -20,6 +20,10 @@
   --radius-card: 26px;
   --radius-pill: 999px;
   --link: #0ea5e9;
+  /* Default matches theme/colors.ts C.sky — overridden at runtime per
+     institution by PublicSiteContext once its settings load (Settings >
+     brandColor). Never touched by the admin dashboard. */
+  --brand: #0ea5e9;
 }
 
 [data-theme="dark"] {

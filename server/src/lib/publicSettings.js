@@ -7,7 +7,13 @@ const db = require("./../db");
 // page can show the institution's real name/logo/address/phone/email
 // instead of placeholder text — without ever risking a future settings
 // field leaking publicly by accident.
-const PUBLIC_KEYS = ["name", "logo", "address", "phone", "email", "footer"];
+const PUBLIC_KEYS = ["name", "logo", "address", "phone", "email", "footer", "brandColor"];
+
+// Falls back to the site's current default accent (sky blue) when an
+// institution hasn't picked its own brand color yet, so existing tenants
+// keep looking exactly the same after this field was added.
+const DEFAULT_BRAND_COLOR = "#0ea5e9";
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 async function getPublicSettings() {
   const rows = await db.all(
@@ -22,6 +28,7 @@ async function getPublicSettings() {
     phone: map.phone || "",
     email: map.email || "",
     footer: map.footer || "",
+    brandColor: HEX_COLOR_RE.test(map.brandColor || "") ? map.brandColor : DEFAULT_BRAND_COLOR,
   };
 }
 

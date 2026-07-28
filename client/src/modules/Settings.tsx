@@ -394,6 +394,13 @@ export function Settings() {
                 <InfoRow label={t.settings.phone} value={settings.phone} />
                 <InfoRow label={t.settings.email} value={settings.email} />
                 <InfoRow label={t.settings.footer} value={settings.footer} />
+                <div style={{ padding: "9px 0" }}>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t.settings.brandColor}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 6, background: settings.brandColor || "#0ea5e9", border: `1px solid ${C.border}`, display: "inline-block" }} />
+                    <span style={{ fontSize: 14, color: C.text, fontWeight: 600 }}>{settings.brandColor || "#0ea5e9"}</span>
+                  </div>
+                </div>
                 {settings.logo && <img src={settings.logo} alt="Logo" loading="lazy" decoding="async" style={{ maxHeight: 64, marginTop: 12, borderRadius: 8 }} />}
               </div>
             )}
@@ -410,6 +417,25 @@ export function Settings() {
                 <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 8 }}>{t.settings.logo}</label>
                 {settings.logo && <img src={settings.logo} alt="Logo" style={{ maxHeight: 64, marginBottom: 8, borderRadius: 8 }} />}
                 <input type="file" accept="image/*" onChange={(e) => handleLogo(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 5 }}>{t.settings.brandColor}</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <input
+                    type="color"
+                    value={settings.brandColor || "#0ea5e9"}
+                    onChange={(e) => update("brandColor", e.target.value)}
+                    style={{ width: 44, height: 36, padding: 0, border: `1px solid ${C.border}`, borderRadius: 8, background: "none", cursor: "pointer" }}
+                  />
+                  <input
+                    type="text"
+                    value={settings.brandColor || "#0ea5e9"}
+                    onChange={(e) => update("brandColor", e.target.value)}
+                    placeholder="#0ea5e9"
+                    style={{ flex: 1, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, boxSizing: "border-box", color: C.text, background: C.card, fontFamily: "monospace" }}
+                  />
+                </div>
+                <p style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>{t.settings.brandColorHint}</p>
               </div>
             </div>
           </div>

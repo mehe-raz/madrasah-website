@@ -34,6 +34,15 @@ export const C = {
   muted: "var(--muted)",
   slateL: "var(--slate-l)",
   link: "#0ea5e9",
+
+  // Public-site-only: the institution's own accent color (Settings >
+  // brandColor), applied as --brand by PublicSiteContext. Falls back to the
+  // same sky-blue used everywhere else until an institution picks its own.
+  // brandL/brandD are derived with CSS color-mix() (no extra JS/deps) for
+  // light-tint badges and a darker hover/pressed state.
+  brand: "var(--brand)",
+  brandL: "color-mix(in srgb, var(--brand) 16%, white)",
+  brandD: "color-mix(in srgb, var(--brand) 80%, black)",
 } as const;
 
 export const PIE_COLORS = [C.sky, C.emerald, C.amber, C.violet];

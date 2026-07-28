@@ -126,6 +126,8 @@ export const bn = {
     actions: "কার্যক্রম",
     logo: "ওয়েবসাইট লোগো",
     uploadLogo: "লোগো আপলোড",
+    brandColor: "ওয়েবসাইটের রং",
+    brandColorHint: "পাবলিক ওয়েবসাইটের বাটন ও অ্যাকসেন্টে এই রং ব্যবহার হবে",
     backup: "ডেটা ব্যাকআপ",
     downloadBackup: "ব্যাকআপ ডাউনলোড (.sql)",
     logout: "লগ আউট",

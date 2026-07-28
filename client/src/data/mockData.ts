@@ -37,6 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lang: "bn",
   theme: "light",
   logo: "",
+  brandColor: "#0ea5e9",
 };
 
 export const MOCK_DASHBOARD: DashboardData = {

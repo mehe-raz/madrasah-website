@@ -204,11 +204,11 @@ export function Home() {
                   className="pill hover-lift shine-on-hover"
                   style={{
                     textDecoration: "none",
-                    background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`,
+                    background: C.brand,
                     color: "#fff",
                     padding: "13px 22px",
                     fontWeight: 900,
-                    boxShadow: "0 16px 32px rgba(16, 185, 129, 0.18)",
+                    boxShadow: "0 16px 32px color-mix(in srgb, var(--brand) 30%, transparent)",
                   }}
                 >
                   ভর্তি হন
@@ -230,7 +230,7 @@ export function Home() {
               </div>
             </div>
             <div style={{ display: "grid", gap: 10 }}>
-              <Link to="/admission" className="pill hover-lift" style={{ textDecoration: "none", background: `linear-gradient(135deg, ${C.sky}, ${C.emerald})`, color: "#fff", padding: "12px 18px", fontWeight: 900, textAlign: "center" }}>
+              <Link to="/admission" className="pill hover-lift" style={{ textDecoration: "none", background: C.brand, color: "#fff", padding: "12px 18px", fontWeight: 900, textAlign: "center" }}>
                 ভর্তি শুরু করুন
               </Link>
               <Link to="/gallery" className="pill hover-lift" style={{ textDecoration: "none", background: C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 18px", fontWeight: 900, textAlign: "center" }}>

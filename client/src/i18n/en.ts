@@ -128,6 +128,8 @@ export const en = {
     actions: "Actions",
     logo: "Website Logo",
     uploadLogo: "Upload Logo",
+    brandColor: "Website Color",
+    brandColorHint: "Used for buttons and accents on the public website",
     backup: "Data Backup",
     downloadBackup: "Download backup (.sql)",
     logout: "Log out",

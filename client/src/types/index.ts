@@ -148,6 +148,7 @@ export interface Settings {
   lang: string;
   theme: string;
   logo?: string;
+  brandColor?: string;
   backupConfig?: string;
 }
 
@@ -160,6 +161,7 @@ export interface PublicSettings {
   phone: string;
   email: string;
   footer: string;
+  brandColor: string;
 }
 
 export interface SiteHighlight {
