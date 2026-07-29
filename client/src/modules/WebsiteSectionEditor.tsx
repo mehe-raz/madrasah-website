@@ -304,7 +304,7 @@ export function WebsiteSectionEditor() {
     let cancelled = false;
     setLoading(true);
     api
-      .getPublicSiteContent()
+      .getDraftSiteContent()
       .then((data) => {
         if (cancelled) return;
         setContent({ ...EMPTY_CONTENT, ...data });
@@ -1097,6 +1097,9 @@ export function WebsiteSectionEditor() {
         >
           {saving ? t.students.saving : saved ? "✓ সংরক্ষিত হয়েছে" : "সংরক্ষণ করুন"}
         </button>
+        <span style={{ fontSize: 12, color: C.muted }}>
+          এটি শুধু ড্রাফট হিসেবে সংরক্ষণ হবে — পাবলিক সাইটে দেখাতে "ওয়েবসাইট ম্যানেজমেন্ট" পেজ থেকে প্রিভিউ করে প্রকাশ করুন।
+        </span>
         <Link to="/website" style={{ textDecoration: "none", color: C.text, fontWeight: 800, fontSize: 13 }}>
           সেকশন লিস্টে ফিরুন
         </Link>

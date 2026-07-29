@@ -168,4 +168,44 @@ async function saveSiteContent(input) {
   return content;
 }
 
-module.exports = { getSiteContent, saveSiteContent, sanitizeContent, DEFAULT_CONTENT };
+// --- Draft / Publish ---------------------------------------------------
+// Section edits used to write straight into SETTINGS_KEY, so the public
+// site changed the instant an admin hit "Save" — no way to check how a
+// change looks before visitors see it. DRAFT_SETTINGS_KEY holds the
+// in-progress version instead; only publishSiteContent() below copies it
+// into the live key that /api/public/site-content actually reads.
+const DRAFT_SETTINGS_KEY = "siteContentDraft";
+
+async function getDraftSiteContent() {
+  const row = await db.get("SELECT value FROM settings WHERE key = $1", [DRAFT_SETTINGS_KEY]);
+  if (!row) return getSiteContent(); // nothing drafted yet — start from what's live
+  try {
+    return sanitizeContent(JSON.parse(row.value));
+  } catch {
+    return getSiteContent();
+  }
+}
+
+async function saveDraftSiteContent(input) {
+  const content = sanitizeContent(input);
+  await db.run(
+    "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+    [DRAFT_SETTINGS_KEY, JSON.stringify(content)]
+  );
+  return content;
+}
+
+async function publishSiteContent() {
+  const draft = await getDraftSiteContent();
+  return saveSiteContent(draft);
+}
+
+module.exports = {
+  getSiteContent,
+  saveSiteContent,
+  getDraftSiteContent,
+  saveDraftSiteContent,
+  publishSiteContent,
+  sanitizeContent,
+  DEFAULT_CONTENT,
+};

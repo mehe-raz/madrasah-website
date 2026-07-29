@@ -292,7 +292,7 @@ export function Website() {
           </p>
         </div>
         <a
-          href="/"
+          href="/website/preview"
           target="_blank"
           rel="noreferrer"
           className="pill hover-lift"
@@ -309,7 +309,7 @@ export function Website() {
             flexShrink: 0,
           }}
         >
-          লাইভ পেজ দেখুন ↗
+          প্রিভিউ দেখুন ↗
         </a>
       </div>
 

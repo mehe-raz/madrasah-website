@@ -338,17 +338,28 @@ export const api = {
   saveSettings: (settings: Settings) =>
     request<Settings>("/settings", { method: "PUT", body: JSON.stringify(settings) }),
 
-  // Public: no login required. Powers both the logged-out visitor page and
-  // the admin website-control form's initial load.
+  // Public: no login required. Powers the logged-out visitor page (always
+  // the published/live copy).
   getPublicSiteContent: () => request<SiteContent>("/public/site-content"),
 
   // Public: no login required. Institution name/logo/address/phone/email/
   // footer for the logged-out visitor page — see PublicSettings type.
   getPublicSettings: () => request<PublicSettings>("/public/settings"),
 
-  // Admin / Super Admin only (enforced server-side by the "website" permission).
+  // Admin / Super Admin only. Loads the section editor's *draft* copy —
+  // in-progress edits nobody outside the admin panel can see yet.
+  getDraftSiteContent: () => request<SiteContent>("/site-content"),
+
+  // Admin / Super Admin only (enforced server-side by the "website"
+  // permission). Saves to the draft copy — the public site is untouched
+  // until publishSiteContent() below is called.
   saveSiteContent: (content: SiteContent) =>
     request<SiteContent>("/site-content", { method: "PUT", body: JSON.stringify(content) }),
+
+  // Admin / Super Admin only, and requires full "website" access even for
+  // editors otherwise scoped to just gallery/notices. Copies the current
+  // draft live so visitors see it.
+  publishSiteContent: () => request<SiteContent>("/site-content/publish", { method: "POST" }),
 
   // Public: no login required. Submits the "ভর্তি" (admission) form from
   // the marketing site. Server enforces its own rate limit + validation.

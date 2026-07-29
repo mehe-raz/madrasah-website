@@ -14,21 +14,21 @@ import type { PublicSettings, SiteContent } from "../types";
 
 const CACHE_KEY = "madrasah-public-site";
 
-interface PublicSiteContextValue {
+export interface PublicSiteContextValue {
   site: PublicSettings;
   content: SiteContent;
   loading: boolean;
   ensureLoaded: () => void;
 }
 
-const PublicSiteContext = createContext<PublicSiteContextValue | null>(null);
+export const PublicSiteContext = createContext<PublicSiteContextValue | null>(null);
 
 // Respect whatever the admin actually saved, including a field left
 // deliberately empty — do NOT substitute FALLBACK_CONTENT here. That
 // constant is only for the "API unreachable" / "nothing cached yet" case,
 // never for a successful response that happens to contain an empty
 // string/array. (Same rule the old per-page usePublicSite.ts followed.)
-function normalizeContent(data: Partial<SiteContent>): SiteContent {
+export function normalizeContent(data: Partial<SiteContent>): SiteContent {
   return {
     badge: data.badge ?? "",
     heroSubtitle: data.heroSubtitle ?? "",

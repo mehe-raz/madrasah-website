@@ -23,6 +23,7 @@ const Results = lazy(() => import("./modules/Results").then((m) => ({ default: m
 const Settings = lazy(() => import("./modules/Settings").then((m) => ({ default: m.Settings })));
 const Students = lazy(() => import("./modules/Students").then((m) => ({ default: m.Students })));
 const Website = lazy(() => import("./modules/Website").then((m) => ({ default: m.Website })));
+const WebsitePreview = lazy(() => import("./pages/WebsitePreview").then((m) => ({ default: m.WebsitePreview })));
 const WebsiteSectionEditor = lazy(() => import("./modules/WebsiteSectionEditor").then((m) => ({ default: m.WebsiteSectionEditor })));
 const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })));
 const ResetPassword = lazy(() => import("./pages/ResetPassword").then((m) => ({ default: m.ResetPassword })));
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/notices" element={<Notices />} />
             <Route path="/result" element={<ResultLookup />} />
             <Route element={<ProtectedRoute />}>
+              <Route path="website/preview" element={<WebsitePreview />} />
               <Route element={<Layout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="students" element={<Students />} />

@@ -1,7 +1,7 @@
 const express = require("express");
 const { canAccess } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
-const { getSiteContent, saveSiteContent } = require("../lib/siteContent");
+const { getDraftSiteContent, saveDraftSiteContent, publishSiteContent } = require("../lib/siteContent");
 
 const router = express.Router();
 
@@ -38,8 +38,12 @@ function stableStringify(value) {
   return JSON.stringify(value);
 }
 
+// Draft/publish split: this whole router now reads and writes the DRAFT
+// copy only. The public site (/api/public/site-content, registered
+// separately in index.js) always reads the live copy, so nothing a
+// section editor saves here reaches visitors until POST /publish below.
 router.get("/", async (_req, res) => {
-  res.json(await getSiteContent());
+  res.json(await getDraftSiteContent());
 });
 
 router.put("/", async (req, res) => {
@@ -47,7 +51,7 @@ router.put("/", async (req, res) => {
   if (!hasFullWebsite) {
     const hasGallery = canAccess(req.user.role, "websiteGallery");
     const hasNotices = canAccess(req.user.role, "websiteNotices");
-    const current = await getSiteContent();
+    const current = await getDraftSiteContent();
     for (const key of Object.keys(req.body || {})) {
       const allowed = (hasGallery && GALLERY_KEYS.has(key)) || (hasNotices && NOTICES_KEYS.has(key));
       if (allowed) continue;
@@ -58,13 +62,32 @@ router.put("/", async (req, res) => {
     }
   }
 
-  const content = await saveSiteContent(req.body);
+  const content = await saveDraftSiteContent(req.body);
   await recordAudit({
-    action: "site-content.updated",
+    action: "site-content.draft-saved",
     actor: req.user,
     entityType: "siteContent",
     entityId: 0,
-    label: "Updated public website content",
+    label: "Saved a draft of the public website content",
+    details: content,
+  });
+  res.json(content);
+});
+
+// Copies the current draft into the live copy that visitors see. Requires
+// full "website" access — publishing affects every section at once, not
+// just whichever field a gallery/notices-only editor is scoped to.
+router.post("/publish", async (req, res) => {
+  if (!canAccess(req.user.role, "website")) {
+    return res.status(403).json({ error: "প্রকাশ করার অনুমতি নেই" });
+  }
+  const content = await publishSiteContent();
+  await recordAudit({
+    action: "site-content.published",
+    actor: req.user,
+    entityType: "siteContent",
+    entityId: 0,
+    label: "Published the public website content",
     details: content,
   });
   res.json(content);
