@@ -11,7 +11,13 @@ const MAX_GALLERY = 24;
 const MAX_ADMISSION_STEPS = 6;
 
 const DEFAULT_CONTENT = {
-  badge: "ডেমো ওয়েবসাইট — শীঘ্রই সম্পূর্ণ চালু হচ্ছে",
+  // Empty by default (not a "Demo website" label) — same pattern as
+  // heroSubtitle/aboutIntro/etc below. The Home page already hides the
+  // badge entirely when it's falsy (see client/src/pages/Home.tsx), so a
+  // freshly-provisioned tenant's public homepage shows nothing here until
+  // an admin sets real content from the Website module, instead of
+  // showing "Demo website — coming soon" to real visitors.
+  badge: "",
   heroSubtitle: "",
   highlights: [
     { icon: "🏛️", label: "প্রতিষ্ঠাকাল থেকে সুনামের সাথে পরিচালিত" },

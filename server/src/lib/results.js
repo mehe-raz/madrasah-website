@@ -16,6 +16,39 @@ function sanitizeSubjects(list) {
   }));
 }
 
+// Standard Bangladesh SSC/HSC-style grading scale (percentage -> letter
+// grade + GPA point), applied to obtainedMarks/totalMarks. This replaces
+// trusting a free-text gpa/grade typed in by whoever enters the result —
+// previously nothing stopped e.g. 45/100 being saved alongside a
+// hand-typed grade of "A+", since the two fields were unrelated inputs.
+const GRADE_SCALE = [
+  { min: 80, grade: "A+", gpa: 5.0 },
+  { min: 70, grade: "A", gpa: 4.0 },
+  { min: 60, grade: "A-", gpa: 3.5 },
+  { min: 50, grade: "B", gpa: 3.0 },
+  { min: 40, grade: "C", gpa: 2.0 },
+  { min: 33, grade: "D", gpa: 1.0 },
+  { min: 0, grade: "F", gpa: 0.0 },
+];
+
+function computeGrade(obtainedMarks, totalMarks, subjects) {
+  if (!totalMarks || totalMarks <= 0) return { gpa: "0.00", grade: "F" };
+
+  // Any single subject below the pass mark (33%) fails the whole result,
+  // same rule Bangladeshi boards use — a high overall percentage can't
+  // paper over one failed subject.
+  const failedSubject = Array.isArray(subjects) && subjects.some((s) => {
+    const full = Number(s.fullMarks) || 0;
+    if (full <= 0) return false;
+    return ((Number(s.marks) || 0) / full) * 100 < 33;
+  });
+  if (failedSubject) return { gpa: "0.00", grade: "F" };
+
+  const pct = (obtainedMarks / totalMarks) * 100;
+  const tier = GRADE_SCALE.find((t) => pct >= t.min) || GRADE_SCALE[GRADE_SCALE.length - 1];
+  return { gpa: tier.gpa.toFixed(2), grade: tier.grade };
+}
+
 function parseSubjects(row) {
   if (!row) return row;
   return { ...row, subjects: typeof row.subjects === "string" ? JSON.parse(row.subjects) : row.subjects };
@@ -66,6 +99,10 @@ async function upsertResult(input) {
   const subjects = sanitizeSubjects(input.subjects);
   const obtainedMarks = subjects.reduce((sum, s) => sum + s.marks, 0);
   const totalMarks = subjects.reduce((sum, s) => sum + s.fullMarks, 0);
+  // gpa/grade are always derived from the marks above, never taken from
+  // input — see computeGrade(). Any gpa/grade sent in the request body is
+  // ignored so the two can't drift apart.
+  const { gpa, grade } = computeGrade(obtainedMarks, totalMarks, subjects);
 
   const row = await db.get(
     `INSERT INTO results
@@ -92,8 +129,8 @@ async function upsertResult(input) {
       JSON.stringify(subjects),
       totalMarks,
       obtainedMarks,
-      cleanText(input.gpa, 10),
-      cleanText(input.grade, 20),
+      gpa,
+      grade,
     ]
   );
   return parseSubjects(row);
@@ -135,4 +172,4 @@ async function searchPublicResult({ class: className, roll, examName }) {
   return rows.map(parseSubjects);
 }
 
-module.exports = { listResults, upsertResult, setPublished, deleteResult, searchPublicResult, sanitizeSubjects };
+module.exports = { listResults, upsertResult, setPublished, deleteResult, searchPublicResult, sanitizeSubjects, computeGrade };

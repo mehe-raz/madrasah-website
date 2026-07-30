@@ -18,6 +18,33 @@ const inputStyle = {
 
 const emptySubject: ResultSubjectMark = { name: "", marks: 0, fullMarks: 100 };
 
+// Mirrors server/src/lib/results.js computeGrade() exactly, so the preview
+// shown while entering marks matches what the server will actually save.
+// This is a preview only — the server recomputes independently and ignores
+// any gpa/grade sent from the client, so the two can never drift apart.
+const GRADE_SCALE = [
+  { min: 80, grade: "A+", gpa: 5.0 },
+  { min: 70, grade: "A", gpa: 4.0 },
+  { min: 60, grade: "A-", gpa: 3.5 },
+  { min: 50, grade: "B", gpa: 3.0 },
+  { min: 40, grade: "C", gpa: 2.0 },
+  { min: 33, grade: "D", gpa: 1.0 },
+  { min: 0, grade: "F", gpa: 0.0 },
+];
+
+function computeGrade(obtainedMarks: number, totalMarks: number, subjects: ResultSubjectMark[]) {
+  if (!totalMarks || totalMarks <= 0) return { gpa: "0.00", grade: "F" };
+  const failedSubject = subjects.some((s) => {
+    const full = Number(s.fullMarks) || 0;
+    if (full <= 0) return false;
+    return ((Number(s.marks) || 0) / full) * 100 < 33;
+  });
+  if (failedSubject) return { gpa: "0.00", grade: "F" };
+  const pct = (obtainedMarks / totalMarks) * 100;
+  const tier = GRADE_SCALE.find((t) => pct >= t.min) || GRADE_SCALE[GRADE_SCALE.length - 1];
+  return { gpa: tier.gpa.toFixed(2), grade: tier.grade };
+}
+
 export function Results() {
   const { t } = useLanguage();
 
@@ -29,8 +56,6 @@ export function Results() {
   const [examName, setExamName] = useState("");
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [subjects, setSubjects] = useState<ResultSubjectMark[]>([{ ...emptySubject }]);
-  const [gpa, setGpa] = useState("");
-  const [grade, setGrade] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -85,8 +110,6 @@ export function Results() {
         examName: examName.trim(),
         year: year.trim(),
         subjects: subjects.filter((s) => s.name.trim()),
-        gpa: gpa.trim(),
-        grade: grade.trim(),
       });
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2200);
@@ -212,14 +235,14 @@ export function Results() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14, marginBottom: 18 }}>
-          <label>
+          <div>
             <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 5 }}>{t.results.gpa}</span>
-            <input value={gpa} onChange={(e) => setGpa(e.target.value)} style={inputStyle} placeholder="5.00" />
-          </label>
-          <label>
+            <div style={{ ...inputStyle, background: C.slateL }}>{computeGrade(totalObtained, totalFull, subjects).gpa}</div>
+          </div>
+          <div>
             <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 5 }}>{t.results.grade}</span>
-            <input value={grade} onChange={(e) => setGrade(e.target.value)} style={inputStyle} placeholder="A+" />
-          </label>
+            <div style={{ ...inputStyle, background: C.slateL }}>{computeGrade(totalObtained, totalFull, subjects).grade}</div>
+          </div>
           <div>
             <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 5 }}>{t.results.total}</span>
             <div style={{ ...inputStyle, background: C.slateL }}>
