@@ -1,6 +1,6 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
+import { useSeoMeta } from "../hooks/useSeoMeta";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
@@ -16,9 +16,11 @@ const principles = [
 export function About() {
   const { site, content, loading } = usePublicSite();
 
-  useEffect(() => {
-    document.title = `আমাদের সম্পর্কে — ${site.name}`;
-  }, [site.name]);
+  useSeoMeta({
+    title: `আমাদের সম্পর্কে — ${site.name}`,
+    description: content.aboutIntro || `${site.name}-এর ইতিহাস, লক্ষ্য ও শিক্ষাদান পদ্ধতি সম্পর্কে জানুন।`,
+    image: site.logo || undefined,
+  });
 
   if (loading) return <PublicPageSkeleton />;
 

@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { usePublicSite } from "../hooks/usePublicSite";
+import { useSeoMeta } from "../hooks/useSeoMeta";
 import { api } from "../lib/api";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
@@ -27,9 +28,11 @@ export function ResultLookup() {
   const [error, setError] = useState("");
   const [results, setResults] = useState<PublicResult[]>([]);
 
-  useEffect(() => {
-    document.title = `ফলাফল দেখুন — ${site.name}`;
-  }, [site.name]);
+  useSeoMeta({
+    title: `ফলাফল দেখুন — ${site.name}`,
+    description: `${site.name}-এর পরীক্ষার ফলাফল অনলাইনে দেখুন — ক্লাস ও রোল নম্বর দিয়ে খুঁজুন।`,
+    index: false,
+  });
 
   const search = async (e: FormEvent) => {
     e.preventDefault();

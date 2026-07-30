@@ -188,3 +188,4 @@ async function tenantResolve(req, res, next) {
 
 module.exports = tenantResolve;
 module.exports.withTenantByCode = withTenantByCode;
+module.exports.extractTenantCode = extractTenantCode;

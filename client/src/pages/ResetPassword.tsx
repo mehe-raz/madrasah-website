@@ -1,6 +1,7 @@
 import { useState, type CSSProperties, type FormEvent, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
+import { useSeoMeta } from "../hooks/useSeoMeta";
 import { C } from "../theme/colors";
 
 const inputStyle: CSSProperties = {
@@ -22,6 +23,8 @@ export function ResetPassword() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useSeoMeta({ title: "পাসওয়ার্ড রিসেট", index: false });
 
   // Emails now contain a plain 6-digit code, not a clickable link, so this
   // page no longer requires a ?token= query param — the code is typed in by

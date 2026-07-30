@@ -221,6 +221,54 @@ app.get("/api/public/settings", async (_req, res) => {
   res.json(await getPublicSettings());
 });
 
+// robots.txt / sitemap.xml — generated per-request (not static files) so the
+// Sitemap directive and every <loc> below use the actual request host. That
+// matters here because each tenant is reachable on its own subdomain/custom
+// domain (see middleware/tenantResolve.js) — a single static file couldn't
+// point at the right host for all of them. Only the public marketing routes
+// (INDEXABLE_PUBLIC_PATHS) are listed; admin/auth-gated paths are excluded
+// via Disallow below instead, matching the noindex default in
+// lib/seoMeta.js for any path outside PUBLIC_ROUTES.
+app.get("/robots.txt", (req, res) => {
+  const origin = `${req.protocol}://${req.get("host")}`;
+  res.type("text/plain").send(
+    [
+      "User-agent: *",
+      "Allow: /",
+      "Disallow: /login",
+      "Disallow: /reset-password",
+      "Disallow: /website/preview",
+      "Disallow: /students",
+      "Disallow: /attendance",
+      "Disallow: /income",
+      "Disallow: /fees",
+      "Disallow: /expenses",
+      "Disallow: /hifz",
+      "Disallow: /results",
+      "Disallow: /reports",
+      "Disallow: /website",
+      "Disallow: /admissions",
+      "Disallow: /settings",
+      "Disallow: /audit-logs",
+      "Disallow: /api/",
+      "",
+      `Sitemap: ${origin}/sitemap.xml`,
+      "",
+    ].join("\n")
+  );
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  const { INDEXABLE_PUBLIC_PATHS } = require("./lib/seoMeta");
+  const origin = `${req.protocol}://${req.get("host")}`;
+  const urls = INDEXABLE_PUBLIC_PATHS.map(
+    (p) => `  <url><loc>${origin}${p}</loc></url>`
+  ).join("\n");
+  res.type("application/xml").send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
+  );
+});
+
 // Public, unauthenticated: the "ভর্তি" (admission) form on the marketing
 // site submits here directly — no login exists yet at that point in the
 // visitor's journey. Rate-limited harder than the general API since it's
@@ -295,6 +343,13 @@ app.use("/api/notifications", require("./routes/notifications"));
 Sentry.setupExpressErrorHandler(app);
 
 if (process.env.NODE_ENV === "production") {
+  const fs = require("fs");
+  const { buildSeoMeta, injectSeoMeta } = require("./lib/seoMeta");
+  // Read once at boot — dist/index.html is a build artifact that never
+  // changes without a redeploy (which restarts this process anyway), so
+  // there's no point re-reading it from disk on every request.
+  const indexHtmlTemplate = fs.readFileSync(path.join(clientDist, "index.html"), "utf8");
+
   app.use(
     express.static(clientDist, {
       // Vite fingerprints JS/CSS/image chunk filenames with a content hash,
@@ -302,6 +357,14 @@ if (process.env.NODE_ENV === "production") {
       // "forever" in the browser. index.html itself is NOT hashed, so it
       // must never be cached (must always revalidate) or users get stuck
       // on an old app shell after a deploy.
+      //
+      // Without this, express.static's own default ("/" → serve
+      // index.html straight off disk) would intercept every request to
+      // "/" before it ever reached the catch-all below, so the home page
+      // — the single most-shared/most-crawled URL on the whole site —
+      // would never get its per-route SEO meta injected. Turning it off
+      // routes "/" (and every other path) through the catch-all instead.
+      index: false,
       setHeaders(res, filePath) {
         if (filePath.endsWith("index.html")) {
           res.setHeader("Cache-Control", "no-cache");
@@ -311,9 +374,40 @@ if (process.env.NODE_ENV === "production") {
       },
     })
   );
-  app.get(/.*/, (_req, res) => {
+  app.get(/.*/, async (req, res) => {
     res.setHeader("Cache-Control", "no-cache");
-    res.sendFile(path.join(clientDist, "index.html"));
+    try {
+      const { getPublicSettings } = require("./lib/publicSettings");
+      const { getSiteContent } = require("./lib/siteContent");
+      const origin = `${req.protocol}://${req.get("host")}`;
+
+      const fetchMeta = async () => {
+        const [site, content] = await Promise.all([getPublicSettings(), getSiteContent()]);
+        return buildSeoMeta(req.path, site, content, origin);
+      };
+
+      // tenantResolve (registered above) only runs for /api/* paths, so this
+      // route — unlike /api/public/settings & /api/public/site-content — is
+      // never given a resolved tenant automatically. In multi-tenant mode,
+      // resolve the same Host-derived tenant an API call from this same
+      // page would get, using the exact logic tenantResolve.js itself uses,
+      // so the injected title/description/logo are the visiting
+      // institution's own, not whichever schema happens to be default.
+      let meta;
+      if (process.env.MULTI_TENANT_MODE === "true") {
+        const { extractTenantCode, withTenantByCode } = require("./middleware/tenantResolve");
+        const code = extractTenantCode(req);
+        meta = code ? await withTenantByCode(code, fetchMeta) : buildSeoMeta(req.path, {}, {}, origin);
+      } else {
+        meta = await fetchMeta();
+      }
+
+      res.type("html").send(injectSeoMeta(indexHtmlTemplate, meta));
+    } catch (err) {
+      // SEO injection is a nice-to-have on top of the app shell, not a
+      // dependency of it — a DB hiccup here should never break navigation.
+      res.sendFile(path.join(clientDist, "index.html"));
+    }
   });
 }
 

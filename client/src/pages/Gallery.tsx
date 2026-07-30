@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { usePublicSite } from "../hooks/usePublicSite";
+import { useSeoMeta } from "../hooks/useSeoMeta";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
@@ -11,9 +12,11 @@ export function Gallery() {
   const photos = content.gallery;
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    document.title = `গ্যালারি — ${site.name}`;
-  }, [site.name]);
+  useSeoMeta({
+    title: `${content.galleryHeroTitle || "গ্যালারি"} — ${site.name}`,
+    description: content.galleryHeroSubtitle || `${site.name}-এর ক্যাম্পাস ও কার্যক্রমের ছবি দেখুন।`,
+    image: photos[0]?.url || site.logo || undefined,
+  });
 
   // Keyboard support for the lightbox: Escape closes, arrow keys move
   // between photos — only wired up while it's actually open.

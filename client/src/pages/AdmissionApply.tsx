@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
+import { useSeoMeta } from "../hooks/useSeoMeta";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
@@ -53,10 +54,15 @@ export function AdmissionApply() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ id: number } | null>(null);
 
+  useSeoMeta({
+    title: `ভর্তি ফর্ম — ${site.name}`,
+    description: `${site.name}-এ অনলাইনে ভর্তি আবেদন করুন।`,
+    index: false,
+  });
+
   useEffect(() => {
-    document.title = `ভর্তি ফর্ম — ${site.name}`;
     window.scrollTo(0, 0);
-  }, [site.name]);
+  }, []);
 
   useEffect(() => {
     if (preselected) setForm((f) => ({ ...f, className: preselected }));

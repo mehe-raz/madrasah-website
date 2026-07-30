@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { usePublicSite } from "../hooks/usePublicSite";
+import { useSeoMeta } from "../hooks/useSeoMeta";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
@@ -21,9 +22,11 @@ export function Notices() {
   const { site, content, loading } = usePublicSite();
   const [showOlder, setShowOlder] = useState(false);
 
-  useEffect(() => {
-    document.title = `নোটিসেস — ${site.name}`;
-  }, [site.name]);
+  useSeoMeta({
+    title: `নোটিসেস — ${site.name}`,
+    description: `${site.name}-এর সাম্প্রতিক নোটিস ও ঘোষণা দেখুন।`,
+    image: site.logo || undefined,
+  });
 
   const { recent, older } = useMemo(() => {
     const sixMonthsAgo = monthsAgo(6);

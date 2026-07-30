@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
+import { useSeoMeta } from "../hooks/useSeoMeta";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
@@ -20,10 +21,16 @@ export function Home() {
   const { site, content, loading } = usePublicSite();
   const fallbackName = site.name || "মাদ্রাসা";
 
+  useSeoMeta({
+    title: `${fallbackName} — স্বাগতম`,
+    description:
+      content.heroSubtitle || `${fallbackName}-এ স্বাগতম — শিক্ষার্থী ভর্তি, ক্লাস, নোটিস ও পরীক্ষার ফলাফল সম্পর্কে সব তথ্য এখানে।`,
+    image: site.logo || undefined,
+  });
+
   useEffect(() => {
-    document.title = `${fallbackName} — স্বাগতম`;
     window.scrollTo(0, 0);
-  }, [fallbackName]);
+  }, []);
 
   const latestNotice = useMemo(() => {
     if (!content.notices.length) return null;

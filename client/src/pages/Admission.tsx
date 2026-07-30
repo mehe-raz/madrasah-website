@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
+import { useSeoMeta } from "../hooks/useSeoMeta";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
@@ -10,10 +11,15 @@ export function Admission() {
   const { site, content, loading } = usePublicSite();
   const navigate = useNavigate();
 
+  useSeoMeta({
+    title: `${content.admissionTitle || "ভর্তি"} — ${site.name}`,
+    description: content.admissionSubtitle || `${site.name}-এ ভর্তির নিয়মকানুন ও প্রক্রিয়া সম্পর্কে জানুন।`,
+    image: site.logo || undefined,
+  });
+
   useEffect(() => {
-    document.title = `ভর্তি — ${site.name}`;
     window.scrollTo(0, 0);
-  }, [site.name]);
+  }, []);
 
   if (loading) return <PublicPageSkeleton />;
 

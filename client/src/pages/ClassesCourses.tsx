@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePublicSite } from "../hooks/usePublicSite";
+import { useSeoMeta } from "../hooks/useSeoMeta";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -12,10 +13,15 @@ export function ClassesCourses() {
   const navigate = useNavigate();
   const [pendingClass, setPendingClass] = useState<string | null>(null);
 
+  useSeoMeta({
+    title: `ক্লাস ও কোর্সসমূহ — ${site.name}`,
+    description: `${site.name}-এর ক্লাস, কোর্স ও পাঠ্যক্রম সম্পর্কে বিস্তারিত জানুন।`,
+    image: site.logo || undefined,
+  });
+
   useEffect(() => {
-    document.title = `ক্লাস ও কোর্সসমূহ — ${site.name}`;
     window.scrollTo(0, 0);
-  }, [site.name]);
+  }, []);
 
   if (loading) return <PublicPageSkeleton />;
 
