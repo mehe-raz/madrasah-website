@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { HudSpinner } from "../components/HudSpinner";
 import { SkeletonRows } from "../components/Skeleton";
+import { Button, Input, Select } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
-import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { canBackup, canManageUsers } from "../lib/permissions";
-import { C } from "../theme/colors";
 import { USER_ROLES, type BackupConfig, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
 // Formats a byte count like "1.2 MB" the way the Drive backup list shows it.
@@ -35,35 +34,29 @@ function Field({
 }) {
   return (
     <div>
-      <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 5 }}>{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, boxSizing: "border-box", color: C.text, background: C.card }}
-      />
+      <label className="field-block__label">{label}</label>
+      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
 
+// Per-role accent color, applied as a background tint on the user list row
+// and its status dot below — real per-instance data (which role each user
+// has), not a fixed design-system value, so it stays a JS lookup rather
+// than a CSS class. See AGENTS.md "Design System (mandatory)".
 const ROLE_COLORS: Record<string, string> = {
-  "Super Admin": C.violet,
-  Admin: C.teal,
-  Accountant: C.emerald,
-  Teacher: C.amber,
-  "Hostel Manager": C.rose,
+  "Super Admin": "#6d28d9", // C.violet
+  Admin: "#0f766e", // C.teal
+  Accountant: "#10b981", // C.emerald
+  Teacher: "#b45309", // C.amber
+  "Hostel Manager": "#fb7185", // C.rose
 };
 
 function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: open ? 16 : 0 }}>
-      <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>{title}</h3>
-      <button
-        type="button"
-        onClick={onToggle}
-        title={open ? "Close edit" : "Edit"}
-        style={{ width: 34, height: 34, border: `1px solid ${C.border}`, borderRadius: 8, background: C.card, color: C.text, cursor: "pointer", fontSize: 18, lineHeight: 1 }}
-      >
+    <div className={`settings-section-head ${open ? "" : "settings-section-head--collapsed"}`}>
+      <h3 className="settings-section-title">{title}</h3>
+      <button type="button" onClick={onToggle} title={open ? "Close edit" : "Edit"} className="icon-btn">
         ...
       </button>
     </div>
@@ -72,9 +65,9 @@ function SectionHeader({ title, open, onToggle }: { title: string; open: boolean
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 14, color: C.text, fontWeight: 600, wordBreak: "break-word" }}>{value || "-"}</div>
+    <div className="info-row">
+      <div className="info-row__label">{label}</div>
+      <div className="info-row__value">{value || "-"}</div>
     </div>
   );
 }
@@ -105,7 +98,6 @@ export function Settings() {
   const [editSystem, setEditSystem] = useState(false);
   const [editBackup, setEditBackup] = useState(false);
   const [editUsers, setEditUsers] = useState(false);
-  const isMobile = useMediaQuery("(max-width: 768px)");
   const manageUsers = authUser ? canManageUsers(authUser.role) : false;
   const allowBackup = authUser ? canBackup(authUser.role) : false;
 
@@ -380,12 +372,12 @@ export function Settings() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 24 }}>{t.settings.title}</h2>
-      {msg && <p style={{ color: C.teal, fontSize: 13, marginBottom: 12 }}>{msg}</p>}
+      <h2 className="page-header__title mb-24">{t.settings.title}</h2>
+      {msg && <p className="msg-line">{msg}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 24 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
+      <div className="settings-grid">
+        <div className="settings-col">
+          <div className="settings-card">
             <SectionHeader title={t.settings.madrasaInfo} open={editInfo} onToggle={() => setEditInfo((v) => !v)} />
             {!editInfo && (
               <div>
@@ -394,58 +386,57 @@ export function Settings() {
                 <InfoRow label={t.settings.phone} value={settings.phone} />
                 <InfoRow label={t.settings.email} value={settings.email} />
                 <InfoRow label={t.settings.footer} value={settings.footer} />
-                <div style={{ padding: "9px 0" }}>
-                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t.settings.brandColor}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 20, height: 20, borderRadius: 6, background: settings.brandColor || "#0ea5e9", border: `1px solid ${C.border}`, display: "inline-block" }} />
-                    <span style={{ fontSize: 14, color: C.text, fontWeight: 600 }}>{settings.brandColor || "#0ea5e9"}</span>
+                <div className="info-row">
+                  <div className="info-row__label mb-6">{t.settings.brandColor}</div>
+                  <div className="row row--gap-8">
+                    {/* Swatch color is the institution's own chosen brand color
+                        (settings.brandColor) — real per-instance data, can't be a
+                        static class. Documented exception, see AGENTS.md. */}
+                    {/* eslint-disable-next-line no-restricted-syntax -- dynamic user-chosen brand color */}
+                    <span className="brand-swatch" style={{ background: settings.brandColor || "#0ea5e9" }} />
+                    <span className="info-row__value">{settings.brandColor || "#0ea5e9"}</span>
                   </div>
                 </div>
-                {settings.logo && <img src={settings.logo} alt="Logo" loading="lazy" decoding="async" style={{ maxHeight: 64, marginTop: 12, borderRadius: 8 }} />}
+                {settings.logo && <img src={settings.logo} alt="Logo" loading="lazy" decoding="async" className="logo-preview mt-12" />}
               </div>
             )}
-            <div style={{ display: editInfo ? "flex" : "none", flexDirection: "column", gap: 14 }}>
+            <div className={`field-block--gap ${editInfo ? "" : "field-block--hidden"}`}>
               <Field label={t.settings.name} value={settings.name} onChange={(v) => update("name", v)} />
               <Field label={t.settings.address} value={settings.address} onChange={(v) => update("address", v)} />
               <Field label={t.settings.phone} value={settings.phone} onChange={(v) => update("phone", v)} />
               <Field label={t.settings.email} value={settings.email} onChange={(v) => update("email", v)} type="email" />
               <div>
-                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 5 }}>{t.settings.footer}</label>
-                <textarea value={settings.footer} rows={2} onChange={(e) => update("footer", e.target.value)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, boxSizing: "border-box", resize: "none", fontFamily: "inherit", color: C.text, background: C.card }} />
+                <label className="field-block__label">{t.settings.footer}</label>
+                <textarea value={settings.footer} rows={2} onChange={(e) => update("footer", e.target.value)} className="ds-textarea ds-textarea--noresize" />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 8 }}>{t.settings.logo}</label>
-                {settings.logo && <img src={settings.logo} alt="Logo" style={{ maxHeight: 64, marginBottom: 8, borderRadius: 8 }} />}
-                <input type="file" accept="image/*" onChange={(e) => handleLogo(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+                <label className="field-block__label mb-8">{t.settings.logo}</label>
+                {settings.logo && <img src={settings.logo} alt="Logo" className="logo-preview--edit" />}
+                <input type="file" accept="image/*" onChange={(e) => handleLogo(e.target.files?.[0] || null)} className="file-input-sm" />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 5 }}>{t.settings.brandColor}</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <input
-                    type="color"
-                    value={settings.brandColor || "#0ea5e9"}
-                    onChange={(e) => update("brandColor", e.target.value)}
-                    style={{ width: 44, height: 36, padding: 0, border: `1px solid ${C.border}`, borderRadius: 8, background: "none", cursor: "pointer" }}
-                  />
-                  <input
+                <label className="field-block__label">{t.settings.brandColor}</label>
+                <div className="row row--gap-10">
+                  <input type="color" value={settings.brandColor || "#0ea5e9"} onChange={(e) => update("brandColor", e.target.value)} className="color-input" />
+                  <Input
                     type="text"
                     value={settings.brandColor || "#0ea5e9"}
                     onChange={(e) => update("brandColor", e.target.value)}
                     placeholder="#0ea5e9"
-                    style={{ flex: 1, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, boxSizing: "border-box", color: C.text, background: C.card, fontFamily: "monospace" }}
+                    style={{ flex: 1, fontFamily: "monospace" }}
                   />
                 </div>
-                <p style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>{t.settings.brandColorHint}</p>
+                <p className="hint-text">{t.settings.brandColorHint}</p>
               </div>
             </div>
           </div>
 
           {allowBackup && (
-            <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
+            <div className="settings-card">
               <SectionHeader title={t.settings.backup} open={editBackup} onToggle={() => setEditBackup((v) => !v)} />
-                            <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Download a full database backup as JSON (encrypted if configured).</p>
+              <p className="backup-hint">Download a full database backup as JSON (encrypted if configured).</p>
               {!editBackup && backupConfig && (
-                <div style={{ marginTop: 12 }}>
+                <div className="mt-12">
                   <InfoRow label="Automatic backup" value={backupConfig.enabled ? "Enabled" : "Disabled"} />
                   <InfoRow label="Interval" value={`${backupConfig.intervalHours} hours`} />
                   <InfoRow label="Keep Drive copies" value={String(backupConfig.keepDriveCopies ?? 14)} />
@@ -458,12 +449,12 @@ export function Settings() {
                   )}
                 </div>
               )}
-              <button type="button" onClick={handleBackup} style={{ background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 600, cursor: "pointer" }}>
+              <Button variant="violet" solid onClick={handleBackup}>
                 {t.settings.downloadBackup}
-              </button>
+              </Button>
               {editBackup && authUser?.role === "Super Admin" && (
-                <div style={{ marginTop: 14, padding: 12, background: C.slateL, borderRadius: 8 }}>
-                  <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Restore backup database (.json / .enc)</label>
+                <div className="restore-box">
+                  <label className="field-block__label mb-6">Restore backup database (.json / .enc)</label>
                   <input
                     type="file"
                     accept=".json,.enc,application/octet-stream,application/json"
@@ -472,11 +463,11 @@ export function Settings() {
                       handleRestore(e.target.files?.[0] || null);
                       e.target.value = "";
                     }}
-                    style={{ fontSize: 13, maxWidth: "100%" }}
+                    className="file-input-sm"
                   />
-                  <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>Upload a downloaded madrasah backup to restore old students, income, users and settings.</p>
+                  <p className="hint-text hint-text--tight">Upload a downloaded madrasah backup to restore old students, income, users and settings.</p>
                   {restorePreviewLoading && !restorePreview && (
-                    <div style={{ display: "flex", marginTop: 8 }}>
+                    <div className="flex-mt-8">
                       <HudSpinner size={18} />
                     </div>
                   )}
@@ -484,22 +475,22 @@ export function Settings() {
               )}
 
               {restorePreview && (
-                <div style={{ marginTop: 14, padding: 14, background: "#FEF3F2", border: `1px solid ${C.rose}`, borderRadius: 8 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: "0 0 8px" }}>
+                <div className="restore-warn-box">
+                  <p className="restore-warn-box__title">
                     Confirm restore{restorePreview.source.kind === "drive" ? `: "${restorePreview.source.file.name}"` : ""}
                   </p>
                   {restorePreview.exportedAt && (
-                    <p style={{ fontSize: 12, color: C.muted, margin: "0 0 8px" }}>
+                    <p className="restore-warn-box__meta">
                       Backup taken: {new Date(restorePreview.exportedAt).toLocaleString()}
                     </p>
                   )}
-                  <div style={{ fontSize: 12, color: C.text, marginBottom: 10 }}>
+                  <div className="restore-counts-list">
                     {Object.keys(restorePreview.backupCounts).map((table) => {
                       const backupCount = restorePreview.backupCounts[table];
                       const currentCount = restorePreview.currentCounts[table];
                       const changed = backupCount !== currentCount;
                       return (
-                        <div key={table} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: changed ? C.rose : C.muted }}>
+                        <div key={table} className={`restore-diff-row ${changed ? "restore-diff-row--changed" : ""}`}>
                           <span>{table}</span>
                           <span>
                             {currentCount} → {backupCount}
@@ -508,36 +499,26 @@ export function Settings() {
                       );
                     })}
                   </div>
-                  <p style={{ fontSize: 12, color: C.rose, margin: "0 0 10px", fontWeight: 600 }}>
+                  <p className="restore-warn-box__notice">
                     This will permanently replace all current data in the tables above with the numbers on the right. This cannot be undone from the app (a safety backup of the current data is taken automatically, but restoring it requires repeating this process).
                   </p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={handleConfirmRestore}
-                      disabled={restoreConfirming}
-                      style={{ background: C.rose, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 600, cursor: restoreConfirming ? "default" : "pointer" }}
-                    >
+                  <div className="row row--gap-8">
+                    <Button variant="rose" solid onClick={handleConfirmRestore} disabled={restoreConfirming}>
                       {restoreConfirming ? "Restoring…" : "Confirm restore"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelRestore}
-                      disabled={restoreConfirming}
-                      style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 16px", fontWeight: 600, cursor: restoreConfirming ? "default" : "pointer" }}
-                    >
+                    </Button>
+                    <Button variant="outline" onClick={handleCancelRestore} disabled={restoreConfirming}>
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
               {editBackup && backupConfig && (
-                <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.text }}>
+                <div className="stack--gap-10-mt-16">
+                  <label className="checkbox-row">
                     <input type="checkbox" checked={backupConfig.enabled} onChange={(e) => setBackupConfig({ ...backupConfig, enabled: e.target.checked })} />
                     Automatic backup
                   </label>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
+                  <div className="form-grid form-grid--tight">
                     <Field label="Backup interval (hours)" value={String(backupConfig.intervalHours)} onChange={(v) => setBackupConfig({ ...backupConfig, intervalHours: Number(v) || 24 })} type="number" />
                     <Field label="Keep local copies" value={String(backupConfig.keepLocalCopies)} onChange={(v) => setBackupConfig({ ...backupConfig, keepLocalCopies: Number(v) || 14 })} type="number" />
                     <Field label="Keep Drive copies" value={String(backupConfig.keepDriveCopies ?? 14)} onChange={(v) => setBackupConfig({ ...backupConfig, keepDriveCopies: Number(v) || 14 })} type="number" />
@@ -554,76 +535,67 @@ export function Settings() {
                       }}
                     />
                   ))}
-                  {backupConfig.lastRunAt && <p style={{ fontSize: 12, color: C.muted }}>Last auto backup: {new Date(backupConfig.lastRunAt).toLocaleString()}</p>}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button type="button" onClick={saveBackupConfig} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Save backup settings</button>
-                    <button type="button" onClick={runBackupNow} style={{ background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Run backup now</button>
+                  {backupConfig.lastRunAt && <p className="hint-text hint-text--no-mt">Last auto backup: {new Date(backupConfig.lastRunAt).toLocaleString()}</p>}
+                  <div className="backup-actions">
+                    <Button variant="emerald" solid onClick={saveBackupConfig} style={{ fontSize: 13 }}>Save backup settings</Button>
+                    <Button variant="teal" solid onClick={runBackupNow} style={{ fontSize: 13 }}>Run backup now</Button>
                   </div>
 
                   {driveStatus?.configured && (
-                    <div style={{ marginTop: 6, padding: 12, background: C.slateL, borderRadius: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 6 }}>{t.settings.googleDriveTitle}</div>
+                    <div className="drive-box">
+                      <div className="drive-box__title">{t.settings.googleDriveTitle}</div>
                       {driveStatus.connected ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
+                        <div className="drive-connected">
+                          <p className="drive-meta">
                             {t.settings.googleDriveConnected.replace("{email}", driveStatus.accountEmail)}
                           </p>
-                          <p style={{ fontSize: 12, margin: 0, color: backupConfig?.driveEncryptionEnabled ? C.emerald : "#dc2626", fontWeight: 600 }}>
+                          <p className={`drive-encryption-status ${backupConfig?.driveEncryptionEnabled ? "drive-encryption-status--on" : "drive-encryption-status--off"}`}>
                             {backupConfig?.driveEncryptionEnabled
                               ? "🔒 Drive backups are encrypted (BACKUP_ENCRYPTION_KEY is set)"
                               : "⚠️ Drive backups are NOT encrypted — set BACKUP_ENCRYPTION_KEY on the server to protect them"}
                           </p>
                           {driveStatus.lastUploadAt && (
-                            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
+                            <p className="drive-meta">
                               {t.settings.googleDriveLastUpload.replace("{date}", new Date(driveStatus.lastUploadAt).toLocaleString())}
                             </p>
                           )}
                           {driveStatus.lastUploadError && (
-                            <p style={{ fontSize: 12, color: "#dc2626", margin: 0 }}>
+                            <p className="drive-error">
                               {t.settings.googleDriveUploadError.replace("{message}", driveStatus.lastUploadError)}
                             </p>
                           )}
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <div className="drive-link-row">
                             {driveStatus.folderLink && (
-                              <a href={driveStatus.folderLink} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: C.violet }}>
+                              <a href={driveStatus.folderLink} target="_blank" rel="noreferrer" className="drive-link">
                                 {t.settings.googleDriveOpenFolder}
                               </a>
                             )}
                             {authUser?.role === "Super Admin" && (
-                              <button
-                                type="button"
-                                onClick={handleDisconnectDrive}
-                                style={{ background: "transparent", color: "#dc2626", border: "1px solid #dc2626", borderRadius: 8, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 12 }}
-                              >
+                              <button type="button" onClick={handleDisconnectDrive} className="btn-disconnect">
                                 {t.settings.googleDriveDisconnect}
                               </button>
                             )}
                           </div>
 
                           {authUser?.role === "Super Admin" && (
-                            <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{t.settings.driveFilesTitle}</span>
-                                <button
-                                  type="button"
-                                  onClick={refreshDriveFiles}
-                                  disabled={driveFilesLoading}
-                                  style={{ background: "transparent", border: "none", color: C.violet, fontSize: 12, cursor: driveFilesLoading ? "default" : "pointer", padding: 0 }}
-                                >
+                            <div className="drive-files-box">
+                              <div className="drive-files-head">
+                                <span className="drive-files-title">{t.settings.driveFilesTitle}</span>
+                                <button type="button" onClick={refreshDriveFiles} disabled={driveFilesLoading} className="link-btn">
                                   {t.settings.driveFilesRefresh}
                                 </button>
                               </div>
                               {driveFilesLoading && <SkeletonRows count={3} />}
                               {!driveFilesLoading && driveFiles?.length === 0 && (
-                                <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{t.settings.driveFilesEmpty}</p>
+                                <p className="drive-meta">{t.settings.driveFilesEmpty}</p>
                               )}
                               {!driveFilesLoading && driveFiles && driveFiles.length > 0 && (
-                                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto" }}>
+                                <div className="drive-files-list">
                                   {driveFiles.map((f) => (
-                                    <div key={f.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 8px", background: C.card, borderRadius: 6, border: `1px solid ${C.border}` }}>
-                                      <div style={{ minWidth: 0 }}>
-                                        <div style={{ fontSize: 12, color: C.text, fontWeight: 600, wordBreak: "break-word" }}>{f.name}</div>
-                                        <div style={{ fontSize: 11, color: C.muted }}>
+                                    <div key={f.id} className="drive-file-row">
+                                      <div className="min-w-0">
+                                        <div className="drive-file-name">{f.name}</div>
+                                        <div className="drive-file-meta">
                                           {formatFileSize(f.size)} · {new Date(f.createdTime).toLocaleString()}
                                         </div>
                                       </div>
@@ -631,18 +603,7 @@ export function Settings() {
                                         type="button"
                                         onClick={() => handleRestoreFromDrive(f)}
                                         disabled={restoringFileId !== null}
-                                        style={{
-                                          flexShrink: 0,
-                                          background: restoringFileId === f.id ? C.slateL : C.teal,
-                                          color: restoringFileId === f.id ? C.muted : "#fff",
-                                          border: "none",
-                                          borderRadius: 6,
-                                          padding: "6px 10px",
-                                          fontWeight: 600,
-                                          fontSize: 11,
-                                          cursor: restoringFileId !== null ? "default" : "pointer",
-                                          opacity: restoringFileId !== null && restoringFileId !== f.id ? 0.5 : 1,
-                                        }}
+                                        className={`btn-restore-file ${restoringFileId === f.id ? "btn-restore-file--busy" : ""}`}
                                       >
                                         {restoringFileId === f.id ? t.settings.driveFileRestoring : t.settings.driveFileRestore}
                                       </button>
@@ -655,18 +616,13 @@ export function Settings() {
                         </div>
                       ) : (
                         <div>
-                          <p style={{ fontSize: 12, color: C.muted, margin: "0 0 8px" }}>{t.settings.googleDriveNotConnected}</p>
+                          <p className="not-connected-hint">{t.settings.googleDriveNotConnected}</p>
                           {authUser?.role === "Super Admin" ? (
-                            <button
-                              type="button"
-                              disabled={driveConnecting}
-                              onClick={handleConnectDrive}
-                              style={{ background: C.violet, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: driveConnecting ? "default" : "pointer", fontSize: 13, opacity: driveConnecting ? 0.7 : 1 }}
-                            >
+                            <Button variant="violet" solid disabled={driveConnecting} onClick={handleConnectDrive} style={{ fontSize: 13 }}>
                               {driveConnecting ? t.settings.googleDriveConnecting : t.settings.googleDriveConnect}
-                            </button>
+                            </Button>
                           ) : (
-                            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>{t.settings.googleDriveOnlySuperAdmin}</p>
+                            <p className="drive-meta">{t.settings.googleDriveOnlySuperAdmin}</p>
                           )}
                         </div>
                       )}
@@ -678,8 +634,8 @@ export function Settings() {
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
+        <div className="settings-col">
+          <div className="settings-card">
             <SectionHeader title={t.settings.systemSettings} open={editSystem} onToggle={() => setEditSystem((v) => !v)} />
             {!editSystem && (
               <div>
@@ -688,80 +644,84 @@ export function Settings() {
                 <InfoRow label={t.settings.currency} value={settings.currency} />
               </div>
             )}
-            <div style={{ display: editSystem ? "flex" : "none", flexDirection: "column", gap: 14 }}>
+            <div className={`field-block--gap ${editSystem ? "" : "field-block--hidden"}`}>
               <div>
-                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 5 }}>{t.settings.language}</label>
-                <select value={settings.lang} onChange={(e) => update("lang", e.target.value)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, background: C.card, color: C.text }}>
+                <label className="field-block__label">{t.settings.language}</label>
+                <Select value={settings.lang} onChange={(e) => update("lang", e.target.value)}>
                   <option value="bn">{t.settings.langBn}</option>
                   <option value="en">{t.settings.langEn}</option>
-                </select>
+                </Select>
               </div>
               <div>
-                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 5 }}>{t.settings.theme}</label>
-                <select value={settings.theme} onChange={(e) => update("theme", e.target.value)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, background: C.card, color: C.text }}>
+                <label className="field-block__label">{t.settings.theme}</label>
+                <Select value={settings.theme} onChange={(e) => update("theme", e.target.value)}>
                   <option value="light">{t.settings.themeLight}</option>
                   <option value="dark">{t.settings.themeDark}</option>
-                </select>
+                </Select>
               </div>
               <div>
-                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 5 }}>{t.settings.currency}</label>
-                <select value={settings.currency} onChange={(e) => update("currency", e.target.value)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, background: C.card, color: C.text }}>
+                <label className="field-block__label">{t.settings.currency}</label>
+                <Select value={settings.currency} onChange={(e) => update("currency", e.target.value)}>
                   <option value="BDT">BDT</option>
                   <option value="USD">USD</option>
-                </select>
+                </Select>
               </div>
             </div>
           </div>
 
           {manageUsers && (
-            <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
+            <div className="settings-card">
               <SectionHeader title={t.settings.userRoles} open={editUsers} onToggle={() => setEditUsers((v) => !v)} />
-              <div style={{ display: editUsers ? "grid" : "none", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8, marginBottom: 14 }}>
-                <input placeholder={t.settings.userName} value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} style={inputSmall} />
-                <input placeholder={t.settings.loginEmail} type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} style={inputSmall} />
-                <input placeholder={t.settings.userPassword} type="password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} style={inputSmall} />
-                <select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} style={inputSmall}>
+              <div className={`user-form-grid ${editUsers ? "" : "user-form-grid--hidden"}`}>
+                <Input placeholder={t.settings.userName} value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} style={{ fontSize: 13, padding: "8px 10px" }} />
+                <Input placeholder={t.settings.loginEmail} type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} style={{ fontSize: 13, padding: "8px 10px" }} />
+                <Input placeholder={t.settings.userPassword} type="password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} style={{ fontSize: 13, padding: "8px 10px" }} />
+                <Select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} style={{ fontSize: 13, padding: "8px 10px" }}>
                   {USER_ROLES.filter((r) => authUser?.role === "Super Admin" || r !== "Super Admin").map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
-                </select>
+                </Select>
               </div>
-              <button type="button" onClick={handleAddUser} style={{ display: editUsers ? "inline-block" : "none", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13, marginBottom: 14 }}>
+              <Button variant="teal" solid onClick={handleAddUser} className={editUsers ? "" : "add-user-btn--hidden"} style={{ fontSize: 13, marginBottom: 14 }}>
                 + {t.settings.addUser}
-              </button>
+              </Button>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="user-list">
                 {users.map((u) => {
-                  const color = ROLE_COLORS[u.role] || C.teal;
+                  const color = ROLE_COLORS[u.role] || "#0f766e";
                   const editing = editDraft?.id === u.id;
                   const draft = editing ? editDraft! : u;
                   return (
-                    <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: color + "10", borderRadius: 8, border: `1px solid ${color}30`, flexWrap: "wrap" }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                    // Row tint is per-user-role data (color + "10"/"30" alpha),
+                    // same documented dynamic-color exception as above.
+                    // eslint-disable-next-line no-restricted-syntax -- dynamic per-role accent color
+                    <div key={u.id} className="user-row" style={{ background: color + "10", border: `1px solid ${color}30` }}>
+                      {/* eslint-disable-next-line no-restricted-syntax -- dynamic per-role accent color */}
+                      <span className="user-row-dot" style={{ background: color }} />
                       {editing ? (
                         <>
-                          <input value={draft.name} onChange={(e) => setEditDraft({ ...draft, name: e.target.value })} style={{ ...inputSmall, flex: 1, minWidth: 90 }} />
-                          <input value={draft.email || ""} onChange={(e) => setEditDraft({ ...draft, email: e.target.value })} style={{ ...inputSmall, flex: 1, minWidth: 90 }} />
-                          <select value={draft.role} disabled={!!u.isProtected && (authUser?.role !== "Super Admin" || authUser?.id === u.id)} onChange={(e) => setEditDraft({ ...draft, role: e.target.value })} style={inputSmall}>
+                          <Input value={draft.name} onChange={(e) => setEditDraft({ ...draft, name: e.target.value })} style={{ flex: 1, minWidth: 90, fontSize: 13, padding: "8px 10px" }} />
+                          <Input value={draft.email || ""} onChange={(e) => setEditDraft({ ...draft, email: e.target.value })} style={{ flex: 1, minWidth: 90, fontSize: 13, padding: "8px 10px" }} />
+                          <Select value={draft.role} disabled={!!u.isProtected && (authUser?.role !== "Super Admin" || authUser?.id === u.id)} onChange={(e) => setEditDraft({ ...draft, role: e.target.value })} style={{ fontSize: 13, padding: "8px 10px" }}>
                             {USER_ROLES.filter((r) => authUser?.role === "Super Admin" || r !== "Super Admin").map((r) => (
                               <option key={r} value={r}>{r}</option>
                             ))}
-                          </select>
-                          <input placeholder="New password (optional)" type="password" onChange={(e) => setEditDraft({ ...draft, newPassword: e.target.value } as User & { newPassword?: string })} style={{ ...inputSmall, minWidth: 120 }} />
-                          <button type="button" onClick={handleUpdateUser} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>{t.common.save}</button>
-                          <button type="button" onClick={() => setEditDraft(null)} style={{ background: C.slateL, color: C.muted, border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>{t.common.cancel}</button>
+                          </Select>
+                          <Input placeholder="New password (optional)" type="password" onChange={(e) => setEditDraft({ ...draft, newPassword: e.target.value } as User & { newPassword?: string })} style={{ minWidth: 120, fontSize: 13, padding: "8px 10px" }} />
+                          <button type="button" onClick={handleUpdateUser} className="btn-xs btn-xs--save">{t.common.save}</button>
+                          <button type="button" onClick={() => setEditDraft(null)} className="btn-xs btn-xs--cancel">{t.common.cancel}</button>
                         </>
                       ) : (
                         <>
-                          <div style={{ flex: 1, minWidth: 100 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{u.name}{u.isProtected ? " 🔒" : ""}</div>
-                            <div style={{ fontSize: 11, color: C.muted }}>{u.role} · {u.email || "—"}</div>
+                          <div className="user-info">
+                            <div className="user-name">{u.name}{u.isProtected ? " 🔒" : ""}</div>
+                            <div className="user-meta">{u.role} · {u.email || "—"}</div>
                           </div>
                           {canEditUser() && (
-                            <button type="button" onClick={() => setEditDraft({ ...u })} style={{ background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>✏️</button>
+                            <button type="button" onClick={() => setEditDraft({ ...u })} className="btn-xs btn-xs--edit">✏️</button>
                           )}
                           {canDeleteUser(u) && (
-                            <button type="button" onClick={() => handleDeleteUser(u)} style={{ background: C.roseL, color: C.rose, border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>{t.common.delete}</button>
+                            <button type="button" onClick={() => handleDeleteUser(u)} className="btn-xs btn-xs--delete">{t.common.delete}</button>
                           )}
                         </>
                       )}
@@ -774,22 +734,9 @@ export function Settings() {
         </div>
       </div>
 
-      <button type="button" onClick={handleSave} style={{ marginTop: 20, background: saved ? C.emerald : C.teal, color: "#fff", border: "none", borderRadius: 10, padding: "12px 28px", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>
+      <button type="button" onClick={handleSave} className={`save-settings-btn ${saved ? "save-settings-btn--saved" : ""}`}>
         {saved ? t.settings.savedMsg : t.settings.saveChanges}
       </button>
     </div>
   );
 }
-
-const inputSmall: React.CSSProperties = {
-  border: `1px solid ${C.border}`,
-  borderRadius: 8,
-  padding: "8px 10px",
-  fontSize: 13,
-  background: C.card,
-  color: C.text,
-  boxSizing: "border-box",
-};
-
-
-

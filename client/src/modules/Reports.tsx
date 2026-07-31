@@ -6,6 +6,7 @@ import { PopupBlockedError } from "../lib/printReport";
 import { useAuth } from "../context/AuthContext";
 import { canAccess, type Permission } from "../lib/permissions";
 import { C } from "../theme/colors";
+import { Card } from "../components/ui";
 
 // Each report's underlying data comes from a different API resource, and
 // that resource enforces its own permission — it isn't covered just because
@@ -63,35 +64,48 @@ export function Reports() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 8 }}>রিপোর্ট ও এক্সপোর্ট</h2>
-      <p style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>মাস বা তারিখ সিলেক্ট করে প্রিন্ট বা CSV ডাউনলোড করুন।</p>
+      <h2 className="page-title">রিপোর্ট ও এক্সপোর্ট</h2>
+      <p className="page-subtitle">মাস বা তারিখ সিলেক্ট করে প্রিন্ট বা CSV ডাউনলোড করুন।</p>
 
       <ReportDateFilter value={range} onChange={setRange} />
 
-      {error && (
-        <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>{error}</div>
-      )}
+      {error && <div className="alert alert--rose">{error}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 28 }}>
+      <div className="reports-grid">
         {reports.map((r) => {
           const allowed = canAccess(role, REPORT_PERMISSION[r.kind]);
           const disabled = loading !== null || !allowed;
           return (
-            <div key={r.title} style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, opacity: allowed ? 1 : 0.55 }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>{r.icon}</div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>{r.title}</h3>
-              <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
-                {allowed ? r.desc : "এই রিপোর্ট দেখার অনুমতি আপনার নেই"}
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" disabled={disabled} title={allowed ? undefined : "অনুমতি নেই"} onClick={() => handleExport(r.kind, "print")} style={{ flex: 1, background: r.color + "18", color: r.color, border: `1px solid ${r.color}40`, borderRadius: 7, padding: "7px 10px", cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600 }}>
+            <Card key={r.title} className="report-card" style={{ opacity: allowed ? 1 : 0.55 }}>
+              <div className="report-card__icon">{r.icon}</div>
+              <h3 className="report-card__title">{r.title}</h3>
+              <p className="report-card__desc">{allowed ? r.desc : "এই রিপোর্ট দেখার অনুমতি আপনার নেই"}</p>
+              <div className="report-card__actions">
+                {/* Each report kind has its own accent color (r.color) —
+                    per-instance data, so it can't be a static CSS class.
+                    Documented exception, see AGENTS.md Design System section. */}
+                {/* eslint-disable-next-line no-restricted-syntax -- dynamic per-report accent color */}
+                <button
+                  type="button"
+                  disabled={disabled}
+                  title={allowed ? undefined : "অনুমতি নেই"}
+                  onClick={() => handleExport(r.kind, "print")}
+                  className="report-card__btn"
+                  style={{ background: r.color + "18", color: r.color, border: `1px solid ${r.color}40` }}
+                >
                   {loading === `${r.kind}-print` ? "…" : "🖨️ প্রিন্ট"}
                 </button>
-                <button type="button" disabled={disabled} title={allowed ? undefined : "অনুমতি নেই"} onClick={() => handleExport(r.kind, "excel")} style={{ flex: 1, background: C.slateL, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 10px", cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600 }}>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  title={allowed ? undefined : "অনুমতি নেই"}
+                  onClick={() => handleExport(r.kind, "excel")}
+                  className="report-card__btn report-card__btn--csv"
+                >
                   {loading === `${r.kind}-excel` ? "…" : "CSV"}
                 </button>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>

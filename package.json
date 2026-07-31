@@ -11,7 +11,7 @@
     "typecheck": "npm run typecheck --prefix client",
     "test:server": "node scripts/check-server.js",
     "test:backup": "node scripts/backup-restore.test.js",
-    "check": "npm run sync:roles && npm run typecheck && npm run build && npm run test:server && npm run test:unit",
+    "check": "npm run sync:roles && npm run lint && npm run typecheck && npm run build && npm run test:server && npm run test:unit",
     "test:unit": "npm run test:unit --prefix server"
   },
   "devDependencies": {

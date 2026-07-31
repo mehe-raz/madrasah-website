@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { C } from "../theme/colors";
 
 export interface RecordCardField {
   label: string;
@@ -27,46 +26,32 @@ interface RecordCardProps {
  */
 export function RecordCard({ title, subtitle, headerRight, fields, actions }: RecordCardProps) {
   return (
-    <div
-      style={{
-        background: C.card,
-        border: `1px solid ${C.border}`,
-        borderRadius: 12,
-        padding: 14,
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, color: C.text, fontSize: 14, wordBreak: "break-word" }}>{title}</div>
-          {subtitle ? <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{subtitle}</div> : null}
+    <div className="record-card">
+      <div className="record-card__head">
+        <div className="record-card__title-wrap">
+          <div className="record-card__title">{title}</div>
+          {subtitle ? <div className="record-card__subtitle">{subtitle}</div> : null}
         </div>
-        {headerRight ? <div style={{ flexShrink: 0, textAlign: "right" }}>{headerRight}</div> : null}
+        {headerRight ? <div className="record-card__header-right">{headerRight}</div> : null}
       </div>
 
       {fields && fields.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div className="record-card__fields">
           {fields.map((f, i) => (
-            <div key={i} style={f.fullWidth ? { gridColumn: "1 / -1" } : undefined}>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{f.label}</div>
-              <div style={{ fontSize: 13, color: C.text, fontWeight: 600, wordBreak: "break-word" }}>{f.value}</div>
+            <div key={i} className={f.fullWidth ? "record-card__field--full" : undefined}>
+              <div className="record-card__field-label">{f.label}</div>
+              <div className="record-card__field-value">{f.value}</div>
             </div>
           ))}
         </div>
       ) : null}
 
-      {actions ? (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingTop: 4, borderTop: `1px solid ${C.border}`, marginTop: 2 }}>
-          {actions}
-        </div>
-      ) : null}
+      {actions ? <div className="record-card__actions">{actions}</div> : null}
     </div>
   );
 }
 
 /** Vertical stack wrapper for a list of RecordCards. */
 export function RecordCardList({ children }: { children: ReactNode }) {
-  return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{children}</div>;
+  return <div className="record-card-list">{children}</div>;
 }

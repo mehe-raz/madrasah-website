@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import type { CSSProperties } from "react";
 import { SkeletonTableRows } from "../components/Skeleton";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
+import { Button, Card, Field, Input, ReadonlyValue, Select, Textarea } from "../components/ui";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { deptLabel, typeLabel } from "../lib/labels";
 import { printAdmissionForm, printReportTable } from "../lib/printReport";
-import { C } from "../theme/colors";
 import type { Student, StudentDocuments } from "../types";
 import { useLanguage } from "../context/AppSettingsContext";
 import type { Dict } from "../i18n/bn";
@@ -103,19 +102,8 @@ const bloodOptions = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const genderOptions = ["Male", "Female", "Other"];
 const religionOptions = ["Islam", "Hinduism", "Christianity", "Buddhism", "Other"];
 
-function fieldStyle(error?: string): CSSProperties {
-  return {
-    width: "100%",
-    border: `1px solid ${error ? C.rose : C.border}`,
-    borderRadius: 6,
-    padding: "8px 10px",
-    fontSize: 13,
-    outline: "none",
-  };
-}
-
 function sectionTitle(title: string) {
-  return <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 12px" }}>{title}</h3>;
+  return <h3 className="section-title">{title}</h3>;
 }
 
 function textValue(value: unknown) {
@@ -371,16 +359,15 @@ export function Students() {
   };
 
   const renderInput = (label: string, field: AdmissionField, type = "text") => (
-    <label style={{ display: "block" }}>
-      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}</span>
-      <input
+    <Field label={label}>
+      <Input
         type={type}
         value={String(form[field] ?? "")}
         onChange={(event) => setField(field, type === "number" ? Number(event.target.value) : event.target.value)}
-        style={fieldStyle(errors[String(field)])}
+        error={!!errors[String(field)]}
       />
-      {errors[String(field)] && <span style={{ color: C.rose, fontSize: 11 }}>{errors[String(field)]}</span>}
-    </label>
+      {errors[String(field)] && <span className="field-error">{errors[String(field)]}</span>}
+    </Field>
   );
 
   const renderSelect = (
@@ -389,41 +376,34 @@ export function Students() {
     options: string[],
     labelFor?: (option: string) => string
   ) => (
-    <label style={{ display: "block" }}>
-      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}</span>
-      <select value={String(form[field] ?? "")} onChange={(event) => setField(field, event.target.value)} style={fieldStyle(errors[String(field)])}>
+    <Field label={label}>
+      <Select value={String(form[field] ?? "")} onChange={(event) => setField(field, event.target.value)} error={!!errors[String(field)]}>
         {options.map((option) => (
           <option key={option} value={option}>
             {(option && labelFor ? labelFor(option) : option) || t.common.select}
           </option>
         ))}
-      </select>
-      {errors[String(field)] && <span style={{ color: C.rose, fontSize: 11 }}>{errors[String(field)]}</span>}
-    </label>
+      </Select>
+      {errors[String(field)] && <span className="field-error">{errors[String(field)]}</span>}
+    </Field>
   );
 
   const renderTextArea = (label: string, field: AdmissionField) => (
-    <label style={{ display: "block" }}>
-      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>{label}</span>
-      <textarea value={String(form[field] ?? "")} onChange={(event) => setField(field, event.target.value)} rows={3} style={fieldStyle(errors[String(field)])} />
-      {errors[String(field)] && <span style={{ color: C.rose, fontSize: 11 }}>{errors[String(field)]}</span>}
-    </label>
+    <Field label={label}>
+      <Textarea value={String(form[field] ?? "")} onChange={(event) => setField(field, event.target.value)} rows={3} error={!!errors[String(field)]} />
+      {errors[String(field)] && <span className="field-error">{errors[String(field)]}</span>}
+    </Field>
   );
 
   const renderUpload = (label: string, key: keyof StudentDocuments, optional = false) => (
-    <label style={{ display: "block" }}>
-      <span style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 4 }}>
-        {label}
-        {optional ? ` (${t.students.optional})` : ""}
-      </span>
-      <input
+    <Field label={optional ? `${label} (${t.students.optional})` : label}>
+      <Input
         type="file"
         accept={key === "studentPhoto" ? "image/*" : "image/*,application/pdf"}
         onChange={(event) => uploadDocument(key, event.target.files?.[0])}
-        style={fieldStyle()}
       />
-      {form.documents[key] && <span style={{ color: C.emerald, fontSize: 11 }}>{t.common.uploaded}</span>}
-    </label>
+      {form.documents[key] && <span className="field-hint-success">{t.common.uploaded}</span>}
+    </Field>
   );
 
   const detailSections: DetailSection[] = viewing
@@ -506,46 +486,51 @@ export function Students() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+      <div className="page-header">
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>{t.students.admissionTitle}</h2>
-          <p style={{ fontSize: 13, color: C.muted, margin: "4px 0 0" }}>{t.students.admissionSubtitle}</p>
+          <h2 className="page-header__title">{t.students.admissionTitle}</h2>
+          <p className="page-header__subtitle">{t.students.admissionSubtitle}</p>
         </div>
-        <button type="button" onClick={startCreate} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 700, cursor: "pointer" }}>
+        <Button variant="emerald" solid onClick={startCreate}>
           {t.students.newAdmission}
-        </button>
+        </Button>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-        <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder={t.students.admissionSearch} style={{ ...fieldStyle(), flex: 1, minWidth: 240 }} />
-        <select value={department} onChange={(event) => { setDepartment(event.target.value); setPage(1); }} style={{ ...fieldStyle(), width: 150 }}>
+      <div className="filter-bar">
+        <Input
+          className="filter-bar__search"
+          value={search}
+          onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+          placeholder={t.students.admissionSearch}
+        />
+        <Select className="filter-bar__select" value={department} onChange={(event) => { setDepartment(event.target.value); setPage(1); }}>
           {(["All", ...departmentOptions] as string[]).map((option) => (
             <option key={option} value={option}>
               {option === "All" ? t.common.all : deptLabel(option)}
             </option>
           ))}
-        </select>
-        <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} style={{ ...fieldStyle(), width: 150 }}>
+        </Select>
+        <Select className="filter-bar__select" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>
           {(["All", t.students.active, t.students.inactive] as string[]).map((option) => (
             <option key={option} value={option === t.students.active ? "Active" : option === t.students.inactive ? "Inactive" : option}>
               {option}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
-      {message && <div style={{ marginBottom: 12, color: C.rose, fontSize: 13 }}>{message}</div>}
+      {message && <div className="alert alert--rose">{message}</div>}
 
       {showForm && (
-        <div style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, padding: 20, marginBottom: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <div className="form-section">
+          <div className="form-section__head">
             <div>
-              <h3 style={{ margin: 0, fontSize: 17, color: C.text }}>{editing ? t.students.editAdmission : t.students.admissionForm}</h3>
-              <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>{wizardSteps[step]}</div>
+              <h3 className="form-section__head-title">{editing ? t.students.editAdmission : t.students.admissionForm}</h3>
+              <div className="form-section__step-label">{wizardSteps[step]}</div>
             </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div className="wizard-steps">
               {wizardSteps.map((label, index) => (
-                <span key={label} style={{ padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: index === step ? C.emeraldL : C.slateL, color: index === step ? C.emeraldD : C.muted }}>
+                <span key={label} className={`wizard-step-badge ${index === step ? "wizard-step-badge--active" : ""}`}>
                   {index + 1}. {label}
                 </span>
               ))}
@@ -555,7 +540,7 @@ export function Students() {
           {step === 0 && (
             <>
               {sectionTitle(t.students.admissionInfo)}
-              <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+              <div className="form-grid">
                 {renderInput(t.students.admissionNumber, "admissionNumber")}
                 {renderInput(t.students.admissionDate, "admissionDate", "date")}
                 {renderInput(t.students.academicYear, "academicYear")}
@@ -567,7 +552,7 @@ export function Students() {
               </div>
 
               {sectionTitle(t.students.studentInfo)}
-              <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+              <div className="form-grid">
                 {renderInput(t.students.bengaliName, "name")}
                 {renderInput(t.students.englishName, "nameEn")}
                 {renderInput(t.students.dateOfBirth, "dateOfBirth", "date")}
@@ -583,7 +568,7 @@ export function Students() {
           {step === 1 && (
             <>
               {sectionTitle(t.students.guardianInfo)}
-              <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+              <div className="form-grid">
                 {renderInput(t.students.fatherName, "fatherName")}
                 {renderInput(t.students.fatherMobile, "fatherMobile")}
                 {renderInput(t.students.fatherOccupation, "fatherOccupation")}
@@ -596,7 +581,7 @@ export function Students() {
               </div>
 
               {sectionTitle(t.students.address)}
-              <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginBottom: 20 }}>
+              <div className="form-grid form-grid--wide">
                 {renderTextArea(t.students.presentAddress, "presentAddress")}
                 {renderTextArea(t.students.permanentAddress, "permanentAddress")}
                 {renderInput(t.students.district, "district")}
@@ -610,62 +595,62 @@ export function Students() {
           {step === 2 && (
             <>
               {sectionTitle(t.students.previousEducation)}
-              <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+              <div className="form-grid">
                 {renderInput(t.students.previousInstitution, "previousInstitution")}
                 {renderInput(t.students.previousClass, "previousClass")}
               </div>
 
               {sectionTitle(t.students.madrasaInfo)}
-              <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+              <div className="form-grid">
                 {renderSelect(t.students.department, "dept", departmentOptions, deptLabel)}
                 {renderInput(t.students.memorizedQuran, "para", "number")}
               </div>
 
               {sectionTitle(t.students.feeInfo)}
-              <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 20 }}>
+              <div className="form-grid">
                 {renderInput(t.students.admissionFee, "admissionFee", "number")}
                 {renderInput(t.students.monthlyFee, "fee", "number")}
                 {renderInput(t.students.discount, "discount", "number")}
               </div>
 
               {sectionTitle(t.students.documents)}
-              <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginBottom: 18 }}>
+              <div className="form-grid form-grid--wide">
                 {renderUpload(t.students.birthCertificate, "birthCertificate")}
                 {renderUpload(t.students.guardianNid, "guardianNid")}
                 {renderUpload(t.students.previousCertificate, "previousCertificate", true)}
               </div>
 
-              <div style={{ background: C.slateL, borderRadius: 8, padding: 14, marginBottom: 18 }}>
-                <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>{t.students.totalAttendance}</div>
-                <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>{t.students.previousDue}: {fmt(Number(form.due || 0))}</div>
+              <div className="info-box">
+                <div className="info-box__label">{t.students.totalAttendance}</div>
+                <div className="info-box__value">{t.students.previousDue}: {fmt(Number(form.due || 0))}</div>
               </div>
             </>
           )}
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div className="wizard-actions">
             {step > 0 && (
-              <button type="button" onClick={goBack} style={{ border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 8, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>
+              <Button variant="outline" onClick={goBack}>
                 পেছনে
-              </button>
+              </Button>
             )}
             {step < 2 ? (
-              <button type="button" onClick={goNext} style={{ background: C.sky, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>
+              <Button variant="sky" solid onClick={goNext}>
                 পরবর্তী
-              </button>
+              </Button>
             ) : (
-              <button type="button" disabled={saving} onClick={saveAdmission} style={{ background: C.emerald, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 700, cursor: saving ? "wait" : "pointer" }}>
+              <Button variant="emerald" solid disabled={saving} onClick={saveAdmission}>
                 {saving ? t.students.saving : editing ? `${t.students.saveChanges} & ${t.common.print}` : `${t.students.saveAdmission} & ${t.common.print}`}
-              </button>
+              </Button>
             )}
-            <button type="button" onClick={() => { setShowForm(false); setStep(0); setErrors({}); }} style={{ border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 8, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>
+            <Button variant="outline" onClick={() => { setShowForm(false); setStep(0); setErrors({}); }}>
               {t.common.cancel}
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {isMobile ? (
-        <div style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, padding: 12 }}>
+        <Card className="table-card" style={{ padding: 12 }}>
           <RecordCardList>
             {students.map((student) => (
               <RecordCard
@@ -678,106 +663,106 @@ export function Students() {
                 ]}
                 actions={
                   <>
-                    <button type="button" onClick={() => openView(student)} style={{ flex: 1, border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>{t.students.view}</button>
-                    <button type="button" onClick={() => startEdit(student)} style={{ flex: 1, border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>{t.common.edit}</button>
+                    <Button variant="sky" fullWidth onClick={() => openView(student)}>{t.students.view}</Button>
+                    <Button variant="emerald" fullWidth onClick={() => startEdit(student)}>{t.common.edit}</Button>
                   </>
                 }
               />
             ))}
           </RecordCardList>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 4px 0", flexWrap: "wrap" }}>
-            <div style={{ color: C.muted, fontSize: 12 }}>{tr("students.totalStudentsLine", { count: total })}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ border: `1px solid ${C.border}`, background: C.card, color: page <= 1 ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: 12 }}>Prev</button>
-              <span style={{ color: C.muted, fontSize: 12 }}>{page} / {totalPages}</span>
-              <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ border: `1px solid ${C.border}`, background: C.card, color: page >= totalPages ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page >= totalPages ? "not-allowed" : "pointer", fontSize: 12 }}>Next</button>
+          <div className="table-pagination table-pagination--card">
+            <div className="table-pagination__info">{tr("students.totalStudentsLine", { count: total })}</div>
+            <div className="table-pagination__controls">
+              <Button variant="outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Button>
+              <span className="table-pagination__info">{page} / {totalPages}</span>
+              <Button variant="outline" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</Button>
             </div>
           </div>
-        </div>
+        </Card>
       ) : (
-      <div className="table-wrap" style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 720 }}>
+      <div className="table-wrap table-card">
+        <table className="data-table data-table--wide">
           <thead>
-            <tr style={{ background: C.slateL }}>
+            <tr>
               {[t.students.name, t.students.class, t.students.roll, t.common.actions].map((header, i) => (
-                <th key={i} style={{ padding: "10px 12px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>{header}</th>
+                <th key={i}>{header}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {students.map((student, index) => (
-              <tr key={student.id} style={{ borderBottom: `1px solid ${C.border}`, background: index % 2 === 0 ? C.card : "var(--row-alt)" }}>
-                <td style={{ padding: "10px 12px", fontWeight: 700, color: C.text }}>
+            {students.map((student) => (
+              <tr key={student.id}>
+                <td>
                   <div>{student.name}</div>
-                  <div style={{ color: C.muted, fontSize: 12 }}>{student.nameEn}</div>
+                  <div className="table-pagination__info">{student.nameEn}</div>
                 </td>
-                <td style={{ padding: "10px 12px", color: C.muted }}>{student.class}</td>
-                <td style={{ padding: "10px 12px", color: C.text }}>{student.roll}</td>
-                <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                  <button type="button" onClick={() => openView(student)} style={{ border: "none", background: C.skyL, color: C.skyD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", marginRight: 6, fontWeight: 700 }}>{t.students.view}</button>
-                  <button type="button" onClick={() => startEdit(student)} style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontWeight: 700 }}>{t.common.edit}</button>
+                <td>{student.class}</td>
+                <td>{student.roll}</td>
+                <td style={{ whiteSpace: "nowrap" }}>
+                  <Button variant="sky" onClick={() => openView(student)} style={{ marginRight: 6 }}>{t.students.view}</Button>
+                  <Button variant="emerald" onClick={() => startEdit(student)}>{t.common.edit}</Button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.border}`, flexWrap: "wrap" }}>
-          <div style={{ color: C.muted, fontSize: 12 }}>{tr("students.totalStudentsLine", { count: total })}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ border: `1px solid ${C.border}`, background: C.card, color: page <= 1 ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: 12 }}>Prev</button>
-            <span style={{ color: C.muted, fontSize: 12 }}>{page} / {totalPages}</span>
-            <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ border: `1px solid ${C.border}`, background: C.card, color: page >= totalPages ? C.muted : C.text, borderRadius: 6, padding: "6px 10px", cursor: page >= totalPages ? "not-allowed" : "pointer", fontSize: 12 }}>Next</button>
+        <div className="table-pagination">
+          <div className="table-pagination__info">{tr("students.totalStudentsLine", { count: total })}</div>
+          <div className="table-pagination__controls">
+            <Button variant="outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Button>
+            <span className="table-pagination__info">{page} / {totalPages}</span>
+            <Button variant="outline" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</Button>
           </div>
         </div>
       </div>
       )}
 
       {viewing && (
-        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewing(null)}>
-          <div className="modal-content" style={{ background: C.card, borderRadius: 8, padding: 24, width: 920, maxWidth: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop" onClick={() => setViewing(null)}>
+          <div className="modal-content modal-content--wide" onClick={(event) => event.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18, flexWrap: "wrap" }}>
-              {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} /> : null}
+              {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" className="avatar-64" /> : null}
               <div>
-                <h3 style={{ margin: 0, color: C.text, fontSize: 20 }}>{viewing.name}</h3>
-                <div style={{ color: C.muted, fontSize: 13 }}>{viewing.nameEn} | {viewing.admissionNumber || t.students.noAdmissionNumber}</div>
+                <h3 style={{ margin: 0, color: "var(--text)", fontSize: 20 }}>{viewing.name}</h3>
+                <div className="table-pagination__info">{viewing.nameEn} | {viewing.admissionNumber || t.students.noAdmissionNumber}</div>
               </div>
               <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button type="button" onClick={printHistory} style={{ border: "none", background: C.sky, color: "#fff", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontWeight: 700 }}>{t.common.print} হিস্ট্রি</button>
-                <button type="button" onClick={() => startEdit(viewing)} style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontWeight: 700 }}>{t.students.editStudent}</button>
-                <button type="button" onClick={() => setViewing(null)} style={{ border: `1px solid ${C.border}`, background: C.card, color: C.muted, borderRadius: 8, padding: "8px 12px", cursor: "pointer" }}>{t.common.close}</button>
+                <Button variant="sky" solid onClick={printHistory}>{t.common.print} হিস্ট্রি</Button>
+                <Button variant="emerald" onClick={() => startEdit(viewing)}>{t.students.editStudent}</Button>
+                <Button variant="outline" onClick={() => setViewing(null)}>{t.common.close}</Button>
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12, marginBottom: 18 }}>
-              <div style={{ background: C.slateL, borderRadius: 8, padding: 12 }}>
-                <div style={{ fontSize: 12, color: C.muted }}>মোট হাজিরা</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{attendanceSummary.total}</div>
+            <div className="detail-stats-grid">
+              <div className="detail-stat">
+                <div className="detail-stat__label">মোট হাজিরা</div>
+                <div className="detail-stat__value">{attendanceSummary.total}</div>
               </div>
-              <div style={{ background: C.slateL, borderRadius: 8, padding: 12 }}>
-                <div style={{ fontSize: 12, color: C.muted }}>উপস্থিত</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{attendanceSummary.present}</div>
+              <div className="detail-stat">
+                <div className="detail-stat__label">উপস্থিত</div>
+                <div className="detail-stat__value">{attendanceSummary.present}</div>
               </div>
-              <div style={{ background: C.slateL, borderRadius: 8, padding: 12 }}>
-                <div style={{ fontSize: 12, color: C.muted }}>অনুপস্থিত</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{attendanceSummary.absent}</div>
+              <div className="detail-stat">
+                <div className="detail-stat__label">অনুপস্থিত</div>
+                <div className="detail-stat__value">{attendanceSummary.absent}</div>
               </div>
-              <div style={{ background: C.slateL, borderRadius: 8, padding: 12 }}>
-                <div style={{ fontSize: 12, color: C.muted }}>দেরিতে</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{attendanceSummary.late}</div>
+              <div className="detail-stat">
+                <div className="detail-stat__label">দেরিতে</div>
+                <div className="detail-stat__value">{attendanceSummary.late}</div>
               </div>
             </div>
 
-            {historyError && <div style={{ color: C.rose, marginBottom: 12 }}>{historyError}</div>}
+            {historyError && <div className="alert alert--rose">{historyError}</div>}
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+            <div className="detail-sections-grid">
               {detailSections.map((section) => (
-                <div key={section.title} style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
-                  <div style={{ background: C.slateL, padding: "8px 12px", fontWeight: 800, color: C.text }}>{section.title}</div>
-                  <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, padding: 10 }}>
+                <div key={section.title} className="detail-section">
+                  <div className="detail-section__title">{section.title}</div>
+                  <div className="detail-section__grid">
                     {section.rows.map(([label, value]) => (
-                      <div key={label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: 8 }}>
-                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 3 }}>{label}</div>
-                        <div style={{ fontSize: 13, color: C.text, fontWeight: 700, whiteSpace: "pre-wrap" }}>{textValue(value)}</div>
+                      <div key={label} className="detail-field">
+                        <div className="detail-field__label">{label}</div>
+                        <div className="detail-field__value">{textValue(value)}</div>
                       </div>
                     ))}
                   </div>
@@ -787,32 +772,29 @@ export function Students() {
 
             <div style={{ marginTop: 18 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-                <h4 style={{ margin: 0, color: C.text }}>{t.students.attendanceMonth}</h4>
-                <div style={{ color: C.muted, fontSize: 12 }}>{attendanceHistory.length ? `মোট ${attendanceHistory.length}টি রেকর্ড` : ""}</div>
+                <h4 style={{ margin: 0, color: "var(--text)" }}>{t.students.attendanceMonth}</h4>
+                <div className="table-pagination__info">{attendanceHistory.length ? `মোট ${attendanceHistory.length}টি রেকর্ড` : ""}</div>
               </div>
-              <div className="table-wrap" style={{ background: C.card, borderRadius: 8, border: `1px solid ${C.border}`, overflow: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 360 }}>
+              <div className="table-wrap table-card">
+                <table className="data-table data-table--narrow">
                   <thead>
-                    <tr style={{ background: C.slateL }}>
-                      {[
-                        "তারিখ",
-                        t.students.status,
-                      ].map((header, i) => (
-                        <th key={i} style={{ padding: "10px 12px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>{header}</th>
+                    <tr>
+                      {["তারিখ", t.students.status].map((header, i) => (
+                        <th key={i}>{header}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {historyLoading && <SkeletonTableRows rows={5} columns={2} />}
                     {attendanceHistory.map((row, index) => (
-                      <tr key={`${row.date}-${index}`} style={{ borderBottom: `1px solid ${C.border}` }}>
-                        <td style={{ padding: "10px 12px", color: C.text }}>{row.date}</td>
-                        <td style={{ padding: "10px 12px", color: C.text }}>{row.status}</td>
+                      <tr key={`${row.date}-${index}`}>
+                        <td>{row.date}</td>
+                        <td>{row.status}</td>
                       </tr>
                     ))}
                     {!attendanceHistory.length && !historyLoading && (
                       <tr>
-                        <td colSpan={2} style={{ padding: 14, color: C.muted, textAlign: "center" }}>কোনো হাজিরা ইতিহাস নেই</td>
+                        <td colSpan={2} style={{ padding: 14, color: "var(--muted)", textAlign: "center" }}>কোনো হাজিরা ইতিহাস নেই</td>
                       </tr>
                     )}
                   </tbody>

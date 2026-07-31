@@ -119,6 +119,48 @@ This checklist is not automatically enforced by `npm run check` — treat it
 as a self-review step, not a guarantee. It exists so nothing gets silently
 skipped, not to replace judgment.
 
+## Design System (mandatory)
+
+Every module used to hand-write its own `style={{...}}` objects per element
+(41 of 46 `.tsx` files did this; some files repeated near-identical style
+objects 100+ times). That made a theme change or a consistency fix mean
+editing dozens of files by hand, with no single source of truth.
+
+**The rule:** native JSX elements (`div`, `span`, `button`, `input`,
+`select`, `textarea`, ...) do not take a raw `style={{...}}` prop. Use:
+- A component from `client/src/components/ui/` — `Button`, `Input`,
+  `Select`, `Textarea`, `Field`, `Card`, `ReadonlyValue` — for anything
+  that fits one of those shapes.
+- A named class from `client/src/index.css` (the `.ds-*` design-system
+  classes, or a component-scoped class like `.report-card__icon`) for
+  anything else. Add a new class there rather than inlining one-off values.
+
+**This is enforced, not just documented** — `client/eslint.config.js` has a
+`no-restricted-syntax` rule that errors on `style={{` on any native element
+outside `components/ui/`, and `npm run lint` is now part of `npm run check`.
+Per this repo's delivery rule (see "Workflow" above), nothing gets committed
+or pushed unless `npm run check` passes — so this applies to every
+contributor, including an AI agent working from a fresh copy of this repo
+with no memory of this file having been discussed before. Reading this file
+is the only way to know the rule exists; the lint failure is what makes it
+non-optional.
+
+**Genuine exceptions exist** — a color or value that's real per-instance
+data (e.g. a report's accent color, a category's badge color) can't be a
+static CSS class. Allow it with a `// eslint-disable-next-line
+no-restricted-syntax` directly above the line, plus a one-line comment
+explaining *why* it's dynamic. See `StatCard.tsx` or `Reports.tsx` for the
+pattern. Don't reach for the disable comment to avoid adding a class for
+something that's actually static — that defeats the point.
+
+**Migration status:** the design-system CSS/components were added and the
+lint rule is live, but most legacy files still have their old inline
+styles (lint only fails on *new* violations going forward — see
+`docs/DESIGN_SYSTEM_MIGRATION.md` for the per-file backlog and priority
+order). If a task touches a file on that list anyway, migrate the parts you
+touch to the new system rather than adding more inline styles next to the
+old ones.
+
 ## Reusable building blocks
 
 Living list of pieces in this codebase that were deliberately built to be
@@ -145,6 +187,10 @@ part of an unrelated task.
   (`cloudinaryResize`)
 - Client code-splitting pattern: `lazy()` imports in `client/src/App.tsx`
 - Service worker / asset caching: `client/public/sw.js`
+- Design-system UI primitives: `client/src/components/ui/` (`Button`,
+  `Input`, `Select`, `Textarea`, `Field`, `Card`, `ReadonlyValue`) backed by
+  the `.ds-*` classes in `client/src/index.css` — see "Design System
+  (mandatory)" above.
 
 ## Single source of truth
 
