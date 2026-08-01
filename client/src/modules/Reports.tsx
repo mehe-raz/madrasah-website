@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { defaultReportRange, ReportDateFilter, type ReportRange } from "../components/ReportDateFilter";
+import { ReportDateFilter } from "../components/ReportDateFilter";
+import { defaultReportRange, type ReportRange } from "../lib/reportRange";
 import type { ReportKind } from "../lib/exportReports";
 import { ReportRangeRequiredError } from "../lib/exportReports";
 import { PopupBlockedError } from "../lib/printReport";
@@ -84,13 +85,13 @@ export function Reports() {
                 {/* Each report kind has its own accent color (r.color) —
                     per-instance data, so it can't be a static CSS class.
                     Documented exception, see AGENTS.md Design System section. */}
-                {/* eslint-disable-next-line no-restricted-syntax -- dynamic per-report accent color */}
                 <button
                   type="button"
                   disabled={disabled}
                   title={allowed ? undefined : "অনুমতি নেই"}
                   onClick={() => handleExport(r.kind, "print")}
                   className="report-card__btn"
+                  // eslint-disable-next-line no-restricted-syntax -- dynamic per-report accent color, see comment above
                   style={{ background: r.color + "18", color: r.color, border: `1px solid ${r.color}40` }}
                 >
                   {loading === `${r.kind}-print` ? "…" : "🖨️ প্রিন্ট"}

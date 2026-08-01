@@ -2,36 +2,11 @@
  * Date / month filter for reports | রিপোর্ট তারিখ বা মাস ফিল্টার
  */
 import { C } from "../theme/colors";
-
-export interface ReportRange {
-  from: string;
-  to: string;
-  label: string;
-}
+import { currentMonth, monthRange, type ReportRange } from "../lib/reportRange";
 
 interface ReportDateFilterProps {
   value: ReportRange;
   onChange: (r: ReportRange) => void;
-}
-
-function monthRange(ym: string): ReportRange {
-  const [y, m] = ym.split("-").map(Number);
-  const last = new Date(y, m, 0).getDate();
-  return {
-    from: `${ym}-01`,
-    to: `${ym}-${String(last).padStart(2, "0")}`,
-    label: ym,
-  };
-}
-
-function currentMonth() {
-  const d = new Date();
-  const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  return monthRange(ym);
-}
-
-export function defaultReportRange(): ReportRange {
-  return currentMonth();
 }
 
 export function ReportDateFilter({ value, onChange }: ReportDateFilterProps) {

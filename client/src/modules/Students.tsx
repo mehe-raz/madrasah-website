@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { SkeletonTableRows } from "../components/Skeleton";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
-import { Button, Card, Field, Input, ReadonlyValue, Select, Textarea } from "../components/ui";
+import { Button, Card, Field, Input, Select, Textarea } from "../components/ui";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
@@ -210,6 +210,7 @@ export function Students() {
 
   useEffect(() => {
     if (!viewing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting attendance-history state when the detail modal closes (viewing becomes null); nothing to derive during render since the modal is gone
       setAttendanceHistory([]);
       setAttendanceSummary({ total: 0, present: 0, absent: 0, late: 0 });
       setHistoryError("");
@@ -698,7 +699,7 @@ export function Students() {
                 </td>
                 <td>{student.class}</td>
                 <td>{student.roll}</td>
-                <td style={{ whiteSpace: "nowrap" }}>
+                <td className="nowrap">
                   <Button variant="sky" onClick={() => openView(student)} style={{ marginRight: 6 }}>{t.students.view}</Button>
                   <Button variant="emerald" onClick={() => startEdit(student)}>{t.common.edit}</Button>
                 </td>
@@ -720,13 +721,13 @@ export function Students() {
       {viewing && (
         <div className="modal-backdrop" onClick={() => setViewing(null)}>
           <div className="modal-content modal-content--wide" onClick={(event) => event.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18, flexWrap: "wrap" }}>
+            <div className="row row--gap-14 row--wrap mb-18">
               {viewing.studentPhoto ? <img src={viewing.studentPhoto} alt="" className="avatar-64" /> : null}
               <div>
-                <h3 style={{ margin: 0, color: "var(--text)", fontSize: 20 }}>{viewing.name}</h3>
+                <h3 className="detail-modal__name">{viewing.name}</h3>
                 <div className="table-pagination__info">{viewing.nameEn} | {viewing.admissionNumber || t.students.noAdmissionNumber}</div>
               </div>
-              <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="row row--gap-8 row--wrap row--ml-auto">
                 <Button variant="sky" solid onClick={printHistory}>{t.common.print} হিস্ট্রি</Button>
                 <Button variant="emerald" onClick={() => startEdit(viewing)}>{t.students.editStudent}</Button>
                 <Button variant="outline" onClick={() => setViewing(null)}>{t.common.close}</Button>
@@ -770,9 +771,9 @@ export function Students() {
               ))}
             </div>
 
-            <div style={{ marginTop: 18 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-                <h4 style={{ margin: 0, color: "var(--text)" }}>{t.students.attendanceMonth}</h4>
+            <div className="mt-18">
+              <div className="row row--gap-8 row--wrap row--justify-between mb-10">
+                <h4 className="detail-modal__subheading">{t.students.attendanceMonth}</h4>
                 <div className="table-pagination__info">{attendanceHistory.length ? `মোট ${attendanceHistory.length}টি রেকর্ড` : ""}</div>
               </div>
               <div className="table-wrap table-card">
@@ -794,7 +795,7 @@ export function Students() {
                     ))}
                     {!attendanceHistory.length && !historyLoading && (
                       <tr>
-                        <td colSpan={2} style={{ padding: 14, color: "var(--muted)", textAlign: "center" }}>কোনো হাজিরা ইতিহাস নেই</td>
+                        <td colSpan={2} className="empty-cell">কোনো হাজিরা ইতিহাস নেই</td>
                       </tr>
                     )}
                   </tbody>

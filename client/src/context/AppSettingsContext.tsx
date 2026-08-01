@@ -153,12 +153,14 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook lives with its provider/context; splitting would touch ~19 unrelated consumer files (AGENTS.md Rule 1: minimal diff)
 export function useAppSettings() {
   const ctx = useContext(AppSettingsContext);
   if (!ctx) throw new Error("useAppSettings must be used within AppSettingsProvider");
   return ctx;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- see useAppSettings above
 export function useLanguage() {
   const { lang, t, tr } = useAppSettings();
   return { lang, t, tr };

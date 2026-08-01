@@ -133,6 +133,7 @@ export function Settings() {
   }, [manageUsers, editUsers, users.length, refreshUsers]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refreshDriveFiles() intentionally sets driveFilesLoading=true immediately; the rest of its state updates land after the request resolves
     if (driveStatus?.connected) refreshDriveFiles();
   }, [driveStatus?.connected]);
 
@@ -145,6 +146,7 @@ export function Settings() {
     const result = params.get("googleDrive");
     if (!result) return;
     if (result === "connected") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reacting to a one-time OAuth redirect result read from the URL (an external system), not a value derivable during render
       setMsg(t.settings.googleDriveConnectedMsg);
       refreshDriveStatus();
     } else if (result === "error") {

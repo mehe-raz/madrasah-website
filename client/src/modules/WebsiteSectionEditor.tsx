@@ -302,6 +302,7 @@ export function WebsiteSectionEditor() {
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentionally sets loading=true immediately so the editor shows a spinner right away; the rest of the state updates land after the request resolves
     setLoading(true);
     api
       .getDraftSiteContent()

@@ -6,15 +6,9 @@ interface BadgeProps {
 export function Badge({ label, color }: BadgeProps) {
   return (
     <span
-      style={{
-        background: color + "22",
-        color,
-        fontSize: 11,
-        fontWeight: 600,
-        padding: "2px 8px",
-        borderRadius: 20,
-        whiteSpace: "nowrap",
-      }}
+      className="badge"
+      // eslint-disable-next-line no-restricted-syntax -- color is per-instance data (caller-provided), can't be a static class
+      style={{ background: color + "22", color }}
     >
       {label}
     </span>

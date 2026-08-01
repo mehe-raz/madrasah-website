@@ -11,16 +11,7 @@ import { HudSpinner } from "./HudSpinner";
 // আলাদা কোনো স্পিনারে "লাফ" (jump) অনুভূত না হয় — পুরো সাইটে একটাই স্পিনার।
 export function PublicPageSkeleton() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        paddingTop: "22vh",
-        background: "var(--bg)",
-      }}
-    >
+    <div className="public-page-skeleton">
       <HudSpinner size={56} />
     </div>
   );

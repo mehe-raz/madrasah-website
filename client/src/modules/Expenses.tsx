@@ -7,7 +7,7 @@ import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
 import type { Expense } from "../types";
 
-export const EXPENSE_CATEGORIES = [
+const EXPENSE_CATEGORIES = [
   "শিক্ষক বেতন",
   "খাবার খরচ",
   "বিদ্যুৎ বিল",
@@ -70,6 +70,7 @@ export function Expenses() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() intentionally sets loading=true immediately so the table shows a spinner right away; the rest of its state updates land after the request resolves
     load(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize]);

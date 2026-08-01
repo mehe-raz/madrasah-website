@@ -26,6 +26,7 @@ let state = {
   admin: null,
   institutions: [],
   admins: [], // platform admins (Part 5.1) — only loaded/shown for super_admin
+  settings: { defaultTrialDays: null }, // registry.platform_settings, loaded after login
   statusFilter: "",
   loading: true,
   error: "",
@@ -110,6 +111,14 @@ async function loadInstitutions() {
   } finally {
     state.loading = false;
     render();
+  }
+  // Best-effort — a stale/missing default-trial-days shouldn't block the
+  // whole dashboard from loading, so this failure is swallowed rather than
+  // set as state.error.
+  try {
+    state.settings = await api("/settings");
+  } catch {
+    // leave state.settings as-is
   }
 }
 
@@ -254,6 +263,7 @@ function renderDashboard() {
           <button id="run-expiry-scan" class="secondary">মেয়াদ স্ক্যান চালান</button>
           ${isSuperAdmin ? `<button id="open-migration" class="secondary">মাইগ্রেশন টুল</button>` : ""}
           ${isSuperAdmin ? `<button id="open-admins" class="secondary">👤 এডমিন ম্যানেজমেন্ট</button>` : ""}
+          ${canManageInstitutions ? `<button id="open-settings" class="secondary">⚙️ প্ল্যাটফর্ম সেটিংস</button>` : ""}
         </div>
         ${canManageInstitutions ? `<button id="new-institution">+ নতুন প্রতিষ্ঠান</button>` : ""}
       </div>
@@ -291,6 +301,7 @@ function renderModal() {
   if (state.modal.type === "migration") return renderMigrationModal();
   if (state.modal.type === "delete") return renderDeleteModal();
   if (state.modal.type === "admins") return renderAdminsModal();
+  if (state.modal.type === "settings") return renderSettingsModal();
   return "";
 }
 
@@ -657,6 +668,31 @@ function renderAdminsModal() {
 // Event wiring
 // ---------------------------------------------------------------------------
 
+function renderSettingsModal() {
+  const days = state.settings && state.settings.defaultTrialDays;
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal">
+        <h2>প্ল্যাটফর্ম সেটিংস</h2>
+        <p class="sub">
+          এই সংখ্যাটা নতুন কোনো প্রতিষ্ঠান নিজে সাইন-আপ করে (পাবলিক সাইনআপ চালু হলে) অ্যাকাউন্ট
+          খুললে কয়দিন ট্রায়ালে থাকবে তা ঠিক করে দেয়। এখানে যেকোনো সময় বদলাতে পারবেন — আগে থেকে
+          তৈরি হওয়া প্রতিষ্ঠানের ট্রায়াল-মেয়াদে কোনো প্রভাব পড়বে না, শুধু নতুনগুলোর জন্য প্রযোজ্য।
+        </p>
+        ${state.modal.error ? `<div class="error-box">${escapeHtml(state.modal.error)}</div>` : ""}
+        <form id="settings-form">
+          <label>ডিফল্ট ট্রায়াল (দিন)</label>
+          <input name="days" type="number" min="1" max="365" required value="${days != null ? days : ""}" />
+          <div class="modal-actions">
+            <button type="button" class="secondary" id="modal-cancel">বন্ধ করুন</button>
+            <button type="submit">সংরক্ষণ করুন</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
 function closeModal() {
   state.modal = null;
   render();
@@ -715,6 +751,14 @@ function wireDashboardEvents() {
   const openAdminsBtn = document.getElementById("open-admins");
   if (openAdminsBtn) {
     openAdminsBtn.addEventListener("click", () => openAdminsModal());
+  }
+
+  const openSettingsBtn = document.getElementById("open-settings");
+  if (openSettingsBtn) {
+    openSettingsBtn.addEventListener("click", () => {
+      state.modal = { type: "settings", error: "" };
+      render();
+    });
   }
 
   root.querySelectorAll(".apply-status").forEach((btn) => {
@@ -807,6 +851,24 @@ function wireDashboardEvents() {
         });
         closeModal();
         await loadInstitutions();
+      } catch (err) {
+        state.modal.error = err.message;
+        render();
+      }
+    });
+  }
+
+  const settingsForm = document.getElementById("settings-form");
+  if (settingsForm) {
+    settingsForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(settingsForm);
+      try {
+        state.settings = await api("/settings/default-trial-days", {
+          method: "PATCH",
+          body: { days: Number(fd.get("days")) },
+        });
+        closeModal();
       } catch (err) {
         state.modal.error = err.message;
         render();

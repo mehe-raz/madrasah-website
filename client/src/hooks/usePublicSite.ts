@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { usePublicSiteContext } from "../context/PublicSiteContext";
+import { usePublicSiteContext } from "../context/publicSiteContextCore";
 
 // Every public (logged-out) page needs the institution's name/logo/contact
 // info and the editable site content (classes, notices, departments...).

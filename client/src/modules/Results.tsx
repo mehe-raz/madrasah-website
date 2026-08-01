@@ -68,16 +68,6 @@ export function Results() {
     api.getResultClasses().then(setClasses).catch(() => setClasses([]));
   }, []);
 
-  useEffect(() => {
-    if (!selectedClass) {
-      setStudents([]);
-      return;
-    }
-    api.getResultStudents(selectedClass).then(setStudents).catch(() => setStudents([]));
-    refreshList(selectedClass);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedClass]);
-
   const refreshList = async (className: string) => {
     setLoadingList(true);
     try {
@@ -88,6 +78,17 @@ export function Results() {
       setLoadingList(false);
     }
   };
+
+  useEffect(() => {
+    if (!selectedClass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting the student list when no class is selected; nothing to derive during render since there's no class to fetch students for
+      setStudents([]);
+      return;
+    }
+    api.getResultStudents(selectedClass).then(setStudents).catch(() => setStudents([]));
+    refreshList(selectedClass);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClass]);
 
   const updateSubject = (index: number, patch: Partial<ResultSubjectMark>) => {
     setSubjects((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));

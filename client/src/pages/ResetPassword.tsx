@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type FormEvent, useEffect } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useSeoMeta } from "../hooks/useSeoMeta";
@@ -18,22 +18,17 @@ const inputStyle: CSSProperties = {
 export function ResetPassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [token, setToken] = useState("");
+  // Emails now contain a plain 6-digit code, not a clickable link, so this
+  // page no longer requires a ?token= query param — the code is typed in by
+  // hand below. Still pre-fill from the URL for anyone with an old bookmark/
+  // link, but it's optional rather than required.
+  const [token, setToken] = useState(() => (searchParams.get("token") || "").replace(/\D/g, "").slice(0, 6));
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
   useSeoMeta({ title: "পাসওয়ার্ড রিসেট", index: false });
-
-  // Emails now contain a plain 6-digit code, not a clickable link, so this
-  // page no longer requires a ?token= query param — the code is typed in by
-  // hand below. Still pre-fill from the URL for anyone with an old bookmark/
-  // link, but it's optional rather than required.
-  useEffect(() => {
-    const tokenFromUrl = searchParams.get("token");
-    if (tokenFromUrl) setToken(tokenFromUrl.replace(/\D/g, "").slice(0, 6));
-  }, [searchParams]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Home } from "./Home";
 import { C } from "../theme/colors";
 import { api } from "../lib/api";
-import { PublicSiteContext, normalizeContent, type PublicSiteContextValue } from "../context/PublicSiteContext";
+import { PublicSiteContext, normalizeContent, type PublicSiteContextValue } from "../context/publicSiteContextCore";
 import { FALLBACK_SETTINGS } from "../lib/publicSiteDefaults";
 import type { PublicSettings } from "../types";
 

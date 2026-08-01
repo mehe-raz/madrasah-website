@@ -64,10 +64,6 @@ export function AdmissionApply() {
     window.scrollTo(0, 0);
   }, []);
 
-  useEffect(() => {
-    if (preselected) setForm((f) => ({ ...f, className: preselected }));
-  }, [preselected]);
-
   const update = (patch: Partial<AdmissionApplicationInput>) => setForm((f) => ({ ...f, ...patch }));
 
   const submit = async (e: FormEvent) => {

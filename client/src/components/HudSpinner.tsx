@@ -18,6 +18,7 @@ export function HudSpinner({ size = 64, className }: HudSpinnerProps) {
   return (
     <div
       className={"hud-spinner" + (className ? ` ${className}` : "")}
+      // eslint-disable-next-line no-restricted-syntax -- caller-provided size, set as a CSS var; can't be a static class
       style={{ "--hud-size": `${size}px` } as CSSProperties}
       role="status"
       aria-label="লোড হচ্ছে"

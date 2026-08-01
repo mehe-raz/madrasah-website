@@ -23,7 +23,7 @@ export function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg)" }}>
+      <div className="full-page-loader">
         <HudSpinner size={56} />
       </div>
     );

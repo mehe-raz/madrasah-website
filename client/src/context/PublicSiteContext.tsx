@@ -1,56 +1,10 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { FALLBACK_CONTENT, FALLBACK_SETTINGS } from "../lib/publicSiteDefaults";
 import type { PublicSettings, SiteContent } from "../types";
+import { normalizeContent, PublicSiteContext } from "./publicSiteContextCore";
 
 const CACHE_KEY = "madrasah-public-site";
-
-export interface PublicSiteContextValue {
-  site: PublicSettings;
-  content: SiteContent;
-  loading: boolean;
-  ensureLoaded: () => void;
-}
-
-export const PublicSiteContext = createContext<PublicSiteContextValue | null>(null);
-
-// Respect whatever the admin actually saved, including a field left
-// deliberately empty — do NOT substitute FALLBACK_CONTENT here. That
-// constant is only for the "API unreachable" / "nothing cached yet" case,
-// never for a successful response that happens to contain an empty
-// string/array. (Same rule the old per-page usePublicSite.ts followed.)
-export function normalizeContent(data: Partial<SiteContent>): SiteContent {
-  return {
-    badge: data.badge ?? "",
-    heroSubtitle: data.heroSubtitle ?? "",
-    highlights: data.highlights ?? [],
-    departments: data.departments ?? [],
-    classes: data.classes ?? [],
-    notices: data.notices ?? [],
-    aboutIntro: data.aboutIntro ?? "",
-    aboutMission: data.aboutMission ?? "",
-    gallery: data.gallery ?? [],
-    admissionBadge: data.admissionBadge ?? "",
-    admissionTitle: data.admissionTitle ?? "",
-    admissionSubtitle: data.admissionSubtitle ?? "",
-    admissionSteps: data.admissionSteps ?? [],
-    galleryHeroBadge: data.galleryHeroBadge ?? "",
-    galleryHeroTitle: data.galleryHeroTitle ?? "",
-    galleryHeroSubtitle: data.galleryHeroSubtitle ?? "",
-    galleryIntroBadge: data.galleryIntroBadge ?? "",
-    galleryIntroTitle: data.galleryIntroTitle ?? "",
-    galleryIntroSubtitle: data.galleryIntroSubtitle ?? "",
-  };
-}
 
 function loadCached(): { site: PublicSettings; content: SiteContent } | null {
   try {
@@ -76,16 +30,19 @@ function loadCached(): { site: PublicSettings; content: SiteContent } | null {
 // fresh copy is fetched in the background and both state + the cache get
 // updated when it lands.
 export function PublicSiteProvider({ children }: { children: ReactNode }) {
-  // Read localStorage at most once per mount (a ref, not a plain variable),
-  // so it isn't re-parsed on every re-render — and ensureLoaded below can
-  // reference the same snapshot later without an exhaustive-deps warning.
-  const cachedRef = useRef<{ site: PublicSettings; content: SiteContent } | null | undefined>(undefined);
-  if (cachedRef.current === undefined) cachedRef.current = loadCached();
-  const cached = cachedRef.current;
+  // Read localStorage at most once per mount, via a useState lazy
+  // initializer (not a ref) — reading a ref's `.current` during render is
+  // unsafe with concurrent React, so the once-only computation belongs in
+  // state initialization instead. `cached` itself is never updated after
+  // mount, so it's safe to close over in ensureLoaded below.
+  const [cached] = useState(loadCached);
 
-  const [site, setSite] = useState<PublicSettings>(cached?.site ?? FALLBACK_SETTINGS);
-  const [content, setContent] = useState<SiteContent>(cached?.content ?? FALLBACK_CONTENT);
-  const [loading, setLoading] = useState(!cached);
+  const [site, setSite] = useState<PublicSettings>(() => cached?.site ?? FALLBACK_SETTINGS);
+  const [content, setContent] = useState<SiteContent>(() => cached?.content ?? FALLBACK_CONTENT);
+  const [loading, setLoading] = useState(() => !cached);
+  // Unlike cachedRef above, this ref is only ever read/written from inside
+  // the ensureLoaded callback below (an event-style call, not render), so
+  // it doesn't hit the same refs-during-render restriction.
   const fetchedRef = useRef(false);
 
   // Public pages read this as var(--brand) instead of a hardcoded hex, so an
@@ -121,8 +78,8 @@ export function PublicSiteProvider({ children }: { children: ReactNode }) {
           localStorage.setItem(
             CACHE_KEY,
             JSON.stringify({
-              site: nextSite ?? cachedRef.current?.site ?? FALLBACK_SETTINGS,
-              content: nextContent ?? cachedRef.current?.content ?? FALLBACK_CONTENT,
+              site: nextSite ?? cached?.site ?? FALLBACK_SETTINGS,
+              content: nextContent ?? cached?.content ?? FALLBACK_CONTENT,
             })
           );
         } catch {
@@ -131,7 +88,7 @@ export function PublicSiteProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     });
-  }, []);
+  }, [cached]);
 
   const value = useMemo(
     () => ({ site, content, loading, ensureLoaded }),
@@ -139,10 +96,4 @@ export function PublicSiteProvider({ children }: { children: ReactNode }) {
   );
 
   return <PublicSiteContext.Provider value={value}>{children}</PublicSiteContext.Provider>;
-}
-
-export function usePublicSiteContext() {
-  const ctx = useContext(PublicSiteContext);
-  if (!ctx) throw new Error("usePublicSiteContext must be used within PublicSiteProvider");
-  return ctx;
 }

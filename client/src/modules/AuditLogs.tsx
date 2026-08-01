@@ -101,6 +101,7 @@ export function AuditLogs() {
   }, [page, action, entityType, search, from, to]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() intentionally sets loading=true immediately so the table shows a spinner right away; the rest of its state updates land after the request resolves
     load();
   }, [load]);
 

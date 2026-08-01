@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time async auth check on mount; setLoading only runs after the promise settles, not synchronously
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook lives with its provider/context; splitting would touch many unrelated consumer files (AGENTS.md Rule 1: minimal diff)
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");

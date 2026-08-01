@@ -18,7 +18,12 @@ interface RevealProps {
 export function Reveal({ children, variant = "text", className = "", style }: RevealProps) {
   const ref = useReveal<HTMLDivElement>();
   return (
-    <div ref={ref} className={`reveal reveal-${variant} ${className}`.trim()} style={style}>
+    <div
+      ref={ref}
+      className={`reveal reveal-${variant} ${className}`.trim()}
+      // eslint-disable-next-line no-restricted-syntax -- passthrough of caller-supplied style (e.g. per-instance transition-delay), not authored here
+      style={style}
+    >
       {children}
     </div>
   );

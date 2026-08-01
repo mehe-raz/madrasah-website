@@ -18,7 +18,6 @@ export function Layout() {
   useEffect(() => {
     const media = window.matchMedia("(max-width: 768px)");
     const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    setIsMobile(media.matches);
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
   }, []);
@@ -28,6 +27,7 @@ export function Layout() {
   }, [settings.theme]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing to route-change events from the router (an external system), not a value derivable during render
     if (isMobile) setSidebarOpen(false);
   }, [location.pathname, isMobile]);
 

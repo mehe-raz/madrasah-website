@@ -114,6 +114,7 @@ export function Income() {
     if (studentsInClass.length === 1) {
       const only = studentsInClass[0];
       if (only.id !== studentForm.studentId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs form selection to a derived search match; guarded against re-firing once already selected
         setStudentForm((f) => ({ ...f, studentId: only.id, amount: String(only.due > 0 ? only.due : only.fee) }));
       }
     }
@@ -133,6 +134,7 @@ export function Income() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() intentionally sets loading=true immediately so the table shows a spinner right away; the rest of its state updates land after the request resolves
     void load();
   }, [page, filterCat]);
 
