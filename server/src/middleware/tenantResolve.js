@@ -25,6 +25,15 @@ const registryDb = require("../registryDb");
 function isSkippedPath(path) {
   if (path === "/api/health") return true;
   if (path.startsWith("/api/platform")) return true;
+  // Public self-signup (Step 2/3) — /api/public/signup creates a brand new
+  // tenant_xxx schema (it doesn't belong to one), and /api/public/root-domain
+  // is a static config read; neither needs Host-based tenant lookup, which
+  // would only ever 404 here. Same reasoning as /api/platform above. NOTE:
+  // this is distinct from the pre-existing /api/public/site-content and
+  // /api/public/settings routes (mounted directly on `app`, not this
+  // router), which DO need per-tenant resolution and are intentionally not
+  // matched by this prefix check beyond the literal segment below.
+  if (path === "/api/public/signup" || path === "/api/public/root-domain") return true;
   // Google's OAuth redirect URI is one fixed URL, registered once in Google
   // Cloud Console, that always points at this backend's own domain (it's
   // handed to Google, not to the frontend) — it can never carry a tenant's

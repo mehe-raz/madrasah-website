@@ -4,6 +4,7 @@ const { requirePermission } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
 const registryDb = require("../registryDb");
 const tenantContext = require("../tenantContext");
+const { getPlanFeatures } = require("../config/planFeatures");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -82,6 +83,67 @@ router.put("/", async (req, res) => {
   }
 
   res.json(after);
+});
+
+// ============================================================================
+// Plan info + self-service custom domain (Step 5/6)
+// ============================================================================
+// Both routes are no-ops (404) outside multi-tenant mode: a single-tenant
+// deployment has no registry.institutions row / plan concept, and already
+// has full freedom over its own domain via hosting config — this feature
+// only makes sense once one Express app is serving many institutions.
+function requireTenantContext(req, res, next) {
+  const ctx = tenantContext.get();
+  if (!ctx?.institution) {
+    return res.status(404).json({ error: "এই ফিচারটি এই ডিপ্লয়মেন্টে উপলব্ধ নয়" });
+  }
+  req._institution = ctx.institution;
+  next();
+}
+
+// Tells the dashboard's "ডোমেইন কানেক্ট করুন" page which plan the
+// institution is on, what that plan allows, and its currently-set custom
+// domain (if any) — everything the UI needs to either show the form or the
+// "প্রো প্ল্যান নিন" upsell message.
+router.get("/plan", requireTenantContext, (req, res) => {
+  const institution = req._institution;
+  res.json({
+    plan: institution.plan,
+    features: getPlanFeatures(institution.plan),
+    customDomain: institution.custom_domain || null,
+  });
+});
+
+// Lets the institution set/clear its own custom domain — the tenant-side
+// counterpart to the Super-Admin-only PATCH /api/platform/institutions/:id/domain
+// (routes/platform.js), which still also works (e.g. for support staff
+// setting it on a tenant's behalf). Plan-gated: basic-plan institutions are
+// rejected here even if they somehow bypass the frontend's lock/unlock UI —
+// same "never trust the client alone" reasoning as every other permission
+// check in this app. Sending customDomain: "" or null clears it.
+router.put("/custom-domain", requireTenantContext, async (req, res, next) => {
+  try {
+    const institution = req._institution;
+    const features = getPlanFeatures(institution.plan);
+    if (!features.customDomain) {
+      return res.status(403).json({ error: "কাস্টম ডোমেইন শুধুমাত্র প্রো প্ল্যানে উপলব্ধ। প্রো প্ল্যানে আপগ্রেড করুন।" });
+    }
+
+    const { customDomain } = req.body || {};
+    const updated = await registryDb.updateCustomDomain(institution.id, customDomain);
+    await recordAudit({
+      action: "settings.custom_domain_updated",
+      actor: req.user,
+      entityType: "settings",
+      entityId: 0,
+      label: customDomain ? `Custom domain set to ${updated.custom_domain}` : "Custom domain cleared",
+      details: { customDomain: updated.custom_domain },
+    });
+    res.json({ customDomain: updated.custom_domain || null });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
 });
 
 module.exports = router;

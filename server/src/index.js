@@ -185,10 +185,59 @@ app.use("/api/auth", authLimiter, require("./routes/auth"));
 // excluded from tenant resolution by tenantResolve's isSkippedPath().
 app.use("/api/platform", require("./routes/platform"));
 
+// Public self-signup (Step 2) — same "control plane, not a tenant" reasoning
+// as /api/platform above: it only ever creates a registry row + a brand new
+// tenant_xxx schema, never reads/writes an existing one, so no tenant
+// resolution or tenant auth applies here. Already excluded from tenant
+// resolution by tenantResolve's isSkippedPath(). NOTE: mounted with no
+// blanket rate limiter here (unlike /api/auth above) because /api/public/*
+// already hosts unrelated, differently-limited routes (site-content,
+// settings, admissions, results — registered further below); publicSignup.js
+// applies its own limiter to just its /signup route instead.
+app.use("/api/public", require("./routes/publicSignup"));
+
 // Static Super-Admin panel UI (plain HTML/JS, no build step — see
 // server/public-platform/). Served directly by this Express app so it works
 // the same in dev and production, independent of the client's Vite build.
 app.use("/platform", express.static(path.join(__dirname, "..", "public-platform")));
+
+// ----------------------------------------------------------------------------
+// Public marketing site (Step 3) — served instead of the client SPA when a
+// visitor's Host is the bare apex root domain (yourapp.com / www.yourapp.com),
+// same PLATFORM_ROOT_DOMAIN env var tenantResolve.js and isAllowedOrigin
+// above already use. Any subdomain (abc.yourapp.com) or custom domain still
+// falls through unchanged to the tenant SPA further below — this only
+// intercepts the bare apex, and only GET requests, and never /api/* or
+// /platform/* (those are matched by earlier app.use()s above and never
+// reach this middleware for those paths in the first place... but path is
+// still checked defensively here in case route order ever changes).
+// No-op (next() immediately) unless PLATFORM_ROOT_DOMAIN is set, so a
+// single-tenant deployment without it configured is completely unaffected.
+// ----------------------------------------------------------------------------
+const marketingDist = path.join(__dirname, "..", "public-marketing");
+const marketingStatic = express.static(marketingDist, { index: false });
+
+function isApexHost(hostname) {
+  const rootDomain = (process.env.PLATFORM_ROOT_DOMAIN || "").toLowerCase();
+  if (!rootDomain) return false;
+  const host = (hostname || "").toLowerCase();
+  return host === rootDomain || host === `www.${rootDomain}`;
+}
+
+app.use((req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
+  if (req.path.startsWith("/api") || req.path.startsWith("/platform")) return next();
+  if (!isApexHost(req.hostname)) return next();
+
+  marketingStatic(req, res, (err) => {
+    if (err) return next(err);
+    // Not a static asset (js/css/etc) — serve the marketing SPA's own
+    // index.html for any other apex path, same catch-all role the client
+    // SPA's own index.html plays for tenant paths further below.
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(path.join(marketingDist, "index.html"));
+  });
+});
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
