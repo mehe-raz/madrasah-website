@@ -31,6 +31,12 @@ export function canBackup(role: string): boolean {
   return role === "Super Admin";
 }
 
+// Custom-domain is a billing-plan-level setting (Step 6), same sensitivity
+// tier as backup/restore — restricted to Super Admin, same as canBackup.
+export function canManageDomain(role: string): boolean {
+  return role === "Super Admin";
+}
+
 export function canViewAuditLogs(role: string): boolean {
   return role === "Super Admin";
 }

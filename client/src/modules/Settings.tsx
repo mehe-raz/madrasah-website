@@ -5,7 +5,7 @@ import { Button, Input, Select } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
-import { canBackup, canManageUsers } from "../lib/permissions";
+import { canBackup, canManageDomain, canManageUsers } from "../lib/permissions";
 import { USER_ROLES, type BackupConfig, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
 // Formats a byte count like "1.2 MB" the way the Drive backup list shows it.
@@ -98,8 +98,19 @@ export function Settings() {
   const [editSystem, setEditSystem] = useState(false);
   const [editBackup, setEditBackup] = useState(false);
   const [editUsers, setEditUsers] = useState(false);
+  const [editDomain, setEditDomain] = useState(false);
   const manageUsers = authUser ? canManageUsers(authUser.role) : false;
   const allowBackup = authUser ? canBackup(authUser.role) : false;
+  const allowDomain = authUser ? canManageDomain(authUser.role) : false;
+
+  // null while not yet loaded / not multi-tenant (getPlan() 404s outside
+  // multi-tenant mode — see requireTenantContext in routes/settings.js), so
+  // "undefined vs loaded-but-empty" is distinguishable in the JSX below.
+  const [plan, setPlan] = useState<{ plan: string; features: { customDomain: boolean }; customDomain: string | null } | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [domainDraft, setDomainDraft] = useState("");
+  const [domainSaving, setDomainSaving] = useState(false);
+  const [domainMsg, setDomainMsg] = useState("");
 
   const update = (k: keyof SettingsType, v: string) => {
     setSettings({ ...settings, [k]: v });
@@ -131,6 +142,36 @@ export function Settings() {
       refreshUsers();
     }
   }, [manageUsers, editUsers, users.length, refreshUsers]);
+
+  useEffect(() => {
+    if (allowDomain && editDomain) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentionally sets planLoading=true immediately so the section shows a spinner right away; the rest of its state updates land after the request resolves
+      setPlanLoading(true);
+      api
+        .getPlan()
+        .then((data) => {
+          setPlan(data);
+          setDomainDraft(data.customDomain || "");
+        })
+        .catch(() => setPlan(null))
+        .finally(() => setPlanLoading(false));
+    }
+  }, [allowDomain, editDomain]);
+
+  const saveDomain = async (nextValue: string) => {
+    setDomainSaving(true);
+    setDomainMsg("");
+    try {
+      const result = await api.setCustomDomain(nextValue);
+      setPlan((prev) => (prev ? { ...prev, customDomain: result.customDomain } : prev));
+      setDomainDraft(result.customDomain || "");
+      setDomainMsg(t.settings.domainSaved);
+    } catch (e) {
+      setDomainMsg(e instanceof Error ? e.message : t.settings.domainSaveFailed);
+    } finally {
+      setDomainSaving(false);
+    }
+  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- refreshDriveFiles() intentionally sets driveFilesLoading=true immediately; the rest of its state updates land after the request resolves
@@ -630,6 +671,57 @@ export function Settings() {
                       )}
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {allowDomain && (
+            <div className="settings-card">
+              <SectionHeader title={t.settings.domainSection} open={editDomain} onToggle={() => setEditDomain((v) => !v)} />
+              {editDomain && (
+                <div className="mt-12">
+                  <p className="hint-text">{t.settings.domainHint}</p>
+                  {planLoading && <SkeletonRows count={2} />}
+                  {!planLoading && plan && !plan.features.customDomain && (
+                    <div className="mt-12">
+                      <InfoRow label={t.settings.domainUpgradeTitle} value="" />
+                      <p className="hint-text">{t.settings.domainUpgradeMsg}</p>
+                    </div>
+                  )}
+                  {!planLoading && plan && plan.features.customDomain && (
+                    <div className="mt-12">
+                      <InfoRow label={t.settings.domainCurrentLabel} value={plan.customDomain || t.settings.domainNone} />
+                      <div className="field-block--gap mt-12">
+                        <div>
+                          <label className="field-block__label">{t.settings.domainInputLabel}</label>
+                          <Input
+                            type="text"
+                            value={domainDraft}
+                            onChange={(e) => setDomainDraft(e.target.value)}
+                            placeholder={t.settings.domainInputPlaceholder}
+                          />
+                          <p className="hint-text">{t.settings.domainInvalidHint}</p>
+                        </div>
+                        <div className="row row--gap-8">
+                          <Button variant="sky" solid disabled={domainSaving || !domainDraft.trim()} onClick={() => saveDomain(domainDraft.trim())}>
+                            {t.settings.domainSave}
+                          </Button>
+                          {plan.customDomain && (
+                            <Button variant="rose" disabled={domainSaving} onClick={() => saveDomain("")}>
+                              {t.settings.domainClear}
+                            </Button>
+                          )}
+                        </div>
+                        {domainMsg && <p className="msg-line">{domainMsg}</p>}
+                      </div>
+                      <div className="mt-12">
+                        <p className="field-block__label">{t.settings.domainCnameTitle}</p>
+                        <p className="hint-text">{t.settings.domainCnameSteps}</p>
+                      </div>
+                    </div>
+                  )}
+                  {!planLoading && !plan && <p className="hint-text">{t.settings.domainUnavailable}</p>}
                 </div>
               )}
             </div>

@@ -338,6 +338,21 @@ export const api = {
   saveSettings: (settings: Settings) =>
     request<Settings>("/settings", { method: "PUT", body: JSON.stringify(settings) }),
 
+  // Multi-tenant only (404s on a single-tenant deployment — see
+  // requireTenantContext in routes/settings.js). Powers the "ডোমেইন
+  // কানেক্ট করুন" section: which plan the institution is on, what that
+  // plan allows, and the currently-set custom domain (if any).
+  getPlan: () => request<{ plan: string; features: { customDomain: boolean }; customDomain: string | null }>("/settings/plan"),
+
+  // Send "" or null to clear the custom domain. Rejected server-side
+  // (403) if the institution's plan doesn't include customDomain, even if
+  // the button is somehow clicked while locked.
+  setCustomDomain: (customDomain: string) =>
+    request<{ customDomain: string | null }>("/settings/custom-domain", {
+      method: "PUT",
+      body: JSON.stringify({ customDomain }),
+    }),
+
   // Public: no login required. Powers the logged-out visitor page (always
   // the published/live copy).
   getPublicSiteContent: () => request<SiteContent>("/public/site-content"),
