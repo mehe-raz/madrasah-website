@@ -54,17 +54,6 @@ create unique index if not exists institutions_schema_name_unique
 create index if not exists institutions_status_idx
   on registry.institutions (status);
 
--- Small global key/value config store for the platform as a whole (not
--- per-institution) — e.g. "how many days of trial does a brand-new
--- self-signup account get". Kept as generic key/value rather than one
--- column per setting so future settings don't each need their own
--- migration; registryDb.js exposes typed getters/setters on top of this.
-create table if not exists registry.platform_settings (
-  key text primary key,
-  value text not null,
-  updated_at timestamptz not null default now()
-);
-
 alter table registry.institutions
   add column if not exists status text not null default 'trial';
 

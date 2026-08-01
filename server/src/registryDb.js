@@ -625,53 +625,6 @@ async function listPayments({ institutionId, page = 1, limit = 100, from, to } =
 // expiry automatically. Safe to call repeatedly (e.g. from a scheduled job
 // or an operator-triggered manual scan) — institutions already suspended
 // are simply not matched again.
-// ============================================================================
-// Platform settings (generic key/value config, see sql/registry_schema.sql).
-// Currently only DEFAULT_TRIAL_DAYS is used (by the public self-signup
-// route, once that exists), but getPlatformSetting/setPlatformSetting are
-// generic on purpose so a future setting doesn't need a new pair of
-// functions or a new migration.
-// ============================================================================
-
-const DEFAULT_TRIAL_DAYS_KEY = "default_trial_days";
-const DEFAULT_TRIAL_DAYS_FALLBACK = 14;
-
-async function getPlatformSetting(key, fallback = null) {
-  const result = await registryPool.query(
-    "SELECT value FROM registry.platform_settings WHERE key = $1",
-    [key]
-  );
-  return result.rows[0] ? result.rows[0].value : fallback;
-}
-
-async function setPlatformSetting(key, value) {
-  const result = await registryPool.query(
-    `INSERT INTO registry.platform_settings (key, value, updated_at)
-     VALUES ($1, $2, now())
-     ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = now()
-     RETURNING *`,
-    [key, String(value)]
-  );
-  return result.rows[0];
-}
-
-async function getDefaultTrialDays() {
-  const raw = await getPlatformSetting(DEFAULT_TRIAL_DAYS_KEY, String(DEFAULT_TRIAL_DAYS_FALLBACK));
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : DEFAULT_TRIAL_DAYS_FALLBACK;
-}
-
-async function setDefaultTrialDays(days) {
-  const n = Number(days);
-  if (!Number.isFinite(n) || n < 1 || n > 365) {
-    const err = new Error("Default trial days must be a number between 1 and 365");
-    err.status = 400;
-    throw err;
-  }
-  await setPlatformSetting(DEFAULT_TRIAL_DAYS_KEY, Math.floor(n));
-  return Math.floor(n);
-}
-
 async function runExpiryScan() {
   const result = await registryPool.query(
     `SELECT * FROM registry.institutions
@@ -725,8 +678,4 @@ module.exports = {
   recordPayment,
   listPayments,
   runExpiryScan,
-  getPlatformSetting,
-  setPlatformSetting,
-  getDefaultTrialDays,
-  setDefaultTrialDays,
 };

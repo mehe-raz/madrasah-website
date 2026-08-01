@@ -75,31 +75,6 @@ router.get("/auth/me", requirePlatformAuth, (req, res) => {
 // Everything below requires a logged-in platform admin.
 router.use(requirePlatformAuth);
 
-// Global config, not tied to any single institution — currently just "how
-// many days of trial does a brand-new self-signup account get" (read by
-// the future public signup route). Any logged-in platform admin (including
-// read-only "manager") can view it; only super_admin/admin can change it.
-router.get("/settings", async (_req, res, next) => {
-  try {
-    const defaultTrialDays = await registryDb.getDefaultTrialDays();
-    res.json({ defaultTrialDays });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.patch("/settings/default-trial-days", requirePlatformRole("super_admin", "admin"), async (req, res, next) => {
-  try {
-    const { days } = req.body || {};
-    const defaultTrialDays = await registryDb.setDefaultTrialDays(days);
-    await registryDb.logAction(null, req.platformAdmin.email, "default_trial_days_changed", { days: defaultTrialDays });
-    res.json({ defaultTrialDays });
-  } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    next(err);
-  }
-});
-
 router.get("/institutions", async (req, res, next) => {
   try {
     const { status } = req.query;
