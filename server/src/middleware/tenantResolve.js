@@ -123,18 +123,30 @@ async function tenantResolve(req, res, next) {
   if (isSkippedPath(req.path)) return next();
 
   const code = extractTenantCode(req);
-  if (!code) {
-    return res.status(400).json({ error: "প্রতিষ্ঠান শনাক্ত করা যায়নি" });
-  }
 
   let institution;
   try {
-    institution = await registryDb.getInstitutionByCode(code);
+    if (code) {
+      institution = await registryDb.getInstitutionByCode(code);
+    }
+    // Falls through here for two cases: no code at all (host isn't a
+    // "label.rootDomain" subdomain — e.g. an institution's own domain like
+    // "school.theirdomain.com" or "theirdomain.com"), or a code that came
+    // back with no match (typo'd subdomain vs. a real custom domain that
+    // happens to have a dot in its first label). Either way, try the Host
+    // header as a literal custom_domain before giving up.
+    if (!institution) {
+      const host = (req.hostname || "").toLowerCase();
+      if (host) institution = await registryDb.getInstitutionByDomain(host);
+    }
   } catch (err) {
     return next(err);
   }
 
   if (!institution) {
+    if (!code) {
+      return res.status(400).json({ error: "প্রতিষ্ঠান শনাক্ত করা যায়নি" });
+    }
     return res.status(404).json({ error: "প্রতিষ্ঠান খুঁজে পাওয়া যায়নি" });
   }
   if (!registryDb.isAccessAllowed(institution)) {

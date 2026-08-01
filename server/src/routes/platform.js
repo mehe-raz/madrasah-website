@@ -148,6 +148,27 @@ router.patch("/institutions/:id/subscription", requirePlatformRole("super_admin"
   }
 });
 
+// Sets or clears (send customDomain: "" or null) the domain an institution
+// can be reached at instead of its <code>.rootDomain subdomain. This only
+// updates the registry row that tenantResolve.js matches the request Host
+// header against — it does NOT create the DNS record or the hosting
+// platform's (Vercel/Render) domain entry, both of which still need to be
+// done separately, once, outside this app.
+router.patch("/institutions/:id/domain", requirePlatformRole("super_admin", "admin"), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid institution id" });
+    const { customDomain } = req.body || {};
+    const updated = await registryDb.updateCustomDomain(id, customDomain);
+    if (!updated) return res.status(404).json({ error: "Institution not found" });
+    await registryDb.logAction(id, req.platformAdmin.email, "custom_domain_changed", { customDomain: updated.custom_domain });
+    res.json(updated);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
 // Permanently deletes an institution: its tenant_xxx schema (all students,
 // payments, users, etc.) is dropped and its registry row removed. This is
 // irreversible, so the caller must re-send the institution's own `code` as

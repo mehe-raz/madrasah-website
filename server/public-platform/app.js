@@ -171,6 +171,7 @@ function institutionRow(inst) {
     <tr data-id="${inst.id}">
       <td data-label="নাম">${escapeHtml(inst.name)}</td>
       <td class="mono" data-label="কোড">${escapeHtml(inst.code)}</td>
+      <td class="mono muted" data-label="ডোমেইন">${inst.custom_domain ? escapeHtml(inst.custom_domain) : "—"}</td>
       <td data-label="স্ট্যাটাস"><span class="badge ${status}">${STATUS_LABELS[status] || status}</span></td>
       <td data-label="প্ল্যান">${escapeHtml(inst.plan)}</td>
       <td class="muted" data-label="ট্রায়াল শেষ">${fmtDate(inst.trial_ends_at)}</td>
@@ -184,6 +185,7 @@ function institutionRow(inst) {
           </select>
           <button class="small secondary apply-status" data-id="${inst.id}">আপডেট</button>
           <button class="small secondary open-subscription" data-id="${inst.id}">সাবস্ক্রিপশন</button>
+          <button class="small secondary open-domain" data-id="${inst.id}">ডোমেইন</button>
           <button class="small secondary open-payment" data-id="${inst.id}">পেমেন্ট</button>
           <button class="link-btn open-audit" data-id="${inst.id}">লগ</button>
           ${isSuperAdmin ? `<button class="small danger open-delete" data-id="${inst.id}">মুছুন</button>` : ""}
@@ -266,7 +268,7 @@ function renderDashboard() {
             : `<table>
                 <thead>
                   <tr>
-                    <th>নাম</th><th>কোড</th><th>স্ট্যাটাস</th><th>প্ল্যান</th>
+                    <th>নাম</th><th>কোড</th><th>ডোমেইন</th><th>স্ট্যাটাস</th><th>প্ল্যান</th>
                     <th>ট্রায়াল শেষ</th><th>সাবস্ক্রিপশন শেষ</th><th>অ্যাকশন</th>
                   </tr>
                 </thead>
@@ -283,6 +285,7 @@ function renderDashboard() {
 function renderModal() {
   if (state.modal.type === "create") return renderCreateModal();
   if (state.modal.type === "subscription") return renderSubscriptionModal();
+  if (state.modal.type === "domain") return renderDomainModal();
   if (state.modal.type === "audit") return renderAuditModal();
   if (state.modal.type === "payment") return renderPaymentModal();
   if (state.modal.type === "migration") return renderMigrationModal();
@@ -339,6 +342,34 @@ function renderSubscriptionModal() {
           <input name="plan" value="${escapeHtml(inst.plan)}" />
           <label>সাবস্ক্রিপশন শেষের তারিখ</label>
           <input name="subscriptionEndsAt" type="date" value="${inst.subscription_ends_at ? String(inst.subscription_ends_at).slice(0, 10) : ""}" />
+          <div class="modal-actions">
+            <button type="button" class="secondary" id="modal-cancel">বাতিল</button>
+            <button type="submit">সংরক্ষণ করুন</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderDomainModal() {
+  const inst = state.institutions.find((i) => i.id === state.modal.institutionId);
+  if (!inst) return "";
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal">
+        <h2>কাস্টম ডোমেইন — ${escapeHtml(inst.name)}</h2>
+        <p class="sub">
+          প্রতিষ্ঠান নিজের ডোমেইন ব্যবহার করলে এখানে বসান (যেমন school.example.com)।
+          এর আগে প্রতিষ্ঠানকে তাদের DNS-এ CNAME/A রেকর্ড আমাদের হোস্টিং-এর দিকে যোগ করতে হবে,
+          এবং Vercel/Render-এ ডোমেইনটি "Add Domain" দিয়ে যোগ করতে হবে — এই ফর্ম শুধু আমাদের
+          সিস্টেমকে বলে দেয় কোন প্রতিষ্ঠান এই ডোমেইনের মালিক। ফাঁকা রেখে সংরক্ষণ করলে কাস্টম
+          ডোমেইন মুছে যাবে এবং শুধু সাবডোমেইন কাজ করবে।
+        </p>
+        ${state.modal.error ? `<div class="error-box">${escapeHtml(state.modal.error)}</div>` : ""}
+        <form id="domain-form">
+          <label>কাস্টম ডোমেইন</label>
+          <input name="customDomain" value="${inst.custom_domain ? escapeHtml(inst.custom_domain) : ""}" placeholder="school.example.com" />
           <div class="modal-actions">
             <button type="button" class="secondary" id="modal-cancel">বাতিল</button>
             <button type="submit">সংরক্ষণ করুন</button>
@@ -708,6 +739,13 @@ function wireDashboardEvents() {
     });
   });
 
+  root.querySelectorAll(".open-domain").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.modal = { type: "domain", institutionId: Number(btn.dataset.id), error: "" };
+      render();
+    });
+  });
+
   root.querySelectorAll(".open-audit").forEach((btn) => {
     btn.addEventListener("click", () => openAuditModal(Number(btn.dataset.id)));
   });
@@ -766,6 +804,26 @@ function wireDashboardEvents() {
         await api(`/institutions/${state.modal.institutionId}/subscription`, {
           method: "PATCH",
           body,
+        });
+        closeModal();
+        await loadInstitutions();
+      } catch (err) {
+        state.modal.error = err.message;
+        render();
+      }
+    });
+  }
+
+  const domainForm = document.getElementById("domain-form");
+  if (domainForm) {
+    domainForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(domainForm);
+      const customDomain = (fd.get("customDomain") || "").trim();
+      try {
+        await api(`/institutions/${state.modal.institutionId}/domain`, {
+          method: "PATCH",
+          body: { customDomain: customDomain || null },
         });
         closeModal();
         await loadInstitutions();

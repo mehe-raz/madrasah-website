@@ -57,6 +57,19 @@ create index if not exists institutions_status_idx
 alter table registry.institutions
   add column if not exists status text not null default 'trial';
 
+-- Optional custom domain (e.g. "school.theirdomain.com" or
+-- "theirdomain.com") an institution points at this app instead of using
+-- the platform's own subdomain. NULL means "no custom domain configured,
+-- use the subdomain as usual". Verification (DNS actually pointing here)
+-- happens at the hosting layer (Vercel/Render "Add Domain"); this column is
+-- just what tenantResolve.js matches the request Host header against.
+alter table registry.institutions
+  add column if not exists custom_domain text;
+
+create unique index if not exists institutions_custom_domain_unique
+  on registry.institutions (lower(custom_domain))
+  where custom_domain is not null;
+
 -- Guard against typos / bad data from the provisioning script.
 alter table registry.institutions drop constraint if exists institutions_status_check;
 alter table registry.institutions

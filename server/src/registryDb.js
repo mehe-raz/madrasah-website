@@ -54,6 +54,22 @@ function assertValidCode(code) {
   }
 }
 
+// Same shape a browser/DNS would accept: dot-separated labels of
+// letters/digits/hyphens (no leading/trailing hyphen per label), at least
+// one dot (so a bare "localhost"-style single label can't be claimed), and
+// no protocol/path (that's a config mistake, not a domain).
+const DOMAIN_RE = /^(?=.{1,253}$)(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/;
+
+function assertValidDomain(domain) {
+  if (!domain || typeof domain !== "string" || !DOMAIN_RE.test(domain.toLowerCase())) {
+    const err = new Error(
+      "Domain must look like a real hostname (e.g. school.example.com), no https:// or path"
+    );
+    err.status = 400;
+    throw err;
+  }
+}
+
 function codeToSchemaName(code) {
   // Postgres identifiers can't contain hyphens, so the schema name swaps
   // them for underscores and gets a fixed "tenant_" prefix. This also keeps
@@ -77,6 +93,15 @@ async function getInstitutionByCode(code) {
   const result = await registryPool.query(
     "SELECT * FROM registry.institutions WHERE lower(code) = lower($1)",
     [code]
+  );
+  return result.rows[0];
+}
+
+async function getInstitutionByDomain(domain) {
+  if (!domain) return null;
+  const result = await registryPool.query(
+    "SELECT * FROM registry.institutions WHERE lower(custom_domain) = lower($1)",
+    [domain]
   );
   return result.rows[0];
 }
@@ -211,6 +236,30 @@ async function updateInstitutionContact(id, { name, contactEmail, contactPhone }
     [name || null, contactEmail || null, contactPhone || null, id]
   );
   return result.rows[0];
+}
+
+// Sets or clears (pass null/"") an institution's custom domain. Checked
+// against DOMAIN_RE and against the unique index (via the DB error below)
+// so two institutions can never claim the same domain.
+async function updateCustomDomain(id, customDomain) {
+  const normalized = customDomain ? customDomain.trim().toLowerCase() : null;
+  if (normalized) assertValidDomain(normalized);
+
+  try {
+    const result = await registryPool.query(
+      `UPDATE registry.institutions SET custom_domain = $1, updated_at = now() WHERE id = $2 RETURNING *`,
+      [normalized, id]
+    );
+    return result.rows[0];
+  } catch (err) {
+    // unique_violation on institutions_custom_domain_unique
+    if (err.code === "23505") {
+      const dupErr = new Error(`Domain "${normalized}" is already used by another institution`);
+      dupErr.status = 409;
+      throw dupErr;
+    }
+    throw err;
+  }
 }
 
 async function logAction(institutionId, actorEmail, action, detail = {}) {
@@ -605,11 +654,14 @@ module.exports = {
   codeToSchemaName,
   listInstitutions,
   getInstitutionByCode,
+  getInstitutionByDomain,
   getInstitutionById,
   createInstitution,
   deleteInstitution,
   updateStatus,
   updateSubscription,
+  updateCustomDomain,
+  assertValidDomain,
   updateInstitutionContact,
   logAction,
   isAccessAllowed,
