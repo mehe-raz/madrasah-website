@@ -502,6 +502,13 @@ export const api = {
   // footer for the logged-out visitor page — see PublicSettings type.
   getPublicSettings: () => request<PublicSettings>("/public/settings"),
 
+  // Public: no login required. Same tenant class/jamaat master list as
+  // getClassOptions() above, served from server/src/index.js's
+  // /api/public/class-options so the logged-out AdmissionApply page's class
+  // dropdown always matches what Super Admin configured in Settings —
+  // instead of the separate, easy-to-drift content.classes CMS list.
+  getPublicClassOptions: () => request<ClassOption[]>("/public/class-options"),
+
   // Admin / Super Admin only. Loads the section editor's *draft* copy —
   // in-progress edits nobody outside the admin panel can see yet.
   getDraftSiteContent: () => request<SiteContent>("/site-content"),

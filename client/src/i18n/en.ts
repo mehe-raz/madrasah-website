@@ -390,6 +390,9 @@ export const en = {
     syncIssuesTitle: "Sync issues — needs review",
     syncIssueHint: "This entry could not be saved to the server. Discard it and re-enter the admission with corrected details.",
     discardEntry: "Discard",
+    printSummary: "Print summary",
+    viewFullDetails: "View full details",
+    hideFullDetails: "Collapse",
   },
   hifz: {
     title: "Hifz Tracking",

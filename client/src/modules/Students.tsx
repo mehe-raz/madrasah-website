@@ -8,10 +8,10 @@ import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { deptLabel, typeLabel } from "../lib/labels";
 import { getOutboxEntriesFor, removeOutboxEntry, type OutboxEntry } from "../lib/offlineDb";
-import { printAdmissionForm, printReportTable } from "../lib/printReport";
+import { printAdmissionForm, printAdmissionSummary, printReportTable } from "../lib/printReport";
 import { C } from "../theme/colors";
 import type { Student, StudentDocuments } from "../types";
-import { useLanguage } from "../context/AppSettingsContext";
+import { useAppSettings } from "../context/AppSettingsContext";
 import type { Dict } from "../i18n/bn";
 
 type AdmissionForm = Omit<Partial<Student>, "id" | "documents"> & {
@@ -102,8 +102,22 @@ const wizardSteps = ["ভর্তি তথ্য", "অভিভাবক ও 
 
 const departmentOptions = ["Hifz", "Nazera", "Kitab", "Nurani", "General"];
 const bloodOptions = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-const genderOptions = ["Male", "Female", "Other"];
-const religionOptions = ["Islam", "Hinduism", "Christianity", "Buddhism", "Other"];
+const genderOptions = ["Male", "Female"];
+const religionOptions = ["Islam"];
+
+// "চলতি বছর + পরের বছর" dynamically, instead of hardcoding years that go
+// stale — matches server/src/models/studentAdmission.js, which only
+// validates the 4-digit format and leaves the actual allowed range to the
+// frontend.
+function academicYearOptions(currentValue?: string) {
+  const year = new Date().getFullYear();
+  const options = [String(year), String(year + 1)];
+  // Keep an older/edited record's existing year selectable even if it falls
+  // outside the current/next-year window, so opening it for edit never
+  // silently changes the value.
+  if (currentValue && !options.includes(currentValue)) options.unshift(currentValue);
+  return options;
+}
 
 function sectionTitle(title: string) {
   return <h3 className="section-title">{title}</h3>;
@@ -163,7 +177,7 @@ function readFile(file: File, t: Dict, imageOnly = false): Promise<string> {
 }
 
 export function Students() {
-  const { t, tr } = useLanguage();
+  const { t, tr, classOptions } = useAppSettings();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
@@ -187,6 +201,11 @@ export function Students() {
   const [historyError, setHistoryError] = useState("");
   const [pendingAdmissions, setPendingAdmissions] = useState<OutboxEntry[]>([]);
   const [queuedMessage, setQueuedMessage] = useState("");
+  // View modal shows only the summary (name/class/roll/attendance) by
+  // default; the 5 detail sections (admission, student, guardian, address,
+  // previous education) only render once this is toggled on, so opening a
+  // record for a quick look doesn't dump the entire admission form at once.
+  const [showFullDetails, setShowFullDetails] = useState(false);
 
   // Real server-side pagination (LIST_COLUMNS only, no studentPhoto/documents)
   // instead of pulling every student's full record into the browser and
@@ -284,7 +303,7 @@ export function Students() {
     return () => {
       cancelled = true;
     };
-  }, [viewing, t.students.totalAttendance]);
+  }, [viewing, t.common.requestFailed]);
 
   const setField = (field: AdmissionField, value: string | number | StudentDocuments) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -332,6 +351,7 @@ export function Students() {
   // the full record for the "view" modal too.
   const openView = async (student: Student) => {
     setViewing(student);
+    setShowFullDetails(false);
     try {
       const full = await api.getStudent(student.id);
       setViewing(full);
@@ -422,6 +442,13 @@ export function Students() {
     }
   };
 
+  const classSelectValues = (() => {
+    const values = classOptions.map((option) => option.en);
+    const current = String(form.class || "");
+    return current && !values.includes(current) ? [current, ...values] : values;
+  })();
+  const classLabelFor = (value: string) => classOptions.find((option) => option.en === value)?.bn || value;
+
   const renderInput = (label: string, field: AdmissionField, type = "text") => (
     <Field label={label}>
       <Input
@@ -459,16 +486,22 @@ export function Students() {
     </Field>
   );
 
-  const renderUpload = (label: string, key: keyof StudentDocuments, optional = false) => (
-    <Field label={optional ? `${label} (${t.students.optional})` : label}>
-      <Input
-        type="file"
-        accept={key === "studentPhoto" ? "image/*" : "image/*,application/pdf"}
-        onChange={(event) => uploadDocument(key, event.target.files?.[0])}
-      />
-      {form.documents[key] && <span className="field-hint-success">{t.common.uploaded}</span>}
-    </Field>
-  );
+  const renderUpload = (label: string, key: keyof StudentDocuments, optional = false) => {
+    const photoPreview = key === "studentPhoto" ? form.documents.studentPhoto || form.studentPhoto : "";
+    return (
+      <Field label={optional ? `${label} (${t.students.optional})` : label}>
+        <div className="row row--gap-8 row--wrap">
+          {photoPreview && <img src={photoPreview} alt="" className="avatar-64" />}
+          <Input
+            type="file"
+            accept={key === "studentPhoto" ? "image/*" : "image/*,application/pdf"}
+            onChange={(event) => uploadDocument(key, event.target.files?.[0])}
+          />
+        </div>
+        {form.documents[key] && <span className="field-hint-success">{t.common.uploaded}</span>}
+      </Field>
+    );
+  };
 
   const detailSections: DetailSection[] = viewing
     ? [
@@ -648,9 +681,9 @@ export function Students() {
               <div className="form-grid">
                 {renderInput(t.students.admissionNumber, "admissionNumber")}
                 {renderInput(t.students.admissionDate, "admissionDate", "date")}
-                {renderInput(t.students.academicYear, "academicYear")}
+                {renderSelect(t.students.academicYear, "academicYear", academicYearOptions(String(form.academicYear || "")))}
                 {renderInput(t.students.session, "session")}
-                {renderInput(t.students.classJamaat, "class")}
+                {renderSelect(t.students.classJamaat, "class", classSelectValues, classLabelFor)}
                 {renderInput(t.students.section, "section")}
                 {renderInput(t.students.rollNumber, "roll")}
                 {renderSelect(t.students.studentType, "type", ["Day", "Residential"], typeLabel)}
@@ -830,8 +863,10 @@ export function Students() {
               <div>
                 <h3 className="detail-modal__name">{viewing.name}</h3>
                 <div className="table-pagination__info">{viewing.nameEn} | {viewing.admissionNumber || t.students.noAdmissionNumber}</div>
+                <div className="table-pagination__info">{viewing.class} | {t.students.rollNumber}: {viewing.roll}</div>
               </div>
               <div className="row row--gap-8 row--wrap row--ml-auto">
+                <Button variant="sky" solid onClick={() => printAdmissionSummary(viewing)}>{t.students.printSummary}</Button>
                 <Button variant="sky" solid onClick={printHistory}>{t.common.print} হিস্ট্রি</Button>
                 <Button variant="emerald" onClick={() => startEdit(viewing)}>{t.students.editStudent}</Button>
                 <Button variant="outline" onClick={() => setViewing(null)}>{t.common.close}</Button>
@@ -859,21 +894,29 @@ export function Students() {
 
             {historyError && <div className="alert alert--rose">{historyError}</div>}
 
-            <div className="detail-sections-grid">
-              {detailSections.map((section) => (
-                <div key={section.title} className="detail-section">
-                  <div className="detail-section__title">{section.title}</div>
-                  <div className="detail-section__grid">
-                    {section.rows.map(([label, value]) => (
-                      <div key={label} className="detail-field">
-                        <div className="detail-field__label">{label}</div>
-                        <div className="detail-field__value">{textValue(value)}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className="row row--justify-center mt-18">
+              <Button variant="outline" onClick={() => setShowFullDetails((prev) => !prev)}>
+                {showFullDetails ? t.students.hideFullDetails : t.students.viewFullDetails}
+              </Button>
             </div>
+
+            {showFullDetails && (
+              <div className="detail-sections-grid">
+                {detailSections.map((section) => (
+                  <div key={section.title} className="detail-section">
+                    <div className="detail-section__title">{section.title}</div>
+                    <div className="detail-section__grid">
+                      {section.rows.map(([label, value]) => (
+                        <div key={label} className="detail-field">
+                          <div className="detail-field__label">{label}</div>
+                          <div className="detail-field__value">{textValue(value)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-18">
               <div className="row row--gap-8 row--wrap row--justify-between mb-10">

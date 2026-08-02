@@ -269,3 +269,32 @@ export function printAdmissionForm(student: Student, targetWindow?: Window | nul
 
   openPrintWindow(`ভর্তি ফরম - ${student.name || "ছাত্র"}`, body, targetWindow);
 }
+
+/**
+ * Lighter alternative to printAdmissionForm() for the view modal's
+ * "সংক্ষিপ্ত প্রিন্ট" button — just the fields needed for a quick reference
+ * printout, not the full official admission form (birth registration,
+ * documents checklist, etc.).
+ */
+export function printAdmissionSummary(student: Student) {
+  const rows: [string, string | number | null | undefined][] = [
+    ["নাম (বাংলা)", student.name || ""],
+    ["নাম (ইংরেজি)", student.nameEn || ""],
+    ["ভর্তি নং", student.admissionNumber || ""],
+    ["শিক্ষাবর্ষ", student.academicYear || ""],
+    ["ক্লাস / জামাত", student.class || ""],
+    ["শাখা", student.section || ""],
+    ["রোল", student.roll || ""],
+    ["লিঙ্গ", student.gender || ""],
+    ["অভিভাবকের নাম", student.guardianName || student.fatherName || ""],
+    ["অভিভাবকের মোবাইল", student.guardianMobile || student.fatherMobile || ""],
+    ["মাসিক বেতন", student.fee ?? 0],
+    ["বকেয়া", student.due ?? 0],
+    ["অবস্থা", student.status || ""],
+  ];
+
+  printDetailSheet({
+    title: `সংক্ষিপ্ত তথ্য - ${student.name || "ছাত্র"}`,
+    rows,
+  });
+}

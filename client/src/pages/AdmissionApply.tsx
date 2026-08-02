@@ -7,7 +7,7 @@ import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
-import type { AdmissionApplicationInput } from "../types";
+import type { AdmissionApplicationInput, ClassOption } from "../types";
 
 const inputStyle = {
   width: "100%",
@@ -53,6 +53,27 @@ export function AdmissionApply() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ id: number } | null>(null);
+  // Super Admin's class/jamaat master list (Settings → ক্লাস/জামাত
+  // ব্যবস্থাপনা), so this public dropdown always matches the authenticated
+  // admission form instead of drifting from a separately-maintained list.
+  // Falls back to content.classes (CMS) below if this hasn't loaded yet /
+  // is empty, so the form never blocks on it.
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getPublicClassOptions()
+      .then((options) => {
+        if (!cancelled) setClassOptions(options);
+      })
+      .catch(() => {
+        /* fall back to content.classes below */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useSeoMeta({
     title: `ভর্তি ফর্ম — ${site.name}`,
@@ -143,8 +164,17 @@ export function AdmissionApply() {
               {error && <div style={{ background: C.roseL, color: C.roseD, borderRadius: 12, padding: "10px 14px", fontSize: 13, lineHeight: 1.7 }}>{error}</div>}
 
               <div style={{ display: "grid", gap: 16 }}>
-                <Field label="ক্লাস / কোর্স" required>
-                  {content.classes.length ? (
+                <Field label="ক্লাস / জামাত" required>
+                  {classOptions.length ? (
+                    <select value={form.className} onChange={(e) => update({ className: e.target.value })} style={inputStyle}>
+                      <option value="">নির্বাচন করুন</option>
+                      {classOptions.map((c) => (
+                        <option key={c.en} value={c.en}>
+                          {c.bn}
+                        </option>
+                      ))}
+                    </select>
+                  ) : content.classes.length ? (
                     <select value={form.className} onChange={(e) => update({ className: e.target.value })} style={inputStyle}>
                       <option value="">নির্বাচন করুন</option>
                       {content.classes.map((c, i) => (
@@ -176,7 +206,6 @@ export function AdmissionApply() {
                       <option value="">নির্বাচন করুন</option>
                       <option value="Male">পুরুষ</option>
                       <option value="Female">মহিলা</option>
-                      <option value="Other">অন্যান্য</option>
                     </select>
                   </Field>
                 </div>

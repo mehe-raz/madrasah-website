@@ -136,6 +136,7 @@ export function Income() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() intentionally sets loading=true immediately so the table shows a spinner right away; the rest of its state updates land after the request resolves
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load is a plain (non-memoized) function redefined every render; only page/filterCat should trigger a refetch, not every render
   }, [page, filterCat]);
 
   const totalIncome = summaryTotal;

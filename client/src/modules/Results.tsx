@@ -87,7 +87,6 @@ export function Results() {
     }
     api.getResultStudents(selectedClass).then(setStudents).catch(() => setStudents([]));
     refreshList(selectedClass);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClass]);
 
   const updateSubject = (index: number, patch: Partial<ResultSubjectMark>) => {
