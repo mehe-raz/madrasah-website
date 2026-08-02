@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS } from "../data/mockData";
 import { bn, type Dict } from "../i18n/bn";
 import { en } from "../i18n/en";
 import { api } from "../lib/api";
-import type { Settings, User } from "../types";
+import type { ClassOption, Settings, User } from "../types";
 
 type Lang = "bn" | "en";
 
@@ -26,6 +26,12 @@ interface AppSettingsContextValue {
   users: User[];
   refreshUsers: () => Promise<void>;
   refreshSettings: () => Promise<void>;
+  // Tenant's class/jamaat master list (bn label + en data-slug), managed by
+  // Super Admin from Settings and consumed by the admission form's class
+  // dropdown. See server/src/lib/classOptions.js.
+  classOptions: ClassOption[];
+  refreshClassOptions: () => Promise<void>;
+  saveClassOptions: (options: Pick<ClassOption, "bn" | "en">[]) => Promise<void>;
 }
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -47,6 +53,7 @@ function loadCachedSettings(): Settings {
 export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(loadCachedSettings);
   const [users, setUsers] = useState<User[]>([]);
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
 
   const lang = (settings.lang === "en" ? "en" : "bn") as Lang;
   const theme: "light" | "dark" = settings.theme === "dark" ? "dark" : "light";
@@ -76,6 +83,19 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshClassOptions = useCallback(async () => {
+    try {
+      setClassOptions(await api.getClassOptions());
+    } catch {
+      setClassOptions([]);
+    }
+  }, []);
+
+  const saveClassOptionsFn = useCallback(async (options: Pick<ClassOption, "bn" | "en">[]) => {
+    const updated = await api.saveClassOptions(options);
+    setClassOptions(updated);
+  }, []);
+
   const refreshSettings = useCallback(async () => {
     try {
       const s = await api.getSettings();
@@ -93,6 +113,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     const run = () => {
       if (cancelled) return;
       refreshSettings();
+      refreshClassOptions();
     };
 
     const win = window as Window & {
@@ -109,7 +130,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       if (win.cancelIdleCallback && typeof handle === "number") win.cancelIdleCallback(handle);
       else window.clearTimeout(handle);
     };
-  }, [refreshSettings]);
+  }, [refreshSettings, refreshClassOptions]);
 
   useEffect(() => {
     applyTheme(theme);
@@ -146,8 +167,24 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       users,
       refreshUsers,
       refreshSettings,
+      classOptions,
+      refreshClassOptions,
+      saveClassOptions: saveClassOptionsFn,
     }),
-    [settings, saveSettings, lang, t, tr, theme, users, refreshUsers, refreshSettings]
+    [
+      settings,
+      saveSettings,
+      lang,
+      t,
+      tr,
+      theme,
+      users,
+      refreshUsers,
+      refreshSettings,
+      classOptions,
+      refreshClassOptions,
+      saveClassOptionsFn,
+    ]
   );
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;

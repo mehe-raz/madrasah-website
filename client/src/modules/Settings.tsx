@@ -44,6 +44,10 @@ function Field({
 // and its status dot below — real per-instance data (which role each user
 // has), not a fixed design-system value, so it stays a JS lookup rather
 // than a CSS class. See AGENTS.md "Design System (mandatory)".
+// Mirrors server/src/lib/classOptions.js's EN_SLUG_RE — client-side check is
+// just for fast feedback; the server is the real source of truth.
+const CLASS_EN_SLUG_RE = /^[a-zA-Z0-9][a-zA-Z0-9-]*$/;
+
 const ROLE_COLORS: Record<string, string> = {
   "Super Admin": "#6d28d9", // C.violet
   Admin: "#0f766e", // C.teal
@@ -74,7 +78,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export function Settings() {
   const { user: authUser } = useAuth();
-  const { settings, setSettings, saveSettings, users, refreshUsers } = useAppSettings();
+  const { settings, setSettings, saveSettings, users, refreshUsers, classOptions, refreshClassOptions, saveClassOptions } = useAppSettings();
   const { t } = useLanguage();
   const [saved, setSaved] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", role: "Teacher", email: "", password: "" });
@@ -99,6 +103,9 @@ export function Settings() {
   const [editBackup, setEditBackup] = useState(false);
   const [editUsers, setEditUsers] = useState(false);
   const [editDomain, setEditDomain] = useState(false);
+  const [editClasses, setEditClasses] = useState(false);
+  const [classForm, setClassForm] = useState({ bn: "", en: "" });
+  const isSuperAdmin = authUser?.role === "Super Admin";
   const manageUsers = authUser ? canManageUsers(authUser.role) : false;
   const allowBackup = authUser ? canBackup(authUser.role) : false;
   const allowDomain = authUser ? canManageDomain(authUser.role) : false;
@@ -142,6 +149,12 @@ export function Settings() {
       refreshUsers();
     }
   }, [manageUsers, editUsers, users.length, refreshUsers]);
+
+  useEffect(() => {
+    if (isSuperAdmin && editClasses && !classOptions.length) {
+      refreshClassOptions();
+    }
+  }, [isSuperAdmin, editClasses, classOptions.length, refreshClassOptions]);
 
   useEffect(() => {
     if (allowDomain && editDomain) {
@@ -410,6 +423,46 @@ export function Settings() {
       setMsg(result.pendingApproval ? "Permission request sent for approval" : "User deleted");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Cannot delete");
+    }
+  };
+
+  const handleAddClass = async () => {
+    if (!isSuperAdmin) return;
+    const bnValue = classForm.bn.trim();
+    const enValue = classForm.en.trim();
+    if (!bnValue || !enValue || !CLASS_EN_SLUG_RE.test(enValue)) return;
+    try {
+      const next = [...classOptions.map((o) => ({ bn: o.bn, en: o.en })), { bn: bnValue, en: enValue }];
+      await saveClassOptions(next);
+      setClassForm({ bn: "", en: "" });
+      setMsg(t.settings.classAdded);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const handleDeleteClass = async (en: string) => {
+    if (!isSuperAdmin) return;
+    if (!confirm("Delete this class/jamaat?")) return;
+    try {
+      const next = classOptions.filter((o) => o.en !== en).map((o) => ({ bn: o.bn, en: o.en }));
+      await saveClassOptions(next);
+      setMsg(t.settings.classDeleted);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const handleMoveClass = async (index: number, dir: -1 | 1) => {
+    if (!isSuperAdmin) return;
+    const target = index + dir;
+    if (target < 0 || target >= classOptions.length) return;
+    const reordered = classOptions.map((o) => ({ bn: o.bn, en: o.en }));
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    try {
+      await saveClassOptions(reordered);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
     }
   };
 
@@ -823,6 +876,52 @@ export function Settings() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {isSuperAdmin && (
+            <div className="settings-card">
+              <SectionHeader title={t.settings.classManagement} open={editClasses} onToggle={() => setEditClasses((v) => !v)} />
+              {editClasses && (
+                <>
+                  <p className="field-block__label mb-10">{t.settings.classManagementHint}</p>
+                  <div className="user-form-grid">
+                    <Input
+                      placeholder={t.settings.classBnLabel}
+                      value={classForm.bn}
+                      onChange={(e) => setClassForm({ ...classForm, bn: e.target.value })}
+                      style={{ fontSize: 13, padding: "8px 10px" }}
+                    />
+                    <div>
+                      <Input
+                        placeholder={t.settings.classEnLabel}
+                        value={classForm.en}
+                        onChange={(e) => setClassForm({ ...classForm, en: e.target.value })}
+                        style={{ fontSize: 13, padding: "8px 10px" }}
+                      />
+                      <p className="field-block__label">{t.settings.classEnHint}</p>
+                    </div>
+                  </div>
+                  <Button variant="teal" solid onClick={handleAddClass} style={{ fontSize: 13, marginBottom: 14 }}>
+                    + {t.settings.addClass}
+                  </Button>
+
+                  <div className="user-list">
+                    {classOptions.map((option, index) => (
+                      <div key={option.en} className="user-row">
+                        <div className="user-info">
+                          <div className="user-name">{option.bn}</div>
+                          <div className="user-meta">{option.en}</div>
+                        </div>
+                        <button type="button" onClick={() => handleMoveClass(index, -1)} disabled={index === 0} className="btn-xs btn-xs--cancel">↑</button>
+                        <button type="button" onClick={() => handleMoveClass(index, 1)} disabled={index === classOptions.length - 1} className="btn-xs btn-xs--cancel">↓</button>
+                        <button type="button" onClick={() => handleDeleteClass(option.en)} className="btn-xs btn-xs--delete">{t.common.delete}</button>
+                      </div>
+                    ))}
+                    {!classOptions.length && <p className="field-block__label">{t.settings.classEmptyList}</p>}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

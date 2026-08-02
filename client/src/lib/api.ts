@@ -6,6 +6,7 @@ import type {
   AuditLogMeta,
   AuthUser,
   BackupConfig,
+  ClassOption,
   DashboardData,
   DeleteRequest,
   Expense,
@@ -469,6 +470,14 @@ export const api = {
 
   saveSettings: (settings: Settings) =>
     request<Settings>("/settings", { method: "PUT", body: JSON.stringify(settings) }),
+
+  // Class/jamaat master list — read by anyone who can reach the admission
+  // form (Students module), written by Super Admin only (server enforces
+  // this; see routes/classOptions.js).
+  getClassOptions: () => request<ClassOption[]>("/class-options"),
+
+  saveClassOptions: (options: Pick<ClassOption, "bn" | "en">[]) =>
+    request<ClassOption[]>("/class-options", { method: "PUT", body: JSON.stringify({ options }) }),
 
   // Multi-tenant only (404s on a single-tenant deployment — see
   // requireTenantContext in routes/settings.js). Powers the "ডোমেইন

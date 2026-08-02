@@ -166,6 +166,17 @@ export interface PublicSettings {
   brandColor: string;
 }
 
+// A single class/jamaat entry in the tenant's master list, managed by Super
+// Admin from Settings and consumed by the admission form's class dropdown
+// (both the authenticated Students module and the public admission-apply
+// page). `en` is the stable data-layer slug stored on student records; `bn`
+// is the display label. See server/src/lib/classOptions.js.
+export interface ClassOption {
+  bn: string;
+  en: string;
+  order: number;
+}
+
 export interface SiteHighlight {
   icon: string;
   label: string;
