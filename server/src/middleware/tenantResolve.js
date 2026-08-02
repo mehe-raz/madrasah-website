@@ -99,7 +99,38 @@ async function withTenantByCode(code, fn) {
   }
 }
 
+// Shared by both the normal Host-based path and the Cloudflare Worker path
+// below — turns a hostname into a tenant label, or null for the apex/www/api.
+function hostToTenantLabel(host) {
+  const normalized = (host || "").toLowerCase();
+  if (!normalized) return null;
+
+  const rootDomain = (process.env.PLATFORM_ROOT_DOMAIN || "").toLowerCase();
+  if (rootDomain && normalized === rootDomain) return null; // apex domain: no tenant (marketing page / super-admin login)
+
+  const label = normalized.split(".")[0];
+  if (!label || label === "www" || label === "api") return null;
+  return label;
+}
+
 function extractTenantCode(req) {
+  // Cloudflare Worker wildcard-subdomain proxy (see
+  // cloudflare-worker/tenant-router.js): the Worker terminates
+  // *.{PLATFORM_ROOT_DOMAIN} traffic for free (no GCP load balancer / static
+  // IP needed) and forwards requests to this service's default Cloud Run
+  // URL. The Fetch API forbids a Worker from overriding the real Host
+  // header on that forwarded request, so it sends the browser's original
+  // hostname in X-Original-Host instead, alongside a shared secret only the
+  // Worker knows. Without a matching secret this header is ignored — so it
+  // can't be used to spoof a tenant the way a bare client-supplied header
+  // could, which is exactly why X-Tenant-Code below stays disabled in
+  // production.
+  const workerSecret = process.env.CF_WORKER_SHARED_SECRET;
+  if (workerSecret && req.get("x-worker-secret") === workerSecret) {
+    const label = hostToTenantLabel(req.get("x-original-host"));
+    if (label) return label;
+  }
+
   // Header override: lets local development and any environment without
   // wildcard DNS/subdomains (e.g. testing against localhost:10000) select a
   // tenant explicitly. Only ever changes *which schema* a request reads —
@@ -115,15 +146,7 @@ function extractTenantCode(req) {
     if (headerCode) return headerCode.trim().toLowerCase();
   }
 
-  const host = (req.hostname || "").toLowerCase();
-  if (!host) return null;
-
-  const rootDomain = (process.env.PLATFORM_ROOT_DOMAIN || "").toLowerCase();
-  if (rootDomain && host === rootDomain) return null; // apex domain: no tenant (marketing page / super-admin login)
-
-  const label = host.split(".")[0];
-  if (!label || label === "www" || label === "api") return null;
-  return label;
+  return hostToTenantLabel(req.hostname);
 }
 
 async function tenantResolve(req, res, next) {
