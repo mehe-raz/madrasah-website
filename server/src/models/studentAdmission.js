@@ -69,8 +69,13 @@ const REQUIRED_FIELDS = [
 const ALLOWED = {
   type: ["Day", "Residential"],
   dept: ["Hifz", "Nazera", "Kitab", "Nurani", "General"],
-  gender: ["Male", "Female", "Other"],
-  religion: ["Islam", "Hinduism", "Christianity", "Buddhism", "Other"],
+  // Madrasah-only product: gender is restricted to Male/Female and religion
+  // is fixed to Islam (matching frontend change in Students.tsx). Existing
+  // records saved before this change may still hold an older value (e.g.
+  // "Other") — those are left as-is and only shown read-only; this
+  // whitelist only blocks *new* writes.
+  gender: ["Male", "Female"],
+  religion: ["Islam"],
   blood: ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
 };
 

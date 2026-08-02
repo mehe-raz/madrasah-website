@@ -44,6 +44,11 @@ const ROUTE_PERMISSION = {
   // to actually change.
   "/api/site-content": ["website", "websiteGallery", "websiteNotices"],
   "/api/admissions": "website",
+  // Class/jamaat master list: read by the admission form (students) and
+  // managed by Super Admin from the Settings screen (settings). The route
+  // itself (routes/classOptions.js) further restricts writes to Super Admin
+  // only, same defense-in-depth pattern as /api/backup above.
+  "/api/class-options": ["students", "settings"],
 };
 
 module.exports = { ROLE_PERMISSIONS, ROUTE_PERMISSION };

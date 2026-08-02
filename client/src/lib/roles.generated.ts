@@ -58,5 +58,9 @@ export const ROUTE_PERMISSION = {
     "websiteGallery",
     "websiteNotices"
   ],
-  "/api/admissions": "website"
+  "/api/admissions": "website",
+  "/api/class-options": [
+    "students",
+    "settings"
+  ]
 } as const;

@@ -270,6 +270,17 @@ app.get("/api/public/settings", async (_req, res) => {
   res.json(await getPublicSettings());
 });
 
+// Public, unauthenticated: the tenant's class/jamaat master list, so the
+// logged-out admission-apply page (AdmissionApply.tsx) can offer the same
+// dropdown options as the authenticated admission form instead of a
+// separately-maintained list. Managed by Super Admin under Settings; see
+// lib/classOptions.js and routes/classOptions.js.
+app.get("/api/public/class-options", async (_req, res) => {
+  const { getClassOptions } = require("./lib/classOptions");
+  res.setHeader("Cache-Control", "no-cache");
+  res.json(await getClassOptions());
+});
+
 // robots.txt / sitemap.xml — generated per-request (not static files) so the
 // Sitemap directive and every <loc> below use the actual request host. That
 // matters here because each tenant is reachable on its own subdomain/custom
@@ -374,6 +385,7 @@ app.use("/api/expenses", require("./routes/expenses"));
 app.use("/api/hifz", require("./routes/hifz"));
 app.use("/api/results", require("./routes/results"));
 app.use("/api/settings", require("./routes/settings"));
+app.use("/api/class-options", require("./routes/classOptions"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/delete-requests", require("./routes/deleteRequests"));
