@@ -396,6 +396,7 @@ app.use("/api/results", require("./routes/results"));
 app.use("/api/settings", require("./routes/settings"));
 app.use("/api/class-options", require("./routes/classOptions"));
 app.use("/api/users", require("./routes/users"));
+app.use("/api/guardian-approvals", require("./routes/guardianApprovals"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/delete-requests", require("./routes/deleteRequests"));
 app.use("/api/reports", require("./routes/reports"));

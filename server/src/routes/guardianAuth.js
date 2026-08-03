@@ -8,11 +8,10 @@
 // way /api/auth is — BEFORE the tenant requireAuth/rbac chain, since a
 // guardian isn't logged in yet when hitting these.
 //
-// Part 2 (not yet built here): Admin's "Pending Guardian Approvals" queue
-// (list/approve/reject pending accounts) and the "add another child" flow
-// for a guardian who already has an active account. Until Part 2 ships,
-// signups that land on `pending` have no way to become `active` except a
-// direct DB update — see the note on POST /signup below.
+// Step 2 Part 2 adds the Admin approval queue and the authenticated
+// "add another child" flow. Account and child-link review actions live in
+// routes/guardianApprovals.js so public guardian auth stays isolated from
+// staff-only settings permissions.
 // ============================================================================
 
 const express = require("express");
@@ -23,7 +22,8 @@ const { signToken } = require("../middleware/auth");
 const { isUniqueViolation } = require("../pg");
 const { passwordPolicyError } = require("../lib/passwordPolicy");
 const { validate } = require("../middleware/validate");
-const { signupSchema, loginSchema } = require("../lib/guardianAuthSchemas");
+const { verifyCsrfToken } = require("../middleware/csrf");
+const { signupSchema, loginSchema, addChildSchema } = require("../lib/guardianAuthSchemas");
 const { recordAudit } = require("../lib/auditLog");
 
 const router = express.Router();
@@ -132,8 +132,8 @@ router.post("/signup", signupLimiter, validate(signupSchema), async (req, res) =
   }
 
   await db.run(
-    'INSERT INTO guardian_students ("guardianId", "studentId", "createdAt") VALUES ($1, $2, $3)',
-    [guardian.id, student.id, createdAt]
+    'INSERT INTO guardian_students ("guardianId", "studentId", "createdAt", status, "matchCount") VALUES ($1, $2, $3, $4, $5)',
+    [guardian.id, student.id, createdAt, "active", matchCount]
   );
 
   await recordAudit({
@@ -228,6 +228,72 @@ router.post("/login", loginLimiter, validate(loginSchema), async (req, res) => {
   res.json({ user });
 });
 
+
+router.post("/children", signupLimiter, verifyCsrfToken, validate(addChildSchema), async (req, res) => {
+  let payload;
+  try {
+    const { verifyRequestToken } = require("../middleware/auth");
+    payload = verifyRequestToken(req);
+  } catch (err) {
+    return res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+  if (payload.role !== "Guardian") return res.status(403).json({ error: "Guardian login required" });
+
+  const guardian = await db.get("SELECT id, name, status FROM guardian_accounts WHERE id = $1", [payload.id]);
+  if (!guardian || guardian.status !== "active") {
+    return res.status(403).json({ error: "সক্রিয় Guardian account প্রয়োজন" });
+  }
+
+  const { studentName, studentRoll, studentClass, guardianMobile } = req.body;
+  const student = await db.get(
+    'SELECT id, name, "guardianMobile" FROM students WHERE roll = $1 AND class = $2 LIMIT 1',
+    [studentRoll.trim(), studentClass.trim()]
+  );
+  if (!student) {
+    return res.status(400).json({ error: "তথ্য যাচাই করা যায়নি। রোল নাম্বার ও ক্লাস আবার যাচাই করুন।" });
+  }
+
+  const existingLink = await db.get(
+    'SELECT status FROM guardian_students WHERE "guardianId" = $1 AND "studentId" = $2',
+    [guardian.id, student.id]
+  );
+  if (existingLink) {
+    const message = existingLink.status === "active"
+      ? "এই সন্তানটি ইতিমধ্যে আপনার অ্যাকাউন্টে যুক্ত আছে।"
+      : existingLink.status === "pending"
+        ? "এই সন্তানের সংযোগ অনুরোধটি Admin অনুমোদনের অপেক্ষায় আছে।"
+        : "এই সন্তানের আগের সংযোগ অনুরোধটি প্রত্যাখ্যাত হয়েছে। Admin-এর সাথে যোগাযোগ করুন।";
+    return res.status(409).json({ error: message });
+  }
+
+  let matchCount = 2;
+  if (normalizeName(student.name) === normalizeName(studentName)) matchCount += 1;
+  if (student.guardianMobile && normalizeMobile(student.guardianMobile) === normalizeMobile(guardianMobile)) matchCount += 1;
+  const status = matchCount >= 3 ? "active" : "pending";
+  const createdAt = new Date().toISOString();
+
+  await db.run(
+    'INSERT INTO guardian_students ("guardianId", "studentId", "createdAt", status, "matchCount") VALUES ($1, $2, $3, $4, $5)',
+    [guardian.id, student.id, createdAt, status, matchCount]
+  );
+  await recordAudit({
+    action: status === "active" ? "guardian.child_link_active" : "guardian.child_link_pending",
+    actor: { id: guardian.id, name: guardian.name, role: "Guardian" },
+    entityType: "guardian_student",
+    entityId: student.id,
+    label: `Guardian child link (${status}): ${guardian.name} → student #${student.id}`,
+    details: { guardianId: guardian.id, studentId: student.id, matchCount, status },
+  });
+
+  res.status(201).json({
+    ok: true,
+    status,
+    message: status === "active"
+      ? "সন্তানটি সফলভাবে আপনার অ্যাকাউন্টে যুক্ত হয়েছে।"
+      : "তথ্য জমা হয়েছে। Admin অনুমোদনের পর সন্তানটি আপনার অ্যাকাউন্টে যুক্ত হবে।",
+  });
+});
+
 router.post("/logout", (req, res) => {
   res.clearCookie("token", cookieOptions);
   res.json({ ok: true });
@@ -239,7 +305,7 @@ router.get("/me", async (req, res) => {
     const payload = verifyRequestToken(req);
     if (payload.role !== "Guardian") return res.status(401).json({ error: "Session expired" });
     const row = await db.get("SELECT id, name, mobile, email, status FROM guardian_accounts WHERE id = $1", [payload.id]);
-    if (!row) return res.status(401).json({ error: "Session expired" });
+    if (!row || row.status !== "active") return res.status(401).json({ error: "Session expired" });
     res.json({ user: publicGuardian(row) });
   } catch (err) {
     res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });

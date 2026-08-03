@@ -554,6 +554,38 @@ export const api = {
 
   getUsers: () => request<User[]>("/users"),
 
+  getPendingGuardianApprovals: () =>
+    request<{
+      accounts: Array<{
+        id: number;
+        name: string;
+        mobile: string | null;
+        email: string | null;
+        status: string;
+        createdAt: string;
+        students: Array<{ id: number; name: string; roll: string; class: string; matchCount: number | null }>;
+      }>;
+      childLinks: Array<{
+        guardianId: number;
+        studentId: number;
+        status: string;
+        matchCount: number | null;
+        createdAt: string;
+        guardianName: string;
+        mobile: string | null;
+        email: string | null;
+        studentName: string;
+        studentRoll: string;
+        studentClass: string;
+      }>;
+    }>("/guardian-approvals/pending"),
+
+  reviewGuardianAccount: (id: number, action: "approve" | "reject") =>
+    request<{ ok: boolean; status: string }>(`/guardian-approvals/accounts/${id}/${action}`, { method: "POST" }),
+
+  reviewGuardianChildLink: (guardianId: number, studentId: number, action: "approve" | "reject") =>
+    request<{ ok: boolean; status: string }>(`/guardian-approvals/child-links/${guardianId}/${studentId}/${action}`, { method: "POST" }),
+
   uploadFile: (dataUrl: string, folder: string) =>
     request<{ url: string; publicId: string }>("/uploads", { method: "POST", body: JSON.stringify({ dataUrl, folder }) }),
 

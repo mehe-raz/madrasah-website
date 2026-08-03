@@ -324,6 +324,16 @@ create table if not exists guardian_students (
 
 create index if not exists guardian_students_student_idx on guardian_students ("studentId");
 
+-- Step 2 Part 2: a later child-link request may need Admin review even when
+-- the guardian account itself is already active. Existing links (including
+-- links created by Step 2 Part 1) remain active by default.
+alter table guardian_students add column if not exists status text not null default 'active';
+alter table guardian_students add column if not exists "matchCount" integer;
+alter table guardian_students add column if not exists "reviewedAt" text;
+alter table guardian_students add column if not exists "reviewedBy" integer references users(id) on delete set null;
+
+create index if not exists guardian_students_status_idx on guardian_students (status);
+
 -- Which classes a Teacher may see/act on. Only Super Admin/Admin write this
 -- (via /api/users, permission "settings" — Step 3), a Teacher never edits
 -- their own assignments. `class` stores the same English slug value as

@@ -8,6 +8,8 @@ import { api } from "../lib/api";
 import { canBackup, canManageDomain, canManageUsers } from "../lib/permissions";
 import { USER_ROLES, type BackupConfig, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
+type GuardianApprovalData = Awaited<ReturnType<typeof api.getPendingGuardianApprovals>>;
+
 // Formats a byte count like "1.2 MB" the way the Drive backup list shows it.
 function formatFileSize(bytes: number): string {
   if (!bytes) return "0 KB";
@@ -107,6 +109,10 @@ export function Settings() {
   const [editSystem, setEditSystem] = useState(false);
   const [editBackup, setEditBackup] = useState(false);
   const [editUsers, setEditUsers] = useState(false);
+  const [editGuardianApprovals, setEditGuardianApprovals] = useState(false);
+  const [guardianApprovals, setGuardianApprovals] = useState<GuardianApprovalData>({ accounts: [], childLinks: [] });
+  const [guardianApprovalsLoading, setGuardianApprovalsLoading] = useState(false);
+  const [guardianReviewKey, setGuardianReviewKey] = useState<string | null>(null);
   const [editDomain, setEditDomain] = useState(false);
   const [editClasses, setEditClasses] = useState(false);
   const [classForm, setClassForm] = useState({ bn: "", en: "" });
@@ -154,6 +160,24 @@ export function Settings() {
       refreshUsers();
     }
   }, [manageUsers, editUsers, users.length, refreshUsers]);
+
+  const refreshGuardianApprovals = async () => {
+    if (!manageUsers) return;
+    setGuardianApprovalsLoading(true);
+    try {
+      setGuardianApprovals(await api.getPendingGuardianApprovals());
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Guardian approvals could not be loaded");
+    } finally {
+      setGuardianApprovalsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refreshGuardianApprovals() intentionally sets guardianApprovalsLoading=true immediately so the section shows a spinner right away; the rest of its state updates land after the request resolves
+    if (manageUsers && editGuardianApprovals) refreshGuardianApprovals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manageUsers, editGuardianApprovals]);
 
   useEffect(() => {
     if (isSuperAdmin && editClasses && !classOptions.length) {
@@ -414,6 +438,34 @@ export function Settings() {
       delete_requests: t.settings.restoreTableDeleteRequests,
     };
     return map[table] || table;
+  };
+
+  const reviewGuardianAccount = async (id: number, action: "approve" | "reject") => {
+    const key = `account-${id}`;
+    setGuardianReviewKey(key);
+    try {
+      await api.reviewGuardianAccount(id, action);
+      await refreshGuardianApprovals();
+      setMsg(action === "approve" ? "Guardian account approved" : "Guardian account rejected");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Review failed");
+    } finally {
+      setGuardianReviewKey(null);
+    }
+  };
+
+  const reviewGuardianChildLink = async (guardianId: number, studentId: number, action: "approve" | "reject") => {
+    const key = `child-${guardianId}-${studentId}`;
+    setGuardianReviewKey(key);
+    try {
+      await api.reviewGuardianChildLink(guardianId, studentId, action);
+      await refreshGuardianApprovals();
+      setMsg(action === "approve" ? "Child link approved" : "Child link rejected");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Review failed");
+    } finally {
+      setGuardianReviewKey(null);
+    }
   };
 
   const handleAddUser = async () => {
@@ -896,6 +948,59 @@ export function Settings() {
               </div>
             </div>
           </div>
+
+          {manageUsers && (
+            <div className="settings-card">
+              <SectionHeader
+                title={`Pending Guardian Approvals (${guardianApprovals.accounts.length + guardianApprovals.childLinks.length})`}
+                open={editGuardianApprovals}
+                onToggle={() => setEditGuardianApprovals((v) => !v)}
+              />
+              {editGuardianApprovals && (
+                <div className="user-list">
+                  {guardianApprovalsLoading && <SkeletonRows count={3} />}
+
+                  {!guardianApprovalsLoading && guardianApprovals.accounts.map((item) => {
+                    const key = `account-${item.id}`;
+                    return (
+                      <div key={key} className="user-row">
+                        <div className="user-info">
+                          <div className="user-name">{item.name}</div>
+                          <div className="user-meta">
+                            Account signup · {item.mobile || item.email || "No contact"}
+                            {item.students.map((student) => ` · ${student.name} (${student.class}, Roll ${student.roll}) · ${student.matchCount ?? 2}/4 matched`).join("")}
+                          </div>
+                        </div>
+                        <button type="button" disabled={guardianReviewKey === key} onClick={() => reviewGuardianAccount(item.id, "approve")} className="btn-xs btn-xs--save">Approve</button>
+                        <button type="button" disabled={guardianReviewKey === key} onClick={() => reviewGuardianAccount(item.id, "reject")} className="btn-xs btn-xs--delete">Reject</button>
+                      </div>
+                    );
+                  })}
+
+                  {!guardianApprovalsLoading && guardianApprovals.childLinks.map((item) => {
+                    const key = `child-${item.guardianId}-${item.studentId}`;
+                    return (
+                      <div key={key} className="user-row">
+                        <div className="user-info">
+                          <div className="user-name">{item.guardianName} → {item.studentName}</div>
+                          <div className="user-meta">
+                            Add child · {item.studentClass}, Roll {item.studentRoll} · {item.matchCount ?? 2}/4 matched
+                          </div>
+                        </div>
+                        <button type="button" disabled={guardianReviewKey === key} onClick={() => reviewGuardianChildLink(item.guardianId, item.studentId, "approve")} className="btn-xs btn-xs--save">Approve</button>
+                        <button type="button" disabled={guardianReviewKey === key} onClick={() => reviewGuardianChildLink(item.guardianId, item.studentId, "reject")} className="btn-xs btn-xs--delete">Reject</button>
+                      </div>
+                    );
+                  })}
+
+                  {!guardianApprovalsLoading && !guardianApprovals.accounts.length && !guardianApprovals.childLinks.length && (
+                    <p className="field-block__label">No pending guardian requests.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
 
           {manageUsers && (
             <div className="settings-card">

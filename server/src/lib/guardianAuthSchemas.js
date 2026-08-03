@@ -36,4 +36,11 @@ const loginSchema = z.object({
   password: z.string().min(1, "পাসওয়ার্ড আবশ্যক"),
 });
 
-module.exports = { signupSchema, loginSchema };
+const addChildSchema = z.object({
+  studentName: z.string().trim().min(1, "ছাত্রের নাম আবশ্যক"),
+  studentRoll: z.string().trim().min(1, "রোল নাম্বার আবশ্যক"),
+  studentClass: z.string().trim().min(1, "ক্লাস আবশ্যক"),
+  guardianMobile: z.string().trim().min(1, "অভিভাবকের মোবাইল নাম্বার আবশ্যক"),
+});
+
+module.exports = { signupSchema, loginSchema, addChildSchema };
