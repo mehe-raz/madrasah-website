@@ -95,6 +95,11 @@ export function Settings() {
     backupCounts: Record<string, number>;
     currentCounts: Record<string, number>;
   } | null>(null);
+  // Which sections (tables) the admin has ticked in the restore preview —
+  // unticking one (e.g. "users") keeps that section's current data
+  // untouched instead of overwriting it with the backup's version.
+  // Defaults to "everything checked" whenever a new preview loads.
+  const [restoreSelectedTables, setRestoreSelectedTables] = useState<Record<string, boolean>>({});
   const [restorePreviewLoading, setRestorePreviewLoading] = useState(false);
   const [restoreConfirming, setRestoreConfirming] = useState(false);
   const [msg, setMsg] = useState("");
@@ -327,6 +332,7 @@ export function Settings() {
     try {
       const preview = await api.previewBackup(file);
       setRestorePreview({ source: { kind: "file", file }, ...preview });
+      setRestoreSelectedTables(Object.fromEntries(Object.keys(preview.backupCounts).map((key) => [key, true])));
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Could not read backup file");
     } finally {
@@ -345,6 +351,7 @@ export function Settings() {
     try {
       const preview = await api.previewGoogleDriveBackup(file.id);
       setRestorePreview({ source: { kind: "drive", file }, ...preview });
+      setRestoreSelectedTables(Object.fromEntries(Object.keys(preview.backupCounts).map((key) => [key, true])));
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Could not read backup file");
     } finally {
@@ -353,18 +360,29 @@ export function Settings() {
     }
   };
 
-  // Step 2: the Super Admin has seen the row-count comparison and confirmed.
+  // Step 2: the Super Admin has seen the row-count comparison, ticked which
+  // sections they actually want, and confirmed.
   const handleConfirmRestore = async () => {
     if (!restorePreview) return;
+    const selectedTables = Object.keys(restoreSelectedTables).filter((key) => restoreSelectedTables[key]);
+    if (!selectedTables.length) {
+      setMsg(t.settings.restoreNoSectionSelected);
+      return;
+    }
     setRestoreConfirming(true);
     try {
-      if (restorePreview.source.kind === "file") {
-        await api.restoreBackup(restorePreview.source.file);
-      } else {
-        await api.restoreFromGoogleDrive(restorePreview.source.file.id);
-      }
-      setMsg("Backup restored successfully. Refresh the page (and log in again if needed) to see the restored data.");
+      const result =
+        restorePreview.source.kind === "file"
+          ? await api.restoreBackup(restorePreview.source.file, selectedTables)
+          : await api.restoreFromGoogleDrive(restorePreview.source.file.id, selectedTables);
+      const baseMsg = "Backup restored successfully. Refresh the page (and log in again if needed) to see the restored data.";
+      const notes = [
+        result.report?.selfAccountRestored ? t.settings.restoreSelfAccountKept : "",
+        result.report?.googleDriveAuthStripped ? t.settings.restoreDriveNotCarriedOver : "",
+      ].filter(Boolean);
+      setMsg(notes.length ? `${baseMsg} ${notes.join(" ")}` : baseMsg);
       setRestorePreview(null);
+      setRestoreSelectedTables({});
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Restore failed");
     } finally {
@@ -372,7 +390,31 @@ export function Settings() {
     }
   };
 
-  const handleCancelRestore = () => setRestorePreview(null);
+  const handleCancelRestore = () => {
+    setRestorePreview(null);
+    setRestoreSelectedTables({});
+  };
+
+  const toggleRestoreTable = (table: string, checked: boolean) =>
+    setRestoreSelectedTables((prev) => ({ ...prev, [table]: checked }));
+
+  // Maps a raw table name (as it appears in BACKUP_TABLES on the server)
+  // to its translated, human-readable section label for the checkboxes.
+  const restoreTableLabel = (table: string): string => {
+    const map: Record<string, string> = {
+      students: t.settings.restoreTableStudents,
+      attendance: t.settings.restoreTableAttendance,
+      payments: t.settings.restoreTablePayments,
+      income: t.settings.restoreTableIncome,
+      expenses: t.settings.restoreTableExpenses,
+      hifz_logs: t.settings.restoreTableHifzLogs,
+      settings: t.settings.restoreTableSettings,
+      users: t.settings.restoreTableUsers,
+      password_resets: t.settings.restoreTablePasswordResets,
+      delete_requests: t.settings.restoreTableDeleteRequests,
+    };
+    return map[table] || table;
+  };
 
   const handleAddUser = async () => {
     if (!manageUsers || !userForm.name.trim() || !userForm.email || !userForm.password) return;
@@ -580,26 +622,65 @@ export function Settings() {
                       Backup taken: {new Date(restorePreview.exportedAt).toLocaleString()}
                     </p>
                   )}
+                  <p className="restore-warn-box__meta restore-warn-box__meta--strong">{t.settings.restoreSectionsTitle}</p>
+                  <div className="row row--gap-8 mb-6">
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => setRestoreSelectedTables(Object.fromEntries(Object.keys(restorePreview.backupCounts).map((key) => [key, true])))}
+                    >
+                      {t.settings.restoreSelectAll}
+                    </button>
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => setRestoreSelectedTables(Object.fromEntries(Object.keys(restorePreview.backupCounts).map((key) => [key, false])))}
+                    >
+                      {t.settings.restoreSelectNone}
+                    </button>
+                  </div>
+                  <p className="hint-text hint-text--tight mb-6">{t.settings.restoreSectionsHint}</p>
                   <div className="restore-counts-list">
                     {Object.keys(restorePreview.backupCounts).map((table) => {
                       const backupCount = restorePreview.backupCounts[table];
                       const currentCount = restorePreview.currentCounts[table];
                       const changed = backupCount !== currentCount;
+                      const checked = restoreSelectedTables[table] !== false;
+                      const sensitive = table === "users";
                       return (
-                        <div key={table} className={`restore-diff-row ${changed ? "restore-diff-row--changed" : ""}`}>
-                          <span>{table}</span>
+                        <label
+                          key={table}
+                          className={`restore-diff-row restore-diff-row--checkbox ${changed ? "restore-diff-row--changed" : ""}`}
+                        >
+                          <span className="restore-diff-row__label">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => toggleRestoreTable(table, e.target.checked)}
+                              disabled={restoreConfirming}
+                            />
+                            <span>
+                              {restoreTableLabel(table)}
+                              {sensitive && <span className="restore-diff-row__sensitive"> — {t.settings.restoreSensitiveNote}</span>}
+                            </span>
+                          </span>
                           <span>
                             {currentCount} → {backupCount}
                           </span>
-                        </div>
+                        </label>
                       );
                     })}
                   </div>
                   <p className="restore-warn-box__notice">
-                    This will permanently replace all current data in the tables above with the numbers on the right. This cannot be undone from the app (a safety backup of the current data is taken automatically, but restoring it requires repeating this process).
+                    This will permanently replace all current data in the checked sections above with the numbers on the right. This cannot be undone from the app (a safety backup of the current data is taken automatically, but restoring it requires repeating this process).
                   </p>
                   <div className="row row--gap-8">
-                    <Button variant="rose" solid onClick={handleConfirmRestore} disabled={restoreConfirming}>
+                    <Button
+                      variant="rose"
+                      solid
+                      onClick={handleConfirmRestore}
+                      disabled={restoreConfirming || Object.keys(restoreSelectedTables).every((key) => !restoreSelectedTables[key])}
+                    >
                       {restoreConfirming ? "Restoring…" : "Confirm restore"}
                     </Button>
                     <Button variant="outline" onClick={handleCancelRestore} disabled={restoreConfirming}>

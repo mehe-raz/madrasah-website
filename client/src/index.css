@@ -1066,6 +1066,28 @@ img {
   color: var(--muted);
 }
 
+.restore-diff-row--checkbox {
+  align-items: center;
+  cursor: pointer;
+  gap: 8px;
+}
+
+.restore-diff-row__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.restore-diff-row__sensitive {
+  color: #fb7185; /* C.rose */
+  font-weight: 600;
+}
+
+.restore-warn-box__meta--strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
 .restore-diff-row--changed {
   color: #fb7185; /* C.rose */
 }

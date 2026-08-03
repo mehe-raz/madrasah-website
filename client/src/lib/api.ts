@@ -617,9 +617,13 @@ export const api = {
       `/backup/google/preview/${fileId}`
     ),
 
-  restoreBackup: async (file: File) => {
+  // `selectedTables`, when given, restricts the restore to just those
+  // sections (the checkboxes in the restore preview) — leave it out/empty
+  // to restore everything in the backup file, same as before.
+  restoreBackup: async (file: File, selectedTables?: string[]) => {
     const csrfToken = readCsrfToken();
-    const res = await fetch(`${API}/backup/restore`, {
+    const qs = selectedTables?.length ? `?tables=${encodeURIComponent(selectedTables.join(","))}` : "";
+    const res = await fetch(`${API}/backup/restore${qs}`, {
       method: "POST",
       credentials: "include",
       headers: {
@@ -632,7 +636,7 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    return (await res.json()) as { ok: boolean; message: string };
+    return (await res.json()) as { ok: boolean; message: string; report?: { selfAccountRestored?: boolean; googleDriveAuthStripped?: boolean; tables?: string[] } };
   },
 
   getGoogleDriveStatus: () => request<GoogleDriveStatus>("/backup/google/status"),
@@ -643,8 +647,13 @@ export const api = {
 
   listGoogleDriveFiles: () => request<GoogleDriveFile[]>("/backup/google/files"),
 
-  restoreFromGoogleDrive: (fileId: string) =>
-    request<{ ok: boolean; message: string }>(`/backup/google/restore/${fileId}`, { method: "POST" }),
+  restoreFromGoogleDrive: (fileId: string, selectedTables?: string[]) => {
+    const qs = selectedTables?.length ? `?tables=${encodeURIComponent(selectedTables.join(","))}` : "";
+    return request<{ ok: boolean; message: string; report?: { selfAccountRestored?: boolean; googleDriveAuthStripped?: boolean; tables?: string[] } }>(
+      `/backup/google/restore/${fileId}${qs}`,
+      { method: "POST" }
+    );
+  },
 
   // Super Admin-only audit log feed: filterable, paginated history of who
   // changed what (students, payments, expenses, users, settings, backups,

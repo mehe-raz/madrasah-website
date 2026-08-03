@@ -19,6 +19,11 @@ const router = express.Router();
 router.use(requirePermission("settings"));
 const backupDir = path.join(__dirname, "..", "..", "backups");
 const CONFIG_KEY = "backupConfig";
+// Must match CONFIG_KEY in lib/googleDrive.js — that's the settings row that
+// holds the connected account's OAuth tokens. Referenced here (not imported)
+// because it's not exported there; kept as a named constant so the intent at
+// each call site below is obvious rather than a bare string literal.
+const GOOGLE_DRIVE_AUTH_KEY = "googleDriveAuth";
 const BACKUP_FORMAT = "madrasah-pg-json";
 const BACKUP_VERSION = 2;
 const RESTORE_REQUIRED_TABLES = ["users", "students", "settings"];
@@ -136,6 +141,21 @@ function defaultClientOrigin() {
       .map((s) => s.trim())
       .filter(Boolean)[0] || "/"
   );
+}
+
+// Both restore routes take an optional `?tables=students,attendance,...`
+// query param (the file-upload route already uses its body for the raw
+// backup bytes, so the selection can't travel in the body there). Returns
+// null (meaning "everything in the backup", the pre-existing behavior) when
+// the param is absent so old bookmarked links / API callers are unaffected.
+function parseSelectedTables(req) {
+  const raw = req.query?.tables;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const list = raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+  return list.length ? list : null;
 }
 
 function stamp() {
@@ -321,20 +341,68 @@ async function createBackup(config = null) {
   return { filename, localPath, format: "json", config: saved, driveUploadSkipped };
 }
 
-async function restoreJsonBackup(data) {
+// `options.selectedTables`, when given, narrows a restore down to only those
+// sections (e.g. the admin unchecked "users" and "income" in the restore
+// preview). Anything not in BACKUP_TABLES is ignored rather than rejected,
+// so a stale/garbled value from an old client just falls back safely.
+// `options.actingUser` is who clicked "Confirm restore" — see the
+// self-account preservation block below for why it's needed.
+// `options.stripGoogleDriveAuth`, when true, drops the backed-up Google
+// Drive connection (its OAuth tokens live in the "settings" table under
+// GOOGLE_DRIVE_AUTH_KEY) instead of restoring it. This is set for manual
+// file-upload restores only (see performRestore's callers): someone
+// installing fresh and uploading an old .json/.enc backup should NOT end up
+// silently connected to whichever Google Drive account the ORIGINAL
+// institution had linked — that's a different institution's Drive, and
+// connecting to it must always be a deliberate action taken from the
+// Google Drive section itself, never an automatic side effect of restoring
+// a file. (Restoring directly from a Drive file the admin already picked
+// in that section is a different case — they explicitly chose that
+// account, so its connection is left alone there.)
+async function restoreJsonBackup(data, options = {}) {
   const { data: backup, version, warnings } = normalizeBackupDocument(data);
-  const tablesToRestore = BACKUP_TABLES.filter((table) => Array.isArray(backup.tables[table]));
+  const requestedTables =
+    Array.isArray(options.selectedTables) && options.selectedTables.length
+      ? BACKUP_TABLES.filter((t) => options.selectedTables.includes(t))
+      : BACKUP_TABLES;
+  const tablesToRestore = requestedTables.filter((table) => Array.isArray(backup.tables[table]));
+  if (!tablesToRestore.length) {
+    throw new Error("No sections were selected to restore.");
+  }
+  const actingUser = options.actingUser || null;
+  const stripGoogleDriveAuth = Boolean(options.stripGoogleDriveAuth);
 
   return await db.withTransaction(async (tx) => {
     const beforeCounts = await getCounts(tx, tablesToRestore);
+
+    // If the "users" table is about to be wiped and replaced, capture the
+    // acting Super Admin's own current row *before* the TRUNCATE below.
+    // Without this, restoring a backup taken before this account existed
+    // (e.g. right after setting up a brand-new install) would truncate
+    // their login out of existence along with everything else, locking
+    // the very person doing the restore out of the software they just
+    // recovered.
+    let actingUserRow = null;
+    if (actingUser?.id && tablesToRestore.includes("users")) {
+      actingUserRow = await tx.get('SELECT * FROM users WHERE id = $1', [actingUser.id]);
+    }
 
     for (const table of [...tablesToRestore].reverse()) {
       await tx.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
     }
 
     const inserted = {};
+    let selfAccountRestored = false;
+    let googleDriveAuthStripped = false;
     for (const table of tablesToRestore) {
-      const rows = backup.tables[table] || [];
+      let rows = backup.tables[table] || [];
+      if (table === "settings" && stripGoogleDriveAuth) {
+        const hadAuthRow = rows.some((r) => r?.key === GOOGLE_DRIVE_AUTH_KEY);
+        if (hadAuthRow) {
+          rows = rows.filter((r) => r?.key !== GOOGLE_DRIVE_AUTH_KEY);
+          googleDriveAuthStripped = true;
+        }
+      }
       const allowedColumns = await getTableColumns(tx, table);
       inserted[table] = 0;
       for (const row of rows) {
@@ -347,18 +415,45 @@ async function restoreJsonBackup(data) {
         await tx.run(`INSERT INTO ${table} (${quotedCols}) VALUES (${placeholders})`, values);
         inserted[table] += 1;
       }
+
+      // Add the acting user's account back in if the backup didn't already
+      // bring back one under the same email — if it did, that's the
+      // backup's own version of them and takes priority (they'll need to
+      // use whatever password was current as of that backup).
+      if (table === "users" && actingUserRow) {
+        const emailLower = String(actingUserRow.email || "").toLowerCase();
+        const alreadyPresent = emailLower && rows.some((r) => String(r?.email || "").toLowerCase() === emailLower);
+        if (emailLower && !alreadyPresent) {
+          const cleaned = toRestoreRow(actingUserRow, allowedColumns);
+          delete cleaned.id; // let RESTART IDENTITY assign a fresh id
+          const cols = Object.keys(cleaned);
+          if (cols.length) {
+            const values = cols.map((col) => cleaned[col]);
+            const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
+            const quotedCols = cols.map((c) => `"${c}"`).join(", ");
+            await tx.run(`INSERT INTO ${table} (${quotedCols}) VALUES (${placeholders})`, values);
+            inserted[table] += 1;
+            selfAccountRestored = true;
+          }
+        }
+      }
     }
 
     const afterCounts = await getCounts(tx, tablesToRestore);
+    const finalWarnings = googleDriveAuthStripped
+      ? [...warnings, "Google Drive connection was not restored — reconnect it from the Google Drive section if needed."]
+      : warnings;
     const report = {
       version,
       format: backup.format || BACKUP_FORMAT,
       exportedAt: backup.exportedAt || null,
-      warnings,
+      warnings: finalWarnings,
       beforeCounts,
       afterCounts,
       restoredRows: inserted,
       tables: tablesToRestore,
+      selfAccountRestored,
+      googleDriveAuthStripped,
     };
     return report;
   });
@@ -377,19 +472,19 @@ async function getRestoreReport(buffer) {
   return { exportedAt: backup.exportedAt || null, version, format: backup.format || BACKUP_FORMAT, warnings, unsupportedTables: unsupported, backupCounts, currentCounts };
 }
 
-async function performRestore(buffer, user = null) {
+async function performRestore(buffer, user = null, selectedTables = null, stripGoogleDriveAuth = false) {
   return await withRestoreLock(async () => {
     const beforeBackup = await createBackup();
     try {
-      const report = await restoreJsonBackup(decodeBackupToJson(buffer));
+      const report = await restoreJsonBackup(decodeBackupToJson(buffer), { selectedTables, actingUser: user, stripGoogleDriveAuth });
       await recordBackupEvent({ event: 'restore', status: 'success', user, backupVersion: report.version, backupFormat: report.format, report: { ...report, safetyBackup: beforeBackup.filename } });
       await recordAudit({
         action: "backup.restored",
         actor: user,
         entityType: "backup",
         entityId: 0,
-        label: `Restored backup (v${report.version}, safety copy: ${beforeBackup.filename})`,
-        details: { restoredRows: report.restoredRows, warnings: report.warnings },
+        label: `Restored backup (v${report.version}, safety copy: ${beforeBackup.filename}, sections: ${report.tables.join(", ")})${report.selfAccountRestored ? " — restorer's own account kept" : ""}${report.googleDriveAuthStripped ? " — Google Drive connection not carried over" : ""}`,
+        details: { restoredRows: report.restoredRows, warnings: report.warnings, selfAccountRestored: report.selfAccountRestored, googleDriveAuthStripped: report.googleDriveAuthStripped },
       });
       return { beforeBackup, report };
     } catch (e) {
@@ -515,7 +610,13 @@ router.post("/restore", express.raw({ type: ["application/octet-stream", "applic
   if (!req.body?.length) return res.status(400).json({ error: "Backup file required" });
 
   try {
-    const { beforeBackup, report } = await performRestore(req.body, req.user);
+    // Manual upload — always strip any Google Drive connection the backup
+    // file carries (see the big comment on restoreJsonBackup). Whoever is
+    // running this is potentially setting up a brand-new install from an
+    // old file and must never end up silently linked to another
+    // institution's Drive account just because it happened to be connected
+    // when that backup was taken.
+    const { beforeBackup, report } = await performRestore(req.body, req.user, parseSelectedTables(req), true);
     res.json({
       ok: true,
       message: "Backup restored successfully.",
@@ -671,7 +772,12 @@ router.post("/google/restore/:fileId", async (req, res) => {
   }
   try {
     const buffer = await googleDrive.downloadBackupFile(req.params.fileId);
-    const { beforeBackup, report } = await performRestore(buffer, req.user);
+    // stripGoogleDriveAuth intentionally left at its default (false) here:
+    // the admin picked this file from an already-connected Google Drive
+    // account in the Drive section, so keeping that connection is the
+    // expected outcome — unlike the manual-upload /restore route above,
+    // nothing is being silently inherited here.
+    const { beforeBackup, report } = await performRestore(buffer, req.user, parseSelectedTables(req));
     res.json({
       ok: true,
       message: "Backup restored successfully.",
@@ -755,6 +861,7 @@ router.__test__ = {
   normalizeBackupDocument,
   BACKUP_TABLES,
   RESTORE_REQUIRED_TABLES,
+  GOOGLE_DRIVE_AUTH_KEY,
 };
 
 // Exposed separately (not just reachable through the router below) so

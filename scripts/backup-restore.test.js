@@ -89,6 +89,7 @@ const {
   normalizeBackupDocument,
   performRestore,
   BACKUP_TABLES,
+  GOOGLE_DRIVE_AUTH_KEY,
 } = backupRouter.__test__;
 
 const MARK = "__BR_TEST__";
@@ -150,6 +151,7 @@ async function cleanupMarkedRows() {
   await db.run(`DELETE FROM income WHERE note LIKE $1`, [`${MARK}%`]);
   await db.run(`DELETE FROM expenses WHERE note LIKE $1`, [`${MARK}%`]);
   await db.run(`DELETE FROM settings WHERE key = $1`, [`${MARK}_setting`]);
+  await db.run(`DELETE FROM users WHERE email LIKE $1`, [`${MARK}%`]);
 }
 
 async function run() {
@@ -230,6 +232,117 @@ async function run() {
 
   const driftExpense = await db.get(`SELECT id FROM expenses WHERE note = $1`, ["should disappear after restore"]);
   ok("data added after the backup was taken is gone post-restore", !driftExpense);
+
+  console.log("\n--- Selective (per-section) restore test ---");
+  {
+    // Drift the DB again from the same backupData used above, but this
+    // time only restore the "settings" section — students should stay
+    // deleted (i.e. NOT come back), proving the selection actually limits
+    // which tables get touched.
+    await db.run(`DELETE FROM students WHERE id = $1`, [studentId]);
+    await db.run(`UPDATE settings SET value = $1 WHERE key = $2`, ["mutated-again", `${MARK}_setting`]);
+
+    const partialReport = await restoreJsonBackup(backupData, { selectedTables: ["settings"] });
+    await fixIdentitySequences();
+
+    ok("selective restore only reports the requested table", partialReport.tables.length === 1 && partialReport.tables[0] === "settings");
+
+    const settingAfterPartial = await db.get(`SELECT value FROM settings WHERE key = $1`, [`${MARK}_setting`]);
+    ok("selected section (settings) was restored", settingAfterPartial?.value === "original-value");
+
+    const studentAfterPartial = await db.get(`SELECT id FROM students WHERE name = $1`, [`${MARK} Student One`]);
+    ok("unselected section (students) was left alone, not restored", !studentAfterPartial);
+
+    await expectThrow("restoring with an empty/unmatched selection is rejected", () =>
+      restoreJsonBackup(backupData, { selectedTables: ["not_a_real_table"] })
+    );
+  }
+
+  console.log("\n--- Self-account preservation on users restore ---");
+  {
+    // Snapshot the users table as it stands right now (whatever admin(s)
+    // already exist), simulating a backup taken before a brand-new account
+    // existed.
+    const usersBackup = await createBackup();
+    const usersBackupData = JSON.parse(fs.readFileSync(usersBackup.localPath, "utf8"));
+    const usersInBackup = (usersBackupData.tables.users || []).length;
+
+    // Now simulate "a new account was created after that backup" — this is
+    // the person who will end up clicking Confirm restore.
+    const newUserRow = await db.run(
+      `INSERT INTO users (name, role, email, "passwordHash") VALUES ($1,$2,$3,$4) RETURNING id`,
+      [`${MARK} New Admin`, "Super Admin", `${MARK}-new-admin@example.com`, "irrelevant-hash-for-test"]
+    );
+    const newUserId = newUserRow.insertId;
+
+    const selfReport = await restoreJsonBackup(usersBackupData, {
+      selectedTables: ["users"],
+      actingUser: { id: newUserId },
+    });
+    await fixIdentitySequences();
+
+    ok("restore reports that the acting user's own account was kept", selfReport.selfAccountRestored === true);
+
+    const survivingUser = await db.get(`SELECT * FROM users WHERE email = $1`, [`${MARK}-new-admin@example.com`]);
+    ok("the new account (not present in the old backup) still exists after restore", Boolean(survivingUser));
+    ok("the preserved account keeps its role", survivingUser?.role === "Super Admin");
+
+    const usersAfter = await db.get(`SELECT COUNT(*)::int AS c FROM users`);
+    ok(
+      "restored users table has the backup's accounts plus the preserved one",
+      usersAfter?.c === usersInBackup + 1,
+      `expected=${usersInBackup + 1} actual=${usersAfter?.c}`
+    );
+  }
+
+  console.log("\n--- Google Drive connection is not carried over on manual restore ---");
+  {
+    const originalDriveAuthRow = await db.get(`SELECT value FROM settings WHERE key = $1`, [GOOGLE_DRIVE_AUTH_KEY]);
+
+    // Simulate an institution with Google Drive connected at backup time.
+    await db.run(
+      `INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [GOOGLE_DRIVE_AUTH_KEY, JSON.stringify({ [`${MARK}_fakeToken`]: "fake-refresh-token" })]
+    );
+    const driveBackup = await createBackup();
+    const driveBackupData = JSON.parse(fs.readFileSync(driveBackup.localPath, "utf8"));
+
+    // Simulate a brand-new install: nothing connected yet.
+    await db.run(`DELETE FROM settings WHERE key = $1`, [GOOGLE_DRIVE_AUTH_KEY]);
+
+    const manualReport = await restoreJsonBackup(driveBackupData, {
+      selectedTables: ["settings"],
+      stripGoogleDriveAuth: true,
+    });
+    ok("manual-style restore reports the Drive connection was stripped", manualReport.googleDriveAuthStripped === true);
+    ok(
+      "manual-style restore warns about the dropped Drive connection",
+      manualReport.warnings.some((w) => /Google Drive/i.test(w))
+    );
+
+    const afterManual = await db.get(`SELECT value FROM settings WHERE key = $1`, [GOOGLE_DRIVE_AUTH_KEY]);
+    ok("Google Drive connection did NOT come back after a manual-style restore", !afterManual);
+
+    // Same backup, restored the way a "restore from an already-connected
+    // Drive file" would be (stripGoogleDriveAuth left at its default) — the
+    // connection SHOULD come back in that case, since the admin picked that
+    // file from their own already-connected Drive account.
+    const driveStyleReport = await restoreJsonBackup(driveBackupData, { selectedTables: ["settings"] });
+    ok("Drive-restore-style call does not report stripping", !driveStyleReport.googleDriveAuthStripped);
+
+    const afterDriveStyle = await db.get(`SELECT value FROM settings WHERE key = $1`, [GOOGLE_DRIVE_AUTH_KEY]);
+    ok("Google Drive connection IS restored when not stripped", Boolean(afterDriveStyle));
+
+    // Put the test DB's real Drive-connection row back the way it was.
+    if (originalDriveAuthRow) {
+      await db.run(
+        `INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+        [GOOGLE_DRIVE_AUTH_KEY, originalDriveAuthRow.value]
+      );
+    } else {
+      await db.run(`DELETE FROM settings WHERE key = $1`, [GOOGLE_DRIVE_AUTH_KEY]);
+    }
+  }
 
   console.log("\n--- Rejection tests ---");
 
