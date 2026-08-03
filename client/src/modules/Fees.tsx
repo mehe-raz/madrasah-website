@@ -4,6 +4,7 @@ import { Button } from "../components/ui/Button";
 import { ReceiptModal } from "../components/ReceiptModal";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { StatCard } from "../components/StatCard";
+import { StudentPicker } from "../components/StudentPicker";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -37,6 +38,34 @@ export function Fees() {
   const [pendingPayments, setPendingPayments] = useState<OutboxEntry[]>([]);
   const [flaggedPayments, setFlaggedPayments] = useState<Payment[]>([]);
   const [resolveError, setResolveError] = useState("");
+
+  // Due tab: server-paginated + server-summed (see api.getStudentsBasic's
+  // dueOnly/totalDue), so schools with hundreds of students get an
+  // accurate "total due" and a full, browsable due list instead of one
+  // silently truncated to the first 100 active students.
+  const [dueStudents, setDueStudents] = useState<Student[]>([]);
+  const [duePage, setDuePage] = useState(1);
+  const [duePageSize] = useState(25);
+  const [dueTotalPages, setDueTotalPages] = useState(1);
+  const [dueTotal, setDueTotal] = useState(0);
+  const [dueCount, setDueCount] = useState(0);
+
+  const loadDue = useCallback(async () => {
+    try {
+      const data = await api.getStudentsBasic({ status: "Active", dueOnly: true, page: duePage, limit: duePageSize });
+      setDueStudents(Array.isArray(data?.items) ? data.items : []);
+      setDueTotalPages(data?.totalPages || 1);
+      setDueTotal(data?.totalDue || 0);
+      setDueCount(data?.total || 0);
+    } catch {
+      setDueStudents([]);
+    }
+  }, [duePage, duePageSize]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadDue() intentionally fetches the Due tab's page/list/total on mount and whenever duePage changes; there's no external system to synchronize with here, just an async fetch.
+    void loadDue();
+  }, [loadDue]);
 
   useEffect(() => {
     let alive = true;
@@ -132,7 +161,6 @@ export function Fees() {
     }
   };
 
-  const dueStudents = students.filter((s) => s.due > 0);
   const totalCollected = payments.reduce((s, p) => s + (p.amount || 0), 0);
 
   // Existing pre-Phase-5 code compared status to "সম্পন্ন" (Bengali) even
@@ -173,6 +201,7 @@ export function Fees() {
           setStudents((prev) =>
             prev.map((s) => (s.id === payStudent.id ? { ...s, due: Math.max(0, s.due - amount) } : s))
           );
+          void loadDue();
           setShowReceipt(result.data);
         }
       }
@@ -195,9 +224,9 @@ export function Fees() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 24 }}>
         <StatCard label="এই তালিকার মোট আদায়" value={fmt(totalCollected)} icon="💰" color={C.emerald} />
-        <StatCard label="মোট বকেয়া" value={fmt(dueStudents.reduce((s, st) => s + st.due, 0))} icon="⚠️" color={C.rose} />
+        <StatCard label="মোট বকেয়া" value={fmt(dueTotal)} icon="⚠️" color={C.rose} />
         <StatCard label="এই মাসে পেমেন্ট" value={`${payments.length} টি`} icon="✅" color={C.teal} />
-        <StatCard label="বকেয়া ছাত্র" value={`${dueStudents.length} জন`} icon="📋" color={C.amber} />
+        <StatCard label="বকেয়া ছাত্র" value={`${dueCount} জন`} icon="📋" color={C.amber} />
       </div>
 
 
@@ -335,6 +364,13 @@ export function Fees() {
             {!dueStudents.length && (
               <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>কোনো বকেয়া ছাত্র নেই।</div>
             )}
+            {dueTotalPages > 1 && (
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, marginTop: 12 }}>
+                <Button variant="outline" onClick={() => setDuePage((p) => Math.max(1, p - 1))} disabled={duePage <= 1}>Prev</Button>
+                <span style={{ fontSize: 13, color: C.muted }}>{duePage} / {dueTotalPages}</span>
+                <Button variant="outline" onClick={() => setDuePage((p) => Math.min(dueTotalPages, p + 1))} disabled={duePage >= dueTotalPages}>Next</Button>
+              </div>
+            )}
           </RecordCardList>
         ) : (
         <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
@@ -361,6 +397,13 @@ export function Fees() {
               ))}
             </tbody>
           </table>
+          {dueTotalPages > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, padding: "12px 0" }}>
+              <Button variant="outline" onClick={() => setDuePage((p) => Math.max(1, p - 1))} disabled={duePage <= 1}>Prev</Button>
+              <span style={{ fontSize: 13, color: C.muted }}>{duePage} / {dueTotalPages}</span>
+              <Button variant="outline" onClick={() => setDuePage((p) => Math.min(dueTotalPages, p + 1))} disabled={duePage >= dueTotalPages}>Next</Button>
+            </div>
+          )}
         </div>
         )
       )}
@@ -371,11 +414,7 @@ export function Fees() {
             <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 18 }}>বেতন গ্রহণ</h3>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 6 }}>ছাত্র নির্বাচন করুন</label>
-              <select value={payStudent.id} onChange={(e) => setPayStudent(students.find((s) => s.id === +e.target.value) || payStudent)} style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14 }}>
-                {students.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} — রোল: {s.roll}</option>
-                ))}
-              </select>
+              <StudentPicker value={payStudent} onSelect={(s) => setPayStudent(s)} />
             </div>
             <div style={{ background: C.slateL, borderRadius: 8, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: C.text }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ color: C.muted }}>মাসিক বেতন</span><strong>{fmt(payStudent.fee)}</strong></div>

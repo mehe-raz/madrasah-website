@@ -214,6 +214,13 @@ router.get("/", async (req, res) => {
       `(name ILIKE $${idx} OR "nameEn" ILIKE $${idx} OR roll ILIKE $${idx} OR "admissionNumber" ILIKE $${idx} OR "birthRegistrationNumber" ILIKE $${idx})`
     );
   }
+  // dueOnly: used by the Fees "Due" tab so it can paginate/total students
+  // with outstanding balances in SQL instead of the client fetching every
+  // active student (previously capped at 100) and filtering due>0 in JS.
+  const dueOnly = req.query.dueOnly === "1" || req.query.dueOnly === "true";
+  if (dueOnly) {
+    conditions.push(`due > 0`);
+  }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const paginate = req.query.paginate === "1" || req.query.paginate === "true" || req.query.page != null || req.query.limit != null;
@@ -221,10 +228,14 @@ router.get("/", async (req, res) => {
     const limit = clampInt(req.query.limit, 25, 1, 200);
     const page = clampInt(req.query.page, 1, 1, 100000);
     const offset = (page - 1) * limit;
-    const totalRow = await db.get(`SELECT COUNT(*)::int AS total FROM students ${where}`, params);
+    const orderBy = dueOnly ? "due DESC, roll" : "roll";
+    const totalRow = await db.get(
+      `SELECT COUNT(*)::int AS total, COALESCE(SUM(due), 0)::int AS "totalDue" FROM students ${where}`,
+      params
+    );
     const total = totalRow?.total || 0;
     const items = await db.all(
-      `SELECT ${LIST_COLUMNS} FROM students ${where} ORDER BY roll LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `SELECT ${LIST_COLUMNS} FROM students ${where} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
     return res.json({
@@ -233,6 +244,9 @@ router.get("/", async (req, res) => {
       limit,
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
+      // Only meaningful (and only sent) for the dueOnly query — sum of
+      // `due` across every matching row, not just the current page.
+      ...(dueOnly ? { totalDue: totalRow?.totalDue || 0 } : {}),
     });
   }
 

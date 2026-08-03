@@ -4,6 +4,7 @@ import { ReceiptModal } from "../components/ReceiptModal";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { SkeletonCardList, SkeletonTableRows } from "../components/Skeleton";
 import { StatCard } from "../components/StatCard";
+import { StudentPicker } from "../components/StudentPicker";
 import { useLanguage } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
@@ -18,7 +19,11 @@ export function Income() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [tab, setTab] = useState<"list" | "add" | "student">("list");
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
+  // Full, uncapped class list (server-side distinct query) for the class
+  // filter — previously derived from a students fetch capped at 100 rows,
+  // which could silently hide classes only used by later students.
+  const [classes, setClasses] = useState<string[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [filterCat, setFilterCat] = useState("All");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(25);
@@ -43,7 +48,6 @@ export function Income() {
   const [catEdit, setCatEdit] = useState<string[]>([]);
   const [catDraft, setCatDraft] = useState("");
   const [showCategoryEditor, setShowCategoryEditor] = useState(false);
-  const [studentSearch, setStudentSearch] = useState("");
 
   const [studentForm, setStudentForm] = useState({
     className: "",
@@ -55,11 +59,11 @@ export function Income() {
   const load = async () => {
     setLoading(true);
     try {
-      const [summary, pageData, categoryData, studentData] = await Promise.all([
+      const [summary, pageData, categoryData, classesData] = await Promise.all([
         api.getIncomeSummary(),
         api.getIncomePage({ page, limit: pageSize, category: filterCat !== "All" ? filterCat : undefined }),
         api.getIncomeCategories(),
-        api.getStudentsBasic({ status: "Active" }),
+        api.getClasses(),
       ]);
 
       setSummaryTotal(Number(summary?.total) || 0);
@@ -74,11 +78,10 @@ export function Income() {
         setForm((f) => (safeCategories.includes(f.category) ? f : { ...f, category: safeCategories.find((x) => x !== "Student Fee") || safeCategories[0] }));
       }
 
-      const s = Array.isArray(studentData?.items) ? studentData.items : [];
-      setStudents(s);
-      const classes = [...new Set(s.map((x) => x.class).filter(Boolean))];
-      if (classes.length && !studentForm.className) {
-        setStudentForm((f) => ({ ...f, className: classes[0], studentId: s.find((st) => st.class === classes[0])?.id || 0 }));
+      const safeClasses = Array.isArray(classesData) ? classesData : [];
+      setClasses(safeClasses);
+      if (safeClasses.length) {
+        setStudentForm((f) => (f.className ? f : { ...f, className: safeClasses[0] }));
       }
     } catch (err) {
       console.error("Failed to load income screen", err);
@@ -88,38 +91,11 @@ export function Income() {
       setTotalEntries(0);
       setCategories([]);
       setCatEdit([]);
-      setStudents([]);
+      setClasses([]);
     } finally {
       setLoading(false);
     }
   };
-
-  const searchText = studentSearch.trim().toLowerCase();
-  const studentsInClass = students.filter((s) => {
-    const classMatch = !studentForm.className || s.class === studentForm.className;
-    const activeMatch = s.status === "Active";
-    const searchMatch =
-      !searchText ||
-      s.name.toLowerCase().includes(searchText) ||
-      String(s.roll).toLowerCase().includes(searchText) ||
-      (s.nameEn || "").toLowerCase().includes(searchText);
-    return classMatch && activeMatch && searchMatch;
-  });
-  const classList = [...new Set(students.map((s) => s.class).filter(Boolean))];
-
-  // Once the typed name/roll narrows the list to exactly one student, select
-  // them automatically instead of requiring a manual pick from the dropdown.
-  useEffect(() => {
-    if (!searchText) return;
-    if (studentsInClass.length === 1) {
-      const only = studentsInClass[0];
-      if (only.id !== studentForm.studentId) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs form selection to a derived search match; guarded against re-firing once already selected
-        setStudentForm((f) => ({ ...f, studentId: only.id, amount: String(only.due > 0 ? only.due : only.fee) }));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, studentsInClass.length]);
 
   const saveCategories = async () => {
     try {
@@ -185,7 +161,7 @@ export function Income() {
 
   const handleStudentFee = async () => {
     const amount = Number(studentForm.amount);
-    const student = students.find((s) => s.id === studentForm.studentId);
+    const student = selectedStudent;
     if (!student || !amount) {
       setMsg("Student and amount required");
       return;
@@ -404,37 +380,26 @@ export function Income() {
             value={studentForm.className}
             onChange={(e) => {
               const cls = e.target.value;
-              const first = students.find((s) => s.class === cls);
-              setStudentForm({ ...studentForm, className: cls, studentId: first?.id || 0, amount: first ? String(first.due > 0 ? first.due : first.fee) : "" });
-              setStudentSearch("");
+              setSelectedStudent(null);
+              setStudentForm({ ...studentForm, className: cls, studentId: 0, amount: "" });
             }}
             style={{ ...fieldStyle, marginBottom: 12 }}
           >
-            {classList.map((c) => (
+            {classes.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <label style={{ fontSize: 12, color: C.muted }}>Search by name or roll</label>
-          <input
-            placeholder="Name or roll"
-            value={studentSearch}
-            onChange={(e) => setStudentSearch(e.target.value)}
-            style={{ ...fieldStyle, marginBottom: 12 }}
-          />
           <label style={{ fontSize: 12, color: C.muted }}>Student / ছাত্র</label>
-          <select
-            value={studentForm.studentId}
-            onChange={(e) => {
-              const id = +e.target.value;
-              const st = students.find((s) => s.id === id);
-              setStudentForm({ ...studentForm, studentId: id, amount: st ? String(st.due > 0 ? st.due : st.fee) : "" });
-            }}
-            style={{ ...fieldStyle, marginBottom: 12 }}
-          >
-            {studentsInClass.map((s) => (
-              <option key={s.id} value={s.id}>{s.name} — Roll {s.roll} — Due {fmt(s.due)}</option>
-            ))}
-          </select>
+          <div style={{ marginBottom: 12 }}>
+            <StudentPicker
+              value={selectedStudent}
+              classFilter={studentForm.className || undefined}
+              onSelect={(s) => {
+                setSelectedStudent(s);
+                setStudentForm({ ...studentForm, studentId: s.id, amount: String(s.due > 0 ? s.due : s.fee) });
+              }}
+            />
+          </div>
           <label style={{ fontSize: 12, color: C.muted }}>Amount / পরিমাণ</label>
           <input type="number" placeholder="Amount" value={studentForm.amount} onChange={(e) => setStudentForm({ ...studentForm, amount: e.target.value })} style={{ ...fieldStyle, marginBottom: 12 }} />
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>

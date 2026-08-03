@@ -220,15 +220,20 @@ export const api = {
   // Lightweight, paginated student list (LIST_COLUMNS only, no documents
   // JSONB) for screens like Fees/Income that just need id/name/roll/class
   // for a dropdown rather than the full admission record.
-  getStudentsBasic: (params?: { dept?: string; search?: string; status?: string; class?: string; page?: number; limit?: number }) => {
+  // dueOnly + the returned totalDue are for the Fees "Due" tab: filters to
+  // due>0 in SQL and returns the SUM(due) across every matching row (not
+  // just the current page), so a school with hundreds of students gets an
+  // accurate total instead of one summed from a single capped page.
+  getStudentsBasic: (params?: { dept?: string; search?: string; status?: string; class?: string; page?: number; limit?: number; dueOnly?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.dept) qs.set("dept", params.dept);
     if (params?.search) qs.set("search", params.search);
     if (params?.status) qs.set("status", params.status);
     if (params?.class) qs.set("class", params.class);
+    if (params?.dueOnly) qs.set("dueOnly", "1");
     qs.set("page", String(params?.page ?? 1));
     qs.set("limit", String(params?.limit ?? 100));
-    return request<PaginatedResult<Student>>(`/students?${qs.toString()}`);
+    return request<PaginatedResult<Student> & { totalDue?: number }>(`/students?${qs.toString()}`);
   },
 
   getStudent: (id: number) => request<Student>(`/students/${id}`),

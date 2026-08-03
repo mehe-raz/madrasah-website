@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { C } from "../theme/colors";
@@ -44,6 +44,28 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileClassesOpen, setMobileClassesOpen] = useState(false);
   const [pendingClass, setPendingClass] = useState<string | null>(null);
+  // The button and dropdown panel aren't flush against each other (there's
+  // a visual gap between them), so a plain onMouseLeave={() =>
+  // setClassesOpen(false)} fires the instant the pointer crosses that gap
+  // while moving diagonally toward the panel — the menu closes before the
+  // pointer ever reaches it. Delaying the close (and cancelling the delay
+  // if the pointer re-enters the button or panel in time) fixes that
+  // without needing precise hit-area geometry.
+  const closeTimer = useRef<number | null>(null);
+  const cancelScheduledClose = () => {
+    if (closeTimer.current != null) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+  const openClasses = () => {
+    cancelScheduledClose();
+    setClassesOpen(true);
+  };
+  const scheduleCloseClasses = () => {
+    cancelScheduledClose();
+    closeTimer.current = window.setTimeout(() => setClassesOpen(false), 250);
+  };
 
   const navItems = useMemo(() => NAV_LINKS, []);
 
@@ -87,10 +109,13 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
               <nav style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
                 {navItems.filter((item) => item.to !== "/").map((item) => (
                   item.to === "/classes" ? (
-                    <div key={item.to} style={{ position: "relative" }} onMouseEnter={() => setClassesOpen(true)} onMouseLeave={() => setClassesOpen(false)}>
+                    <div key={item.to} style={{ position: "relative" }} onMouseEnter={openClasses} onMouseLeave={scheduleCloseClasses}>
                       <button
                         type="button"
-                        onClick={() => setClassesOpen((v) => !v)}
+                        onClick={() => {
+                          cancelScheduledClose();
+                          setClassesOpen((v) => !v);
+                        }}
                         className="nav-chip pill"
                         style={{
                           background: location.pathname.startsWith("/classes") ? C.emeraldL : "transparent",
@@ -109,41 +134,46 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                       </button>
 
                       {classesOpen && (
-                        <div className="soft-panel section-pop" style={{ position: "absolute", top: "calc(100% + 10px)", left: 0, minWidth: 260, padding: 8, overflow: "hidden" }}>
-                          {classes.length ? (
-                            classes.map((c, i) => (
-                              <button
-                                key={`${c.title}-${i}`}
-                                type="button"
-                                onClick={() => setPendingClass(c.title)}
-                                className="nav-chip"
-                                style={{
-                                  display: "block",
-                                  width: "100%",
-                                  textAlign: "left",
-                                  background: "transparent",
-                                  border: "none",
-                                  borderRadius: 14,
-                                  padding: "11px 12px",
-                                  fontSize: 13,
-                                  color: C.text,
-                                  cursor: "pointer",
-                                  fontWeight: 700,
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = C.slateL)}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                              >
-                                <span style={{ marginRight: 8 }}>{c.icon}</span>
-                                {c.title}
-                                {c.desc && <span style={{ display: "block", fontSize: 11, color: C.muted, marginTop: 4, fontWeight: 600 }}>{c.desc}</span>}
-                              </button>
-                            ))
-                          ) : (
-                            <Link to="/classes" style={{ display: "block", padding: "10px 12px", fontSize: 13, color: C.muted, textDecoration: "none" }}>
-                              সব ক্লাস এখানে দেখা যাবে →
-                            </Link>
-                          )}
-                          <div style={{ padding: 8 }}>
+                        <div
+                          className="soft-panel section-pop"
+                          style={{ position: "absolute", top: "calc(100% + 10px)", left: 0, minWidth: 260, maxWidth: "min(320px, 90vw)", maxHeight: "min(420px, calc(100vh - 140px))", padding: 8, display: "flex", flexDirection: "column" }}
+                        >
+                          <div style={{ overflowY: "auto", flex: "1 1 auto" }}>
+                            {classes.length ? (
+                              classes.map((c, i) => (
+                                <button
+                                  key={`${c.title}-${i}`}
+                                  type="button"
+                                  onClick={() => setPendingClass(c.title)}
+                                  className="nav-chip"
+                                  style={{
+                                    display: "block",
+                                    width: "100%",
+                                    textAlign: "left",
+                                    background: "transparent",
+                                    border: "none",
+                                    borderRadius: 14,
+                                    padding: "11px 12px",
+                                    fontSize: 13,
+                                    color: C.text,
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = C.slateL)}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                                >
+                                  <span style={{ marginRight: 8 }}>{c.icon}</span>
+                                  {c.title}
+                                  {c.desc && <span style={{ display: "block", fontSize: 11, color: C.muted, marginTop: 4, fontWeight: 600 }}>{c.desc}</span>}
+                                </button>
+                              ))
+                            ) : (
+                              <Link to="/classes" style={{ display: "block", padding: "10px 12px", fontSize: 13, color: C.muted, textDecoration: "none" }}>
+                                সব ক্লাস এখানে দেখা যাবে →
+                              </Link>
+                            )}
+                          </div>
+                          <div style={{ padding: 8, paddingTop: 8, flex: "0 0 auto" }}>
                             <Link to="/classes" className="pill nav-chip" style={{ display: "block", background: C.emeraldL, color: C.emeraldD, padding: "10px 12px", textDecoration: "none", fontWeight: 800, fontSize: 12, textAlign: "center" }}>
                               সব ক্লাস দেখুন
                             </Link>
