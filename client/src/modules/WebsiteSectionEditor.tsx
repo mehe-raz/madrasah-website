@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { HudSpinner } from "../components/HudSpinner";
 import { useLanguage } from "../context/AppSettingsContext";
@@ -300,7 +300,14 @@ export function WebsiteSectionEditor() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [galleryUploading, setGalleryUploading] = useState(false);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [newCategory, setNewCategory] = useState("");
+  // Drag-to-reorder for the gallery grid — uses Pointer Events (not the
+  // HTML5 drag-and-drop API) so the same handler works with a mouse and
+  // with touch on a phone. `dragIndex` is the card being picked up,
+  // `overIndex` is whichever card the pointer is currently above.
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
   // Tracks in-flight uploads for the optional per-card images on
   // departments/classes/admission-steps, keyed as "<section>-<index>" so
   // uploading one item's photo doesn't disable the others.
@@ -417,39 +424,56 @@ export function WebsiteSectionEditor() {
     setContent((prev) => ({ ...prev, admissionSteps: [...prev.admissionSteps, { icon: "✓", title: "", desc: "" }] }));
   };
 
-  const uploadGalleryPhoto = async (file: File | null) => {
-    if (!file) return;
-    if (content.gallery.length >= SECTION_LIMITS.gallery) return;
-    if (!file.type.startsWith("image/")) {
-      setError("শুধু ছবি ফাইল আপলোড করা যাবে।");
+  // Uploads one or more files sequentially (each compressed + sent to
+  // Cloudinary one at a time — deliberately not parallel, so a slow mobile
+  // connection doesn't try to push 20 photos at once). Used for both the
+  // single-file "+" tile and a multi-select from the phone gallery.
+  const uploadGalleryPhotos = async (fileList: FileList | File[] | null) => {
+    const files = fileList ? Array.from(fileList) : [];
+    if (!files.length) return;
+
+    const remainingSlots = SECTION_LIMITS.gallery - content.gallery.length;
+    if (remainingSlots <= 0) {
+      setError(`সর্বোচ্চ ${SECTION_LIMITS.gallery}টি ছবি রাখা যাবে — নতুন ছবি যোগ করতে আগে কিছু ছবি সরান।`);
       return;
     }
-    if (file.size > MAX_GALLERY_SOURCE_BYTES) {
-      setError("ছবির আকার সর্বোচ্চ ২৫ মেগাবাইট হতে হবে।");
-      return;
-    }
-    setError("");
+    const toUpload = files.slice(0, remainingSlots);
+    setError(
+      files.length > toUpload.length
+        ? `একসাথে সর্বোচ্চ ${remainingSlots}টি জায়গা খালি আছে — প্রথম ${toUpload.length}টি ছবি আপলোড করা হচ্ছে।`
+        : ""
+    );
+
     setGalleryUploading(true);
-    try {
-      // Resize to a web-appropriate resolution and re-encode as JPEG in the
-      // browser — this shrinks typical phone photos (3-8MB) down to a few
-      // hundred KB with no visible quality loss before they ever leave the device.
-      const compressed = await compressImageToLimit(file, MAX_GALLERY_UPLOAD_BYTES, {
-        maxWidth: GALLERY_MAX_DIMENSION,
-        maxHeight: GALLERY_MAX_DIMENSION,
-        quality: GALLERY_JPEG_QUALITY,
-      });
-      if (dataUrlBytes(compressed) > MAX_GALLERY_UPLOAD_BYTES) {
-        setError("ছবিটি সংকুচিত করার পরও আকার বেশি বড়। অন্য একটি ছবি চেষ্টা করুন।");
-        return;
+    setBulkUploadProgress({ done: 0, total: toUpload.length });
+    for (let i = 0; i < toUpload.length; i++) {
+      const file = toUpload[i];
+      if (!file.type.startsWith("image/")) {
+        setError((prev) => prev || `"${file.name}" ছবি ফাইল নয়, বাদ দেওয়া হয়েছে।`);
+      } else if (file.size > MAX_GALLERY_SOURCE_BYTES) {
+        setError((prev) => prev || `"${file.name}" সর্বোচ্চ ২৫ মেগাবাইটের চেয়ে বড়, বাদ দেওয়া হয়েছে।`);
+      } else {
+        try {
+          const compressed = await compressImageToLimit(file, MAX_GALLERY_UPLOAD_BYTES, {
+            maxWidth: GALLERY_MAX_DIMENSION,
+            maxHeight: GALLERY_MAX_DIMENSION,
+            quality: GALLERY_JPEG_QUALITY,
+          });
+          if (dataUrlBytes(compressed) > MAX_GALLERY_UPLOAD_BYTES) {
+            setError((prev) => prev || `"${file.name}" সংকুচিত করার পরও অনেক বড়, বাদ দেওয়া হয়েছে।`);
+          } else {
+            const { url, publicId } = await api.uploadFile(compressed, "gallery");
+            setContent((prev) => ({ ...prev, gallery: [...prev.gallery, { url, caption: "", publicId }] }));
+          }
+        } catch (err) {
+          console.error("gallery upload failed for", file.name, err);
+          setError((prev) => prev || `"${file.name}" আপলোড ব্যর্থ হয়েছে।`);
+        }
       }
-      const { url, publicId } = await api.uploadFile(compressed, "gallery");
-      setContent((prev) => ({ ...prev, gallery: [...prev.gallery, { url, caption: "", publicId }] }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "ছবি আপলোড ব্যর্থ হয়েছে");
-    } finally {
-      setGalleryUploading(false);
+      setBulkUploadProgress({ done: i + 1, total: toUpload.length });
     }
+    setBulkUploadProgress(null);
+    setGalleryUploading(false);
   };
 
   // Shared by the departments/classes/admission-step editors: compress +
@@ -511,6 +535,38 @@ export function WebsiteSectionEditor() {
   const moveClassItem = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, classes: moveItem(prev.classes, index, dir) }));
   const moveNotice = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, notices: moveItem(prev.notices, index, dir) }));
   const moveGalleryItem = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, gallery: moveItem(prev.gallery, index, dir) }));
+
+  // Pointer-drag reordering. Starts when the admin presses on a card's
+  // drag handle; as the pointer moves, elementFromPoint finds whichever
+  // gallery card is currently underneath it (works for a grid, not just a
+  // single column) and highlights it as the drop target; releasing moves
+  // the picked-up photo there.
+  const startGalleryDrag = (index: number) => (e: ReactPointerEvent) => {
+    e.preventDefault();
+    setDragIndex(index);
+    setOverIndex(index);
+  };
+  const handleGalleryDragMove = (e: ReactPointerEvent) => {
+    if (dragIndex === null) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const card = el?.closest("[data-gallery-index]");
+    if (!card) return;
+    const idx = Number(card.getAttribute("data-gallery-index"));
+    if (!Number.isNaN(idx)) setOverIndex(idx);
+  };
+  const finishGalleryDrag = () => {
+    if (dragIndex !== null && overIndex !== null && dragIndex !== overIndex) {
+      setContent((prev) => {
+        const next = prev.gallery.slice();
+        const [moved] = next.splice(dragIndex, 1);
+        next.splice(overIndex, 0, moved);
+        return { ...prev, gallery: next };
+      });
+    }
+    setDragIndex(null);
+    setOverIndex(null);
+  };
+
   const moveAdmissionStep = (index: number, dir: -1 | 1) => setContent((prev) => ({ ...prev, admissionSteps: moveItem(prev.admissionSteps, index, dir) }));
   // Removes the photo from the list immediately (so the editor stays
   // responsive) and, separately, asks the server to delete the underlying
@@ -995,22 +1051,81 @@ export function WebsiteSectionEditor() {
               <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>প্রতিটি ছবির নিচে ড্রপডাউন থেকে একটি ক্যাটাগরি বেছে দিন — ভিজিটররা পাবলিক গ্যালারি পেজে এই ক্যাটাগরি অনুযায়ী ছবি ফিল্টার করতে পারবেন।</p>
             </Field>
 
+            {bulkUploadProgress && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: C.muted, fontWeight: 800 }}>
+                <div style={{ flex: 1, height: 6, borderRadius: 999, background: C.slateL, overflow: "hidden" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${(bulkUploadProgress.done / bulkUploadProgress.total) * 100}%`,
+                      background: C.emerald,
+                      transition: "width 200ms ease",
+                    }}
+                  />
+                </div>
+                <span>
+                  আপলোড হচ্ছে {bulkUploadProgress.done}/{bulkUploadProgress.total}
+                </span>
+              </div>
+            )}
+
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
                 gap: 14,
               }}
+              onPointerMove={handleGalleryDragMove}
+              onPointerUp={finishGalleryDrag}
+              onPointerCancel={finishGalleryDrag}
             >
               {content.gallery.map((item, index) => (
-                <div key={index} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: 10, display: "grid", gap: 8 }}>
-                  <img
-                    src={item.url}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 8, background: C.slateL }}
-                  />
+                <div
+                  key={index}
+                  data-gallery-index={index}
+                  style={{
+                    border: `1px solid ${overIndex === index && dragIndex !== null && dragIndex !== index ? C.brand : C.border}`,
+                    borderRadius: 12,
+                    padding: 10,
+                    display: "grid",
+                    gap: 8,
+                    opacity: dragIndex === index ? 0.45 : 1,
+                    background: overIndex === index && dragIndex !== null && dragIndex !== index ? C.brandL : "transparent",
+                    touchAction: dragIndex === index ? "none" : undefined,
+                  }}
+                >
+                  <div style={{ position: "relative" }}>
+                    <img
+                      src={item.url}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 8, background: C.slateL }}
+                    />
+                    <span
+                      onPointerDown={startGalleryDrag(index)}
+                      aria-label="টেনে সাজান"
+                      title="টেনে ক্রম বদলান"
+                      style={{
+                        position: "absolute",
+                        top: 6,
+                        insetInlineStart: 6,
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        background: "rgba(15,23,42,0.55)",
+                        color: "#fff",
+                        display: "grid",
+                        placeItems: "center",
+                        fontSize: 16,
+                        cursor: "grab",
+                        touchAction: "none",
+                        userSelect: "none",
+                      }}
+                    >
+                      ⠿
+                    </span>
+                  </div>
                   <input
                     value={item.caption}
                     maxLength={140}
@@ -1071,14 +1186,15 @@ export function WebsiteSectionEditor() {
                     ? "আপলোড হচ্ছে…"
                     : content.gallery.length >= SECTION_LIMITS.gallery
                       ? `সর্বোচ্চ ${SECTION_LIMITS.gallery}টি ছবি`
-                      : "ছবি আপলোড করুন"}
+                      : "ছবি আপলোড করুন (একসাথে একাধিক নেওয়া যাবে)"}
                 </span>
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   disabled={content.gallery.length >= SECTION_LIMITS.gallery || galleryUploading}
                   onChange={(e) => {
-                    uploadGalleryPhoto(e.target.files?.[0] || null);
+                    uploadGalleryPhotos(e.target.files);
                     e.target.value = "";
                   }}
                   style={{ display: "none" }}
@@ -1086,7 +1202,9 @@ export function WebsiteSectionEditor() {
               </label>
             </div>
             {!content.gallery.length && <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>এখনো কোনো ছবি আপলোড করা হয়নি। ছবি যোগ করে নিচের "সংরক্ষণ করুন" বাটনে ক্লিক করলে তবেই সেটি পাবলিক গ্যালারি পেজে দেখা যাবে।</p>}
-            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>ছবি আপলোডের সময় স্বয়ংক্রিয়ভাবে সংকুচিত হবে, সর্বোচ্চ {SECTION_LIMITS.gallery}টি ছবি। পরিবর্তন পাবলিক পেজে দেখাতে "সংরক্ষণ করুন" বাটনে ক্লিক করতে ভুলবেন না।</p>
+            <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
+              ছবি আপলোডের সময় স্বয়ংক্রিয়ভাবে সংকুচিত হবে, সর্বোচ্চ {SECTION_LIMITS.gallery}টি ছবি। ⠿ আইকন ধরে টেনে ক্রম বদলানো যাবে (বা ▲▼ বাটনে)। পরিবর্তন পাবলিক পেজে দেখাতে "সংরক্ষণ করুন" বাটনে ক্লিক করতে ভুলবেন না।
+            </p>
           </div>
         </SectionCard>
       )}
