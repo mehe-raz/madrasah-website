@@ -178,6 +178,15 @@ const admissionLimiter = rateLimit({
 
 app.use("/api/auth", authLimiter, require("./routes/auth"));
 
+// Guardian Portal — Step 2, Part 1 (self-signup + login). Mounted the same
+// way as /api/auth just above: after tenantResolve (so each institution's
+// guardians are scoped to that institution's schema) but before the staff
+// requireAuth/rbac chain below, since a guardian isn't logged in yet when
+// hitting these two routes. guardianAuth.js applies its own limiters
+// per-route, same pattern as routes/auth.js.
+app.use("/api/guardian-auth", require("./routes/guardianAuth"));
+
+
 // Platform/Super-Admin panel (Part 5) — talks only to the registry schema,
 // never a tenant_xxx schema, so it's mounted here (before the tenant
 // requireAuth/rbac chain below) with its own auth (middleware/platformAuth.js,
