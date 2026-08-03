@@ -25,6 +25,7 @@ const { validate } = require("../middleware/validate");
 const { verifyCsrfToken } = require("../middleware/csrf");
 const { signupSchema, loginSchema, addChildSchema } = require("../lib/guardianAuthSchemas");
 const { recordAudit } = require("../lib/auditLog");
+const { feedForGuardian, markPostRead, unreadCountForGuardian } = require("../lib/classPosts");
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -307,6 +308,59 @@ router.get("/me", async (req, res) => {
     const row = await db.get("SELECT id, name, mobile, email, status FROM guardian_accounts WHERE id = $1", [payload.id]);
     if (!row || row.status !== "active") return res.status(401).json({ error: "Session expired" });
     res.json({ user: publicGuardian(row) });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Step 4: class-broadcast feed (read side of routes/assignments.js). Same
+// verifyRequestToken + active-status check /me and POST /children already
+// do inline above — factored into one helper here only because three more
+// call sites made the duplication worse than a one-line helper; the
+// existing routes above are left as-is to keep this change scoped to what
+// Step 4 actually needs.
+// ---------------------------------------------------------------------------
+async function requireActiveGuardianId(req) {
+  const { verifyRequestToken } = require("../middleware/auth");
+  const payload = verifyRequestToken(req);
+  if (payload.role !== "Guardian") {
+    const err = new Error("Session expired");
+    err.status = 401;
+    throw err;
+  }
+  const guardian = await db.get("SELECT status FROM guardian_accounts WHERE id = $1", [payload.id]);
+  if (!guardian || guardian.status !== "active") {
+    const err = new Error("Session expired");
+    err.status = 401;
+    throw err;
+  }
+  return payload.id;
+}
+
+router.get("/feed", async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    res.json(await feedForGuardian(guardianId, { type: req.query.type }));
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+router.get("/feed/unread-count", async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    res.json({ count: await unreadCountForGuardian(guardianId) });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+router.post("/feed/:postId/read", verifyCsrfToken, async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    await markPostRead(guardianId, Number(req.params.postId));
+    res.json({ ok: true });
   } catch (err) {
     res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
   }

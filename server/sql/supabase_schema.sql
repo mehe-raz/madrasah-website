@@ -366,3 +366,22 @@ create table if not exists class_posts (
 );
 
 create index if not exists class_posts_class_created_idx on class_posts (class, "createdAt" desc);
+
+-- Step 4: per-guardian read-tracking for the class-broadcast feed. The plan
+-- called for reusing the existing notifications/notification_reads tables
+-- for this, but notification_reads."userId" (and notifications."targetUserId")
+-- are hard FK'd to users(id) — the STAFF table — so a guardian_accounts.id
+-- can never be stored there safely (either the FK insert fails outright, or
+-- if the id ranges happened to overlap it would silently point at the
+-- wrong staff member). This is the guardian-side equivalent instead: same
+-- shape as notification_reads, but keyed to guardian_accounts and
+-- class_posts. A missing row = unread, same "absence means unread" contract
+-- notification_reads already uses for staff.
+create table if not exists class_post_reads (
+  "postId" integer not null references class_posts(id) on delete cascade,
+  "guardianId" integer not null references guardian_accounts(id) on delete cascade,
+  "readAt" text not null,
+  primary key ("postId", "guardianId")
+);
+
+create index if not exists class_post_reads_guardian_idx on class_post_reads ("guardianId");

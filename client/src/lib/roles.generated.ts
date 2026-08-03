@@ -18,7 +18,8 @@ export const ROLE_PERMISSIONS = {
     "website",
     "websiteGallery",
     "websiteNotices",
-    "results"
+    "results",
+    "assignments"
   ],
   "Accountant": [
     "dashboard",
@@ -29,7 +30,8 @@ export const ROLE_PERMISSIONS = {
   "Teacher": [
     "attendance",
     "hifz",
-    "results"
+    "results",
+    "assignments"
   ],
   "Hostel Manager": [
     "dashboard",
@@ -48,6 +50,7 @@ export const ROUTE_PERMISSION = {
   "/api/expenses": "expenses",
   "/api/hifz": "hifz",
   "/api/results": "results",
+  "/api/assignments": "assignments",
   "/api/settings": "settings",
   "/api/users": "settings",
   "/api/backup": "settings",
@@ -62,5 +65,6 @@ export const ROUTE_PERMISSION = {
   "/api/class-options": [
     "students",
     "settings"
-  ]
+  ],
+  "/api/guardian-approvals": "settings"
 } as const;

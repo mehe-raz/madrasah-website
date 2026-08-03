@@ -15,9 +15,13 @@ const ROLE_PERMISSIONS = {
   // manages gallery photos) can be granted just that slice without full
   // website-content access. Admin keeps all three today — this is additive,
   // not a behavior change for any existing role.
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "websiteGallery", "websiteNotices", "results"],
+  // "assignments" (Step 4) gates routes/assignments.js — the class-broadcast
+  // notice/assignment/message feed. Admin can post/manage for any class;
+  // Teacher can too, but scoped to their teacher_class_assignments rows via
+  // lib/teacherScope.js (same row-level layer as "attendance"/"results").
+  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "websiteGallery", "websiteNotices", "results", "assignments"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
-  Teacher: ["attendance", "hifz", "results"],
+  Teacher: ["attendance", "hifz", "results", "assignments"],
   "Hostel Manager": ["dashboard", "students", "attendance"],
 };
 
@@ -31,6 +35,7 @@ const ROUTE_PERMISSION = {
   "/api/expenses": "expenses",
   "/api/hifz": "hifz",
   "/api/results": "results",
+  "/api/assignments": "assignments",
   "/api/settings": "settings",
   "/api/users": "settings",
   "/api/backup": "settings",
@@ -49,6 +54,13 @@ const ROUTE_PERMISSION = {
   // itself (routes/classOptions.js) further restricts writes to Super Admin
   // only, same defense-in-depth pattern as /api/backup above.
   "/api/class-options": ["students", "settings"],
+  // Settings-adjacent account management (Step 2, Part 2) — same
+  // permission as /api/users, since approving a guardian signup or a
+  // second-child link is a user-account decision, not day-to-day student
+  // data. requirePermission("settings") in routes/guardianApprovals.js is
+  // the actual enforcement; this entry just keeps rbacMiddleware's table
+  // complete/consistent with every other admin route above.
+  "/api/guardian-approvals": "settings",
 };
 
 module.exports = { ROLE_PERMISSIONS, ROUTE_PERMISSION };

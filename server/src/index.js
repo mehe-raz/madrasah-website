@@ -393,6 +393,7 @@ app.use("/api/income", require("./routes/income"));
 app.use("/api/expenses", require("./routes/expenses"));
 app.use("/api/hifz", require("./routes/hifz"));
 app.use("/api/results", require("./routes/results"));
+app.use("/api/assignments", require("./routes/assignments"));
 app.use("/api/settings", require("./routes/settings"));
 app.use("/api/class-options", require("./routes/classOptions"));
 app.use("/api/users", require("./routes/users"));
