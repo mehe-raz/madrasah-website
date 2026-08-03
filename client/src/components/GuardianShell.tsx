@@ -1,0 +1,127 @@
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useGuardianAuth } from "../context/GuardianAuthContext";
+import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
+import { api } from "../lib/api";
+import { HudSpinner } from "./HudSpinner";
+import type { GuardianDashboardChild } from "../types";
+
+export interface GuardianShellContext {
+  children: GuardianDashboardChild[];
+  selected: GuardianDashboardChild | null;
+  selectChild: (id: number) => void;
+  unreadCount: number;
+  refresh: () => void;
+}
+
+const NAV_ITEMS = [
+  { to: "/guardian", label: "ড্যাশবোর্ড", icon: "🏠", end: true },
+  { to: "/guardian/attendance", label: "উপস্থিতি", icon: "📅" },
+  { to: "/guardian/results", label: "ফলাফল", icon: "📄" },
+  { to: "/guardian/feed", label: "নোটিশ", icon: "📣" },
+];
+
+export function GuardianShell() {
+  const { user, logout } = useGuardianAuth();
+  const { name: madrasaName, logo } = useMadrasaBranding();
+  const navigate = useNavigate();
+  const [children, setChildren] = useState<GuardianDashboardChild[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    api
+      .guardian.getDashboard()
+      .then((d) => {
+        setChildren(d.children);
+        setUnreadCount(d.unreadCount);
+        setSelectedId((prev) => (prev && d.children.some((c) => c.id === prev) ? prev : d.children[0]?.id ?? null));
+      })
+      .catch(() => {
+        // Best-effort: an empty children list is a valid, if unusual, state
+        // (e.g. every child-link is still pending Admin approval) — the
+        // dashboard page below shows its own empty state for that.
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, []);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/guardian/login");
+  };
+
+  if (loading) {
+    return (
+      <div className="full-page-loader">
+        <HudSpinner size={56} />
+      </div>
+    );
+  }
+
+  const selected = children.find((c) => c.id === selectedId) ?? null;
+  const context: GuardianShellContext = { children, selected, selectChild: setSelectedId, unreadCount, refresh: load };
+
+  return (
+    <div className="guardian-shell">
+      <header className="guardian-header">
+        <div className="guardian-header__row">
+          <div className="guardian-header__brand">
+            {logo ? (
+              <img src={logo} alt="" className="guardian-header__logo" />
+            ) : (
+              <span className="guardian-header__logo-emoji">🕌</span>
+            )}
+            <div className="guardian-header__brand-text">
+              <div className="guardian-header__name">{madrasaName}</div>
+              <div className="guardian-header__sub">অভিভাবক পোর্টাল · {user?.name}</div>
+            </div>
+          </div>
+          <button type="button" onClick={handleLogout} className="pill guardian-logout-btn">
+            লগআউট
+          </button>
+        </div>
+
+        {children.length > 1 && (
+          <div className="guardian-child-tabs">
+            {children.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setSelectedId(c.id)}
+                className={`pill guardian-tab${c.id === selectedId ? " guardian-tab--active" : ""}`}
+              >
+                {c.name} · {c.class}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <nav className="guardian-nav">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => `guardian-navlink${isActive ? " guardian-navlink--active" : ""}`}
+            >
+              <span className="guardian-nav-icon">
+                {item.icon}
+                {item.to === "/guardian/feed" && unreadCount > 0 && (
+                  <span className="guardian-nav-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                )}
+              </span>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+      </header>
+
+      <main className="guardian-main">
+        <Outlet context={context} />
+      </main>
+    </div>
+  );
+}

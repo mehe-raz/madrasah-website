@@ -2089,3 +2089,586 @@ img {
   color: var(--muted);
   font-weight: 500;
 }
+
+/* =========================================================================
+   Guardian Portal (Step 5) — client/src/components/GuardianShell.tsx and
+   client/src/pages/guardian/*.tsx. New BEM-style classes instead of raw
+   style={{...}} on native elements, per AGENTS.md "Design System
+   (mandatory)". Colors repeat the literal hex values from theme/colors.ts
+   (C.sky, C.emeraldD, etc.) for the same reason the .ds-btn* block above
+   does — consolidation, not a new palette. Layout/typography values reuse
+   var(--text)/var(--muted)/var(--border)/var(--card) so dark mode (already
+   handled by those custom properties) needs no extra work here.
+   ========================================================================= */
+
+.guardian-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  font-family: "Noto Sans Bengali", "Noto Sans", sans-serif;
+}
+
+.guardian-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+}
+
+.guardian-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.guardian-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.guardian-header__logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.guardian-header__logo-emoji {
+  font-size: 22px;
+}
+
+.guardian-header__brand-text {
+  min-width: 0;
+}
+
+.guardian-header__name {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guardian-header__sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.guardian-logout-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: #be123c; /* C.roseD */
+  font-weight: 800;
+  font-size: 12px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.guardian-child-tabs {
+  max-width: 720px;
+  margin: 10px auto 0;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.guardian-tab-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.guardian-tab {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.guardian-tab--active {
+  border-color: #0ea5e9; /* C.sky */
+  background: #e0f2fe; /* C.skyL */
+  color: #075985; /* C.skyD */
+}
+
+.guardian-nav {
+  max-width: 720px;
+  margin: 10px auto 0;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.guardian-navlink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  background: transparent;
+  white-space: nowrap;
+}
+
+.guardian-navlink--active {
+  color: #fff;
+  background: linear-gradient(135deg, #0ea5e9, #10b981); /* C.sky -> C.emerald */
+}
+
+.guardian-nav-icon {
+  font-size: 16px;
+  position: relative;
+}
+
+.guardian-nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background: #fb7185; /* C.rose */
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+}
+
+.guardian-main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 18px 16px 40px;
+}
+
+.guardian-page {
+  display: grid;
+  gap: 14px;
+}
+
+.guardian-panel {
+  padding: 18px;
+}
+
+.guardian-panel__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guardian-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.guardian-empty {
+  padding: 22px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.guardian-child-list {
+  display: grid;
+  gap: 12px;
+}
+
+.guardian-child-card {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.guardian-child-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.guardian-child-avatar--placeholder {
+  background: #e0f2fe; /* C.skyL */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.guardian-child-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.guardian-child-name {
+  font-weight: 900;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.guardian-meta-text {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.guardian-child-status {
+  text-align: right;
+}
+
+.guardian-child-status__label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.guardian-status-badge {
+  font-weight: 800;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.guardian-status-badge--present { background: #dcfce7; color: #047857; } /* C.emeraldL / C.emeraldD */
+.guardian-status-badge--absent { background: #ffe4e6; color: #be123c; } /* C.roseL / C.roseD */
+.guardian-status-badge--late { background: #fef3c7; color: #b45309; } /* C.amberL / C.amberD */
+.guardian-status-badge--none { background: var(--slate-l); color: var(--muted); }
+
+.guardian-add-child {
+  padding: 16px;
+}
+
+.guardian-link-btn {
+  background: none;
+  border: none;
+  color: var(--link);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  font-family: inherit;
+}
+
+.guardian-link-btn--strong {
+  font-weight: 800;
+}
+
+.guardian-link-btn--spaced {
+  margin-top: 4px;
+}
+
+.guardian-stack-sm {
+  display: grid;
+  gap: 10px;
+}
+
+.guardian-mt-md {
+  margin-top: 12px;
+}
+
+.guardian-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.guardian-error-text {
+  color: #fb7185; /* C.rose */
+  font-size: 13px;
+  margin: 0;
+}
+
+.guardian-info-text {
+  color: #14b8a6; /* C.teal */
+  font-size: 13px;
+  margin: 0;
+}
+
+.guardian-loading {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 20px;
+}
+
+.guardian-error-box {
+  padding: 18px;
+  text-align: center;
+  color: #be123c; /* C.roseD */
+  font-size: 13px;
+}
+
+.guardian-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.guardian-stat {
+  padding: 14px;
+  text-align: center;
+}
+
+.guardian-stat__value {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.guardian-stat__value--present { color: #10b981; } /* C.emerald */
+.guardian-stat__value--absent { color: #fb7185; } /* C.rose */
+.guardian-stat__value--late { color: #f59e0b; } /* C.amber */
+
+.guardian-stat__label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.guardian-attendance-list {
+  padding: 4px;
+}
+
+.guardian-attendance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.guardian-attendance-date {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.guardian-month-input {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.guardian-result-card {
+  padding: 16px;
+}
+
+.guardian-result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.guardian-result-exam {
+  font-weight: 900;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.guardian-result-score {
+  text-align: right;
+}
+
+.guardian-result-gpa {
+  font-weight: 900;
+  font-size: 16px;
+  color: #047857; /* C.emeraldD */
+}
+
+.guardian-subjects {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.guardian-subject-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.guardian-subject-marks {
+  font-weight: 700;
+}
+
+.guardian-result-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.guardian-result-total {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.guardian-post {
+  padding: 16px;
+  text-align: left;
+  font-family: inherit;
+  display: block;
+  width: 100%;
+  cursor: default;
+}
+
+.guardian-post--unread {
+  border: 1px solid #0ea5e9; /* C.sky */
+  background: #e0f2fe; /* C.skyL */
+  cursor: pointer;
+}
+
+.guardian-post__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.guardian-post-badge {
+  font-weight: 800;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.guardian-post-badge--notice { background: #e0f2fe; color: #075985; } /* C.skyL / C.skyD */
+.guardian-post-badge--assignment { background: #ede9fe; color: #6d28d9; } /* C.violetL / C.violetD */
+.guardian-post-badge--message { background: #fef3c7; color: #b45309; } /* C.amberL / C.amberD */
+
+.guardian-post-time {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.guardian-post-title {
+  font-weight: 900;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.guardian-post-body {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.guardian-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.guardian-attachment-link {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--link);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  text-decoration: none;
+}
+
+.guardian-auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 16px;
+  font-family: "Noto Sans Bengali", "Noto Sans", sans-serif;
+}
+
+.guardian-auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 28px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.guardian-auth-head {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.guardian-auth-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  margin-bottom: 4px;
+}
+
+.guardian-auth-emoji {
+  font-size: 40px;
+}
+
+.guardian-auth-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 8px 0 4px;
+}
+
+.guardian-auth-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.guardian-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guardian-auth-divider {
+  border-top: 1px dashed var(--border);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+.guardian-auth-divider__title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.guardian-field-note {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+}

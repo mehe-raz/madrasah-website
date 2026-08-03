@@ -26,6 +26,12 @@ const { verifyCsrfToken } = require("../middleware/csrf");
 const { signupSchema, loginSchema, addChildSchema } = require("../lib/guardianAuthSchemas");
 const { recordAudit } = require("../lib/auditLog");
 const { feedForGuardian, markPostRead, unreadCountForGuardian } = require("../lib/classPosts");
+const {
+  activeChildrenForGuardian,
+  attendanceHistoryForStudent,
+  publishedResultsForStudent,
+  todayAttendanceForStudent,
+} = require("../lib/guardianData");
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -361,6 +367,61 @@ router.post("/feed/:postId/read", verifyCsrfToken, async (req, res) => {
     const guardianId = await requireActiveGuardianId(req);
     await markPostRead(guardianId, Number(req.params.postId));
     res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Step 5: guardian portal frontend data (children list, dashboard summary,
+// per-child attendance history, published results). Same
+// requireActiveGuardianId gate as the Step 4 feed routes above; every
+// student-scoped call additionally goes through lib/guardianData.js's
+// assertGuardianOwnsStudent (active-linked child only) before touching
+// attendance/results, so a guessed studentId in the URL 403s instead of
+// leaking another family's records.
+// ---------------------------------------------------------------------------
+
+router.get("/children", async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    res.json(await activeChildrenForGuardian(guardianId));
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+// One combined call for the dashboard landing page — per-child today's
+// attendance mark + unread feed count — instead of the client making N+1
+// requests for N children.
+router.get("/dashboard", async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    const children = await activeChildrenForGuardian(guardianId);
+    const withAttendance = await Promise.all(
+      children.map(async (c) => ({ ...c, todayAttendance: await todayAttendanceForStudent(c.id) }))
+    );
+    res.json({ children: withAttendance, unreadCount: await unreadCountForGuardian(guardianId) });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+router.get("/students/:id/attendance", async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    const studentId = Number(req.params.id);
+    res.json(await attendanceHistoryForStudent(guardianId, studentId, { month: req.query.month }));
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+router.get("/students/:id/results", async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    const studentId = Number(req.params.id);
+    res.json(await publishedResultsForStudent(guardianId, studentId));
   } catch (err) {
     res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
   }

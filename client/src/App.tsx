@@ -1,8 +1,11 @@
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { GuardianShell } from "./components/GuardianShell";
+import { GuardianProtectedRoute } from "./components/GuardianProtectedRoute";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
+import { GuardianAuthProvider } from "./context/GuardianAuthContext";
 
 const About = lazy(() => import("./pages/About").then((m) => ({ default: m.About })));
 const Admission = lazy(() => import("./pages/Admission").then((m) => ({ default: m.Admission })));
@@ -27,6 +30,11 @@ const WebsitePreview = lazy(() => import("./pages/WebsitePreview").then((m) => (
 const WebsiteSectionEditor = lazy(() => import("./modules/WebsiteSectionEditor").then((m) => ({ default: m.WebsiteSectionEditor })));
 const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })));
 const ResetPassword = lazy(() => import("./pages/ResetPassword").then((m) => ({ default: m.ResetPassword })));
+const GuardianLogin = lazy(() => import("./pages/guardian/GuardianLogin").then((m) => ({ default: m.GuardianLogin })));
+const GuardianDashboard = lazy(() => import("./pages/guardian/GuardianDashboard").then((m) => ({ default: m.GuardianDashboard })));
+const GuardianAttendance = lazy(() => import("./pages/guardian/GuardianAttendance").then((m) => ({ default: m.GuardianAttendance })));
+const GuardianResults = lazy(() => import("./pages/guardian/GuardianResults").then((m) => ({ default: m.GuardianResults })));
+const GuardianFeed = lazy(() => import("./pages/guardian/GuardianFeed").then((m) => ({ default: m.GuardianFeed })));
 
 function PageFallback() {
   // Intentionally not a spinner: in-app navigation should feel like the page
@@ -61,6 +69,25 @@ export default function App() {
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/notices" element={<Notices />} />
             <Route path="/result" element={<ResultLookup />} />
+            <Route
+              path="/guardian/*"
+              element={
+                <GuardianAuthProvider>
+                  <Routes>
+                    <Route path="login" element={<GuardianLogin />} />
+                    <Route element={<GuardianProtectedRoute />}>
+                      <Route element={<GuardianShell />}>
+                        <Route index element={<GuardianDashboard />} />
+                        <Route path="attendance" element={<GuardianAttendance />} />
+                        <Route path="results" element={<GuardianResults />} />
+                        <Route path="feed" element={<GuardianFeed />} />
+                        <Route path="*" element={<Navigate to="/guardian" replace />} />
+                      </Route>
+                    </Route>
+                  </Routes>
+                </GuardianAuthProvider>
+              }
+            />
             <Route element={<ProtectedRoute />}>
               <Route path="website/preview" element={<WebsitePreview />} />
               <Route element={<Layout />}>

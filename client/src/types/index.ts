@@ -433,3 +433,67 @@ export interface PublicResult {
   gpa: string;
   grade: string;
 }
+
+// ---------------------------------------------------------------------------
+// Guardian Portal (Step 5) — separate session from AuthUser (staff), see
+// context/GuardianAuthContext.tsx and /api/guardian-auth on the server.
+// ---------------------------------------------------------------------------
+export interface GuardianUser {
+  id: number;
+  name: string;
+  mobile: string | null;
+  email: string | null;
+  role: "Guardian";
+}
+
+export interface GuardianChild {
+  id: number;
+  name: string;
+  roll: string;
+  class: string;
+  section?: string;
+  dept: string;
+  studentPhoto?: string;
+}
+
+export interface GuardianDashboardChild extends GuardianChild {
+  todayAttendance: string | null;
+}
+
+export interface GuardianDashboardData {
+  children: GuardianDashboardChild[];
+  unreadCount: number;
+}
+
+export interface GuardianAttendanceRecord {
+  date: string;
+  status: string;
+}
+
+export interface GuardianAttendanceResponse {
+  month: string;
+  records: GuardianAttendanceRecord[];
+  summary: { month: string; total: number; present: number; absent: number; late: number };
+}
+
+// One notice/assignment/message posted by a Teacher to a whole class — see
+// server/src/lib/classPosts.js. `read` only appears on the guardian feed
+// (GET /guardian-auth/feed), not the staff-side listing.
+export interface ClassPostAttachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+export interface ClassPost {
+  id: number;
+  type: "notice" | "assignment" | "message";
+  class: string;
+  teacherId: number | null;
+  title: string;
+  body: string;
+  attachments: ClassPostAttachment[];
+  createdAt: string;
+  read?: boolean;
+}

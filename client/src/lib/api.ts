@@ -7,11 +7,16 @@ import type {
   AuthUser,
   BackupConfig,
   ClassOption,
+  ClassPost,
   DashboardData,
   DeleteRequest,
   Expense,
   GoogleDriveFile,
   GoogleDriveStatus,
+  GuardianAttendanceResponse,
+  GuardianChild,
+  GuardianDashboardData,
+  GuardianUser,
   IncomeEntry,
   IncomeSummary,
   Notification,
@@ -716,4 +721,58 @@ export const api = {
   },
 
   getAuditLogMeta: () => request<AuditLogMeta>("/audit-logs/meta"),
+
+  // -------------------------------------------------------------------------
+  // Guardian Portal (Step 5) — separate session/cookie from the staff `api.*`
+  // calls above (see /api/guardian-auth on the server, GuardianAuthContext on
+  // the client). All guardian-portal pages call through this namespace only.
+  // -------------------------------------------------------------------------
+  guardian: {
+    signup: (body: {
+      guardianName: string;
+      contactMobile?: string;
+      contactEmail?: string;
+      password: string;
+      studentName: string;
+      studentRoll: string;
+      studentClass: string;
+      guardianMobile: string;
+    }) =>
+      request<{ ok: boolean; status: "active" | "pending"; message?: string; user?: GuardianUser }>(
+        "/guardian-auth/signup",
+        { method: "POST", body: JSON.stringify(body) }
+      ),
+
+    login: (identifier: string, password: string) =>
+      request<{ user: GuardianUser }>("/guardian-auth/login", {
+        method: "POST",
+        body: JSON.stringify({ identifier, password }),
+      }),
+
+    logout: () => request<{ ok: boolean }>("/guardian-auth/logout", { method: "POST" }),
+
+    me: () => request<{ user: GuardianUser }>("/guardian-auth/me"),
+
+    addChild: (body: { studentName: string; studentRoll: string; studentClass: string; guardianMobile: string }) =>
+      request<{ ok: boolean; status: "active" | "pending"; message: string }>("/guardian-auth/children", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+
+    getChildren: () => request<GuardianChild[]>("/guardian-auth/children"),
+
+    getDashboard: () => request<GuardianDashboardData>("/guardian-auth/dashboard"),
+
+    getAttendance: (studentId: number, month?: string) =>
+      request<GuardianAttendanceResponse>(`/guardian-auth/students/${studentId}/attendance${month ? `?month=${month}` : ""}`),
+
+    getResults: (studentId: number) => request<StudentResult[]>(`/guardian-auth/students/${studentId}/results`),
+
+    getFeed: (type?: "notice" | "assignment" | "message") =>
+      request<ClassPost[]>(`/guardian-auth/feed${type ? `?type=${type}` : ""}`),
+
+    getFeedUnreadCount: () => request<{ count: number }>("/guardian-auth/feed/unread-count"),
+
+    markFeedRead: (postId: number) => request<{ ok: boolean }>(`/guardian-auth/feed/${postId}/read`, { method: "POST" }),
+  },
 };
