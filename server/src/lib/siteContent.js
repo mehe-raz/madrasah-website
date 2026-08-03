@@ -7,7 +7,9 @@ const SETTINGS_KEY = "siteContent";
 const MAX_LIST = 8;
 const MAX_CLASSES = 24;
 const MAX_NOTICES = 60;
-const MAX_GALLERY = 24;
+const MAX_GALLERY = 120;
+const MAX_GALLERY_CATEGORIES = 12;
+const GALLERY_HOME_SLOTS = new Set(["none", "hero", "strip", "cta"]);
 const MAX_ADMISSION_STEPS = 6;
 
 const DEFAULT_CONTENT = {
@@ -44,6 +46,9 @@ const DEFAULT_CONTENT = {
   // Public "গ্যালারি" page. Empty by default — admin uploads real photos
   // (Cloudinary URLs, via /api/uploads) from the Website module.
   gallery: [],
+  // Admin-defined tags for the gallery filter chips — see sanitizeGallery
+  // below for how a photo's `category` relates to this list.
+  galleryCategories: [],
   // Public "ভর্তি" (Admission) page hero + "কীভাবে কাজ করে" steps. These
   // used to be hardcoded literals in Admission.tsx; defaults here match
   // that old copy exactly so nothing visually changes until an admin
@@ -91,12 +96,47 @@ function sanitizeGallery(list) {
   if (!Array.isArray(list)) return [];
   return list
     .slice(0, MAX_GALLERY)
-    .map((item) => ({
-      url: cleanText(item && item.url, 500),
-      caption: cleanText(item && item.caption, 140),
-      publicId: cleanText(item && item.publicId, 200),
-    }))
+    .map((item) => {
+      const homeSlot = item && item.homeSlot;
+      return {
+        url: cleanText(item && item.url, 500),
+        caption: cleanText(item && item.caption, 140),
+        publicId: cleanText(item && item.publicId, 200),
+        category: cleanText(item && item.category, 30),
+        homeSlot: GALLERY_HOME_SLOTS.has(homeSlot) ? homeSlot : "none",
+      };
+    })
     .filter((item) => /^https?:\/\//i.test(item.url));
+}
+
+// Only "hero" and "cta" are single-photo slots — if more than one photo
+// claims the same one (e.g. an admin re-tags a photo without clearing the
+// old one), only the first survives; the rest fall back to "none" so they
+// still show up in the regular gallery instead of silently vanishing.
+// "strip" is intentionally left uncapped since the homepage strip can
+// show several photos at once.
+function dedupeSingleHomeSlots(list) {
+  const seen = new Set();
+  return list.map((item) => {
+    if (item.homeSlot !== "hero" && item.homeSlot !== "cta") return item;
+    if (seen.has(item.homeSlot)) return { ...item, homeSlot: "none" };
+    seen.add(item.homeSlot);
+    return item;
+  });
+}
+
+function sanitizeGalleryCategories(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const raw of list) {
+    const name = cleanText(raw, 24);
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    out.push(name);
+    if (out.length >= MAX_GALLERY_CATEGORIES) break;
+  }
+  return out;
 }
 
 function sanitizeContent(input) {
@@ -133,7 +173,8 @@ function sanitizeContent(input) {
     ),
     aboutIntro: cleanText(body.aboutIntro, 500),
     aboutMission: cleanText(body.aboutMission, 500),
-    gallery: sanitizeGallery(body.gallery),
+    gallery: dedupeSingleHomeSlots(sanitizeGallery(body.gallery)),
+    galleryCategories: sanitizeGalleryCategories(body.galleryCategories),
     admissionBadge: cleanText(body.admissionBadge, 60),
     admissionTitle: cleanText(body.admissionTitle, 120),
     admissionSubtitle: cleanText(body.admissionSubtitle, 300),

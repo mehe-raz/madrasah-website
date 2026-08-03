@@ -7,6 +7,7 @@ import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { Reveal } from "../components/Reveal";
 import { C } from "../theme/colors";
+import { cloudinaryResize } from "../lib/cloudinaryImage";
 import heroImage from "../assets/hero.png";
 import type { SiteDepartment } from "../types";
 
@@ -44,6 +45,16 @@ export function Home() {
     { value: `${content.notices.length || 0}`, label: "নোটিশ" },
   ];
 
+
+  // Gallery photos an admin has opted into a homepage placement (Website
+  // → গ্যালারি → "হোমপেজে ব্যবহার" per photo). "hero"/"cta" are single-photo
+  // slots (server keeps only the first if more than one is tagged); "strip"
+  // can hold several. Falls back to the newest untagged photos for the
+  // strip so a fresh gallery still shows something without extra setup.
+  const heroBgPhoto = content.gallery.find((p) => p.homeSlot === "hero");
+  const ctaBgPhoto = content.gallery.find((p) => p.homeSlot === "cta");
+  const stripTagged = content.gallery.filter((p) => p.homeSlot === "strip");
+  const stripPhotos = (stripTagged.length ? stripTagged : content.gallery).slice(0, 5);
 
   const programs: SiteDepartment[] = content.departments.length
     ? content.departments
@@ -87,6 +98,19 @@ export function Home() {
 
       <section className="section-shell hero-shell section-pop">
         <div className="soft-panel-strong gradient-border" style={{ position: "relative", overflow: "hidden", padding: 26 }}>
+          {heroBgPhoto && (
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                backgroundImage: `url(${cloudinaryResize(heroBgPhoto.url, "f_auto,q_auto,w_1400,e_blur:200")})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                opacity: 0.1,
+              }}
+            />
+          )}
           <div className="hero-glow floaty-slow" aria-hidden style={{ inset: "auto -120px -120px auto", width: 260, height: 260, background: "radial-gradient(circle, rgba(14,165,233,0.18), transparent 70%)" }} />
           <div className="hero-glow floaty" aria-hidden style={{ inset: "-90px auto auto -100px", width: 220, height: 220, background: "radial-gradient(circle, rgba(245,158,11,0.15), transparent 70%)" }} />
 
@@ -196,15 +220,71 @@ export function Home() {
         </div>
       </section>
 
+      {stripPhotos.length > 0 && (
+        <section className="section-shell page-section section-pop">
+          <Reveal variant="text" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+            <div>
+              <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.violetL, color: C.violetD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
+                ঝলক
+              </span>
+              <h2 className="section-heading" style={{ margin: 0 }}>ক্যাম্পাস জীবনের কিছু মুহূর্ত</h2>
+            </div>
+            <Link to="/gallery" className="pill hover-lift" style={{ textDecoration: "none", background: C.card, color: C.text, border: `1px solid ${C.border}`, padding: "10px 18px", fontSize: 13, fontWeight: 900, whiteSpace: "nowrap" }}>
+              পূর্ণ গ্যালারি →
+            </Link>
+          </Reveal>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {stripPhotos.map((photo, i) => (
+              <Reveal key={`${photo.url}-${i}`} variant="image" style={{ transitionDelay: `${i * 60}ms` }}>
+                <Link
+                  to="/gallery"
+                  className="soft-panel hover-lift shine-on-hover"
+                  style={{ display: "block", overflow: "hidden", position: "relative" }}
+                >
+                  <img
+                    src={cloudinaryResize(photo.url, "f_auto,q_auto,w_400")}
+                    alt={photo.caption || ""}
+                    loading="lazy"
+                    decoding="async"
+                    style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }}
+                  />
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="section-shell page-section section-pop">
-        <div className="soft-panel-strong" style={{ padding: 24, overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18, alignItems: "center" }}>
+        <div
+          className="soft-panel-strong"
+          style={{
+            padding: 24,
+            overflow: "hidden",
+            position: "relative",
+            ...(ctaBgPhoto
+              ? {
+                  backgroundImage: `linear-gradient(135deg, rgba(15,23,42,0.82), rgba(15,23,42,0.55)), url(${cloudinaryResize(ctaBgPhoto.url, "f_auto,q_auto,w_1400")})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
+              : {}),
+          }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18, alignItems: "center", position: "relative", color: ctaBgPhoto ? "#fff" : undefined }}>
             <Reveal variant="text">
               <span className="pill" style={{ display: "inline-flex", padding: "6px 12px", background: C.emeraldL, color: C.emeraldD, fontSize: 12, fontWeight: 900, marginBottom: 10 }}>
                 সহজ ভর্তি প্রক্রিয়া
               </span>
               <h2 className="section-heading" style={{ margin: "0 0 10px" }}>দ্রুত ও সহজ ভর্তি প্রক্রিয়া</h2>
-              <p style={{ margin: 0, color: C.muted, fontSize: 14, lineHeight: 1.8 }}>
+              <p style={{ margin: 0, color: ctaBgPhoto ? "rgba(255,255,255,0.85)" : C.muted, fontSize: 14, lineHeight: 1.8 }}>
                 ভিজিটররা কয়েক ট্যাপেই ক্লাসের তথ্য দেখতে, নোটিশ চেক করতে এবং আবেদন ফর্ম খুলতে পারবেন।
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
@@ -225,14 +305,11 @@ export function Home() {
                 <Link
                   to="/about"
                   className="pill hover-lift"
-                  style={{
-                    textDecoration: "none",
-                    background: C.card,
-                    color: C.text,
-                    border: `1px solid ${C.border}`,
-                    padding: "13px 22px",
-                    fontWeight: 900,
-                  }}
+                  style={
+                    ctaBgPhoto
+                      ? { textDecoration: "none", background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.35)", padding: "13px 22px", fontWeight: 900 }
+                      : { textDecoration: "none", background: C.card, color: C.text, border: `1px solid ${C.border}`, padding: "13px 22px", fontWeight: 900 }
+                  }
                 >
                   আরও জানুন
                 </Link>
@@ -242,7 +319,15 @@ export function Home() {
               <Link to="/admission" className="pill hover-lift" style={{ textDecoration: "none", background: C.brand, color: "#fff", padding: "12px 18px", fontWeight: 900, textAlign: "center" }}>
                 ভর্তি শুরু করুন
               </Link>
-              <Link to="/gallery" className="pill hover-lift" style={{ textDecoration: "none", background: C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 18px", fontWeight: 900, textAlign: "center" }}>
+              <Link
+                to="/gallery"
+                className="pill hover-lift"
+                style={
+                  ctaBgPhoto
+                    ? { textDecoration: "none", background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.35)", padding: "12px 18px", fontWeight: 900, textAlign: "center" }
+                    : { textDecoration: "none", background: C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 18px", fontWeight: 900, textAlign: "center" }
+                }
+              >
                 গ্যালারি দেখুন
               </Link>
             </Reveal>

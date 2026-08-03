@@ -17,6 +17,7 @@ const EMPTY_CONTENT: SiteContent = {
   aboutIntro: "",
   aboutMission: "",
   gallery: [],
+  galleryCategories: [],
   admissionBadge: "",
   admissionTitle: "",
   admissionSubtitle: "",
@@ -34,9 +35,17 @@ const SECTION_LIMITS = {
   departments: 8,
   classes: 24,
   notices: 60,
-  gallery: 24,
+  gallery: 120,
   admissionSteps: 6,
+  galleryCategories: 12,
 } as const;
+
+const GALLERY_HOME_SLOTS: { value: SiteGalleryItem["homeSlot"] & string; label: string }[] = [
+  { value: "none", label: "কোথাও না — শুধু গ্যালারি পেজে" },
+  { value: "hero", label: "হোমপেজ হিরো (হালকা ব্যাকগ্রাউন্ড)" },
+  { value: "strip", label: "হোমপেজ ঝলক স্ট্রিপ" },
+  { value: "cta", label: "ভর্তি সেকশন ব্যাকগ্রাউন্ড" },
+];
 
 const MAX_GALLERY_UPLOAD_BYTES = 950_000; // final upload size cap, under server's 1MB decoded limit
 const MAX_GALLERY_SOURCE_BYTES = 25 * 1024 * 1024; // 25MB — sanity check on the original phone photo
@@ -291,6 +300,7 @@ export function WebsiteSectionEditor() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [galleryUploading, setGalleryUploading] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
   // Tracks in-flight uploads for the optional per-card images on
   // departments/classes/admission-steps, keyed as "<section>-<index>" so
   // uploading one item's photo doesn't disable the others.
@@ -355,6 +365,26 @@ export function WebsiteSectionEditor() {
 
   const updateGalleryItem = (index: number, patch: Partial<SiteGalleryItem>) => {
     setContent((prev) => ({ ...prev, gallery: prev.gallery.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
+  };
+
+  const addGalleryCategory = () => {
+    const name = newCategory.trim().slice(0, 24);
+    if (!name) return;
+    if (content.galleryCategories.length >= SECTION_LIMITS.galleryCategories) return;
+    if (content.galleryCategories.includes(name)) {
+      setNewCategory("");
+      return;
+    }
+    setContent((prev) => ({ ...prev, galleryCategories: [...prev.galleryCategories, name] }));
+    setNewCategory("");
+  };
+
+  // Removing a category from the admin's tag list doesn't retag any photo
+  // that already used it — the public page still groups those photos
+  // together under that name (it reads categories off the photos too, not
+  // just this list), it just won't show as a suggested tag anymore here.
+  const removeGalleryCategory = (name: string) => {
+    setContent((prev) => ({ ...prev, galleryCategories: prev.galleryCategories.filter((c) => c !== name) }));
   };
 
   const updateAdmissionStep = (index: number, patch: Partial<SiteAdmissionStep>) => {
@@ -908,10 +938,67 @@ export function WebsiteSectionEditor() {
               />
             </Field>
 
+            <Field label={`ক্যাটাগরি (গ্যালারি ফিল্টার) — ${content.galleryCategories.length}/${SECTION_LIMITS.galleryCategories}`}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: content.galleryCategories.length ? 10 : 0 }}>
+                {content.galleryCategories.map((cat) => (
+                  <span
+                    key={cat}
+                    className="pill"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 8px 6px 12px", background: C.violetL, color: C.violetD, fontSize: 12, fontWeight: 800 }}
+                  >
+                    {cat}
+                    <button
+                      type="button"
+                      onClick={() => removeGalleryCategory(cat)}
+                      aria-label={`"${cat}" ক্যাটাগরি মুছুন`}
+                      style={{ border: "none", background: "rgba(0,0,0,0.08)", color: "inherit", borderRadius: "50%", width: 18, height: 18, fontSize: 11, lineHeight: 1, cursor: "pointer", display: "grid", placeItems: "center" }}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={newCategory}
+                  maxLength={24}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addGalleryCategory();
+                    }
+                  }}
+                  style={inputStyle}
+                  placeholder="নতুন ক্যাটাগরি (যেমন: অনুষ্ঠান, খেলাধুলা)"
+                  disabled={content.galleryCategories.length >= SECTION_LIMITS.galleryCategories}
+                />
+                <button
+                  type="button"
+                  onClick={addGalleryCategory}
+                  disabled={!newCategory.trim() || content.galleryCategories.length >= SECTION_LIMITS.galleryCategories}
+                  style={{
+                    flexShrink: 0,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 10,
+                    padding: "0 18px",
+                    background: C.card,
+                    color: C.text,
+                    fontWeight: 800,
+                    fontSize: 13,
+                    cursor: !newCategory.trim() ? "not-allowed" : "pointer",
+                  }}
+                >
+                  যোগ করুন
+                </button>
+              </div>
+              <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>প্রতিটি ছবির নিচে ড্রপডাউন থেকে একটি ক্যাটাগরি বেছে দিন — ভিজিটররা পাবলিক গ্যালারি পেজে এই ক্যাটাগরি অনুযায়ী ছবি ফিল্টার করতে পারবেন।</p>
+            </Field>
+
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
                 gap: 14,
               }}
             >
@@ -931,6 +1018,29 @@ export function WebsiteSectionEditor() {
                     style={{ ...inputStyle, fontSize: 12, padding: "8px 10px" }}
                     placeholder="ক্যাপশন (ঐচ্ছিক)"
                   />
+                  <select
+                    value={item.category || ""}
+                    onChange={(e) => updateGalleryItem(index, { category: e.target.value })}
+                    style={{ ...inputStyle, fontSize: 12, padding: "8px 10px" }}
+                  >
+                    <option value="">ক্যাটাগরি: সাধারণ</option>
+                    {content.galleryCategories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={item.homeSlot || "none"}
+                    onChange={(e) => updateGalleryItem(index, { homeSlot: e.target.value as SiteGalleryItem["homeSlot"] })}
+                    style={{ ...inputStyle, fontSize: 12, padding: "8px 10px" }}
+                  >
+                    {GALLERY_HOME_SLOTS.map((slot) => (
+                      <option key={slot.value} value={slot.value}>
+                        {slot.label}
+                      </option>
+                    ))}
+                  </select>
                   <ListEntryButtons
                     onRemove={() => removeGalleryItem(index)}
                     onMoveUp={() => moveGalleryItem(index, -1)}

@@ -25,6 +25,7 @@ router.use((req, res, next) => {
 // always does) without accidentally being able to overwrite the hero text.
 const GALLERY_KEYS = new Set([
   "gallery",
+  "galleryCategories",
   "galleryHeroBadge",
   "galleryHeroTitle",
   "galleryHeroSubtitle",

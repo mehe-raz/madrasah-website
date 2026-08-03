@@ -26,6 +26,7 @@ export function normalizeContent(data: Partial<SiteContent>): SiteContent {
     aboutIntro: data.aboutIntro ?? "",
     aboutMission: data.aboutMission ?? "",
     gallery: data.gallery ?? [],
+    galleryCategories: data.galleryCategories ?? [],
     admissionBadge: data.admissionBadge ?? "",
     admissionTitle: data.admissionTitle ?? "",
     admissionSubtitle: data.admissionSubtitle ?? "",

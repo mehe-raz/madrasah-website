@@ -223,10 +223,19 @@ export interface SiteAdmissionStep {
 // kept alongside so a removed photo can also be deleted from Cloudinary
 // storage, not just dropped from this list. Older entries saved before
 // this field existed simply won't have it (optional).
+// `category` groups photos for the filter tabs on the public Gallery page
+// (free text, chosen from SiteContent.galleryCategories — falls back to
+// "সাধারণ" when unset so older entries keep working). `homeSlot` opts a
+// photo into one of the fixed homepage placements — "none" (default, most
+// photos) means it only shows on the /gallery page.
+export type SiteGalleryHomeSlot = "none" | "hero" | "strip" | "cta";
+
 export interface SiteGalleryItem {
   url: string;
   caption: string;
   publicId?: string;
+  category?: string;
+  homeSlot?: SiteGalleryHomeSlot;
 }
 
 export interface SiteContent {
@@ -243,6 +252,10 @@ export interface SiteContent {
   // Public "গ্যালারি" page. Empty by default; admin uploads real campus
   // photos from the Website module. Same pattern as classes/notices above.
   gallery: SiteGalleryItem[];
+  // Admin-defined tag list used for the category filter chips on the
+  // public Gallery page (e.g. "অনুষ্ঠান", "শ্রেণিকক্ষ", "খেলাধুলা").
+  // Photos not tagged with one of these fall under "সাধারণ".
+  galleryCategories: string[];
   // Public "ভর্তি" (Admission) page hero + "কীভাবে কাজ করে" steps.
   admissionBadge: string;
   admissionTitle: string;
