@@ -8,6 +8,7 @@ import type {
   BackupConfig,
   ClassOption,
   ClassPost,
+  ClassTreeNode,
   DashboardData,
   DeleteRequest,
   Expense,
@@ -495,6 +496,15 @@ export const api = {
   saveClassOptions: (options: Pick<ClassOption, "bn" | "en">[]) =>
     request<ClassOption[]>("/class-options", { method: "PUT", body: JSON.stringify({ options }) }),
 
+  // Hierarchical replacement for the two calls above — see
+  // server/src/routes/classTree.js. Both stay mounted side by side during
+  // the rollout (Part 2 of the class/jamaat hierarchy work); Students.tsx
+  // and Settings.tsx are moving to this one.
+  getClassTree: () => request<ClassTreeNode[]>("/class-tree"),
+
+  saveClassTree: (tree: ClassTreeNode[]) =>
+    request<ClassTreeNode[]>("/class-tree", { method: "PUT", body: JSON.stringify({ tree }) }),
+
   // Multi-tenant only (404s on a single-tenant deployment — see
   // requireTenantContext in routes/settings.js). Powers the "ডোমেইন
   // কানেক্ট করুন" section: which plan the institution is on, what that
@@ -524,6 +534,11 @@ export const api = {
   // dropdown always matches what Super Admin configured in Settings —
   // instead of the separate, easy-to-drift content.classes CMS list.
   getPublicClassOptions: () => request<ClassOption[]>("/public/class-options"),
+
+  // Public: no login required — hierarchical equivalent of the call above,
+  // for the logged-out AdmissionApply page's cascading class picker (see
+  // server/src/index.js's /api/public/class-tree).
+  getPublicClassTree: () => request<ClassTreeNode[]>("/public/class-tree"),
 
   // Admin / Super Admin only. Loads the section editor's *draft* copy —
   // in-progress edits nobody outside the admin panel can see yet.

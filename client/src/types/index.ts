@@ -177,6 +177,19 @@ export interface ClassOption {
   order: number;
 }
 
+// Hierarchical class/jamaat tree (বিভাগ -> গ্রুপ/নেসাব -> জামাত), replacing
+// ClassOption's flat list — see server/src/lib/classTree.js for the exact
+// shape/rules (leaf.en is what's stored on students.class). `leaf` is only
+// true on selectable nodes (no children); non-leaf nodes exist purely to
+// group the cascading dropdowns.
+export interface ClassTreeNode {
+  id: string;
+  bn: string;
+  en: string;
+  leaf: boolean;
+  children: ClassTreeNode[];
+}
+
 export interface SiteHighlight {
   icon: string;
   label: string;

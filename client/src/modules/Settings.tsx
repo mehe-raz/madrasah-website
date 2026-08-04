@@ -5,8 +5,9 @@ import { Button, Input, Select } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
+import { addClassTreeNode, removeClassTreeNode } from "../lib/classTree";
 import { canBackup, canManageDomain, canManageUsers } from "../lib/permissions";
-import { USER_ROLES, type BackupConfig, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
+import { USER_ROLES, type BackupConfig, type ClassTreeNode, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
 type GuardianApprovalData = Awaited<ReturnType<typeof api.getPendingGuardianApprovals>>;
 
@@ -69,6 +70,57 @@ function SectionHeader({ title, open, onToggle }: { title: string; open: boolean
   );
 }
 
+// Recursive row for the class-tree editor — one line per node, indented by
+// depth, with "+ add child" / "delete" actions. A plain nested list rather
+// than anything fancier since the tree is at most 4 levels deep (see
+// classTree.js's MAX_TREE_DEPTH) and Super Admin only visits this rarely.
+function ClassTreeRow({
+  node,
+  path,
+  depth,
+  addLabel,
+  deleteLabel,
+  onAddChild,
+  onDelete,
+}: {
+  node: ClassTreeNode;
+  path: string[];
+  depth: number;
+  addLabel: string;
+  deleteLabel: string;
+  onAddChild: (path: string[]) => void;
+  onDelete: (path: string[]) => void;
+}) {
+  return (
+    <div className={`class-tree-row class-tree-row--depth-${Math.min(depth, 3)}`}>
+      <div className="user-row">
+        <div className="user-info">
+          <div className="user-name">{node.bn}</div>
+          <div className="user-meta">{node.en}</div>
+        </div>
+        <button type="button" onClick={() => onAddChild(path)} className="btn-xs btn-xs--cancel">
+          {addLabel}
+        </button>
+        <button type="button" onClick={() => onDelete(path)} className="btn-xs btn-xs--delete">
+          {deleteLabel}
+        </button>
+      </div>
+      {node.children.map((child) => (
+        <ClassTreeRow
+          key={child.en}
+          node={child}
+          path={[...path, child.en]}
+          depth={depth + 1}
+          addLabel={addLabel}
+          deleteLabel={deleteLabel}
+          onAddChild={onAddChild}
+          onDelete={onDelete}
+        />
+      ))}
+    </div>
+  );
+}
+
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="info-row">
@@ -80,7 +132,19 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export function Settings() {
   const { user: authUser } = useAuth();
-  const { settings, setSettings, saveSettings, users, refreshUsers, classOptions, refreshClassOptions, saveClassOptions } = useAppSettings();
+  const {
+    settings,
+    setSettings,
+    saveSettings,
+    users,
+    refreshUsers,
+    classOptions,
+    refreshClassOptions,
+    saveClassOptions,
+    classTree,
+    refreshClassTree,
+    saveClassTree,
+  } = useAppSettings();
   const { t } = useLanguage();
   const [saved, setSaved] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", role: "Teacher", email: "", password: "" });
@@ -117,6 +181,11 @@ export function Settings() {
   const [editDomain, setEditDomain] = useState(false);
   const [editClasses, setEditClasses] = useState(false);
   const [classForm, setClassForm] = useState({ bn: "", en: "" });
+  const [editClassTree, setEditClassTree] = useState(false);
+  // null = no "add entry" form open; [] = adding a new top-level department;
+  // [...en] = adding a child under that path (see lib/classTree.ts).
+  const [classTreeAddTarget, setClassTreeAddTarget] = useState<string[] | null>(null);
+  const [classTreeForm, setClassTreeForm] = useState({ bn: "", en: "" });
   const isSuperAdmin = authUser?.role === "Super Admin";
   const manageUsers = authUser ? canManageUsers(authUser.role) : false;
   const allowBackup = authUser ? canBackup(authUser.role) : false;
@@ -185,6 +254,12 @@ export function Settings() {
       refreshClassOptions();
     }
   }, [isSuperAdmin, editClasses, classOptions.length, refreshClassOptions]);
+
+  useEffect(() => {
+    if (isSuperAdmin && editClassTree && !classTree.length) {
+      refreshClassTree();
+    }
+  }, [isSuperAdmin, editClassTree, classTree.length, refreshClassTree]);
 
   useEffect(() => {
     // The Teacher-classes multi-select below needs the class/jamaat master
@@ -590,6 +665,34 @@ export function Settings() {
     [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
     try {
       await saveClassOptions(reordered);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const handleAddClassTreeNode = async () => {
+    if (!isSuperAdmin || !classTreeAddTarget) return;
+    const bnValue = classTreeForm.bn.trim();
+    const enValue = classTreeForm.en.trim();
+    if (!bnValue || !enValue || !CLASS_EN_SLUG_RE.test(enValue)) return;
+    try {
+      const next = addClassTreeNode(classTree, classTreeAddTarget, { bn: bnValue, en: enValue });
+      await saveClassTree(next);
+      setClassTreeForm({ bn: "", en: "" });
+      setClassTreeAddTarget(null);
+      setMsg(t.settings.classTreeNodeAdded);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const handleDeleteClassTreeNode = async (path: string[]) => {
+    if (!isSuperAdmin) return;
+    if (!confirm(t.settings.classTreeDeleteConfirm)) return;
+    try {
+      const next = removeClassTreeNode(classTree, path);
+      await saveClassTree(next);
+      setMsg(t.settings.classTreeNodeDeleted);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
     }
@@ -1168,6 +1271,81 @@ export function Settings() {
                       </div>
                     ))}
                     {!classOptions.length && <p className="field-block__label">{t.settings.classEmptyList}</p>}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {isSuperAdmin && (
+            <div className="settings-card">
+              <SectionHeader
+                title={t.settings.classTreeManagement}
+                open={editClassTree}
+                onToggle={() => setEditClassTree((v) => !v)}
+              />
+              {editClassTree && (
+                <>
+                  <p className="field-block__label mb-10">{t.settings.classTreeManagementHint}</p>
+                  <p className="class-tree-warning">{t.settings.classTreeWarning}</p>
+
+                  <Button
+                    variant="teal"
+                    solid
+                    onClick={() => {
+                      setClassTreeAddTarget([]);
+                      setClassTreeForm({ bn: "", en: "" });
+                    }}
+                    className="mb-10"
+                  >
+                    {t.settings.classTreeAddTopLevel}
+                  </Button>
+
+                  {classTreeAddTarget !== null && (
+                    <div className="user-form-grid mb-10">
+                      <div className="field-block__label class-tree-add-parent-label">
+                        {t.settings.classTreeParentLabel}:{" "}
+                        {classTreeAddTarget.length === 0 ? t.settings.classTreeAddTopLevel : classTreeAddTarget.join(" / ")}
+                      </div>
+                      <Input
+                        placeholder={t.settings.classBnLabel}
+                        value={classTreeForm.bn}
+                        onChange={(e) => setClassTreeForm({ ...classTreeForm, bn: e.target.value })}
+                      />
+                      <div>
+                        <Input
+                          placeholder={t.settings.classEnLabel}
+                          value={classTreeForm.en}
+                          onChange={(e) => setClassTreeForm({ ...classTreeForm, en: e.target.value })}
+                        />
+                        <p className="field-block__label">{t.settings.classEnHint}</p>
+                      </div>
+                      <Button variant="teal" solid onClick={handleAddClassTreeNode}>
+                        {t.settings.addClass}
+                      </Button>
+                      <Button variant="rose" onClick={() => setClassTreeAddTarget(null)}>
+                        {t.settings.classTreeCancel}
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="user-list">
+                    {classTree.map((node) => (
+                      <ClassTreeRow
+                        key={node.en}
+                        node={node}
+                        path={[node.en]}
+                        depth={0}
+                        addLabel={t.settings.classTreeAddChild}
+                        deleteLabel={t.common.delete}
+                        onAddChild={(path) => {
+                          setClassTreeAddTarget(path);
+                          setClassTreeForm({ bn: "", en: "" });
+                        }}
+                        onDelete={handleDeleteClassTreeNode}
+                      />
+                    ))}
+                    {!classTree.length && <p className="field-block__label">{t.settings.classEmptyList}</p>}
                   </div>
                 </>
               )}

@@ -1355,6 +1355,43 @@ img {
   flex-shrink: 0;
 }
 
+/* Class/jamaat tree editor (Settings.tsx ClassTreeRow) — indents each level
+ * by a fixed step instead of an inline style, since depth is bounded by
+ * classTree.js's MAX_TREE_DEPTH (root + 3 nested levels). */
+.class-tree-row {
+  margin-top: 4px;
+}
+
+.class-tree-row--depth-0 {
+  margin-left: 0;
+}
+
+.class-tree-row--depth-1 {
+  margin-left: 16px;
+}
+
+.class-tree-row--depth-2 {
+  margin-left: 32px;
+}
+
+.class-tree-row--depth-3 {
+  margin-left: 48px;
+}
+
+.class-tree-warning {
+  background: rgba(217, 119, 6, 0.12);
+  border: 1px solid rgba(217, 119, 6, 0.4);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.class-tree-add-parent-label {
+  font-weight: 600;
+}
+
 .user-info {
   flex: 1;
   min-width: 100px;

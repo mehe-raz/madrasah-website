@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS } from "../data/mockData";
 import { bn, type Dict } from "../i18n/bn";
 import { en } from "../i18n/en";
 import { api } from "../lib/api";
-import type { ClassOption, Settings, User } from "../types";
+import type { ClassOption, ClassTreeNode, Settings, User } from "../types";
 
 type Lang = "bn" | "en";
 
@@ -32,6 +32,12 @@ interface AppSettingsContextValue {
   classOptions: ClassOption[];
   refreshClassOptions: () => Promise<void>;
   saveClassOptions: (options: Pick<ClassOption, "bn" | "en">[]) => Promise<void>;
+  // Hierarchical replacement for the three above — see
+  // server/src/lib/classTree.js. Both stay populated side by side during
+  // the rollout; new UI (cascading class picker) should read this one.
+  classTree: ClassTreeNode[];
+  refreshClassTree: () => Promise<void>;
+  saveClassTree: (tree: ClassTreeNode[]) => Promise<void>;
 }
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -54,6 +60,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(loadCachedSettings);
   const [users, setUsers] = useState<User[]>([]);
   const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  const [classTree, setClassTree] = useState<ClassTreeNode[]>([]);
 
   const lang = (settings.lang === "en" ? "en" : "bn") as Lang;
   const theme: "light" | "dark" = settings.theme === "dark" ? "dark" : "light";
@@ -96,6 +103,19 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     setClassOptions(updated);
   }, []);
 
+  const refreshClassTree = useCallback(async () => {
+    try {
+      setClassTree(await api.getClassTree());
+    } catch {
+      setClassTree([]);
+    }
+  }, []);
+
+  const saveClassTreeFn = useCallback(async (tree: ClassTreeNode[]) => {
+    const updated = await api.saveClassTree(tree);
+    setClassTree(updated);
+  }, []);
+
   const refreshSettings = useCallback(async () => {
     try {
       const s = await api.getSettings();
@@ -114,6 +134,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       refreshSettings();
       refreshClassOptions();
+      refreshClassTree();
     };
 
     const win = window as Window & {
@@ -130,7 +151,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       if (win.cancelIdleCallback && typeof handle === "number") win.cancelIdleCallback(handle);
       else window.clearTimeout(handle);
     };
-  }, [refreshSettings, refreshClassOptions]);
+  }, [refreshSettings, refreshClassOptions, refreshClassTree]);
 
   useEffect(() => {
     applyTheme(theme);
@@ -170,6 +191,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       classOptions,
       refreshClassOptions,
       saveClassOptions: saveClassOptionsFn,
+      classTree,
+      refreshClassTree,
+      saveClassTree: saveClassTreeFn,
     }),
     [
       settings,
@@ -184,6 +208,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       classOptions,
       refreshClassOptions,
       saveClassOptionsFn,
+      classTree,
+      refreshClassTree,
+      saveClassTreeFn,
     ]
   );
 
