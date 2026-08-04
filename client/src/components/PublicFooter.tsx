@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { C } from "../theme/colors";
 import type { PublicSettings } from "../types";
 
@@ -45,6 +46,13 @@ export function PublicFooter({ site }: { site: PublicSettings }) {
       <p style={{ textAlign: "center", fontSize: 12, color: C.muted, marginTop: 16, marginBottom: 0 }}>
         © {year} {site.name} • সর্বস্বত্ব সংরক্ষিত
       </p>
+      {/* New addition — kept off the legacy inline-style pattern above per
+          AGENTS.md "Migration status" (touched parts of a legacy file
+          should use the design system, not add more inline styles). */}
+      <nav className="public-footer__legal" aria-label="আইনি তথ্য">
+        <Link to="/terms">শর্তাবলী</Link>
+        <Link to="/privacy">গোপনীয়তা নীতি</Link>
+      </nav>
     </footer>
   );
 }

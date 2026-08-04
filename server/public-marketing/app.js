@@ -128,6 +128,12 @@ function signupFormHtml() {
           <label for="f-password">পাসওয়ার্ড</label>
           <input id="f-password" name="adminPassword" type="password" required minlength="8" placeholder="কমপক্ষে ৮ অক্ষর" />
         </div>
+        <div class="field field--checkbox">
+          <label for="f-terms">
+            <input id="f-terms" name="acceptTerms" type="checkbox" required />
+            <span>আমি <a href="/terms.html" target="_blank" rel="noopener noreferrer">শর্তাবলী</a> ও <a href="/privacy.html" target="_blank" rel="noopener noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি</span>
+          </label>
+        </div>
         <button class="submit-btn" type="submit" ${state.submitting ? "disabled" : ""}>
           ${state.submitting ? "তৈরি হচ্ছে…" : "অ্যাকাউন্ট তৈরি করুন"}
         </button>

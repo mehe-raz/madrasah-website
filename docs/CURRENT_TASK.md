@@ -5,12 +5,13 @@ it may carry unfinished work from a previous AI agent's session.
 
 ## Status: DONE
 
-## Task: (none — Phase 1 and Phase 3 of BUSINESS_READINESS_ROADMAP.md
-complete; Phase 2 intentionally skipped for now on the user's decision
-— see `docs/BUSINESS_READINESS_ROADMAP.md` for Phase 4 onward)
+## Task: (none — Phase 1, Phase 3, and Phase 4 of
+BUSINESS_READINESS_ROADMAP.md complete; Phase 2 intentionally skipped for
+now on the user's decision — see `docs/BUSINESS_READINESS_ROADMAP.md` for
+Phase 5 onward)
 
 ### সম্পন্ন
-(cleared — see git history for Phase 1's and Phase 3's diffs)
+(cleared — see git history for Phase 1's, Phase 3's, and Phase 4's diffs)
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
 (none queued — next agent should read `docs/BUSINESS_READINESS_ROADMAP.md`
@@ -21,6 +22,85 @@ emails, so they chose to come back to it later. Don't auto-start Phase 2
 without the user explicitly asking.)
 
 ### নোট
+Phase 4 (Terms of Service + Privacy Policy) finished 2026-08-05:
+- New public (logged-out) pages in the tenant React client, matching the
+  `About.tsx`/`Notices.tsx` public-page pattern (`PublicHeader`/
+  `PublicFooter`/`PublicPageSkeleton`, `usePublicSite`, `useSeoMeta`) but
+  **not** copying their inline-`style={{}}` approach: `About.tsx` etc. are
+  on the legacy exemption list in `client/eslint.config.js`, these two new
+  files are not, so per AGENTS.md's Design System rule they had to be
+  clean from the start —
+  `client/src/pages/TermsOfService.tsx` (route `/terms`) and
+  `client/src/pages/PrivacyPolicy.tsx` (route `/privacy`).
+- New CSS added to `client/src/index.css`: `.legal-page__*` (badge/heading/
+  updated-date/notice) and `.legal-content*` (card + typography for the
+  section list), plus `.public-footer__legal` for the new footer link row.
+  Reused existing generic classes (`app-shell`, `page-shell`,
+  `section-shell`, `soft-panel(-strong)`, `pill`, `section-heading`,
+  `alert alert--amber`) rather than inventing near-duplicates.
+- Both pages open with an amber "এটি একটি খসড়া নথি..." notice — per the
+  roadmap's Phase 4 point 4, the content is a structural starting point,
+  not lawyer-reviewed final language. Flagging this to the user explicitly
+  here too: **have an actual lawyer review the wording before relying on
+  it with real customers.**
+- `client/src/App.tsx`: lazy-imported both pages, added the `/terms` and
+  `/privacy` public routes (outside `ProtectedRoute`, alongside
+  `/about`/`/notices`/etc.).
+- `client/src/components/PublicFooter.tsx`: added a legal-links row
+  (Terms/Privacy) below the copyright line. This file is on the legacy
+  exemption list too, but per AGENTS.md "Migration status" (touched parts
+  of a legacy file should use the design system, not add more inline
+  styles next to the old ones) the new row uses the new
+  `.public-footer__legal` class, not `style={{}}`.
+- `server/src/lib/seoMeta.js`: added `/terms` and `/privacy` to
+  `PUBLIC_ROUTES` (title/description) so crawlers/link-previews get real
+  meta tags instead of falling into the generic noindex default, and so
+  the two paths are picked up automatically by the existing
+  `/sitemap.xml` route (`INDEXABLE_PUBLIC_PATHS`) — no route/index.js
+  change needed, that wiring already existed.
+- **Scope call not in the original roadmap wording:** the roadmap's step 3
+  ("স্ব-নিবন্ধন ফ্লো ... একটা checkbox") assumed a `PublicSignup`-style
+  frontend page, but there isn't one — the actual self-signup UI is the
+  separate plain-HTML/JS marketing site (`server/public-marketing/`,
+  served only on the bare apex root domain per `PLATFORM_ROOT_DOMAIN`,
+  see `index.js`'s apex-host middleware) that only talks to
+  `POST /api/public/signup`. The tenant client's new `/terms`/`/privacy`
+  routes aren't reachable from that apex domain (different serving path
+  entirely), so:
+  - Added standalone `server/public-marketing/terms.html` and
+    `privacy.html` (plain HTML, same visual language as `index.html` via
+    the shared `styles.css`, plus a small page-scoped `<style>` block for
+    the section-list layout). Linked with the `.html` extension
+    (`/terms.html`, `/privacy.html`) because the apex middleware's
+    `express.static` call has no `extensions` option configured, so an
+    extensionless `/terms` request there would fall through to the
+    marketing SPA's `index.html` instead of matching a static file.
+  - `server/public-marketing/app.js`: added a required "আমি শর্তাবলী ও
+    গোপনীয়তা নীতি মেনে নিচ্ছি" checkbox (links to the two new `.html`
+    pages, opened in a new tab) right before the submit button. Enforced
+    client-side only via the native HTML `required` attribute (form
+    submission is blocked by the browser until checked) — did **not**
+    add server-side enforcement in `publicSignup.js`, since the roadmap
+    only asked for the flow to have the checkbox, and adding a new
+    required-field check there would be a second, unscoped change to a
+    file outside this task's stated diff. Flagging this as a possible
+    follow-up if the user wants it enforced server-side too (a bad actor
+    could bypass the checkbox by calling `POST /api/public/signup`
+    directly, same as with any client-only validation).
+  - New `.field--checkbox` styles added to
+    `server/public-marketing/styles.css` for that checkbox row.
+- **`npm run check` NOT run by this agent** (no network/node_modules in
+  this sandbox, same limitation noted for Phase 1 and Phase 3). Manual
+  review only: read-through of both new `.tsx` files against the
+  `no-restricted-syntax` ESLint rule (confirmed no native-element
+  `style={{`), a bracket/JSX-balance pass, confirmed `App.tsx`'s new
+  routes/imports are well-formed, confirmed the new/edited `.js`/`.html`
+  files have no syntax errors, and confirmed no CSS custom property was
+  referenced without being defined (caught and fixed one: `var(--slate-d)`
+  doesn't exist in `index.css`, swapped to `var(--muted)`).
+  **Run `npm run check` as part of this delivery's CMD before trusting
+  it** — this is exactly what the packaged CMD does.
+
 Phase 3 (staff-side notice/assignment broadcast UI) finished 2026-08-05:
 - Backend was already complete (`server/src/routes/assignments.js`,
   `server/src/lib/classPosts.js`); only a new `GET /api/assignments/classes`

@@ -668,6 +668,79 @@ img {
   margin-top: 10px;
 }
 
+/* Public footer — legal links row (Terms/Privacy) */
+.public-footer__legal {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.public-footer__legal a {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.public-footer__legal a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* Legal pages (Terms of Service / Privacy Policy) — static public content */
+.legal-page__badge {
+  display: inline-flex;
+  padding: 6px 12px;
+  background: var(--slate-l);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 12px;
+}
+
+.legal-page__heading {
+  margin: 0 0 8px;
+}
+
+.legal-page__updated {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.legal-page__notice {
+  margin: 0;
+}
+
+.legal-content {
+  padding: 22px;
+  margin-bottom: 16px;
+}
+
+.legal-content__title {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+  margin: 0 0 10px;
+}
+
+.legal-content__body {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.85;
+}
+
+.legal-content__body p {
+  margin: 0 0 10px;
+}
+
+.legal-content__body p:last-child {
+  margin-bottom: 0;
+}
+
 /* ---- Shared module-page structure (used across admin modules) ---- */
 
 .page-header {

@@ -13,7 +13,9 @@ const AdmissionApply = lazy(() => import("./pages/AdmissionApply").then((m) => (
 const ClassesCourses = lazy(() => import("./pages/ClassesCourses").then((m) => ({ default: m.ClassesCourses })));
 const Gallery = lazy(() => import("./pages/Gallery").then((m) => ({ default: m.Gallery })));
 const Notices = lazy(() => import("./pages/Notices").then((m) => ({ default: m.Notices })));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy").then((m) => ({ default: m.PrivacyPolicy })));
 const ResultLookup = lazy(() => import("./pages/ResultLookup").then((m) => ({ default: m.ResultLookup })));
+const TermsOfService = lazy(() => import("./pages/TermsOfService").then((m) => ({ default: m.TermsOfService })));
 const Attendance = lazy(() => import("./modules/Attendance").then((m) => ({ default: m.Attendance })));
 const AdmissionsReview = lazy(() => import("./modules/AdmissionsReview").then((m) => ({ default: m.AdmissionsReview })));
 const AuditLogs = lazy(() => import("./modules/AuditLogs").then((m) => ({ default: m.AuditLogs })));
@@ -70,6 +72,8 @@ export default function App() {
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/notices" element={<Notices />} />
             <Route path="/result" element={<ResultLookup />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route
               path="/guardian/*"
               element={

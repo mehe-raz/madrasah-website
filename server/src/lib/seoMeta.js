@@ -64,6 +64,14 @@ const PUBLIC_ROUTES = {
     description: `${site.name || DEFAULT_NAME}-এর পরীক্ষার ফলাফল অনলাইনে দেখুন — ক্লাস ও রোল নম্বর দিয়ে খুঁজুন।`,
     noindex: true, // personal lookup form/results, not indexable content
   }),
+  "/terms": (site) => ({
+    title: `শর্তাবলী — ${site.name || DEFAULT_NAME}`,
+    description: `${site.name || DEFAULT_NAME} ব্যবহারের শর্তাবলী ও নিয়মকানুন।`,
+  }),
+  "/privacy": (site) => ({
+    title: `গোপনীয়তা নীতি — ${site.name || DEFAULT_NAME}`,
+    description: `${site.name || DEFAULT_NAME}-এ শিক্ষার্থী ও অভিভাবকের তথ্য কীভাবে সংগ্রহ, সংরক্ষণ ও ব্যবহার করা হয়।`,
+  }),
 };
 
 // Every public route above (indexable ones only), used by both the sitemap
