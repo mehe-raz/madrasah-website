@@ -4,6 +4,18 @@ This is a solo-maintained Madrasah ERP (React/Vite client + Express/Postgres
 server). There is no CI and no second reviewer — this file, plus
 `npm run check`, is the only safety net. Read this before making any change.
 
+## Read these two files first, in order
+
+1. **`docs/PROJECT_MAP.md`** — what exists in this repo and where (sectors,
+   folder layout, RBAC, multi-tenancy, known gaps). Read this instead of
+   exploring the codebase folder-by-folder; it exists specifically so you
+   don't have to re-derive the project structure every session.
+2. **`docs/CURRENT_TASK.md`** — carried-over work from a previous AI
+   session, if any. If it says `Status: IN_PROGRESS`, that is unfinished
+   work from an earlier agent — continue it (see the file itself for exact
+   handoff rules) unless the user's current message clearly asks for
+   something else. If it says `Status: DONE`, there's nothing to carry over.
+
 ## Non-negotiable rules
 
 1. **One task at a time, minimal diff.** Touch only the files needed for the
