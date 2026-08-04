@@ -3,42 +3,63 @@
 Read this file every session, regardless of what the user's message says —
 it may carry unfinished work from a previous AI agent's session.
 
-## Status: IN_PROGRESS
+## Status: DONE
 
-## Task: BUSINESS_READINESS_ROADMAP — Phase 1 (payments cascade fix)
-Started: 2026-08-05
-
-Full 8-phase plan lives in `docs/BUSINESS_READINESS_ROADMAP.md` (created
-from a 2026-08-05 business-readiness review) — read that file for every
-phase's detail. This entry tracks only which phase is active. **Phase 8
-(SMS + bKash/Nagad) must NOT be started by any agent on its own initiative
-— the user will explicitly say when their provider accounts are ready.**
+## Task: (none — Phase 1 of BUSINESS_READINESS_ROADMAP.md complete, see
+`docs/BUSINESS_READINESS_ROADMAP.md` for Phase 2 onward)
 
 ### সম্পন্ন
-- [x] Roadmap document written: `docs/BUSINESS_READINESS_ROADMAP.md`
-      (8 phases), referenced from `docs/PROJECT_MAP.md` §9.
+(cleared — see git history for Phase 1's diff)
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] **Phase 1 — Payments cascade fix.** Full detail in
-      `docs/BUSINESS_READINESS_ROADMAP.md` under "Phase 1". Short version:
-      `server/sql/supabase_schema.sql`'s `payments.studentId` FK is still
-      `on delete cascade` (deleting a student wipes their receipt/payment
-      history) — `income.studentId` was already fixed to `on delete set
-      null` earlier, `payments` needs the same treatment. Touches
-      `server/sql/` (an AGENTS.md protected path — explain the exact change
-      when reporting done) and possibly `server/src/routes/payments.js`/
-      `students.js` for null-safety. Not started yet.
-- [ ] Phase 2 through 7 — see roadmap doc, not started. Each is its own
-      delivery once the prior phase's `npm run check` passes and is
-      pushed.
-- [ ] Phase 8 — blocked, do not start (see warning above).
+(none queued — next agent should read `docs/BUSINESS_READINESS_ROADMAP.md`
+and ask the user which phase to start, per that file's "কীভাবে ব্যবহার
+করবেন" section)
 
 ### নোট
-- This queue replaces the now-finished ক্লাস/জামাত hierarchy task (Part 1
-  + Part 2A/2B-1/2B-2/2B-3, all done — see git history).
-- Same delivery pattern as before: one phase = one zip + one CMD
-  install/check/commit/push cycle (user's standing preference, see
-  AGENTS.md "Workflow").
+Phase 1 (payments cascade fix) finished 2026-08-05:
+- `server/sql/supabase_schema.sql`: `payments.studentId` changed from
+  `not null ... on delete cascade` to `references students(id) on delete
+  set null` (nullable) in the `create table if not exists payments` block,
+  matching `income.studentId`'s existing pattern. Added an idempotent
+  migration block right after it (`alter column ... drop not null` +
+  `drop constraint if exists` + `add constraint ... on delete set null`) so
+  **existing** databases (not just fresh ones) pick up the fix — this
+  mirrors the file's established idempotent-statement convention (see
+  `db.js`'s `initSchema()` comment).
+- No server route code needed changes: `payments.js`'s only place that
+  reads a payment row's `studentId` after the fact (`resolve-flag`
+  endpoint) already guards with `if (student)` before touching
+  `students`, so a null `studentId` degrades gracefully. `payments.student`/
+  `payments.roll` are already denormalized snapshot columns, so receipts
+  keep showing the right name/roll even after `studentId` goes null.
+  `students.js`'s delete endpoint needed no change — the DB now handles
+  the cascade behavior via the FK itself.
+- No frontend code reads `payment.studentId` anywhere, so no client changes
+  needed either.
+- **Deployment-time action the user still needs to take (not code, can't be
+  done from this sandbox):** `db.js`'s `initSchema()` only re-runs
+  `supabase_schema.sql` against the `public` schema on every boot — it does
+  NOT automatically reach existing tenant schemas (`tenant_xxx`), per
+  `migrateTenants.js`'s own header comment. Any **already-provisioned**
+  institution's `payments` table still has the old CASCADE constraint until
+  someone runs this migration SQL against it via the Platform panel's
+  tenant-migration tool (`POST` route in `platform.js`, calls
+  `migrateTenants.migrateAllTenants(sql)`):
+  ```sql
+  alter table payments alter column "studentId" drop not null;
+  alter table payments drop constraint if exists "payments_studentId_fkey";
+  alter table payments add constraint "payments_studentId_fkey"
+    foreign key ("studentId") references students(id) on delete set null;
+  ```
+  Brand-new institutions provisioned after this deploy get the fix
+  automatically (`tenantProvision.js` reads the same schema file).
+- `npm run check` NOT run by this agent (no network/node_modules in this
+  sandbox) — manual review only (parens-balance sanity check on the SQL
+  file, read-through of every `studentId` usage in `payments.js` and the
+  student-delete endpoint in `students.js`, confirmed no frontend
+  dependency). **Run `npm run check` as part of this delivery's CMD before
+  trusting it.**
 
 ## How to use this file (for the AI agent)
 

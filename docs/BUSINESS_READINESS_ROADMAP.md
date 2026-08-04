@@ -16,7 +16,7 @@
 
 ---
 
-## Phase 1 — Payments cascade fix (আর্থিক রেকর্ড সুরক্ষা)
+## Phase 1 — Payments cascade fix (আর্থিক রেকর্ড সুরক্ষা) ✅ সম্পন্ন (2026-08-05)
 **অগ্রাধিকার: সবচেয়ে বেশি, সবচেয়ে ছোট কাজ, প্রথমে এটাই করা উচিত।**
 
 - সমস্যা: `server/sql/supabase_schema.sql`-এ `payments` টেবিলের `studentId`
