@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { SkeletonTableRows } from "../components/Skeleton";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { Badge } from "../components/Badge";
-import { Button, Card, Field, Input, Select, Textarea } from "../components/ui";
+import { Button, Card, ClassCascadeSelect, Field, Input, ReadonlyValue, Select, Textarea } from "../components/ui";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
+import { classTreeLabel, findClassTreePath } from "../lib/classTree";
 import { fmt } from "../lib/fmt";
-import { deptLabel, typeLabel } from "../lib/labels";
+import { deptCodeFromTreeTopLevel, deptLabel, typeLabel } from "../lib/labels";
 import { getOutboxEntriesFor, removeOutboxEntry, type OutboxEntry } from "../lib/offlineDb";
 import { printAdmissionForm, printAdmissionSummary, printReportTable } from "../lib/printReport";
 import { C } from "../theme/colors";
@@ -100,7 +101,14 @@ const step3Required: AdmissionField[] = ["dept", "admissionFee", "fee"];
 const allRequired: AdmissionField[] = [...step1Required, ...step2Required, ...step3Required];
 const wizardSteps = ["ভর্তি তথ্য", "অভিভাবক ও ঠিকানা", "শিক্ষা / ফি / ডকুমেন্ট"];
 
-const departmentOptions = ["Hifz", "Nazera", "Kitab", "Nurani", "General"];
+// Department filter tabs only — the admission form's own "dept" field is no
+// longer a manual pick (see handleClassChange below), it's auto-derived
+// from the class/jamaat tree's top-level department, which only has 4
+// branches (hifz/nurani-najera/kitab/general — see classTree.js). "Nazera"
+// is dropped from new selections but DEPT_LABELS_BN (lib/labels.ts) still
+// maps it for display, so any pre-existing student with that dept value
+// keeps showing correctly — it's just not offered as a fresh choice anymore.
+const departmentOptions = ["Hifz", "Kitab", "Nurani", "General"];
 const bloodOptions = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const genderOptions = ["Male", "Female"];
 const religionOptions = ["Islam"];
@@ -177,7 +185,7 @@ function readFile(file: File, t: Dict, imageOnly = false): Promise<string> {
 }
 
 export function Students() {
-  const { t, tr, classOptions } = useAppSettings();
+  const { t, tr, classTree } = useAppSettings();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
@@ -445,12 +453,15 @@ export function Students() {
     }
   };
 
-  const classSelectValues = (() => {
-    const values = classOptions.map((option) => option.en);
-    const current = String(form.class || "");
-    return current && !values.includes(current) ? [current, ...values] : values;
-  })();
-  const classLabelFor = (value: string) => classOptions.find((option) => option.en === value)?.bn || value;
+  // Setting the class via the cascading tree picker also auto-derives
+  // `dept` from the chosen top-level department, replacing the old manual
+  // dept Select (see the read-only dept field in step 2 of the form below)
+  // — see deptCodeFromTreeTopLevel in lib/labels.ts for the exact mapping.
+  const handleClassChange = (en: string) => {
+    setField("class", en);
+    const path = findClassTreePath(classTree, en);
+    if (path && path.length) setField("dept", deptCodeFromTreeTopLevel(path[0].en));
+  };
 
   const renderInput = (label: string, field: AdmissionField, type = "text") => (
     <Field label={label}>
@@ -515,7 +526,7 @@ export function Students() {
             [t.students.admissionDate, viewing.admissionDate],
             [t.students.academicYear, viewing.academicYear],
             [t.students.session, viewing.session],
-            [t.students.classJamaat, viewing.class],
+            [t.students.classJamaat, viewing.class ? classTreeLabel(classTree, viewing.class) : viewing.class],
             [t.students.section, viewing.section],
             [t.students.rollNumber, viewing.roll],
             [t.students.studentType, typeLabel(viewing.type)],
@@ -700,7 +711,13 @@ export function Students() {
                 {renderInput(t.students.admissionDate, "admissionDate", "date")}
                 {renderSelect(t.students.academicYear, "academicYear", academicYearOptions(String(form.academicYear || "")))}
                 {renderInput(t.students.session, "session")}
-                {renderSelect(t.students.classJamaat, "class", classSelectValues, classLabelFor)}
+                <ClassCascadeSelect
+                  label={t.students.classJamaat}
+                  tree={classTree}
+                  value={String(form.class || "")}
+                  onChange={handleClassChange}
+                  error={!!errors.class}
+                />
                 {renderInput(t.students.section, "section")}
                 {renderInput(t.students.rollNumber, "roll")}
                 {renderSelect(t.students.studentType, "type", ["Day", "Residential"], typeLabel)}
@@ -757,7 +774,9 @@ export function Students() {
 
               {sectionTitle(t.students.madrasaInfo)}
               <div className="form-grid">
-                {renderSelect(t.students.department, "dept", departmentOptions, deptLabel)}
+                <Field label={t.students.department}>
+                  <ReadonlyValue>{form.dept ? deptLabel(form.dept) : t.common.select}</ReadonlyValue>
+                </Field>
                 {renderInput(t.students.memorizedQuran, "para", "number")}
               </div>
 
@@ -813,7 +832,7 @@ export function Students() {
                 title={student.name}
                 subtitle={student.nameEn}
                 fields={[
-                  { label: t.students.class, value: student.class },
+                  { label: t.students.class, value: student.class ? classTreeLabel(classTree, student.class) : student.class },
                   { label: t.students.roll, value: student.roll },
                 ]}
                 actions={
@@ -851,7 +870,7 @@ export function Students() {
                   <div>{student.name}</div>
                   <div className="table-pagination__info">{student.nameEn}</div>
                 </td>
-                <td>{student.class}</td>
+                <td>{student.class ? classTreeLabel(classTree, student.class) : student.class}</td>
                 <td>{student.roll}</td>
                 <td className="nowrap">
                   <Button variant="sky" onClick={() => openView(student)} style={{ marginRight: 6 }}>{t.students.view}</Button>
@@ -880,7 +899,7 @@ export function Students() {
               <div>
                 <h3 className="detail-modal__name">{viewing.name}</h3>
                 <div className="table-pagination__info">{viewing.nameEn} | {viewing.admissionNumber || t.students.noAdmissionNumber}</div>
-                <div className="table-pagination__info">{viewing.class} | {t.students.rollNumber}: {viewing.roll}</div>
+                <div className="table-pagination__info">{viewing.class ? classTreeLabel(classTree, viewing.class) : viewing.class} | {t.students.rollNumber}: {viewing.roll}</div>
               </div>
               <div className="row row--gap-8 row--wrap row--ml-auto">
                 <Button variant="sky" solid onClick={() => printAdmissionSummary(viewing)}>{t.students.printSummary}</Button>
