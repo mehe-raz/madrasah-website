@@ -184,6 +184,12 @@ Testing procedure: `docs/OFFLINE_FIRST_TESTING.md`.
 - `docs/SUPABASE_CLOUDINARY_SETUP.md` — third-party service setup
 - `docs/DEVELOPER_GUIDE (1).md` — manual smoke-test steps (login, student
   create, attendance, backup) referenced from AGENTS.md
+- `docs/BUSINESS_READINESS_ROADMAP.md` — 8-phase plan (data-integrity fix,
+  email notifications, notice-broadcast UI, legal pages, test coverage,
+  plan-tiering, multi-branch, SMS/bKash architecture notes) from a
+  2026-08-05 business-readiness review. SMS and bKash/Nagad work in Phase 8
+  are explicitly blocked until the user says their provider accounts are
+  ready — don't start that phase on your own initiative.
 - `docs/CURRENT_TASK.md` — **multi-part task handoff queue**. Always check
   this one regardless of task (see AGENTS.md pointer at the top of that file).
 

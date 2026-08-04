@@ -3,48 +3,42 @@
 Read this file every session, regardless of what the user's message says —
 it may carry unfinished work from a previous AI agent's session.
 
-## Status: DONE
+## Status: IN_PROGRESS
 
-## Task: (none — see git history for the completed ক্লাস/জামাত hierarchy
-Part 1 + Part 2/2A/2B-1/2B-2/2B-3 work)
+## Task: BUSINESS_READINESS_ROADMAP — Phase 1 (payments cascade fix)
+Started: 2026-08-05
+
+Full 8-phase plan lives in `docs/BUSINESS_READINESS_ROADMAP.md` (created
+from a 2026-08-05 business-readiness review) — read that file for every
+phase's detail. This entry tracks only which phase is active. **Phase 8
+(SMS + bKash/Nagad) must NOT be started by any agent on its own initiative
+— the user will explicitly say when their provider accounts are ready.**
 
 ### সম্পন্ন
-(cleared — see AGENTS.md "Reusable building blocks" and this repo's git log
-for what's been built)
+- [x] Roadmap document written: `docs/BUSINESS_READINESS_ROADMAP.md`
+      (8 phases), referenced from `docs/PROJECT_MAP.md` §9.
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-(none)
+- [ ] **Phase 1 — Payments cascade fix.** Full detail in
+      `docs/BUSINESS_READINESS_ROADMAP.md` under "Phase 1". Short version:
+      `server/sql/supabase_schema.sql`'s `payments.studentId` FK is still
+      `on delete cascade` (deleting a student wipes their receipt/payment
+      history) — `income.studentId` was already fixed to `on delete set
+      null` earlier, `payments` needs the same treatment. Touches
+      `server/sql/` (an AGENTS.md protected path — explain the exact change
+      when reporting done) and possibly `server/src/routes/payments.js`/
+      `students.js` for null-safety. Not started yet.
+- [ ] Phase 2 through 7 — see roadmap doc, not started. Each is its own
+      delivery once the prior phase's `npm run check` passes and is
+      pushed.
+- [ ] Phase 8 — blocked, do not start (see warning above).
 
 ### নোট
-Part 2B-3 (the last sub-part of the ক্লাস/জামাত hierarchy frontend work)
-finished on 2026-08-05:
-- `Settings.tsx` teacher class-assignment checkboxes now group by top-level
-  `classTree` department (`.class-tree-checkbox-group` /
-  `.class-tree-checkbox-group__title` in `index.css`) instead of one flat
-  `classOptions` list. The `manageUsers && editUsers` effect that used to
-  call `refreshClassOptions()` now calls `refreshClassTree()` instead, since
-  the checkbox list's data source changed. `classOptions` itself is
-  untouched and still powers the separate flat-list editor UI in this same
-  file (intentional back-compat, see prior Part 2A/2B-2 notes).
-- Remaining raw `.class` string displays now go through
-  `classTreeLabel(classTree, value)`: `Attendance.tsx` (table cell, switched
-  `useLanguage()` → `useAppSettings()` to get `classTree`), `HifzTracking.tsx`
-  (student list row + selected-student header, same hook switch),
-  `StudentPicker.tsx` (option-label suffix, newly imports
-  `useAppSettings`/`classTreeLabel` — this component previously had no
-  AppSettingsContext dependency at all). `Income.tsx`'s class filter
-  dropdown keeps its `<option value={c}>` raw (still must match
-  `students.class` exactly for `StudentPicker`'s `classFilter`) but now
-  displays `classTreeLabel(classTree, c)` as the visible text; also switched
-  `useLanguage()` → `useAppSettings()`.
-- This closes out the full ক্লাস/জামাত hierarchy task (Part 1 data model +
-  Part 2A shared infra + Part 2B-1/2B-2/2B-3 frontend wiring). Every file in
-  the Part 2B-3 scope list has been touched; no further sub-parts remain.
-- `npm run check` NOT run by this agent (no network/node_modules in this
-  sandbox) — manual review only (brace-balance sanity check on every edited
-  file, grep sweep confirming the `classOptions` inventory matches what
-  Part 2B-2's notes expected). **Run `npm run check` as part of this
-  delivery's CMD before trusting it, same caveat as every prior sub-part.**
+- This queue replaces the now-finished ক্লাস/জামাত hierarchy task (Part 1
+  + Part 2A/2B-1/2B-2/2B-3, all done — see git history).
+- Same delivery pattern as before: one phase = one zip + one CMD
+  install/check/commit/push cycle (user's standing preference, see
+  AGENTS.md "Workflow").
 
 ## How to use this file (for the AI agent)
 
