@@ -3,8 +3,8 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useGuardianAuth } from "../../context/GuardianAuthContext";
 import { useMadrasaBranding } from "../../hooks/useMadrasaBranding";
 import { api } from "../../lib/api";
-import { Button, Field, Input, Select } from "../../components/ui";
-import type { ClassOption } from "../../types";
+import { Button, Field, Input, Select, ClassCascadeSelect } from "../../components/ui";
+import type { ClassOption, ClassTreeNode } from "../../types";
 
 type Mode = "login" | "signup";
 
@@ -40,10 +40,17 @@ export function GuardianLogin() {
   // uses (value = the exact stored string, label = the readable Bengali
   // name) removes that entire failure mode.
   const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  // Hierarchical replacement for classOptions above (server/src/lib/classTree.js)
+  // — preferred whenever it has loaded and is non-empty. Public/unauthenticated
+  // endpoint since this page has no login yet (that's the whole point of it).
+  const [classTree, setClassTree] = useState<ClassTreeNode[]>([]);
   useEffect(() => {
     let cancelled = false;
     api.getPublicClassOptions().then((options) => {
       if (!cancelled) setClassOptions(options);
+    }).catch(() => {});
+    api.getPublicClassTree().then((tree) => {
+      if (!cancelled) setClassTree(tree);
     }).catch(() => {});
     return () => {
       cancelled = true;
@@ -162,6 +169,14 @@ export function GuardianLogin() {
                   <Field label="রোল নম্বর">
                     <Input required value={studentRoll} onChange={(e) => setStudentRoll(e.target.value)} />
                   </Field>
+                  {classTree.length ? (
+                    <ClassCascadeSelect
+                      label="ক্লাস"
+                      tree={classTree}
+                      value={studentClass}
+                      onChange={(en) => setStudentClass(en)}
+                    />
+                  ) : (
                   <Field label="ক্লাস">
                     {classOptions.length ? (
                       <Select required value={studentClass} onChange={(e) => setStudentClass(e.target.value)}>
@@ -174,6 +189,7 @@ export function GuardianLogin() {
                       <Input required value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
                     )}
                   </Field>
+                  )}
                 </div>
                 <Field label="ছাত্রের অভিভাবকের মোবাইল (ভর্তির সময় দেওয়া)">
                   <Input value={guardianMobile} onChange={(e) => setGuardianMobile(e.target.value)} placeholder="01XXXXXXXXX" />

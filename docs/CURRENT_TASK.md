@@ -58,42 +58,32 @@ sub-part's files exist yet when writing a given sub-part.
   - `npm run check` NOT run by this agent (no network/node_modules in its
     sandbox) — **run it as part of this delivery's CMD before trusting it**,
     same caveat as Part 2A.
+- [x] Part 2B-2 — public-facing class pickers, 3 files, all same pattern:
+      added local `classTree` state populated from `api.getPublicClassTree()`
+      (public/unauthenticated — NOT `api.getClassTree()`), then swapped the
+      manual `<select>`/`<Select>`+`options.map` block for
+      `<ClassCascadeSelect>` when `classTree.length`, falling back to the
+      pre-existing `classOptions`/`content.classes`/plain-input chain
+      otherwise (so nothing breaks for a tenant that hasn't got a tree yet).
+  - `client/src/pages/AdmissionApply.tsx` — "ক্লাস / জামাত" required field.
+    Left this file's pre-existing inline `style={{...}}` untouched (it
+    predates the Design System rule and isn't in
+    `docs/DESIGN_SYSTEM_MIGRATION.md`'s backlog) — only the new
+    `ClassCascadeSelect` branch was added, styled by its own `.ds-*` classes
+    same as everywhere else it's used.
+  - `client/src/pages/guardian/GuardianLogin.tsx` — signup form's "ক্লাস"
+    field (inside the `guardian-form-row` div next to "রোল নম্বর").
+  - `client/src/pages/guardian/GuardianDashboard.tsx` — "+ আরেকটি সন্তান
+    যুক্ত করুন" (add child) form's "ক্লাস" field — identical pattern/
+    rationale to GuardianLogin.tsx.
+  - `npm run check` NOT run by this agent (no network/node_modules) — run it
+    as part of this delivery's CMD before trusting it.
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
 
-- [ ] **Part 2B-2 — public-facing class pickers.** Three files, all follow
-      the exact same pattern (grep "getPublicClassOptions" to re-find them
-      if any have moved): add local `classTree` state populated from
-      `api.getPublicClassTree()` (NOT `api.getClassTree()` — these are all
-      unauthenticated/public-context components/pages), then swap the
-      manual `<Select>`+`options.map` block for `<ClassCascadeSelect>`,
-      keeping the existing plain-`<Input>` fallback for whenever the tree
-      hasn't loaded/is empty (same fallback shape that's already there for
-      `classOptions`).
-  - [ ] `client/src/pages/AdmissionApply.tsx` — the "ক্লাস / জামাত" required
-        field (search `classOptions.map`). This file hand-rolls its own
-        inline `style={{...}}` throughout (it predates the Design System
-        rule and is a public page, not flagged in
-        `docs/DESIGN_SYSTEM_MIGRATION.md`) — `ClassCascadeSelect` itself is
-        exempt (it's inside `components/ui/`), don't try to re-style it to
-        match `inputStyle`, just drop it in as-is.
-  - [ ] `client/src/pages/guardian/GuardianLogin.tsx` — the signup form's
-        "ক্লাস" field (search `classOptions.map`, inside the
-        `guardian-form-row` div next to "রোল নম্বর"). This file already uses
-        `components/ui` (`Field`/`Select`), so `ClassCascadeSelect` drops in
-        cleanly — remove the wrapping `<Field label="ক্লাস">` since
-        `ClassCascadeSelect` renders its own.
-  - [ ] `client/src/pages/guardian/GuardianDashboard.tsx` — the "+ আরেকটি
-        সন্তান যুক্ত করুন" (add child) form's "ক্লাস" field — identical
-        pattern/rationale to GuardianLogin.tsx above (same exact code
-        shape, same comment about avoiding exact-string-match signup
-        failures — search `classOptions.map`).
-  - [ ] Run `npm run check`, fix everything it flags, re-run until clean.
-
 - [ ] **Part 2B-3 — Settings.tsx teacher-assignment checkboxes + remaining
-      raw class-label displays + final cleanup.** Do this one LAST (after
-      2B-2 is delivered/merged), since it's the natural point to also reset
-      this file to `Status: DONE`.
+      raw class-label displays + final cleanup.** This is the LAST sub-part —
+      it's the natural point to also reset this file to `Status: DONE`.
   - [ ] `client/src/modules/Settings.tsx` — teacher class-assignment
         checkbox list (search `classDraftForRow`, around the
         `classOptions.map((option) => ...)` inside `{classDraftForRow && (`).
@@ -159,13 +149,17 @@ sub-part's files exist yet when writing a given sub-part.
   above: `AdmissionApply.tsx`'s pre-existing inline styles are untouched
   legacy code, not a new violation.
 - Full file inventory of everywhere `classOptions` (the old flat list) is
-  still referenced, as of the start of Part 2B-2 (re-grep
+  still referenced, as of the end of Part 2B-2 (re-grep
   `grep -rln "classOptions" client/src/modules client/src/pages
   client/src/components` if this list might be stale): `Settings.tsx` (the
   tree editor coexists with the old flat-list editor UI — both stay, this
-  is intentional back-compat, see Part 2A notes), `AdmissionApply.tsx`,
-  `GuardianLogin.tsx`, `GuardianDashboard.tsx` (these 3 are 2B-2's scope).
-  `Students.tsx` no longer references it (done in 2B-1).
+  is intentional back-compat, see Part 2A notes — 2B-3's checkbox-regroup
+  task below touches this file too but for the checkbox list, not the
+  editor), `AdmissionApply.tsx`, `GuardianLogin.tsx`, `GuardianDashboard.tsx`
+  (these 3 keep `classOptions` **on purpose**, as the fallback branch for
+  whenever `classTree` hasn't loaded/is empty — see Part 2B-2 above, this is
+  finished work, not something 2B-3 needs to touch). `Students.tsx` no
+  longer references `classOptions` at all (done in 2B-1).
 
 ## How to use this file (for the AI agent)
 

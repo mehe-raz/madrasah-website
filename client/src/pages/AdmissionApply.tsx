@@ -7,7 +7,8 @@ import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
-import type { AdmissionApplicationInput, ClassOption } from "../types";
+import type { AdmissionApplicationInput, ClassOption, ClassTreeNode } from "../types";
+import { ClassCascadeSelect } from "../components/ui";
 
 const inputStyle = {
   width: "100%",
@@ -59,6 +60,12 @@ export function AdmissionApply() {
   // Falls back to content.classes (CMS) below if this hasn't loaded yet /
   // is empty, so the form never blocks on it.
   const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  // Hierarchical replacement for classOptions above (see
+  // server/src/lib/classTree.js) — preferred whenever it has loaded and is
+  // non-empty; classOptions/content.classes stay as the fallback chain for
+  // whatever hasn't been migrated to the tree yet. Uses the public,
+  // unauthenticated endpoint (this page has no login) — NOT api.getClassTree().
+  const [classTree, setClassTree] = useState<ClassTreeNode[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +76,14 @@ export function AdmissionApply() {
       })
       .catch(() => {
         /* fall back to content.classes below */
+      });
+    api
+      .getPublicClassTree()
+      .then((tree) => {
+        if (!cancelled) setClassTree(tree);
+      })
+      .catch(() => {
+        /* fall back to classOptions/content.classes below */
       });
     return () => {
       cancelled = true;
@@ -164,6 +179,14 @@ export function AdmissionApply() {
               {error && <div style={{ background: C.roseL, color: C.roseD, borderRadius: 12, padding: "10px 14px", fontSize: 13, lineHeight: 1.7 }}>{error}</div>}
 
               <div style={{ display: "grid", gap: 16 }}>
+                {classTree.length ? (
+                  <ClassCascadeSelect
+                    label="ক্লাস / জামাত"
+                    tree={classTree}
+                    value={form.className}
+                    onChange={(en) => update({ className: en })}
+                  />
+                ) : (
                 <Field label="ক্লাস / জামাত" required>
                   {classOptions.length ? (
                     <select value={form.className} onChange={(e) => update({ className: e.target.value })} style={inputStyle}>
@@ -187,6 +210,7 @@ export function AdmissionApply() {
                     <input value={form.className} onChange={(e) => update({ className: e.target.value })} style={inputStyle} placeholder="যেমন: KG" />
                   )}
                 </Field>
+                )}
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                   <Field label="শিক্ষার্থীর নাম" required>
