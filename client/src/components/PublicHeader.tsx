@@ -186,6 +186,22 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                   )
                 ))}
               </nav>
+              <Link
+                to="/guardian/login"
+                className="pill nav-chip"
+                style={{
+                  background: C.emeraldL,
+                  color: C.emeraldD,
+                  fontWeight: 800,
+                  fontSize: 13,
+                  textDecoration: "none",
+                  padding: "10px 14px",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                অভিভাবক লগইন
+              </Link>
             </>
           ) : (
             <button
@@ -220,6 +236,15 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                 ✕
               </button>
             </div>
+
+            <Link
+              to="/guardian/login"
+              onClick={() => setMobileOpen(false)}
+              className="pill nav-chip"
+              style={{ display: "block", textAlign: "center", background: C.emeraldL, color: C.emeraldD, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}
+            >
+              অভিভাবক লগইন
+            </Link>
 
             <div style={{ display: "grid", gap: 8 }}>
               <Link to="/" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ background: location.pathname === "/" ? C.emeraldL : C.card, color: C.text, border: `1px solid ${C.border}`, padding: "12px 14px", textDecoration: "none", fontWeight: 800 }}>হোম</Link>
