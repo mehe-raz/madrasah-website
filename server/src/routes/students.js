@@ -1,8 +1,10 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
 const { idempotent } = require("../middleware/idempotency");
+const { isUniqueViolation } = require("../pg");
 const PDFDocument = require("pdfkit");
 const {
   RETURNING_COLUMNS,
@@ -484,6 +486,121 @@ router.get("/:id/pdf", async (req, res) => {
     console.error("PDF generation error:", error);
     res.status(500).json({ error: "PDF তৈরি করতে সমস্যা হয়েছে: " + error.message });
   }
+});
+
+const GUARDIAN_SALT_ROUNDS = 12;
+
+// Simple 8-char password: 1 uppercase letter + 3 lowercase + 4 digits —
+// satisfies passwordPolicy.js (needs 8+ chars and 3 of 4 character
+// classes: here upper+lower+digit) without needing a symbol, which tends
+// to get mistyped when read aloud or copied by hand for a guardian who
+// isn't comfortable with computers.
+function generateGuardianPassword() {
+  const letters = "abcdefghjkmnpqrstuvwxyz"; // no ambiguous i/l/o
+  let letterPart = "";
+  for (let i = 0; i < 4; i++) letterPart += letters[Math.floor(Math.random() * letters.length)];
+  const capitalized = letterPart.charAt(0).toUpperCase() + letterPart.slice(1);
+  const digits = Math.floor(1000 + Math.random() * 9000);
+  return `${capitalized}${digits}`;
+}
+
+// ----------------------------------------------------------------------------
+// Admin-assisted guardian connect: the self-signup flow in
+// routes/guardianAuth.js asks a guardian to type their child's roll/class
+// (and optionally name/mobile) and only auto-activates on a strong match —
+// good for security, but a real barrier for a guardian who doesn't
+// remember a roll number or isn't comfortable filling in a form. This
+// endpoint lets staff who already have the student open in front of them
+// create (or connect to an existing) guardian account in one click, using
+// the guardianMobile already on file from admission — no separate signup
+// step, no pending/approval wait, since a staff member confirming the
+// identity here is a stronger signal than a self-reported form match.
+// ----------------------------------------------------------------------------
+router.post("/:id/guardian-account", async (req, res) => {
+  const id = Number(req.params.id);
+  const student = await db.get('SELECT id, name, "guardianName", "guardianMobile" FROM students WHERE id = $1', [id]);
+  if (!student) return res.status(404).json({ error: "Student not found" });
+
+  const mobile = (student.guardianMobile || "").trim();
+  if (!mobile) {
+    return res.status(400).json({
+      error: "এই ছাত্রের প্রোফাইলে অভিভাবকের মোবাইল নম্বর নেই — আগে সেটা যোগ করে সেভ করুন।",
+    });
+  }
+
+  let guardian = await db.get("SELECT id, name, status FROM guardian_accounts WHERE mobile = $1", [mobile]);
+  let generatedPassword = null;
+
+  if (!guardian) {
+    generatedPassword = generateGuardianPassword();
+    const hash = await bcrypt.hash(generatedPassword, GUARDIAN_SALT_ROUNDS);
+    const createdAt = new Date().toISOString();
+    try {
+      guardian = await db.get(
+        `INSERT INTO guardian_accounts (name, mobile, "passwordHash", status, "createdAt")
+         VALUES ($1, $2, $3, 'active', $4) RETURNING id, name, status`,
+        [student.guardianName || student.name, mobile, hash, createdAt]
+      );
+    } catch (e) {
+      if (isUniqueViolation(e)) {
+        // Race: another request created this same mobile's account between
+        // our SELECT and this INSERT (e.g. staff connecting two siblings
+        // at almost the same moment) — re-fetch instead of failing.
+        guardian = await db.get("SELECT id, name, status FROM guardian_accounts WHERE mobile = $1", [mobile]);
+        generatedPassword = null;
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  const existingLink = await db.get(
+    'SELECT status FROM guardian_students WHERE "guardianId" = $1 AND "studentId" = $2',
+    [guardian.id, id]
+  );
+  if (existingLink) {
+    return res.status(409).json({
+      error: existingLink.status === "active"
+        ? "এই ছাত্র ইতিমধ্যে এই অভিভাবক অ্যাকাউন্টের সাথে যুক্ত আছে।"
+        : "এই সংযোগ অনুরোধটি ইতিমধ্যে বিদ্যমান।",
+    });
+  }
+
+  const createdAt = new Date().toISOString();
+  await db.run(
+    "INSERT INTO guardian_students (\"guardianId\", \"studentId\", \"createdAt\", status) VALUES ($1, $2, $3, 'active')",
+    [guardian.id, id, createdAt]
+  );
+
+  // If the account itself was left pending/rejected from an earlier
+  // self-signup attempt, staff confirming the identity here is at least as
+  // strong a signal as an Admin approval click (routes/guardianApprovals.js)
+  // — activate it the same way.
+  if (guardian.status !== "active") {
+    await db.run("UPDATE guardian_accounts SET status = 'active' WHERE id = $1", [guardian.id]);
+  }
+
+  await recordAudit({
+    action: "guardian.admin_connected",
+    actor: req.user,
+    entityType: "guardian_student",
+    entityId: id,
+    label: `Admin-connected guardian: ${guardian.name} \u2192 student #${id} (${student.name})`,
+    details: { guardianId: guardian.id, studentId: id, createdNewAccount: Boolean(generatedPassword) },
+  });
+
+  res.status(201).json({
+    ok: true,
+    mobile,
+    // Only present when a brand-new account was just created — an
+    // existing account's password is already known to that guardian (or
+    // was already handed out on an earlier connect), so there's nothing
+    // new to show staff here beyond confirming the connection succeeded.
+    password: generatedPassword,
+    message: generatedPassword
+      ? "নতুন অভিভাবক অ্যাকাউন্ট তৈরি হয়েছে এবং ছাত্রের সাথে যুক্ত হয়েছে।"
+      : "বিদ্যমান অভিভাবক অ্যাকাউন্টের সাথে ছাত্রকে যুক্ত করা হয়েছে।",
+  });
 });
 
 module.exports = router;

@@ -280,6 +280,12 @@ export const api = {
   deleteStudent: (id: number) =>
     request<{ ok: boolean }>(`/students/${id}`, { method: "DELETE" }),
 
+  createGuardianAccountForStudent: (id: number) =>
+    request<{ ok: boolean; mobile: string; password: string | null; message: string }>(
+      `/students/${id}/guardian-account`,
+      { method: "POST" }
+    ),
+
   downloadStudentPdf: async (id: number, name: string) => {
     const res = await fetch(`${API}/students/${id}/pdf`, {
       credentials: "include",

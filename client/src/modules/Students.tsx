@@ -190,6 +190,9 @@ export function Students() {
   const [form, setForm] = useState<AdmissionForm>(emptyForm);
   const [editing, setEditing] = useState<Student | null>(null);
   const [viewing, setViewing] = useState<Student | null>(null);
+  const [guardianAccountResult, setGuardianAccountResult] = useState<{ mobile: string; password: string | null; message: string } | null>(null);
+  const [guardianAccountError, setGuardianAccountError] = useState("");
+  const [guardianAccountLoading, setGuardianAccountLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -581,6 +584,20 @@ export function Students() {
     });
   };
 
+  const connectGuardian = async () => {
+    if (!viewing) return;
+    setGuardianAccountError("");
+    setGuardianAccountLoading(true);
+    try {
+      const res = await api.createGuardianAccountForStudent(viewing.id);
+      setGuardianAccountResult({ mobile: res.mobile, password: res.password, message: res.message });
+    } catch (err) {
+      setGuardianAccountError(err instanceof Error ? err.message : "যুক্ত করা যায়নি");
+    } finally {
+      setGuardianAccountLoading(false);
+    }
+  };
+
   const queuedAdmissions = pendingAdmissions.filter((entry) => entry.status !== "failed");
   const failedAdmissions = pendingAdmissions.filter((entry) => entry.status === "failed");
 
@@ -868,11 +885,15 @@ export function Students() {
               <div className="row row--gap-8 row--wrap row--ml-auto">
                 <Button variant="sky" solid onClick={() => printAdmissionSummary(viewing)}>{t.students.printSummary}</Button>
                 <Button variant="sky" solid onClick={printHistory}>{t.common.print} হিস্ট্রি</Button>
+                <Button variant="teal" onClick={connectGuardian} disabled={guardianAccountLoading}>
+                  {guardianAccountLoading ? "..." : "গার্ডিয়ান অ্যাকাউন্ট তৈরি করুন"}
+                </Button>
                 <Button variant="emerald" onClick={() => startEdit(viewing)}>{t.students.editStudent}</Button>
                 <Button variant="outline" onClick={() => setViewing(null)}>{t.common.close}</Button>
               </div>
             </div>
 
+            {guardianAccountError && <div className="alert alert--rose">{guardianAccountError}</div>}
             <div className="detail-stats-grid">
               <div className="detail-stat">
                 <div className="detail-stat__label">মোট হাজিরা</div>
@@ -949,6 +970,36 @@ export function Students() {
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {guardianAccountResult && (
+        <div className="modal-backdrop" onClick={() => setGuardianAccountResult(null)}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <h3 className="detail-modal__name">অভিভাবক সংযুক্ত হয়েছে</h3>
+            <p className="table-pagination__info mb-18">{guardianAccountResult.message}</p>
+
+            <div className="detail-field mb-10">
+              <div className="detail-field__label">মোবাইল (লগইন)</div>
+              <div className="detail-field__value">{guardianAccountResult.mobile}</div>
+            </div>
+
+            {guardianAccountResult.password ? (
+              <>
+                <div className="detail-field mb-18">
+                  <div className="detail-field__label">পাসওয়ার্ড</div>
+                  <div className="detail-field__value">{guardianAccountResult.password}</div>
+                </div>
+                <div className="alert alert--rose mb-18">
+                  এই পাসওয়ার্ডটি এখনই অভিভাবককে দিয়ে দিন — পরে আর এখান থেকে দেখা যাবে না। ওয়েবসাইটের "অভিভাবক লগইন" থেকে এই মোবাইল ও পাসওয়ার্ড দিয়ে লগইন করতে বলুন।
+                </div>
+              </>
+            ) : (
+              <p className="table-pagination__info mb-18">এই মোবাইল নম্বরে আগে থেকেই একটি অভিভাবক অ্যাকাউন্ট ছিল — সেটা এখন এই ছাত্রের সাথেও যুক্ত করা হয়েছে। পূর্বের পাসওয়ার্ড দিয়েই লগইন করবেন।</p>
+            )}
+
+            <Button variant="outline" onClick={() => setGuardianAccountResult(null)}>{t.common.close}</Button>
           </div>
         </div>
       )}
