@@ -21,6 +21,7 @@ const bcrypt = require("bcryptjs");
 const pg = require("./pg");
 const registryDb = require("./registryDb");
 const { DEFAULT_CATEGORIES } = require("./lib/incomeCategories");
+const { SETTINGS_KEY: CLASS_TREE_SETTINGS_KEY, DEFAULT_CLASS_TREE } = require("./lib/classTree");
 
 const tenantSchemaPath = path.join(__dirname, "..", "sql", "supabase_schema.sql");
 
@@ -97,6 +98,15 @@ async function provisionTenantSchema(schemaName, { adminName, adminEmail, adminP
       `INSERT INTO settings (key, value) VALUES ('incomeCategories', $1)
        ON CONFLICT (key) DO NOTHING`,
       [JSON.stringify(DEFAULT_CATEGORIES)]
+    );
+
+    // Default হিফজ/নূরানী-নাজেরা/কিতাব/জেনারেল class-jamaat hierarchy — see
+    // lib/classTree.js. Every fresh institution starts with this full tree
+    // instead of an empty list; its own Super Admin can edit it afterward.
+    await client.query(
+      `INSERT INTO settings (key, value) VALUES ($1, $2)
+       ON CONFLICT (key) DO NOTHING`,
+      [CLASS_TREE_SETTINGS_KEY, JSON.stringify(DEFAULT_CLASS_TREE)]
     );
 
     await client.query("COMMIT");

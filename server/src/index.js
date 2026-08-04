@@ -290,6 +290,17 @@ app.get("/api/public/class-options", async (_req, res) => {
   res.json(await getClassOptions());
 });
 
+// Public, unauthenticated: same reasoning as /api/public/class-options
+// above, but for the new hierarchical বিভাগ -> গ্রুপ/নেসাব -> জামাত tree
+// (lib/classTree.js, routes/classTree.js). Kept as a separate endpoint
+// rather than replacing class-options so both can coexist during the
+// Part 2 frontend rollout.
+app.get("/api/public/class-tree", async (_req, res) => {
+  const { getClassTree } = require("./lib/classTree");
+  res.setHeader("Cache-Control", "no-cache");
+  res.json(await getClassTree());
+});
+
 // robots.txt / sitemap.xml — generated per-request (not static files) so the
 // Sitemap directive and every <loc> below use the actual request host. That
 // matters here because each tenant is reachable on its own subdomain/custom
@@ -396,6 +407,7 @@ app.use("/api/results", require("./routes/results"));
 app.use("/api/assignments", require("./routes/assignments"));
 app.use("/api/settings", require("./routes/settings"));
 app.use("/api/class-options", require("./routes/classOptions"));
+app.use("/api/class-tree", require("./routes/classTree"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/guardian-approvals", require("./routes/guardianApprovals"));
 app.use("/api/dashboard", require("./routes/dashboard"));
