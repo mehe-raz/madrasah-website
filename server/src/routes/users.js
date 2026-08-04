@@ -6,6 +6,8 @@ const { isUniqueViolation } = require("../pg");
 const { requirePermission } = require("../middleware/rbac");
 const { recordAudit } = require("../lib/auditLog");
 const { passwordPolicyError } = require("../lib/passwordPolicy");
+const { classesForTeacher } = require("../lib/teacherScope");
+const { getClassOptions } = require("../lib/classOptions");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -29,7 +31,16 @@ router.get("/", async (_req, res) => {
   // a Teacher, could list every user's name/email/role. Now guarded above by
   // router.use(requirePermission("settings")), which only Admin/Super Admin have.
   const rows = await db.all('SELECT id, name, email, role, "isProtected" FROM users ORDER BY id');
-  res.json(rows.map(publicUser));
+  const users = await Promise.all(
+    rows.map(async (row) => {
+      const u = publicUser(row);
+      // Only Teachers are ever class-scoped (see lib/teacherScope.js) — no
+      // point querying teacher_class_assignments for every other role.
+      if (row.role === "Teacher") u.assignedClasses = await classesForTeacher(row.id);
+      return u;
+    })
+  );
+  res.json(users);
 });
 
 router.post("/", async (req, res) => {
@@ -215,6 +226,69 @@ router.delete("/:id", async (req, res) => {
     label: `Deleted ${existing.role}: ${existing.name}`,
   });
   res.json({ ok: true });
+});
+
+// ----------------------------------------------------------------------------
+// Step 3 (Teacher class-scoping): assign/replace the set of classes a
+// Teacher can see and act on. Sits under this "settings"-gated router same
+// as the rest of user management, per the Step 3 plan — a Teacher never has
+// write access here since the "settings" permission isn't granted to that
+// role (see config/roles.js). Only a Teacher target makes sense; assigning
+// classes to any other role would be a no-op since lib/teacherScope.js only
+// ever scopes role === "Teacher".
+// ----------------------------------------------------------------------------
+router.put("/:id/classes", async (req, res) => {
+  const id = Number(req.params.id);
+  const target = await db.get("SELECT id, name, role FROM users WHERE id = $1", [id]);
+  if (!target) return res.status(404).json({ error: "User not found" });
+  if (target.role !== "Teacher") {
+    return res.status(400).json({ error: "শুধুমাত্র Teacher-এর ক্লাস নির্ধারণ করা যায়" });
+  }
+
+  const requested = Array.isArray(req.body.classes) ? req.body.classes : null;
+  if (!requested) return res.status(400).json({ error: "classes অ্যারে আবশ্যক" });
+
+  // Validate against the tenant's actual class/jamaat master list — same
+  // check assignments.js uses for a post's `class` field — so a typo or a
+  // stale value here can never create a scope that matches nothing (or,
+  // worse, silently drifts from what students.class actually contains).
+  const validSlugs = new Set((await getClassOptions()).map((o) => o.en));
+  const classes = [...new Set(requested.map((c) => String(c).trim()).filter(Boolean))];
+  const invalid = classes.filter((c) => !validSlugs.has(c));
+  if (invalid.length > 0) {
+    return res.status(400).json({ error: `অজানা ক্লাস: ${invalid.join(", ")}` });
+  }
+
+  // Replace wholesale inside one transaction-like pair of statements — the
+  // set is small (a handful of classes per teacher) so a delete-then-insert
+  // is simpler and safer than diffing, and avoids ever leaving a stale row
+  // behind if a class is removed from the selection.
+  await db.run('DELETE FROM teacher_class_assignments WHERE "userId" = $1', [id]);
+  if (classes.length > 0) {
+    const createdAt = new Date().toISOString();
+    const valuePlaceholders = [];
+    const params = [];
+    classes.forEach((cls, i) => {
+      const base = i * 3;
+      valuePlaceholders.push(`($${base + 1}, $${base + 2}, $${base + 3})`);
+      params.push(id, cls, createdAt);
+    });
+    await db.run(
+      `INSERT INTO teacher_class_assignments ("userId", class, "createdAt") VALUES ${valuePlaceholders.join(", ")}`,
+      params
+    );
+  }
+
+  await recordAudit({
+    action: "user.classes_updated",
+    actor: req.user,
+    entityType: "user",
+    entityId: id,
+    label: `Updated assigned classes for Teacher: ${target.name}`,
+    details: { classes },
+  });
+
+  res.json({ id, classes });
 });
 
 module.exports = router;

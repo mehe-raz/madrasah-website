@@ -609,6 +609,9 @@ export const api = {
   updateUser: (id: number, body: { name?: string; role?: string; email?: string; password?: string }) =>
     request<User | { ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 
+  updateUserClasses: (id: number, classes: string[]) =>
+    request<{ id: number; classes: string[] }>(`/users/${id}/classes`, { method: "PUT", body: JSON.stringify({ classes }) }),
+
   deleteUser: (id: number) =>
     request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/users/${id}`, { method: "DELETE" }),
 

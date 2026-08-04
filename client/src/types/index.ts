@@ -317,6 +317,9 @@ export interface User {
   email?: string;
   role: string;
   isProtected?: boolean;
+  // Only present on rows where role === "Teacher" — see
+  // lib/teacherScope.js on the server for how this scopes their access.
+  assignedClasses?: string[];
 }
 
 export const USER_ROLES = [

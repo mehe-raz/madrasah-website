@@ -54,12 +54,19 @@ function parseSubjects(row) {
   return { ...row, subjects: typeof row.subjects === "string" ? JSON.parse(row.subjects) : row.subjects };
 }
 
-async function listResults({ class: className, examName, year } = {}) {
+// `classes` (array) is used by routes/results.js when a scoped Teacher asks
+// for results without picking one specific class from their assigned list —
+// `class` (single value) takes priority when both are present, same as a
+// Teacher filtering their own scoped view down to one class.
+async function listResults({ class: className, classes, examName, year } = {}) {
   const conditions = [];
   const params = [];
   if (className) {
     params.push(className);
     conditions.push(`class = $${params.length}`);
+  } else if (classes) {
+    params.push(classes);
+    conditions.push(`class = ANY($${params.length})`);
   }
   if (examName) {
     params.push(examName);

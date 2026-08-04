@@ -85,6 +85,7 @@ export function Settings() {
   const [saved, setSaved] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", role: "Teacher", email: "", password: "" });
   const [editDraft, setEditDraft] = useState<User | null>(null);
+  const [classAssignDraft, setClassAssignDraft] = useState<{ userId: number; classes: string[] } | null>(null);
   const [backupConfig, setBackupConfig] = useState<BackupConfig | null>(null);
   const [driveStatus, setDriveStatus] = useState<GoogleDriveStatus | null>(null);
   const [driveConnecting, setDriveConnecting] = useState(false);
@@ -184,6 +185,16 @@ export function Settings() {
       refreshClassOptions();
     }
   }, [isSuperAdmin, editClasses, classOptions.length, refreshClassOptions]);
+
+  useEffect(() => {
+    // The Teacher-classes multi-select below needs the class/jamaat master
+    // list too, not just the Super-Admin-only class management section
+    // above — Admin can manage users (and thus teacher class assignments)
+    // without being Super Admin, so this effect isn't gated on isSuperAdmin.
+    if (manageUsers && editUsers && !classOptions.length) {
+      refreshClassOptions();
+    }
+  }, [manageUsers, editUsers, classOptions.length, refreshClassOptions]);
 
   useEffect(() => {
     if (allowDomain && editDomain) {
@@ -501,6 +512,30 @@ export function Settings() {
   };
 
   const canEditUser = () => manageUsers && editUsers;
+
+  const toggleClassEditor = (u: User) => {
+    setClassAssignDraft((prev) => (prev?.userId === u.id ? null : { userId: u.id, classes: u.assignedClasses ? [...u.assignedClasses] : [] }));
+  };
+
+  const toggleDraftClass = (cls: string) => {
+    setClassAssignDraft((prev) => {
+      if (!prev) return prev;
+      const has = prev.classes.includes(cls);
+      return { ...prev, classes: has ? prev.classes.filter((c) => c !== cls) : [...prev.classes, cls] };
+    });
+  };
+
+  const handleSaveClasses = async () => {
+    if (!classAssignDraft || !manageUsers) return;
+    try {
+      await api.updateUserClasses(classAssignDraft.userId, classAssignDraft.classes);
+      await refreshUsers();
+      setClassAssignDraft(null);
+      setMsg(t.settings.teacherClassesSaved);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  };
 
   const canDeleteUser = (u: User) => {
     if (!manageUsers || !editUsers || authUser?.id === u.id) return false;
@@ -1024,39 +1059,67 @@ export function Settings() {
                   const color = ROLE_COLORS[u.role] || "#0f766e";
                   const editing = editDraft?.id === u.id;
                   const draft = editing ? editDraft! : u;
+                  const classDraftForRow = classAssignDraft && classAssignDraft.userId === u.id ? classAssignDraft : null;
                   return (
-                    // Row tint is per-user-role data (color + "10"/"30" alpha),
-                    // same documented dynamic-color exception as above.
-                    // eslint-disable-next-line no-restricted-syntax -- dynamic per-role accent color
-                    <div key={u.id} className="user-row" style={{ background: color + "10", border: `1px solid ${color}30` }}>
+                    <div key={u.id}>
+                      {/* Row tint is per-user-role data (color + "10"/"30" alpha),
+                          same documented dynamic-color exception as above. */}
                       {/* eslint-disable-next-line no-restricted-syntax -- dynamic per-role accent color */}
-                      <span className="user-row-dot" style={{ background: color }} />
-                      {editing ? (
-                        <>
-                          <Input value={draft.name} onChange={(e) => setEditDraft({ ...draft, name: e.target.value })} style={{ flex: 1, minWidth: 90, fontSize: 13, padding: "8px 10px" }} />
-                          <Input value={draft.email || ""} onChange={(e) => setEditDraft({ ...draft, email: e.target.value })} style={{ flex: 1, minWidth: 90, fontSize: 13, padding: "8px 10px" }} />
-                          <Select value={draft.role} disabled={!!u.isProtected && (authUser?.role !== "Super Admin" || authUser?.id === u.id)} onChange={(e) => setEditDraft({ ...draft, role: e.target.value })} style={{ fontSize: 13, padding: "8px 10px" }}>
-                            {USER_ROLES.filter((r) => authUser?.role === "Super Admin" || r !== "Super Admin").map((r) => (
-                              <option key={r} value={r}>{r}</option>
-                            ))}
-                          </Select>
-                          <Input placeholder="New password (optional)" type="password" onChange={(e) => setEditDraft({ ...draft, newPassword: e.target.value } as User & { newPassword?: string })} style={{ minWidth: 120, fontSize: 13, padding: "8px 10px" }} />
-                          <button type="button" onClick={handleUpdateUser} className="btn-xs btn-xs--save">{t.common.save}</button>
-                          <button type="button" onClick={() => setEditDraft(null)} className="btn-xs btn-xs--cancel">{t.common.cancel}</button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="user-info">
-                            <div className="user-name">{u.name}{u.isProtected ? " 🔒" : ""}</div>
-                            <div className="user-meta">{u.role} · {u.email || "—"}</div>
-                          </div>
-                          {canEditUser() && (
-                            <button type="button" onClick={() => setEditDraft({ ...u })} className="btn-xs btn-xs--edit">✏️</button>
-                          )}
-                          {canDeleteUser(u) && (
-                            <button type="button" onClick={() => handleDeleteUser(u)} className="btn-xs btn-xs--delete">{t.common.delete}</button>
-                          )}
-                        </>
+                      <div className="user-row" style={{ background: color + "10", border: `1px solid ${color}30` }}>
+                        {/* eslint-disable-next-line no-restricted-syntax -- dynamic per-role accent color */}
+                        <span className="user-row-dot" style={{ background: color }} />
+                        {editing ? (
+                          <>
+                            <Input value={draft.name} onChange={(e) => setEditDraft({ ...draft, name: e.target.value })} style={{ flex: 1, minWidth: 90, fontSize: 13, padding: "8px 10px" }} />
+                            <Input value={draft.email || ""} onChange={(e) => setEditDraft({ ...draft, email: e.target.value })} style={{ flex: 1, minWidth: 90, fontSize: 13, padding: "8px 10px" }} />
+                            <Select value={draft.role} disabled={!!u.isProtected && (authUser?.role !== "Super Admin" || authUser?.id === u.id)} onChange={(e) => setEditDraft({ ...draft, role: e.target.value })} style={{ fontSize: 13, padding: "8px 10px" }}>
+                              {USER_ROLES.filter((r) => authUser?.role === "Super Admin" || r !== "Super Admin").map((r) => (
+                                <option key={r} value={r}>{r}</option>
+                              ))}
+                            </Select>
+                            <Input placeholder="New password (optional)" type="password" onChange={(e) => setEditDraft({ ...draft, newPassword: e.target.value } as User & { newPassword?: string })} style={{ minWidth: 120, fontSize: 13, padding: "8px 10px" }} />
+                            <button type="button" onClick={handleUpdateUser} className="btn-xs btn-xs--save">{t.common.save}</button>
+                            <button type="button" onClick={() => setEditDraft(null)} className="btn-xs btn-xs--cancel">{t.common.cancel}</button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="user-info">
+                              <div className="user-name">{u.name}{u.isProtected ? " 🔒" : ""}</div>
+                              <div className="user-meta">
+                                {u.role} · {u.email || "—"}
+                                {u.role === "Teacher" && (
+                                  <> · {u.assignedClasses?.length ? u.assignedClasses.join(", ") : t.settings.teacherClassesNone}</>
+                                )}
+                              </div>
+                            </div>
+                            {canEditUser() && u.role === "Teacher" && (
+                              <button type="button" onClick={() => toggleClassEditor(u)} className="btn-xs btn-xs--edit">{t.settings.teacherClasses}</button>
+                            )}
+                            {canEditUser() && (
+                              <button type="button" onClick={() => setEditDraft({ ...u })} className="btn-xs btn-xs--edit">✏️</button>
+                            )}
+                            {canDeleteUser(u) && (
+                              <button type="button" onClick={() => handleDeleteUser(u)} className="btn-xs btn-xs--delete">{t.common.delete}</button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {classDraftForRow && (
+                        <div className="user-row">
+                          {classOptions.length === 0 && <span className="field-block__label">{t.settings.classEmptyList}</span>}
+                          {classOptions.map((option) => (
+                            <label key={option.en} className="user-meta">
+                              <input
+                                type="checkbox"
+                                checked={classDraftForRow.classes.includes(option.en)}
+                                onChange={() => toggleDraftClass(option.en)}
+                              />
+                              {" "}{option.bn}
+                            </label>
+                          ))}
+                          <button type="button" onClick={handleSaveClasses} className="btn-xs btn-xs--save">{t.common.save}</button>
+                          <button type="button" onClick={() => setClassAssignDraft(null)} className="btn-xs btn-xs--cancel">{t.common.cancel}</button>
+                        </div>
                       )}
                     </div>
                   );
