@@ -5,7 +5,7 @@ import { Button, Input, Select } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
-import { addClassTreeNode, removeClassTreeNode } from "../lib/classTree";
+import { addClassTreeNode, removeClassTreeNode, flattenClassTree } from "../lib/classTree";
 import { canBackup, canManageDomain, canManageUsers } from "../lib/permissions";
 import { USER_ROLES, type BackupConfig, type ClassTreeNode, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
@@ -262,14 +262,15 @@ export function Settings() {
   }, [isSuperAdmin, editClassTree, classTree.length, refreshClassTree]);
 
   useEffect(() => {
-    // The Teacher-classes multi-select below needs the class/jamaat master
-    // list too, not just the Super-Admin-only class management section
-    // above — Admin can manage users (and thus teacher class assignments)
-    // without being Super Admin, so this effect isn't gated on isSuperAdmin.
-    if (manageUsers && editUsers && !classOptions.length) {
-      refreshClassOptions();
+    // The Teacher-classes checkbox list below is grouped from the
+    // class/jamaat tree (see classDraftForRow rendering) — Admin can manage
+    // users (and thus teacher class assignments) without being Super Admin,
+    // so this effect isn't gated on isSuperAdmin like the tree-editor one
+    // above.
+    if (manageUsers && editUsers && !classTree.length) {
+      refreshClassTree();
     }
-  }, [manageUsers, editUsers, classOptions.length, refreshClassOptions]);
+  }, [manageUsers, editUsers, classTree.length, refreshClassTree]);
 
   useEffect(() => {
     if (allowDomain && editDomain) {
@@ -1209,16 +1210,21 @@ export function Settings() {
                       </div>
                       {classDraftForRow && (
                         <div className="user-row">
-                          {classOptions.length === 0 && <span className="field-block__label">{t.settings.classEmptyList}</span>}
-                          {classOptions.map((option) => (
-                            <label key={option.en} className="user-meta">
-                              <input
-                                type="checkbox"
-                                checked={classDraftForRow.classes.includes(option.en)}
-                                onChange={() => toggleDraftClass(option.en)}
-                              />
-                              {" "}{option.bn}
-                            </label>
+                          {classTree.length === 0 && <span className="field-block__label">{t.settings.classEmptyList}</span>}
+                          {classTree.map((dept) => (
+                            <div key={dept.en} className="class-tree-checkbox-group">
+                              <div className="class-tree-checkbox-group__title">{dept.bn}</div>
+                              {flattenClassTree([dept]).map((leaf) => (
+                                <label key={leaf.en} className="user-meta">
+                                  <input
+                                    type="checkbox"
+                                    checked={classDraftForRow.classes.includes(leaf.en)}
+                                    onChange={() => toggleDraftClass(leaf.en)}
+                                  />
+                                  {" "}{leaf.bn}
+                                </label>
+                              ))}
+                            </div>
                           ))}
                           <button type="button" onClick={handleSaveClasses} className="btn-xs btn-xs--save">{t.common.save}</button>
                           <button type="button" onClick={() => setClassAssignDraft(null)} className="btn-xs btn-xs--cancel">{t.common.cancel}</button>

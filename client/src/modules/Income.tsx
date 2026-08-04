@@ -5,9 +5,10 @@ import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { SkeletonCardList, SkeletonTableRows } from "../components/Skeleton";
 import { StatCard } from "../components/StatCard";
 import { StudentPicker } from "../components/StudentPicker";
-import { useLanguage } from "../context/AppSettingsContext";
+import { useAppSettings } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
+import { classTreeLabel } from "../lib/classTree";
 import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
 import type { IncomeEntry, Payment, Student } from "../types";
@@ -15,7 +16,7 @@ import type { IncomeEntry, Payment, Student } from "../types";
 const METHODS = ["Cash", "bKash", "Nagad", "Bank"];
 
 export function Income() {
-  const { t } = useLanguage();
+  const { t, classTree } = useAppSettings();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [tab, setTab] = useState<"list" | "add" | "student">("list");
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
@@ -386,7 +387,7 @@ export function Income() {
             style={{ ...fieldStyle, marginBottom: 12 }}
           >
             {classes.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>{classTreeLabel(classTree, c)}</option>
             ))}
           </select>
           <label style={{ fontSize: 12, color: C.muted }}>Student / ছাত্র</label>

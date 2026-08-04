@@ -1392,6 +1392,19 @@ img {
   font-weight: 600;
 }
 
+/* Teacher class-assignment checkbox list (Settings.tsx classDraftForRow) —
+ * grouped by top-level classTree department instead of one flat list. */
+.class-tree-checkbox-group {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.class-tree-checkbox-group__title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
 .user-info {
   flex: 1;
   min-width: 100px;

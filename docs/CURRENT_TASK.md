@@ -3,163 +3,48 @@
 Read this file every session, regardless of what the user's message says —
 it may carry unfinished work from a previous AI agent's session.
 
-## Status: IN_PROGRESS
+## Status: DONE
 
-## Task: ক্লাস/জামাত hierarchy — Part 2: Frontend cascading UI (৩ উপ-ভাগে)
-Started: 2026-08-05
-
-Part 2B was originally scoped as one block but the user asked to split it
-into 3 self-contained deliveries (each one gets its own zip + CMD install/
-check/commit/push cycle from the user — see AGENTS.md "Workflow" and the
-user's standing delivery preference). **Each sub-part must leave the repo in
-a state where `npm run check` passes on its own** — don't assume a later
-sub-part's files exist yet when writing a given sub-part.
+## Task: (none — see git history for the completed ক্লাস/জামাত hierarchy
+Part 1 + Part 2/2A/2B-1/2B-2/2B-3 work)
 
 ### সম্পন্ন
-- [x] Part 2A — Shared cascading infra + Settings tree editor (unchanged from
-      before, see git history): `ClassTreeNode` type, `api.getClassTree` /
-      `saveClassTree` / `getPublicClassTree`, `client/src/lib/classTree.ts`
-      (flatten/find/label + tree-edit helpers), `AppSettingsContext`
-      `classTree` state, `ClassCascadeSelect` component (depth-agnostic
-      cascading `<Select>` picker, exported from `components/ui/index.ts`),
-      i18n `classTree*` keys, Settings.tsx tree editor UI + warning banner,
-      `.class-tree-row--depth-*` / `.class-tree-warning` CSS.
-- [x] Part 2B-1 — `client/src/modules/Students.tsx` (admin admission/edit
-      form) + `client/src/lib/labels.ts`:
-  - Swapped the flat `class` Select for
-    `<ClassCascadeSelect tree={classTree} value={form.class} onChange={handleClassChange} />`.
-  - Added `handleClassChange` in Students.tsx: sets `class`, then walks
-    `findClassTreePath(classTree, en)` and auto-sets `dept` from the picked
-    leaf's top-level department via the new `deptCodeFromTreeTopLevel()` /
-    `TREE_TOP_LEVEL_TO_DEPT` map in `lib/labels.ts`
-    (`hifz→Hifz, nurani-najera→Nurani, kitab→Kitab, general→General`).
-    **`hifz→Hifz` is deliberate and must never change** —
-    `server/src/routes/hifz.js`'s Hifz Tracking module filters students with
-    the exact string `dept = 'Hifz'`. `nurani-najera` maps to the existing
-    `Nurani` code (the tree merges old Nurani+Nazera into one department) —
-    `DEPT_LABELS_BN` still keeps a `Nazera` entry so any pre-existing legacy
-    record still *displays* correctly, it's just never produced by new
-    admissions anymore. No server-side change was needed — `ALLOWED.dept` in
-    `server/src/models/studentAdmission.js` already permitted all 4 codes.
-  - The `dept` field in step 2 of the form is now a `<ReadonlyValue>` (not a
-    Select) showing `deptLabel(form.dept)` — it's derived, not manually
-    picked. `departmentOptions` (top-of-file const) is now only used for the
-    department *filter tabs* above the student list, trimmed from 5 values
-    to 4 (`Hifz/Kitab/Nurani/General` — dropped `Nazera`, see above).
-  - Any place this file displayed a raw `student.class`/`viewing.class`
-    string (list table cell, mobile RecordCard, view-modal detail row, view-
-    modal header line) now runs it through
-    `classTreeLabel(classTree, value)` from `lib/classTree.ts` first, so
-    tree-based leaf `en` values show their nice Bengali path instead of the
-    raw slug. The one intentionally-left-alone spot: the offline-queued-
-    admission badge (`body.class`, search "pendingAdmissionsTitle") still
-    shows the raw value — low-visibility, not worth the extra complexity of
-    reading `classTree` inside that map for a queued (not-yet-synced) entry.
-  - `npm run check` NOT run by this agent (no network/node_modules in its
-    sandbox) — **run it as part of this delivery's CMD before trusting it**,
-    same caveat as Part 2A.
-- [x] Part 2B-2 — public-facing class pickers, 3 files, all same pattern:
-      added local `classTree` state populated from `api.getPublicClassTree()`
-      (public/unauthenticated — NOT `api.getClassTree()`), then swapped the
-      manual `<select>`/`<Select>`+`options.map` block for
-      `<ClassCascadeSelect>` when `classTree.length`, falling back to the
-      pre-existing `classOptions`/`content.classes`/plain-input chain
-      otherwise (so nothing breaks for a tenant that hasn't got a tree yet).
-  - `client/src/pages/AdmissionApply.tsx` — "ক্লাস / জামাত" required field.
-    Left this file's pre-existing inline `style={{...}}` untouched (it
-    predates the Design System rule and isn't in
-    `docs/DESIGN_SYSTEM_MIGRATION.md`'s backlog) — only the new
-    `ClassCascadeSelect` branch was added, styled by its own `.ds-*` classes
-    same as everywhere else it's used.
-  - `client/src/pages/guardian/GuardianLogin.tsx` — signup form's "ক্লাস"
-    field (inside the `guardian-form-row` div next to "রোল নম্বর").
-  - `client/src/pages/guardian/GuardianDashboard.tsx` — "+ আরেকটি সন্তান
-    যুক্ত করুন" (add child) form's "ক্লাস" field — identical pattern/
-    rationale to GuardianLogin.tsx.
-  - `npm run check` NOT run by this agent (no network/node_modules) — run it
-    as part of this delivery's CMD before trusting it.
+(cleared — see AGENTS.md "Reusable building blocks" and this repo's git log
+for what's been built)
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-
-- [ ] **Part 2B-3 — Settings.tsx teacher-assignment checkboxes + remaining
-      raw class-label displays + final cleanup.** This is the LAST sub-part —
-      it's the natural point to also reset this file to `Status: DONE`.
-  - [ ] `client/src/modules/Settings.tsx` — teacher class-assignment
-        checkbox list (search `classDraftForRow`, around the
-        `classOptions.map((option) => ...)` inside `{classDraftForRow && (`).
-        Regroup it to mirror the tree instead of one flat list: import
-        `flattenClassTree` from `../lib/classTree` (alongside the existing
-        `addClassTreeNode`/`removeClassTreeNode` import), then for each
-        top-level `classTree` node render a group header (`dept.bn`) and
-        underneath it `flattenClassTree([dept])` as the checkboxes for that
-        group (checkbox `value`/`checked`/`onChange` keep using the leaf's
-        `en`, exactly like today — only the grouping/labels change). Add a
-        `.class-tree-checkbox-group` / `.class-tree-checkbox-group__title`
-        CSS rule to `client/src/index.css` near the existing
-        `.class-tree-row*` rules — no inline `style={{...}}` (Design System
-        rule).
-  - [ ] Swap remaining raw `.class` string displays to
-        `classTreeLabel(classTree, value)` (import from `../lib/classTree`;
-        each of these files/modules already gets `classTree` from
-        `useAppSettings()` or can add it — they're all authenticated
-        modules):
-    - [ ] `client/src/modules/Attendance.tsx` — line showing `{s.class}` in
-          the attendance table (search `t.attendance.class`).
-    - [ ] `client/src/modules/HifzTracking.tsx` — two spots: the student
-          list row (`{s.class} · {s.para}/...`) and the selected-student
-          header (`{selected.class}`).
-    - [ ] `client/src/components/StudentPicker.tsx` — the `` `(${s.class})` ``
-          suffix in the picker's option label.
-    - [ ] `client/src/modules/Income.tsx` — this one is DIFFERENT from the
-          others: its class filter dropdown (search `const [classes,
-          setClasses]`) is populated from a server-side *distinct-values*
-          query, not the tree, so both the `value` and the displayed
-          `<option>` text are the same raw string today. Leave the `value`
-          alone (it still needs to match `students.class` exactly for the
-          `StudentPicker`'s `classFilter` to work) but wrap the *displayed*
-          text with `classTreeLabel(classTree, c)` so tree-based leaf values
-          show their nice label while the underlying filter value is
-          unchanged. Needs `classTree` added to this component (pull from
-          `useAppSettings()`/`useLanguage()` — check which one this file
-          currently imports from `context/AppSettingsContext`).
-  - [ ] Run `npm run check`, fix everything it flags, re-run until clean.
-  - [ ] Once 2B-3's `npm run check` passes, reset this ENTIRE file back to
-        the `Status: DONE` template at the bottom of this file (per the
-        "How to use this file" section below) — there is nothing left in
-        "বাকি" after this sub-part.
+(none)
 
 ### নোট
-- Storage decision (approved, from Part 2A, still holds): a student's
-  `class` field still stores a single leaf `en` string, exactly as before —
-  no schema change, no students.class migration. Old demo/legacy `class`
-  text values are intentionally NOT auto-matched into the new tree —
-  `classTreeLabel()` falls back to showing the raw stored string for
-  anything not found in the tree, so old records don't break, they just
-  won't get the pretty composite label.
-- The `dept` restructuring (Part 2B-1, above) is now done — don't redo it in
-  2B-2/2B-3, but DO be aware of the `hifz→Hifz` exact-string constraint if
-  either of the later sub-parts ever touches dept-related code.
-- User declined adding "মহিলা বিভাগ" as a top-level department now (add
-  later) — the tree editor still supports adding new top-level departments
-  in general (button `t.settings.classTreeAddTopLevel`), just don't seed a
-  new one by default.
-- Design System rule (AGENTS.md) applies to all of Part 2B/2B-2/2B-3: no
-  `style={{...}}` on native elements outside `components/ui/` — use `.ds-*`
-  classes or add a new named class to `index.css`. Exception already noted
-  above: `AdmissionApply.tsx`'s pre-existing inline styles are untouched
-  legacy code, not a new violation.
-- Full file inventory of everywhere `classOptions` (the old flat list) is
-  still referenced, as of the end of Part 2B-2 (re-grep
-  `grep -rln "classOptions" client/src/modules client/src/pages
-  client/src/components` if this list might be stale): `Settings.tsx` (the
-  tree editor coexists with the old flat-list editor UI — both stay, this
-  is intentional back-compat, see Part 2A notes — 2B-3's checkbox-regroup
-  task below touches this file too but for the checkbox list, not the
-  editor), `AdmissionApply.tsx`, `GuardianLogin.tsx`, `GuardianDashboard.tsx`
-  (these 3 keep `classOptions` **on purpose**, as the fallback branch for
-  whenever `classTree` hasn't loaded/is empty — see Part 2B-2 above, this is
-  finished work, not something 2B-3 needs to touch). `Students.tsx` no
-  longer references `classOptions` at all (done in 2B-1).
+Part 2B-3 (the last sub-part of the ক্লাস/জামাত hierarchy frontend work)
+finished on 2026-08-05:
+- `Settings.tsx` teacher class-assignment checkboxes now group by top-level
+  `classTree` department (`.class-tree-checkbox-group` /
+  `.class-tree-checkbox-group__title` in `index.css`) instead of one flat
+  `classOptions` list. The `manageUsers && editUsers` effect that used to
+  call `refreshClassOptions()` now calls `refreshClassTree()` instead, since
+  the checkbox list's data source changed. `classOptions` itself is
+  untouched and still powers the separate flat-list editor UI in this same
+  file (intentional back-compat, see prior Part 2A/2B-2 notes).
+- Remaining raw `.class` string displays now go through
+  `classTreeLabel(classTree, value)`: `Attendance.tsx` (table cell, switched
+  `useLanguage()` → `useAppSettings()` to get `classTree`), `HifzTracking.tsx`
+  (student list row + selected-student header, same hook switch),
+  `StudentPicker.tsx` (option-label suffix, newly imports
+  `useAppSettings`/`classTreeLabel` — this component previously had no
+  AppSettingsContext dependency at all). `Income.tsx`'s class filter
+  dropdown keeps its `<option value={c}>` raw (still must match
+  `students.class` exactly for `StudentPicker`'s `classFilter`) but now
+  displays `classTreeLabel(classTree, c)` as the visible text; also switched
+  `useLanguage()` → `useAppSettings()`.
+- This closes out the full ক্লাস/জামাত hierarchy task (Part 1 data model +
+  Part 2A shared infra + Part 2B-1/2B-2/2B-3 frontend wiring). Every file in
+  the Part 2B-3 scope list has been touched; no further sub-parts remain.
+- `npm run check` NOT run by this agent (no network/node_modules in this
+  sandbox) — manual review only (brace-balance sanity check on every edited
+  file, grep sweep confirming the `classOptions` inventory matches what
+  Part 2B-2's notes expected). **Run `npm run check` as part of this
+  delivery's CMD before trusting it, same caveat as every prior sub-part.**
 
 ## How to use this file (for the AI agent)
 

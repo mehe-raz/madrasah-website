@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Input } from "./ui";
 import { api } from "../lib/api";
+import { useAppSettings } from "../context/AppSettingsContext";
+import { classTreeLabel } from "../lib/classTree";
 import type { Student } from "../types";
 
 interface StudentPickerProps {
@@ -20,6 +22,7 @@ interface StudentPickerProps {
 // admission number (see server/src/routes/students.js), so every student
 // stays reachable regardless of how many there are.
 export function StudentPicker({ value, onSelect, classFilter, placeholder }: StudentPickerProps) {
+  const { classTree } = useAppSettings();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<Student[]>([]);
@@ -96,7 +99,7 @@ export function StudentPicker({ value, onSelect, classFilter, placeholder }: Stu
                 }}
               >
                 {s.name} — রোল: {s.roll}
-                {s.class ? ` (${s.class})` : ""}
+                {s.class ? ` (${classTreeLabel(classTree, s.class)})` : ""}
               </button>
             ))
           ) : (

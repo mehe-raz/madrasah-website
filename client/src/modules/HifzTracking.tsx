@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 import { PARA_NAMES } from "../data/mockData";
 import { api } from "../lib/api";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { useLanguage } from "../context/AppSettingsContext";
+import { useAppSettings } from "../context/AppSettingsContext";
+import { classTreeLabel } from "../lib/classTree";
 import { C } from "../theme/colors";
 import type { Student } from "../types";
 
 const TOTAL_PARAS = 30;
 
 export function HifzTracking() {
-  const { t } = useLanguage();
+  const { t, classTree } = useAppSettings();
   const [hifzStudents, setHifzStudents] = useState<Student[]>([]);
   const [selected, setSelected] = useState<Student | null>(null);
   const [sabaq, setSabaq] = useState("");
@@ -89,7 +90,7 @@ export function HifzTracking() {
             {hifzStudents.map((s) => (
               <button key={s.id} type="button" onClick={() => setSelected(s)} style={{ border: `1px solid ${selected.id === s.id ? C.emerald : C.border}`, background: selected.id === s.id ? C.emeraldL : C.card, borderRadius: 8, padding: "10px 12px", cursor: "pointer", textAlign: "left" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{s.class} · {s.para}/{TOTAL_PARAS}</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{classTreeLabel(classTree, s.class)} · {s.para}/{TOTAL_PARAS}</div>
                 <div style={{ marginTop: 6, height: 4, background: C.border, borderRadius: 4, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${(s.para / TOTAL_PARAS) * 100}%`, background: C.emerald, borderRadius: 4 }} />
                 </div>
@@ -104,7 +105,7 @@ export function HifzTracking() {
               <div style={{ width: 48, height: 48, borderRadius: "50%", background: C.emeraldL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: C.emeraldD }}>{selected.name[0]}</div>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{selected.name}</div>
-                <div style={{ fontSize: 13, color: C.muted }}>{selected.class}</div>
+                <div style={{ fontSize: 13, color: C.muted }}>{classTreeLabel(classTree, selected.class)}</div>
               </div>
               <div style={{ marginLeft: "auto", textAlign: "right" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>

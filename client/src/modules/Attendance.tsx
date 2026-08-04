@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../components/Badge";
-import { useLanguage } from "../context/AppSettingsContext";
+import { useAppSettings } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
+import { classTreeLabel } from "../lib/classTree";
 import { C } from "../theme/colors";
 import type { Student } from "../types";
 
 const DEPTS = ["Hifz", "Kitab", "Nazera", "Nurani", "General", "All"] as const;
 
 export function Attendance() {
-  const { t } = useLanguage();
+  const { t, classTree } = useAppSettings();
   const [dept, setDept] = useState<string>("All");
   const [att, setAtt] = useState<Student[]>([]);
   const [saved, setSaved] = useState(false);
@@ -150,7 +151,7 @@ export function Attendance() {
                 <td style={{ padding: "10px 14px", color: C.muted }}>{i + 1}</td>
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: C.muted }}>{s.roll}</td>
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text }}>{s.name}</td>
-                <td style={{ padding: "10px 14px", color: C.muted }}>{s.class}</td>
+                <td style={{ padding: "10px 14px", color: C.muted }}>{classTreeLabel(classTree, s.class)}</td>
                 <td style={{ padding: "10px 14px" }}><Badge label={s.dept} color={C.teal} /></td>
                 <td style={{ padding: "10px 14px" }}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
