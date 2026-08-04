@@ -22,7 +22,7 @@ const NAV_ITEMS = [
 ];
 
 export function GuardianShell() {
-  const { user, logout } = useGuardianAuth();
+  const { user, logout, refresh } = useGuardianAuth();
   const { name: madrasaName, logo } = useMadrasaBranding();
   const navigate = useNavigate();
   const [children, setChildren] = useState<GuardianDashboardChild[]>([]);
@@ -52,7 +52,18 @@ export function GuardianShell() {
         // other failure (network/server error) surfaces so the guardian
         // knows to retry instead of concluding the link is gone.
         if (err instanceof Error && err.message === "UNAUTHORIZED") {
-          navigate("/guardian/login", { replace: true });
+          // Clear the session in GuardianAuthContext (refresh() re-checks
+          // /guardian-auth/me and sets user to null when that also 401s)
+          // instead of navigating here directly. If `user` were left
+          // stale/truthy while we navigate to /guardian/login,
+          // GuardianLogin's own `if (user) return <Navigate to="/guardian" />`
+          // would immediately send the browser right back here — an
+          // infinite redirect loop between the login page and this
+          // dashboard, which is indistinguishable from a stuck spinner.
+          // GuardianProtectedRoute (the parent route) reacts to `user`
+          // becoming null and performs the actual redirect to login once,
+          // cleanly.
+          refresh();
           return;
         }
         setLoadError(err instanceof Error ? err.message : "তথ্য লোড করা যায়নি");

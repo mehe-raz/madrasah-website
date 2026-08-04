@@ -164,7 +164,19 @@ router.post("/signup", signupLimiter, validate(signupSchema), async (req, res) =
     });
   }
 
-  const token = signToken({ id: guardian.id, email: guardian.email, role: "Guardian", name: guardian.name });
+  // req.tenant must be passed through here exactly like routes/auth.js does
+  // for staff (signToken(user, req.tenant)) — otherwise, under
+  // MULTI_TENANT_MODE=true, this token is issued with no institutionCode
+  // claim at all. verifyRequestToken() then rejects it on the very next
+  // request (payload.institutionCode !== req.tenant.code, undefined !==
+  // the real code) with 401 "Session expired", even though the cookie was
+  // just set correctly. The guardian portal has no fallback for that: the
+  // dashboard's 401 handler navigates back to /guardian/login, but
+  // GuardianAuthContext's `user` was never cleared, so GuardianLogin's
+  // `if (user) return <Navigate to="/guardian" />` immediately bounces
+  // back — an infinite login↔dashboard redirect loop with the spinner
+  // stuck mid-navigation the whole time.
+  const token = signToken({ id: guardian.id, email: guardian.email, role: "Guardian", name: guardian.name }, req.tenant);
   res.cookie("token", token, cookieOptions);
   res.status(201).json({ ok: true, status: "active", user: publicGuardian(guardian) });
 });
@@ -223,7 +235,11 @@ router.post("/login", loginLimiter, validate(loginSchema), async (req, res) => {
   }
 
   const user = publicGuardian(row);
-  const token = signToken({ id: row.id, email: row.email, role: "Guardian", name: row.name });
+  // Same institutionCode binding as the signup branch above — see the
+  // comment there. Without req.tenant here, every guardian login in a
+  // multi-tenant deployment would set a cookie that fails verification on
+  // the very next request.
+  const token = signToken({ id: row.id, email: row.email, role: "Guardian", name: row.name }, req.tenant);
   res.cookie("token", token, cookieOptions);
   await recordAudit({
     action: "guardian.login",
