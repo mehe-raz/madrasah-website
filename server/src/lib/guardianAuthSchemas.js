@@ -12,10 +12,17 @@ const signupSchema = z
     contactMobile: z.string().trim().optional().default(""),
     contactEmail: z.string().trim().optional().default(""),
     password: z.string().min(1, "পাসওয়ার্ড আবশ্যক"),
-    studentName: z.string().trim().min(1, "ছাত্রের নাম আবশ্যক"),
+    // roll + class are the only fields needed to locate a candidate row at
+    // all (see the query in routes/guardianAuth.js), so those two stay
+    // required. studentName and guardianMobile are the *scoring* fields —
+    // the 0-1/2/3-4 match-count table only works if a guardian who simply
+    // doesn't remember/know one of them can still submit: leaving it blank
+    // just means it won't count as a match, correctly landing the signup
+    // in "pending" (Admin review) instead of blocking the form entirely.
+    studentName: z.string().trim().optional().default(""),
     studentRoll: z.string().trim().min(1, "রোল নাম্বার আবশ্যক"),
     studentClass: z.string().trim().min(1, "ক্লাস আবশ্যক"),
-    guardianMobile: z.string().trim().min(1, "অভিভাবকের মোবাইল নাম্বার আবশ্যক"),
+    guardianMobile: z.string().trim().optional().default(""),
   })
   // At least one of mobile/email is required so the account can actually be
   // logged into afterwards — mirrors the partial-unique-index pair on
@@ -37,10 +44,10 @@ const loginSchema = z.object({
 });
 
 const addChildSchema = z.object({
-  studentName: z.string().trim().min(1, "ছাত্রের নাম আবশ্যক"),
+  studentName: z.string().trim().optional().default(""),
   studentRoll: z.string().trim().min(1, "রোল নাম্বার আবশ্যক"),
   studentClass: z.string().trim().min(1, "ক্লাস আবশ্যক"),
-  guardianMobile: z.string().trim().min(1, "অভিভাবকের মোবাইল নাম্বার আবশ্যক"),
+  guardianMobile: z.string().trim().optional().default(""),
 });
 
 module.exports = { signupSchema, loginSchema, addChildSchema };

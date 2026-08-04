@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useGuardianAuth } from "../../context/GuardianAuthContext";
 import { useMadrasaBranding } from "../../hooks/useMadrasaBranding";
 import { api } from "../../lib/api";
-import { Button, Field, Input } from "../../components/ui";
+import { Button, Field, Input, Select } from "../../components/ui";
+import type { ClassOption } from "../../types";
 
 type Mode = "login" | "signup";
 
@@ -29,6 +30,25 @@ export function GuardianLogin() {
   const [studentRoll, setStudentRoll] = useState("");
   const [studentClass, setStudentClass] = useState("");
   const [guardianMobile, setGuardianMobile] = useState("");
+
+  // Free-typed class names were the actual cause of "student not found"
+  // failures reported by guardians who matched the class exactly at
+  // signup — the server's lookup is an exact string match against
+  // students.class (see routes/guardianAuth.js), so any spelling/spacing
+  // difference from what's stored silently fails the whole match. A
+  // dropdown sourced from the same public master list AdmissionApply.tsx
+  // uses (value = the exact stored string, label = the readable Bengali
+  // name) removes that entire failure mode.
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    api.getPublicClassOptions().then((options) => {
+      if (!cancelled) setClassOptions(options);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (user) return <Navigate to="/guardian" replace />;
 
@@ -131,20 +151,32 @@ export function GuardianLogin() {
 
             <div className="guardian-auth-divider">
               <p className="guardian-auth-divider__title">ছাত্রের তথ্য (যাচাইয়ের জন্য)</p>
+              <p className="guardian-field-note">
+                রোল ও ক্লাস আবশ্যক। নাম ও মোবাইল জানা থাকলে দিন — বেশি তথ্য মিললে সাথে সাথেই অ্যাকাউন্ট সক্রিয় হবে, না মিললে/ফাঁকা রাখলে Admin অনুমোদনের পর সক্রিয় হবে।
+              </p>
               <div className="guardian-stack-sm">
                 <Field label="ছাত্রের নাম">
-                  <Input required value={studentName} onChange={(e) => setStudentName(e.target.value)} />
+                  <Input value={studentName} onChange={(e) => setStudentName(e.target.value)} />
                 </Field>
                 <div className="guardian-form-row">
                   <Field label="রোল নম্বর">
                     <Input required value={studentRoll} onChange={(e) => setStudentRoll(e.target.value)} />
                   </Field>
                   <Field label="ক্লাস">
-                    <Input required value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
+                    {classOptions.length ? (
+                      <Select required value={studentClass} onChange={(e) => setStudentClass(e.target.value)}>
+                        <option value="">নির্বাচন করুন</option>
+                        {classOptions.map((c) => (
+                          <option key={c.en} value={c.en}>{c.bn}</option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Input required value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
+                    )}
                   </Field>
                 </div>
                 <Field label="ছাত্রের অভিভাবকের মোবাইল (ভর্তির সময় দেওয়া)">
-                  <Input required value={guardianMobile} onChange={(e) => setGuardianMobile(e.target.value)} placeholder="01XXXXXXXXX" />
+                  <Input value={guardianMobile} onChange={(e) => setGuardianMobile(e.target.value)} placeholder="01XXXXXXXXX" />
                 </Field>
               </div>
             </div>

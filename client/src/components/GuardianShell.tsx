@@ -29,23 +29,38 @@ export function GuardianShell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const load = () => {
     api
       .guardian.getDashboard()
       .then((d) => {
+        setLoadError("");
         setChildren(d.children);
         setUnreadCount(d.unreadCount);
         setSelectedId((prev) => (prev && d.children.some((c) => c.id === prev) ? prev : d.children[0]?.id ?? null));
       })
-      .catch(() => {
-        // Best-effort: an empty children list is a valid, if unusual, state
-        // (e.g. every child-link is still pending Admin approval) — the
-        // dashboard page below shows its own empty state for that.
+      .catch((err) => {
+        // A genuinely empty children array (every child-link still pending
+        // Admin approval) resolves fine above and is a valid state the
+        // dashboard page's own empty-state message already covers. This
+        // catch only runs when the *request itself* failed — a dead
+        // session should send the guardian back to login instead of
+        // silently rendering as "no children connected" (which looked
+        // identical to actually having no linked student and made a
+        // session problem indistinguishable from a real disconnect). Any
+        // other failure (network/server error) surfaces so the guardian
+        // knows to retry instead of concluding the link is gone.
+        if (err instanceof Error && err.message === "UNAUTHORIZED") {
+          navigate("/guardian/login", { replace: true });
+          return;
+        }
+        setLoadError(err instanceof Error ? err.message : "তথ্য লোড করা যায়নি");
       })
       .finally(() => setLoading(false));
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; navigate (from useNavigate) is stable across renders
   useEffect(load, []);
 
   const handleLogout = async () => {
@@ -120,6 +135,14 @@ export function GuardianShell() {
       </header>
 
       <main className="guardian-main">
+        {loadError && (
+          <div className="soft-panel guardian-error-box">
+            {loadError}{" "}
+            <button type="button" onClick={load} className="guardian-link-btn">
+              আবার চেষ্টা করুন
+            </button>
+          </div>
+        )}
         <Outlet context={context} />
       </main>
     </div>

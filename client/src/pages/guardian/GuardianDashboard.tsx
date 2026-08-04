@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { api } from "../../lib/api";
-import { Button, Field, Input } from "../../components/ui";
+import { Button, Field, Input, Select } from "../../components/ui";
 import type { GuardianShellContext } from "../../components/GuardianShell";
+import type { ClassOption } from "../../types";
 
 const statusBadgeClass = (status: string | null) => {
   if (status === "উপস্থিত") return "guardian-status-badge--present";
@@ -22,6 +23,20 @@ export function GuardianDashboard() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Same fix as GuardianLogin.tsx's signup form: a dropdown of the exact
+  // stored class strings, not free text, so "add another child" can't fail
+  // on a typo'd/differently-formatted class name.
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    api.getPublicClassOptions().then((options) => {
+      if (!cancelled) setClassOptions(options);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const submitAddChild = async (e: FormEvent) => {
     e.preventDefault();
@@ -102,19 +117,31 @@ export function GuardianDashboard() {
 
         {showAddChild && (
           <form onSubmit={submitAddChild} className="guardian-stack-sm guardian-mt-md">
+            <p className="guardian-field-note">
+              রোল ও ক্লাস আবশ্যক। নাম ও মোবাইল জানা থাকলে দিন — বেশি তথ্য মিললে সাথে সাথেই যুক্ত হবে, না মিললে/ফাঁকা রাখলে Admin অনুমোদনের পর যুক্ত হবে।
+            </p>
             <Field label="ছাত্রের নাম">
-              <Input required value={studentName} onChange={(e) => setStudentName(e.target.value)} />
+              <Input value={studentName} onChange={(e) => setStudentName(e.target.value)} />
             </Field>
             <div className="guardian-form-row">
               <Field label="রোল নম্বর">
                 <Input required value={studentRoll} onChange={(e) => setStudentRoll(e.target.value)} />
               </Field>
               <Field label="ক্লাস">
-                <Input required value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
+                {classOptions.length ? (
+                  <Select required value={studentClass} onChange={(e) => setStudentClass(e.target.value)}>
+                    <option value="">নির্বাচন করুন</option>
+                    {classOptions.map((c) => (
+                      <option key={c.en} value={c.en}>{c.bn}</option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input required value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
+                )}
               </Field>
             </div>
             <Field label="ছাত্রের অভিভাবকের মোবাইল (ভর্তির সময় দেওয়া)">
-              <Input required value={guardianMobile} onChange={(e) => setGuardianMobile(e.target.value)} />
+              <Input value={guardianMobile} onChange={(e) => setGuardianMobile(e.target.value)} />
             </Field>
             {error && <p className="guardian-error-text">{error}</p>}
             {info && <p className="guardian-info-text">{info}</p>}
