@@ -11,6 +11,7 @@
 // ============================================================================
 
 const express = require("express");
+const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { attachTeacherClasses } = require("../lib/teacherScope");
 const { getClassOptions } = require("../lib/classOptions");
@@ -27,6 +28,16 @@ router.use(requirePermission("assignments"));
 router.use(attachTeacherClasses);
 
 const OUT_OF_SCOPE_ERROR = "আপনার নির্ধারিত ক্লাসের বাইরের তথ্যে অ্যাক্সেস নেই";
+
+// Same contract as routes/results.js's "/classes" — a Teacher only sees
+// their own assigned classes, Admin/Super Admin see every class that has
+// at least one student. Powers the class dropdown on the compose form in
+// client/src/modules/ClassPosts.tsx.
+router.get("/classes", async (req, res) => {
+  if (req.teacherClasses) return res.json([...req.teacherClasses].sort());
+  const rows = await db.all("SELECT DISTINCT class FROM students WHERE class <> '' ORDER BY class");
+  res.json(rows.map((r) => r.class));
+});
 
 router.get("/", async (req, res) => {
   const { class: className, type } = req.query;

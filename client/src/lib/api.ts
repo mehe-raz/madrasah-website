@@ -476,6 +476,23 @@ export const api = {
 
   deleteResult: (id: number) => request<void>(`/results/${id}`, { method: "DELETE" }),
 
+  // Class-broadcast (Phase 3): Teacher/Admin/Super Admin composing
+  // notice/assignment/message posts to their classes. Gated by the
+  // "assignments" permission — see server/src/routes/assignments.js. The
+  // guardian-facing read side lives under `api.guardian` below instead
+  // (getFeed/markFeedRead), since it needs a guardian session.
+  getAssignmentClasses: () => request<string[]>("/assignments/classes"),
+
+  getClassPosts: (params: { class?: string; type?: ClassPost["type"] } = {}) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return request<ClassPost[]>(`/assignments${qs ? `?${qs}` : ""}`);
+  },
+
+  createClassPost: (body: { type: ClassPost["type"]; class: string; title: string; body?: string }) =>
+    request<ClassPost>("/assignments", { method: "POST", body: JSON.stringify(body) }),
+
+  deleteClassPost: (id: number) => request<{ ok: boolean }>(`/assignments/${id}`, { method: "DELETE" }),
+
   // Public: no login required. Powers the "ফলাফল দেখুন" page. Exact
   // class + roll match only, server enforces its own rate limit.
   searchPublicResults: (params: { class: string; roll: string; examName?: string }) => {

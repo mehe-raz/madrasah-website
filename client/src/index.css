@@ -625,6 +625,49 @@ img {
   border: 1px solid var(--border);
 }
 
+/* Class posts module (notices/assignments broadcast) */
+.class-post-form {
+  margin-bottom: 24px;
+}
+
+.class-post {
+  padding: 16px;
+  margin-bottom: 10px;
+}
+
+.class-post__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.class-post__meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.class-post__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.class-post__body {
+  font-size: 13px;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.class-post__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
 /* ---- Shared module-page structure (used across admin modules) ---- */
 
 .page-header {

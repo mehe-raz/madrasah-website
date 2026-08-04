@@ -5,18 +5,69 @@ it may carry unfinished work from a previous AI agent's session.
 
 ## Status: DONE
 
-## Task: (none — Phase 1 of BUSINESS_READINESS_ROADMAP.md complete, see
-`docs/BUSINESS_READINESS_ROADMAP.md` for Phase 2 onward)
+## Task: (none — Phase 1 and Phase 3 of BUSINESS_READINESS_ROADMAP.md
+complete; Phase 2 intentionally skipped for now on the user's decision
+— see `docs/BUSINESS_READINESS_ROADMAP.md` for Phase 4 onward)
 
 ### সম্পন্ন
-(cleared — see git history for Phase 1's diff)
+(cleared — see git history for Phase 1's and Phase 3's diffs)
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
 (none queued — next agent should read `docs/BUSINESS_READINESS_ROADMAP.md`
 and ask the user which phase to start, per that file's "কীভাবে ব্যবহার
-করবেন" section)
+করবেন" section. Note: Phase 2 (email notifications) was deliberately
+skipped, not forgotten — the user's Resend free tier only allows 100
+emails, so they chose to come back to it later. Don't auto-start Phase 2
+without the user explicitly asking.)
 
 ### নোট
+Phase 3 (staff-side notice/assignment broadcast UI) finished 2026-08-05:
+- Backend was already complete (`server/src/routes/assignments.js`,
+  `server/src/lib/classPosts.js`); only a new `GET /api/assignments/classes`
+  endpoint was added (mirrors `results.js`'s `/classes` — teacher-scoped via
+  `attachTeacherClasses`, unscoped roles get every class with a student).
+  Required adding `const db = require("../db");` to that route file, which
+  wasn't imported before.
+- New client module `client/src/modules/ClassPosts.tsx` — compose form
+  (class/type/title/body) + sent-posts list with a type filter, built
+  entirely from `components/ui/` (`Card`, `Field`, `Input`, `Select`,
+  `Textarea`, `Button`) plus the existing `Badge` component for the
+  type/class chip — no raw `style={{}}` on native elements, per AGENTS.md's
+  Design System rule (this file was not on the legacy-exemption list, so it
+  had to comply from the start).
+- New scoped CSS classes added to `client/src/index.css`:
+  `.class-post-form`, `.class-post`, `.class-post__head`,
+  `.class-post__meta`, `.class-post__title`, `.class-post__body`,
+  `.class-post__actions` — same pattern as `.report-card__*` in the same
+  file.
+- `client/src/lib/api.ts`: added `getAssignmentClasses`, `getClassPosts`,
+  `createClassPost`, `deleteClassPost`.
+- `client/src/lib/permissions.ts`: added `"assignments"` to the
+  `Permission` union type and to `firstAllowedPath`'s fallback order (right
+  after `results`). No `roles.js`/`roles.generated.ts` change was needed —
+  the `"assignments"` permission already existed for Admin/Teacher.
+- `client/src/App.tsx`: lazy-imported `ClassPosts` and added the
+  `/assignments` protected route.
+- `client/src/components/Sidebar.tsx`: added one `NAV_IDS` entry (📢) —
+  only a data-array addition, so it renders through the file's existing
+  `NavLink` block and needed no new inline styles (the file is on the
+  legacy-exemption list, but nothing new was written there anyway).
+- `client/src/i18n/bn.ts` + `en.ts`: added `nav.assignments` and a new
+  `classPosts` block (structural key-parity between the two files was
+  checked by script, not just by eye).
+- Attachments (image/PDF upload on a post) were intentionally left out of
+  this UI — the roadmap's Phase 3 scope only asked for the write/send form
+  and list, and the backend schema already defaults `attachments` to `[]`
+  if omitted, so this can be added later as its own small task without
+  touching what's here.
+- **`npm run check` NOT run by this agent** (no network/node_modules in
+  this sandbox, same limitation noted for Phase 1). Manual review only:
+  `node --check` on the new/edited `.js` route file, a bracket-balance
+  pass on the new `.tsx` file, and a script-based structural diff
+  confirming `bn.ts`/`en.ts` key parity for the new translation blocks.
+  **Run `npm run check` as part of this delivery's CMD before trusting
+  it** — this is exactly what the packaged CMD does.
+
 Phase 1 (payments cascade fix) finished 2026-08-05:
 - `server/sql/supabase_schema.sql`: `payments.studentId` changed from
   `not null ... on delete cascade` to `references students(id) on delete

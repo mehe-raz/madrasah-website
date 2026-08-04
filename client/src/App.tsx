@@ -17,6 +17,7 @@ const ResultLookup = lazy(() => import("./pages/ResultLookup").then((m) => ({ de
 const Attendance = lazy(() => import("./modules/Attendance").then((m) => ({ default: m.Attendance })));
 const AdmissionsReview = lazy(() => import("./modules/AdmissionsReview").then((m) => ({ default: m.AdmissionsReview })));
 const AuditLogs = lazy(() => import("./modules/AuditLogs").then((m) => ({ default: m.AuditLogs })));
+const ClassPosts = lazy(() => import("./modules/ClassPosts").then((m) => ({ default: m.ClassPosts })));
 const Dashboard = lazy(() => import("./modules/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Expenses = lazy(() => import("./modules/Expenses").then((m) => ({ default: m.Expenses })));
 const HifzTracking = lazy(() => import("./modules/HifzTracking").then((m) => ({ default: m.HifzTracking })));
@@ -99,6 +100,7 @@ export default function App() {
                 <Route path="expenses" element={<Expenses />} />
                 <Route path="hifz" element={<HifzTracking />} />
                 <Route path="results" element={<Results />} />
+                <Route path="assignments" element={<ClassPosts />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="website" element={<Website />} />
                 <Route path="website/:sectionId" element={<WebsiteSectionEditor />} />

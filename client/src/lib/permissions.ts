@@ -13,7 +13,8 @@ export type Permission =
   | "results"
   | "reports"
   | "settings"
-  | "website";
+  | "website"
+  | "assignments";
 
 const ROLE_PERMISSIONS_MAP: Record<string, readonly string[]> = ROLE_PERMISSIONS;
 
@@ -47,6 +48,7 @@ export function firstAllowedPath(role: string): string {
     { permission: "attendance", path: "/attendance" },
     { permission: "hifz", path: "/hifz" },
     { permission: "results", path: "/results" },
+    { permission: "assignments", path: "/assignments" },
     { permission: "students", path: "/students" },
     { permission: "income", path: "/income" },
     { permission: "expenses", path: "/expenses" },
