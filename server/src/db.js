@@ -124,6 +124,17 @@ async function initDb() {
     await pg.run("INSERT INTO settings (key, value) VALUES ('incomeCategories', $1)", [JSON.stringify(DEFAULT_CATEGORIES)]);
   }
 
+  // BUSINESS_READINESS_ROADMAP.md Phase 8A: a single-tenant deployment has
+  // no tenantProvision.js seeding step, so this is where its one
+  // sms_wallets row gets created — same "insert once if missing" idiom as
+  // the incomeCategories check above, not the seed-only-on-first-boot
+  // block further up (an existing deployment upgrading to a version that
+  // adds this table still needs the row backfilled).
+  const walletRow = await pg.get("SELECT id FROM sms_wallets LIMIT 1");
+  if (!walletRow) {
+    await pg.run("INSERT INTO sms_wallets (balance_taka) VALUES (0)");
+  }
+
   const incomeCountRow = await pg.get("SELECT COUNT(*)::int AS c FROM income");
   const incomeCount = incomeCountRow?.c || 0;
   if (incomeCount === 0) {

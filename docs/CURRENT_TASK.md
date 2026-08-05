@@ -5,15 +5,38 @@ it may carry unfinished work from a previous AI agent's session.
 
 ## Status: DONE
 
-## Task: (none — Phase 8 planning-only update complete: `docs/BUSINESS_
-READINESS_ROADMAP.md`-এর Phase 8 সেকশন "শুধু আর্কিটেকচার নোট" থেকে ৭টা
-সাব-ফেজে (8A–8G) বিস্তারিত ভাঙা হয়েছে — SMS ওয়ালেট সিস্টেম আর প্রতিষ্ঠানের
-নিজের bKash/Nagad এজেন্ট অ্যাকাউন্ট self-connect, দুই আলাদা সাবসিস্টেম হিসেবে।
-**কোনো অ্যাপ কোড এখনো লেখা হয়নি** — শুধু ডকুমেন্টেশন আপডেট (2026-08-05)।
-পরের এজেন্ট: ব্যবহারকারী কোন সাব-ফেজ (8A থেকে শুরু, একটার পর একটা) থেকে
-আসল কোড শুরু করতে বলেন সেটা জিজ্ঞেস করে নিশ্চিত হয়ে তারপর শুরু করবে — ধরে
-নেবে না। এর আগে: Phase 6 real paywall, backend AND frontend, complete; see
-নোট below for exact file list.)
+## Task: BUSINESS_READINESS_ROADMAP Phase 8A — SMS wallet + ledger, DB স্কিমা
+(2026-08-05 সম্পন্ন)
+
+### সম্পন্ন
+- `server/sql/supabase_schema.sql` (protected path) — দুইটা নতুন টেবিল:
+  `sms_wallets` (schema-per-tenant হওয়ায় প্রতিষ্ঠান-প্রতি এক রো,
+  institutionId কলাম ছাড়াই — `balance_taka` + `updatedAt` timestamptz) এবং
+  `sms_transactions` (লেজার — type: topup/deduct, amountTaka, smsCount,
+  reference, createdAt text + ইনডেক্স)।
+- `server/src/tenantProvision.js` — নতুন প্রতিষ্ঠান provision হওয়ার সময়
+  ব্যালেন্স ০ দিয়ে একটা `sms_wallets` রো অটো-ইনসার্ট (settings ইনসার্টের
+  পাশে, একই ট্রানজ্যাকশনে)।
+- `server/src/db.js` — সিঙ্গেল-টেন্যান্ট ডিপ্লয়মেন্টের জন্য একই backfill
+  (`incomeCategories` চেকের প্যাটার্নে "না থাকলে ইনসার্ট করো")।
+- সবগুলো `node --check` পাস করেছে (network sandbox-এ বন্ধ ছিল বলে
+  `npm run check` চালানো যায়নি এখানে — packaged CMD-এ সেটাই প্রথম ধাপ)।
+
+### বাকি (ব্যবহারকারী already-provisioned multi-tenant ইনস্টিটিউশন থাকলে,
+manual ধাপ — কোনো কোড বাকি নেই)
+- ইতিমধ্যে বিদ্যমান tenant schema-গুলোতে নতুন টেবিল দুটো পৌঁছাতে হলে
+  Super-Admin প্যানেল থেকে বিদ্যমান "run SQL on all tenants" টুল
+  (`routes/platform.js`, `migrateTenants.js`) দিয়ে এই দুই CREATE TABLE
+  স্টেটমেন্ট ম্যানুয়ালি রান করতে হবে — নতুন কোনো কোড লাগবে না, শুধু
+  ব্যবহারকারীর একটা অ্যাকশন।
+
+### নোট
+Phase 8B (`smsSender.js` wrapper + wallet-deduct লজিক) শুরুর আগে কোন SMS
+reseller ব্যবহার হবে সেটা ব্যবহারকারীর সাথে ঠিক করে নিতে হবে (roadmap-এর
+8B সেকশনে বলা আছে) — পরের এজেন্ট ধরে নেবে না, জিজ্ঞেস করবে। AGENTS.md
+Rule 1 অনুযায়ী একটা সাব-ফেজ শেষ না হওয়া পর্যন্ত পরেরটা শুরু হবে না — Phase
+6 real paywall (backend+frontend) আগেই সম্পন্ন হয়েছে; বিস্তারিত ফাইল
+লিস্টের জন্য নিচের আর্কাইভড কমেন্ট ব্লক দেখুন।
 
 <!-- ORIGINAL TASK WORDING (kept for context, superseded by নোট below):
 The user explicitly confirmed (2026-08-05): turn the earlier Phase 6

@@ -109,6 +109,11 @@ async function provisionTenantSchema(schemaName, { adminName, adminEmail, adminP
       [CLASS_TREE_SETTINGS_KEY, JSON.stringify(DEFAULT_CLASS_TREE)]
     );
 
+    // BUSINESS_READINESS_ROADMAP.md Phase 8A: exactly one sms_wallets row
+    // per tenant schema, starting at 0 balance — see the comment above that
+    // table in supabase_schema.sql for why there's no institutionId column.
+    await client.query(`INSERT INTO sms_wallets (balance_taka) VALUES (0)`);
+
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
