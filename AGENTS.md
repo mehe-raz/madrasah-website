@@ -207,6 +207,10 @@ part of an unrelated task.
   (never throws — returns `{ sent, reason }`). Provider registry in
   `server/src/lib/smsProviders/index.js` (add a reseller there, not by
   branching inside `smsSender.js`).
+- Guardian-facing plan-gated SMS: `sendGuardianSms()` in
+  `server/src/lib/guardianSms.js` (checks the institution's `sms` plan
+  feature, then calls `sendSms()`) — use this, not `sendSms()` directly,
+  for any new guardian-facing SMS trigger (fee reminders, notices, ...).
 
 ## Single source of truth
 

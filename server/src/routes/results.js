@@ -6,6 +6,7 @@ const { listResults, upsertResult, setPublished, deleteResult } = require("../li
 const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
 const { resultSaveSchema } = require("../lib/financeSchemas");
+const { sendGuardianSms } = require("../lib/guardianSms");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -91,6 +92,23 @@ router.patch("/:id/publish", async (req, res) => {
     entityId: row.id,
     label: `${published ? "Published" : "Unpublished"} result: ${row.studentName} (Roll ${row.roll}) — ${row.examName} ${row.year}`,
   });
+
+  // BUSINESS_READINESS_ROADMAP.md Phase 8C — SMS the guardian when a
+  // result is published (not on unpublish). Best-effort: sendGuardianSms
+  // never throws (no phone on file, plan doesn't include SMS, empty
+  // wallet, provider error — all just skip silently), so this can't turn
+  // a successful publish into a failed response.
+  if (published) {
+    const student = await db.get("SELECT phone FROM students WHERE id = $1", [row.studentId]);
+    if (student?.phone) {
+      await sendGuardianSms({
+        to: student.phone,
+        message: `${row.studentName} (রোল ${row.roll}) এর ${row.examName} ${row.year} পরীক্ষার ফলাফল প্রকাশিত হয়েছে।`,
+        reference: `result-published:${row.id}`,
+      });
+    }
+  }
+
   res.json(row);
 });
 

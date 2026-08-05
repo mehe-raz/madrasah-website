@@ -5,6 +5,75 @@ it may carry unfinished work from a previous AI agent's session.
 
 ## Status: DONE
 
+## Task: BUSINESS_READINESS_ROADMAP Phase 8C — Notification hook-এ SMS
+চ্যানেল যোগ (2026-08-06 সম্পন্ন)
+
+### স্কোপ নিয়ে একটা বিচ্যুতি (ব্যবহারকারীকে জানানো দরকার)
+Roadmap-এর মূল টেক্সট বলছিল `lib/notifications.js`-এর `createNotification()`
+ফাংশনে SMS hook বসাতে। কোড দেখে পাওয়া গেছে সেটা সম্ভব না, যেভাবে লেখা ছিল
+সেভাবে: `createNotification()`-এর অডিয়েন্স (`targetUserId`/`targetRoles`)
+সম্পূর্ণ স্টাফ-সাইড — `users.id`/স্টাফ role-ভিত্তিক। গার্ডিয়ানদের জন্য কোনো
+`users` রো নেই (`guardianData.js`/`GuardianAuthContext` সম্পূর্ণ আলাদা auth
+সিস্টেম), তাই "fee due reminder"/"result published"-এর মতো
+guardian-facing ইভেন্ট এই টেবিলে কোনো রো হতে পারে না। তাই এই টেবিলে হুক না
+বসিয়ে একটা সমতুল্য guardian-facing ফাইল বানানো হয়েছে (নিচে দেখুন) — একই
+"কল করো, কখনো throw করে না, plan+wallet দিয়ে গেটেড" শেপ, শুধু
+`createNotification()`-এর ভেতরে না।
+
+এটাও পাওয়া গেছে যে **"fee due reminder" এবং "result published" কোনোটাই
+আগে কোনো notification/trigger হিসেবে ছিলই না** — result-publish
+এন্ডপয়েন্ট আগে থেকে ছিল কিন্তু কোনো নোটিফিকেশন পাঠাতো না (in-app-ও না),
+আর fee-due-reminder-এর কোনো cron/scheduled job কোথাও ছিল না। এই দুটোর
+মধ্যে **শুধু result-published**-টা এই ডেলিভারিতে যোগ করা হয়েছে (existing
+action-এ নতুন side-effect, নতুন dependency/infra লাগে না)। fee-due-reminder
+ইচ্ছাকৃতভাবে বাদ রাখা হয়েছে — নিচে "বাকি" দেখুন কেন।
+
+### সম্পন্ন
+- নতুন `server/src/lib/guardianSms.js` — `sendGuardianSms({ to, message,
+  reference })`। `sendSms()` কল করার আগে ইনস্টিটিউশনের প্ল্যানে `sms`
+  ফিচার আছে কিনা চেক করে (`planAllows()`, `config/planFeatures.js` থেকে —
+  এখনো সব tier-এ `false`, তাই আজকের যেকোনো real multi-tenant ইনস্টিটিউশনে
+  এটা সঠিকভাবেই no-op; Phase 8D premium-এর জন্য `true` করবে)। সিঙ্গেল-টেন্যান্ট
+  ডিপ্লয়মেন্টে (কোনো institution context নেই) এই চেক স্কিপ হয়ে যায় —
+  `middleware/planGate.js`-এর একই যুক্তি অনুসরণ করে। কখনো throw করে না।
+- `server/src/routes/results.js`-এর `PATCH /:id/publish` — `published:
+  true` হলে (unpublish-এ না) ছাত্রের `phone` কলাম থেকে নম্বর নিয়ে
+  `sendGuardianSms()` কল করে ("... এর ... পরীক্ষার ফলাফল প্রকাশিত হয়েছে")।
+  `reference: "result-published:<resultId>"` দিয়ে (smsSender.js-এর
+  ledger-এ রেফারেন্স হিসেবে যায়)। ফোন নম্বর না থাকলে silently স্কিপ।
+- `AGENTS.md`-এর "Reusable building blocks" তালিকায় `guardianSms.js` এন্ট্রি
+  যোগ — ভবিষ্যতে নতুন কোনো guardian-facing SMS trigger বানাতে হলে সরাসরি
+  `sendSms()` না ডেকে এটা ব্যবহার করার নির্দেশনা সহ।
+- সবগুলো নতুন/পরিবর্তিত `.js` ফাইল `node --check` পাস করেছে (network
+  sandbox-এ বন্ধ ছিল বলে `npm run check` এখানে চালানো যায়নি — packaged
+  CMD-এ সেটাই প্রথম ধাপ)।
+
+### বাকি (ইচ্ছাকৃতভাবে এই ডেলিভারিতে বাদ, পরের একটা আলাদা সাব-টাস্ক)
+- **fee-due-reminder** — কোনো ফর্মেই এখনো বানানো হয়নি। এটার জন্য একটা
+  আলাদা সিদ্ধান্ত দরকার শুরুর আগে (AGENTS.md Rule 5 — নতুন dependency
+  আগে বলে নিতে হবে):
+  - **অটোমেটিক/cron** (যেমন প্রতিদিন রাতে বকেয়া থাকা সব ছাত্রের গার্ডিয়ানকে
+    SMS) — `server/package.json`-এ এখন কোনো cron/scheduler লাইব্রেরি নেই,
+    তাই এটার জন্য নতুন dependency (যেমন `node-cron`) লাগবে, অথবা হোস্টিং
+    প্ল্যাটফর্মের নিজস্ব scheduled-task ফিচার ব্যবহার করতে হবে (কোনটা,
+    ব্যবহারকারীকে ঠিক করে দিতে হবে — Render/Google Cloud যেটাতেই ডিপ্লয় হোক)।
+    এটা টাকা খরচ করা একটা অটোমেটেড অ্যাকশন, তাই ভুল ফ্রিকোয়েন্সি/থ্রেশহোল্ড
+    সেট হলে সরাসরি real cost — confirm ছাড়া অনুমান করে বানানো ঠিক হবে না।
+  - **ম্যানুয়াল/অন-ডিমান্ড** (Admin একটা বাটনে চাপলে বকেয়া থাকা সবাইকে
+    reminder যাবে) — কোনো নতুন dependency লাগে না, স্কোপ ছোট, কিন্তু নতুন
+    endpoint + ফ্রন্টএন্ড বাটন লাগবে (এটাও নিজেই একটা আলাদা সাব-টাস্ক,
+    এই ডেলিভারির সাথে মেশানো হয়নি)।
+  পরের সেশনে শুরু করার আগে ব্যবহারকারীর সাথে এই দুইটার মধ্যে কোনটা,
+  থ্রেশহোল্ড (কত টাকা/কত দিন বকেয়া হলে), আর ফ্রিকোয়েন্সি ঠিক করে নিতে হবে।
+
+### নোট
+`sendGuardianSms()`/`sendSms()` দুটোই আজ বাস্তবে কোনো SMS পাঠাচ্ছে না —
+`config/planFeatures.js`-এ `sms` এখনো সব tier-এ `false` (Phase 8D-এর কাজ),
+আর `SMS_PROVIDER_API_KEY` env var-ও সেট নেই। তাই এই ডেলিভারি প্রোডাকশনে
+কোনো ঝুঁকি ছাড়াই ডিপ্লয় করা যায়।
+
+---
+
 ## Task: BUSINESS_READINESS_ROADMAP Phase 8B — `smsSender.js` wrapper +
 wallet-deduct লজিক (2026-08-06 সম্পন্ন)
 
