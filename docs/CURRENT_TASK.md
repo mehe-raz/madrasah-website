@@ -5,10 +5,15 @@ it may carry unfinished work from a previous AI agent's session.
 
 ## Status: DONE
 
-## Task: (none — Phase 6 real paywall, backend AND frontend, complete; see
-নোট below for exact file list. Next agent should read
-`docs/BUSINESS_READINESS_ROADMAP.md` and ask the user which phase to start,
-unless the user's current message already says otherwise.)
+## Task: (none — Phase 8 planning-only update complete: `docs/BUSINESS_
+READINESS_ROADMAP.md`-এর Phase 8 সেকশন "শুধু আর্কিটেকচার নোট" থেকে ৭টা
+সাব-ফেজে (8A–8G) বিস্তারিত ভাঙা হয়েছে — SMS ওয়ালেট সিস্টেম আর প্রতিষ্ঠানের
+নিজের bKash/Nagad এজেন্ট অ্যাকাউন্ট self-connect, দুই আলাদা সাবসিস্টেম হিসেবে।
+**কোনো অ্যাপ কোড এখনো লেখা হয়নি** — শুধু ডকুমেন্টেশন আপডেট (2026-08-05)।
+পরের এজেন্ট: ব্যবহারকারী কোন সাব-ফেজ (8A থেকে শুরু, একটার পর একটা) থেকে
+আসল কোড শুরু করতে বলেন সেটা জিজ্ঞেস করে নিশ্চিত হয়ে তারপর শুরু করবে — ধরে
+নেবে না। এর আগে: Phase 6 real paywall, backend AND frontend, complete; see
+নোট below for exact file list.)
 
 <!-- ORIGINAL TASK WORDING (kept for context, superseded by নোট below):
 The user explicitly confirmed (2026-08-05): turn the earlier Phase 6
