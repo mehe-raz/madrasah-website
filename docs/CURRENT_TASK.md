@@ -5,6 +5,58 @@ it may carry unfinished work from a previous AI agent's session.
 
 ## Status: DONE
 
+## Task: BUSINESS_READINESS_ROADMAP Phase 8B — `smsSender.js` wrapper +
+wallet-deduct লজিক (2026-08-06 সম্পন্ন)
+
+### সম্পন্ন
+- ব্যবহারকারী প্রোভাইডার হিসেবে **BulkSMSBD** কনফার্ম করেছেন (এন্ট্রি খরচ
+  ও প্রতি-SMS রেট Alpha SMS-এর চেয়ে কম, ভবিষ্যতে অন্য রিসেলার যোগ করার
+  ব্যবস্থাও রাখতে বলেছেন — তাই provider registry প্যাটার্নে বানানো হয়েছে,
+  hardcoded একটা প্রোভাইডার নয়)।
+- নতুন `server/src/lib/smsProviders/` ফোল্ডার:
+  - `bulksmsbd.js` — BulkSMSBD-এর `POST /api/smsapi` কল করে, response-এর
+    `response_code === 202` কে সফল ধরে; অন্য যেকোনো কোড/network এরর ব্যর্থ
+    হিসেবে ফেরত দেয় (থ্রো করে না — HTTP-লেভেল এরর ছাড়া)।
+  - `index.js` — প্রোভাইডার রেজিস্ট্রি (`{ bulksmsbd: ... }`)। নতুন রিসেলার
+    (Alpha SMS, MimSMS) যোগ করতে শুধু একটা নতুন ফাইল + এখানে এক লাইন লাগবে
+    — `smsSender.js`-এ কোনো পরিবর্তন লাগবে না।
+- নতুন `server/src/lib/smsSender.js` — `lib/mailer.js`-এর প্যাটার্নে
+  (env-var driven), কিন্তু কখনো throw করে না (roadmap-এর শর্ত অনুযায়ী):
+  - `SMS_PROVIDER_API_KEY` না থাকলে silent no-op (`{ sent: false, reason:
+    "not_configured" }`)।
+  - পাঠানোর আগে `sms_wallets.balance_taka` চেক করে; খরচ (`SMS_COST_PER_SMS`
+    × smsCount, ডিফল্ট ৳0.4/SMS — আসল রেট এখনো কনফার্ম হয়নি, placeholder)
+    থেকে কম হলে SMS স্কিপ + Admin/Super Admin-কে ১ ঘণ্টার cooldown সহ একটা
+    in-app নোটিফিকেশন (`createNotification`, বার্স্টে একাধিক স্কিপে একগাদা
+    নোটিফিকেশন এড়াতে)।
+  - সফল সেন্ডের পরই `sms_transactions`-এ একটা `deduct` রো + `sms_wallets`
+    ব্যালেন্স আপডেট — একই ট্রানজ্যাকশনে (`db.withTransaction`, payments.js-এর
+    প্যাটার্নে)।
+- `.env.example` — `SMS_PROVIDER`/`SMS_PROVIDER_API_KEY`/
+  `SMS_PROVIDER_SENDER_ID`/`SMS_COST_PER_SMS` (সব কমেন্ট-আউট, ডিফল্ট
+  unset = SMS বন্ধ)।
+- `AGENTS.md`-এর "Reusable building blocks" তালিকায় এক লাইন যোগ (নতুন
+  reusable piece — নিয়ম অনুযায়ী)।
+- এই সাব-ফেজে কোনো রুট/`index.js` ওয়্যারিং হয়নি ইচ্ছাকৃতভাবে — `sendSms()`
+  এখনো কোথাও কল হচ্ছে না (Phase 8C-এর কাজ, `notifications.js`-এ hook করা)।
+  Rule 1 অনুযায়ী স্কোপ শুধু wrapper + wallet-deduct লজিক পর্যন্ত।
+- সবগুলো নতুন `.js` ফাইল `node --check` পাস করেছে (network sandbox-এ বন্ধ
+  ছিল বলে `npm run check` চালানো যায়নি এখানে — packaged CMD-এ সেটাই প্রথম
+  ধাপ)।
+
+### বাকি
+কিছু না — এই সাব-ফেজ সম্পূর্ণ। Phase 8C (notification hook-এ SMS চ্যানেল
+যোগ) পরের আলাদা টাস্ক।
+
+### নোট
+`SMS_COST_PER_SMS`-এর ডিফল্ট মান (৳0.4) placeholder — BulkSMSBD সাইনআপের
+পর আসল রিচার্জ-টায়ার রেট জানা গেলে `.env`-এ এটা বসিয়ে দিতে হবে (কোড
+পরিবর্তন লাগবে না)। sandbox/ফ্রি ট্রায়াল ক্রেডিট দিয়ে আসল সেন্ড টেস্ট করা
+এখনো বাকি — `SMS_PROVIDER_API_KEY` না বসানো পর্যন্ত পুরো ফিচার no-op হয়ে
+থাকবে, প্রোডাকশনে কোনো ঝুঁকি নেই।
+
+---
+
 ## Task: BUSINESS_READINESS_ROADMAP Phase 8A — SMS wallet + ledger, DB স্কিমা
 (2026-08-05 সম্পন্ন)
 

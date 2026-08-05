@@ -203,6 +203,10 @@ part of an unrelated task.
   `Input`, `Select`, `Textarea`, `Field`, `Card`, `ReadonlyValue`) backed by
   the `.ds-*` classes in `client/src/index.css` — see "Design System
   (mandatory)" above.
+- SMS sending + wallet deduction: `sendSms()` in `server/src/lib/smsSender.js`
+  (never throws — returns `{ sent, reason }`). Provider registry in
+  `server/src/lib/smsProviders/index.js` (add a reseller there, not by
+  branching inside `smsSender.js`).
 
 ## Single source of truth
 
