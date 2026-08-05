@@ -1,19 +1,23 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
+import { usePlanFeatures } from "../context/PlanContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { canAccess, canViewAuditLogs, type Permission } from "../lib/permissions";
 
-const NAV_IDS: { id: string; path: string; icon: string; key: Permission }[] = [
+// `feature` is omitted for nav items that are never plan-gated (dashboard,
+// students, attendance, results, website, settings) — see the 6-route list
+// in server/src/config/planFeatures.js / App.tsx's PlanFeatureGate wiring.
+const NAV_IDS: { id: string; path: string; icon: string; key: Permission; feature?: string }[] = [
   { id: "dashboard", path: "/", icon: "🏠", key: "dashboard" },
   { id: "students", path: "/students", icon: "👨‍🎓", key: "students" },
   { id: "attendance", path: "/attendance", icon: "📅", key: "attendance" },
-  { id: "income", path: "/income", icon: "💰", key: "income" },
-  { id: "expenses", path: "/expenses", icon: "💸", key: "expenses" },
-  { id: "hifz", path: "/hifz", icon: "📖", key: "hifz" },
+  { id: "income", path: "/income", icon: "💰", key: "income", feature: "feesCollection" },
+  { id: "expenses", path: "/expenses", icon: "💸", key: "expenses", feature: "expenses" },
+  { id: "hifz", path: "/hifz", icon: "📖", key: "hifz", feature: "hifzTracking" },
   { id: "results", path: "/results", icon: "📝", key: "results" },
-  { id: "assignments", path: "/assignments", icon: "📢", key: "assignments" },
-  { id: "reports", path: "/reports", icon: "📊", key: "reports" },
+  { id: "assignments", path: "/assignments", icon: "📢", key: "assignments", feature: "assignmentsBroadcast" },
+  { id: "reports", path: "/reports", icon: "📊", key: "reports", feature: "reportsExport" },
   { id: "website", path: "/website", icon: "🌐", key: "website" },
   { id: "settings", path: "/settings", icon: "⚙️", key: "settings" },
 ];
@@ -30,6 +34,7 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
   const { name: madrasaName } = useMadrasaBranding();
   const { user: authUser } = useAuth();
   const role = authUser?.role || user.role;
+  const { isLocked } = usePlanFeatures();
 
   const navItems = NAV_IDS.filter((n) => canAccess(role, n.key));
 
@@ -69,36 +74,44 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
       </div>
 
       <div style={{ padding: open ? 12 : 8, display: "grid", gap: 6 }}>
-        {navItems.map((item) => (
-          <NavLink
-            key={item.id}
-            to={item.path}
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav[item.key] : undefined}
-          >
-            <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav[item.key]}</span>}
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const locked = item.feature ? isLocked(item.feature) : false;
+          return (
+            <NavLink
+              key={item.id}
+              to={item.path}
+              onClick={onNavigate}
+              className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${locked ? "nav-item--locked" : ""}`}
+              style={({ isActive }) => ({
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: open ? "11px 12px" : "11px 10px",
+                textDecoration: "none",
+                color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+                background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+                border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+                fontSize: 13,
+                fontWeight: 800,
+                justifyContent: open ? "flex-start" : "center",
+              })}
+              title={!open ? t.nav[item.key] : undefined}
+            >
+              <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
+              {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav[item.key]}</span>}
+              {open && locked && (
+                <span className="nav-item__lock-badge" aria-hidden="true">
+                  🔒
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
         {canViewAuditLogs(role) && (
           <NavLink
             to="/audit-logs"
             onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("auditLogs") ? "nav-item--locked" : ""}`}
             style={({ isActive }) => ({
               display: "flex",
               alignItems: "center",
@@ -116,6 +129,11 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
           >
             <span style={{ fontSize: 18, flexShrink: 0 }}>🛡️</span>
             {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.auditLogs}</span>}
+            {open && isLocked("auditLogs") && (
+              <span className="nav-item__lock-badge" aria-hidden="true">
+                🔒
+              </span>
+            )}
           </NavLink>
         )}
       </div>

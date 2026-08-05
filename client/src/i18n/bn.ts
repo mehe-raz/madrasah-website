@@ -568,6 +568,26 @@ export const bn = {
     resultsCount: "{total} টির মধ্যে {from}-{to}",
     page: "পাতা {page} / {totalPages}",
   },
+  planLock: {
+    title: "এই ফিচারটি আপনার বর্তমান প্ল্যানে নেই",
+    message: "\"{feature}\" ব্যবহার করতে আপগ্রেড করুন। বর্তমান প্ল্যান: {currentPlan}। প্রয়োজনীয় প্ল্যান: {requiredPlan}।",
+    comingSoonMessage: "\"{feature}\" শীঘ্রই আসছে — এখনো তৈরি হয়নি।",
+    contactCta: "আপগ্রেড করতে যোগাযোগ করুন",
+    pricingCta: "প্ল্যান ও মূল্য দেখুন",
+  },
+  pricing: {
+    title: "প্ল্যান ও মূল্য",
+    subtitle: "আপনার মাদরাসার প্রয়োজন অনুযায়ী প্ল্যান বেছে নিন",
+    priceUnknown: "মূল্য শীঘ্রই",
+    contactUs: "যোগাযোগ করুন",
+    comingSoonBadge: "শীঘ্রই আসছে",
+    tierBasic: "বেসিক",
+    tierStandard: "স্ট্যান্ডার্ড",
+    tierPro: "প্রো",
+    tierPremium: "প্রিমিয়াম",
+    coreFeaturesLabel: "সবসময় ফ্রি",
+    coreFeatures: "ছাত্র ব্যবস্থাপনা, হাজিরা, ফলাফল, নোটিশ/ওয়েবসাইট, অভিভাবক পোর্টাল",
+  },
 };
 
 type DeepStringRecord<T> = {

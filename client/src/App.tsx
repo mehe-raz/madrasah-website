@@ -3,9 +3,11 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { GuardianShell } from "./components/GuardianShell";
 import { GuardianProtectedRoute } from "./components/GuardianProtectedRoute";
+import { PlanFeatureGate } from "./components/PlanFeatureGate";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { GuardianAuthProvider } from "./context/GuardianAuthContext";
+import { PlanProvider } from "./context/PlanContext";
 
 const About = lazy(() => import("./pages/About").then((m) => ({ default: m.About })));
 const Admission = lazy(() => import("./pages/Admission").then((m) => ({ default: m.Admission })));
@@ -13,6 +15,7 @@ const AdmissionApply = lazy(() => import("./pages/AdmissionApply").then((m) => (
 const ClassesCourses = lazy(() => import("./pages/ClassesCourses").then((m) => ({ default: m.ClassesCourses })));
 const Gallery = lazy(() => import("./pages/Gallery").then((m) => ({ default: m.Gallery })));
 const Notices = lazy(() => import("./pages/Notices").then((m) => ({ default: m.Notices })));
+const Pricing = lazy(() => import("./pages/Pricing").then((m) => ({ default: m.Pricing })));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy").then((m) => ({ default: m.PrivacyPolicy })));
 const ResultLookup = lazy(() => import("./pages/ResultLookup").then((m) => ({ default: m.ResultLookup })));
 const TermsOfService = lazy(() => import("./pages/TermsOfService").then((m) => ({ default: m.TermsOfService })));
@@ -74,6 +77,7 @@ export default function App() {
             <Route path="/result" element={<ResultLookup />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route
               path="/guardian/*"
               element={
@@ -95,22 +99,64 @@ export default function App() {
             />
             <Route element={<ProtectedRoute />}>
               <Route path="website/preview" element={<WebsitePreview />} />
-              <Route element={<Layout />}>
+              <Route element={<PlanProvider><Layout /></PlanProvider>}>
                 <Route index element={<Dashboard />} />
                 <Route path="students" element={<Students />} />
                 <Route path="attendance" element={<Attendance />} />
-                <Route path="income" element={<Income />} />
+                <Route
+                  path="income"
+                  element={
+                    <PlanFeatureGate feature="feesCollection">
+                      <Income />
+                    </PlanFeatureGate>
+                  }
+                />
                 <Route path="fees" element={<Navigate to="/income" replace />} />
-                <Route path="expenses" element={<Expenses />} />
-                <Route path="hifz" element={<HifzTracking />} />
+                <Route
+                  path="expenses"
+                  element={
+                    <PlanFeatureGate feature="expenses">
+                      <Expenses />
+                    </PlanFeatureGate>
+                  }
+                />
+                <Route
+                  path="hifz"
+                  element={
+                    <PlanFeatureGate feature="hifzTracking">
+                      <HifzTracking />
+                    </PlanFeatureGate>
+                  }
+                />
                 <Route path="results" element={<Results />} />
-                <Route path="assignments" element={<ClassPosts />} />
-                <Route path="reports" element={<Reports />} />
+                <Route
+                  path="assignments"
+                  element={
+                    <PlanFeatureGate feature="assignmentsBroadcast">
+                      <ClassPosts />
+                    </PlanFeatureGate>
+                  }
+                />
+                <Route
+                  path="reports"
+                  element={
+                    <PlanFeatureGate feature="reportsExport">
+                      <Reports />
+                    </PlanFeatureGate>
+                  }
+                />
                 <Route path="website" element={<Website />} />
                 <Route path="website/:sectionId" element={<WebsiteSectionEditor />} />
                 <Route path="admissions" element={<AdmissionsReview />} />
                 <Route path="settings" element={<Settings />} />
-                <Route path="audit-logs" element={<AuditLogs />} />
+                <Route
+                  path="audit-logs"
+                  element={
+                    <PlanFeatureGate feature="auditLogs">
+                      <AuditLogs />
+                    </PlanFeatureGate>
+                  }
+                />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Route>

@@ -528,6 +528,23 @@ export const api = {
   // plan allows, and the currently-set custom domain (if any).
   getPlan: () => request<{ plan: string; features: { customDomain: boolean }; customDomain: string | null }>("/settings/plan"),
 
+  // Multi-tenant only (404s on a single-tenant deployment, same reasoning
+  // as getPlan above). Unlike getPlan (Admin/Super-Admin only, "settings"
+  // permission), this hits the separate GET /api/plan route — reachable by
+  // every authenticated role — so PlanFeatureGate/Sidebar can lock a
+  // Teacher's or Accountant's own pages too, not just the domain section
+  // an Admin sees. features covers all plan-gated keys (not just
+  // customDomain); featureMeta carries Bengali labels + comingSoon flags
+  // so the client never hand-duplicates server/src/config/planFeatures.js's
+  // FEATURE_META.
+  getPlanFeatures: () =>
+    request<{
+      plan: string;
+      features: Record<string, boolean>;
+      featureMeta: Record<string, { label: string; comingSoon: boolean; minPlan: string | null }>;
+      planOrder: string[];
+    }>("/plan"),
+
   // Send "" or null to clear the custom domain. Rejected server-side
   // (403) if the institution's plan doesn't include customDomain, even if
   // the button is somehow clicked while locked.
@@ -556,6 +573,16 @@ export const api = {
   // for the logged-out AdmissionApply page's cascading class picker (see
   // server/src/index.js's /api/public/class-tree).
   getPublicClassTree: () => request<ClassTreeNode[]>("/public/class-tree"),
+
+  // Public: no login required. Static tier/feature marketing data for the
+  // /pricing page — see server/src/index.js's /api/public/plan-tiers
+  // (mirrors server/src/config/planFeatures.js, no per-institution data).
+  getPublicPlanTiers: () =>
+    request<{
+      planFeatures: Record<string, Record<string, boolean>>;
+      planOrder: string[];
+      featureMeta: Record<string, { label: string; comingSoon: boolean }>;
+    }>("/public/plan-tiers"),
 
   // Admin / Super Admin only. Loads the section editor's *draft* copy —
   // in-progress edits nobody outside the admin panel can see yet.

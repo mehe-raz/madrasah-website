@@ -279,6 +279,18 @@ app.get("/api/public/settings", async (_req, res) => {
   res.json(await getPublicSettings());
 });
 
+// Public, unauthenticated: static tier/feature data for the public
+// /pricing marketing page (client/src/pages/Pricing.tsx). Deliberately a
+// tiny read-only mirror of config/planFeatures.js rather than hand-copied
+// data in the client — this is display-only content (no per-institution
+// data, no auth needed), so it doesn't go through the tenant-scoped
+// GET /api/plan (routes/plan.js) at all.
+app.get("/api/public/plan-tiers", (_req, res) => {
+  const { PLAN_FEATURES, PLAN_ORDER, FEATURE_META } = require("./config/planFeatures");
+  res.setHeader("Cache-Control", "no-cache");
+  res.json({ planFeatures: PLAN_FEATURES, planOrder: PLAN_ORDER, featureMeta: FEATURE_META });
+});
+
 // Public, unauthenticated: the tenant's class/jamaat master list, so the
 // logged-out admission-apply page (AdmissionApply.tsx) can offer the same
 // dropdown options as the authenticated admission form instead of a
@@ -406,6 +418,7 @@ app.use("/api/hifz", require("./routes/hifz"));
 app.use("/api/results", require("./routes/results"));
 app.use("/api/assignments", require("./routes/assignments"));
 app.use("/api/settings", require("./routes/settings"));
+app.use("/api/plan", require("./routes/plan"));
 app.use("/api/class-options", require("./routes/classOptions"));
 app.use("/api/class-tree", require("./routes/classTree"));
 app.use("/api/users", require("./routes/users"));

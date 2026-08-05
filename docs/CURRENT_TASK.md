@@ -3,9 +3,14 @@
 Read this file every session, regardless of what the user's message says —
 it may carry unfinished work from a previous AI agent's session.
 
-## Status: IN_PROGRESS
+## Status: DONE
 
-## Task: Phase 6 real paywall — backend done, frontend NOT done yet.
+## Task: (none — Phase 6 real paywall, backend AND frontend, complete; see
+নোট below for exact file list. Next agent should read
+`docs/BUSINESS_READINESS_ROADMAP.md` and ask the user which phase to start,
+unless the user's current message already says otherwise.)
+
+<!-- ORIGINAL TASK WORDING (kept for context, superseded by নোট below):
 The user explicitly confirmed (2026-08-05): turn the earlier Phase 6
 scaffolding into a REAL paywall now, don't wait on pricing numbers (those
 come later, separately), support two billing models (per-student and flat),
@@ -126,12 +131,91 @@ against it.
    backend permission change, worth double-checking against at least one
    `basic`-plan and one `pro`-plan institution if the user can provide test
    accounts.
+-->
 
 ### নোট
-Phase 6 (plan-tiering, real paywall — **backend half**) delivered
-2026-08-05; see সম্পন্ন above for exact file list. Frontend half above is
-queued as the immediate next task — don't ask the user which phase to do
-next, this one isn't finished.
+Phase 6 (plan-tiering, real paywall — **both backend and frontend**)
+delivered 2026-08-05. Backend half (see the archived task text above) was
+already done; this session completed the frontend half:
+
+1. **New `GET /api/plan` route** (`server/src/routes/plan.js`, mounted in
+   `index.js`) — deliberately separate from the existing `GET
+   /api/settings/plan` (which stays Admin/Super-Admin-only via the
+   `"settings"` permission, used only by Settings.tsx's domain section).
+   The new route is NOT listed in `ROUTE_PERMISSION`
+   (`server/src/config/roles.js`), so `rbacMiddleware`'s default (unlisted
+   top-level segment → `next()`) lets every authenticated role reach it —
+   necessary because Teacher/Accountant/Hostel Manager all need to know
+   which of THEIR OWN pages are plan-locked, not just Admin. This was a
+   deliberate, minimal, additive choice specifically to avoid touching
+   `rbac.js`/`roles.js` (both protected paths per AGENTS.md). Returns
+   `{ plan, features, featureMeta, planOrder }` — `featureMeta` is
+   `planFeatures.js`'s `FEATURE_META` enriched with `minPlan` per key
+   (computed via the existing `minPlanFor()`), so the frontend's upgrade
+   message never hand-duplicates the tier logic.
+2. **`client/src/context/PlanContext.tsx`** — new `PlanProvider`/
+   `usePlanFeatures()` hook (same pattern as `AppSettingsContext.tsx`).
+   Fetches once. Fails **open** (`isLocked()` always `false`) on a 404
+   (single-tenant deployment, no plan concept) or any other error —
+   never blocks a page because of a network hiccup; the real gate is
+   still the server route's own `requirePlanFeature()` middleware.
+3. **`client/src/components/PlanFeatureGate.tsx`** — new reusable lock/
+   upgrade wrapper. Renders children unchanged unless
+   `isLocked(feature)`, in which case it shows a Bengali upgrade card
+   (feature label + current/required plan, or a "coming soon" message for
+   the not-yet-built Premium features) with a link to `/pricing`. Built
+   entirely from `components/ui/` (`Card`, `Button`) + new scoped
+   `.plan-lock*` classes in `index.css` — no raw `style={{}}`, since this
+   is a new file and not on `client/eslint.config.js`'s legacy exemption
+   list.
+4. **`client/src/App.tsx`** — wrapped the 6 gated routes with
+   `PlanFeatureGate` (`income`→`feesCollection`, `expenses`→`expenses`,
+   `hifz`→`hifzTracking`, `assignments`→`assignmentsBroadcast`,
+   `reports`→`reportsExport`, `audit-logs`→`auditLogs`), and put
+   `PlanProvider` around the authenticated `Layout` route (not the whole
+   app — `/api/plan` requires auth, and public pages don't need plan
+   state). Added the new `/pricing` public route.
+5. **`client/src/components/Sidebar.tsx`** — added an optional `feature`
+   key to `NAV_IDS` entries; a locked item gets the new `.nav-item--locked`
+   (dimmed) class plus a small 🔒 badge, but is NOT hidden and NOT
+   click-intercepted — clicking it still navigates, where
+   `PlanFeatureGate` shows the upgrade card. This file stays on the
+   legacy inline-style exemption list; only a new shared class was added,
+   no new inline styles.
+6. **`client/src/pages/Pricing.tsx`** — new public `/pricing` page,
+   `About.tsx`/`TermsOfService.tsx`-style (`PublicHeader`/`PublicFooter`/
+   `PublicPageSkeleton`, `usePublicSite`, `useSeoMeta`), 4-column tier
+   cards. Reads tier/feature data from a **new public, unauthenticated**
+   `GET /api/public/plan-tiers` (`server/src/index.js`, same pattern as
+   the existing `/api/public/settings` etc.) rather than a hand-copied
+   client-side mirror of `planFeatures.js` — kept as the single source of
+   truth per AGENTS.md's "Single source of truth" section. No prices
+   shown (pricing not decided yet) — "যোগাযোগ করুন — মূল্য শীঘ্রই" on
+   every tier. Premium's 6 not-built features show a "শীঘ্রই আসছে" badge;
+   Basic/Standard/Pro cards only list the real (already-built)
+   feature set.
+7. `client/src/i18n/bn.ts` / `en.ts` — added `planLock` (used by
+   `PlanFeatureGate`) and `pricing` (tier labels, used by
+   `PlanFeatureGate`'s upgrade message — NOT by the public `Pricing.tsx`
+   page itself, which hardcodes Bengali like every other public page;
+   `useLanguage`/the i18n dict is an authenticated-app-only system, see
+   `About.tsx`/`TermsOfService.tsx`). Structural key-parity between the
+   two files was checked by eye against the existing pattern.
+8. **All files syntax-checked** (`node --check` on the `.js` files,
+   manual brace/paren-balance + JSX-structure review on every new/edited
+   `.tsx`/`.ts` file — no `node_modules`/network in this sandbox, same
+   limitation as every earlier phase). **`npm run check` (lint + typecheck
+   + build) was NOT run by this agent** — this is exactly what the
+   packaged delivery CMD runs first, before any commit/push happens.
+9. **Testing status (roadmap item 7):** none of the 6 wired routes were
+   exercised in a running browser from this sandbox (no dev server here)
+   — this was reasoned through by reading the code paths, not observed.
+   **Please smoke-test after deploying:** log in as (or switch) a
+   `basic`-plan institution and confirm `/income`, `/expenses`, `/hifz`,
+   `/assignments`, `/reports`, `/audit-logs` each show the locked upgrade
+   card (not the real page, not a crash), and that a `pro`/`premium`
+   institution sees the real pages normally. Also check `/pricing` loads
+   logged out.
 
 Phase 6 (plan-tiering, scaffolding-only — SUPERSEDED by the above, kept for
 history) finished 2026-08-05:

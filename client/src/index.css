@@ -741,7 +741,70 @@ img {
   margin-bottom: 0;
 }
 
-/* ---- Shared module-page structure (used across admin modules) ---- */
+/* Public pricing page (Phase 6) */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 18px;
+}
+
+.pricing-card {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pricing-card--highlight {
+  border-color: var(--link);
+}
+
+.pricing-card__tier {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--text);
+  margin: 0;
+}
+
+.pricing-card__price {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 0;
+}
+
+.pricing-card__features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  flex: 1;
+}
+
+.pricing-card__feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.pricing-card__feature--comingsoon {
+  color: var(--muted);
+}
+
+.pricing-card__feature-icon {
+  flex-shrink: 0;
+}
+
+.pricing-core-note {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+
 
 .page-header {
   display: flex;
@@ -2837,4 +2900,53 @@ img {
   font-size: 11px;
   color: var(--muted);
   margin: 0;
+}
+
+/* PlanFeatureGate (Phase 6 frontend paywall) — locked/upgrade card shown in
+   place of a gated page's content. Same visual language as .ds-card, not a
+   copy of it, since this needs its own centered/max-width layout. */
+.plan-lock {
+  max-width: 520px;
+  margin: 48px auto;
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.plan-lock__icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.plan-lock__title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 10px;
+}
+
+.plan-lock__message {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 18px;
+  line-height: 1.6;
+}
+
+.plan-lock__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Sidebar nav item locked state (Phase 6) — dims the item and adds a small
+   lock badge, without hiding it (marketing intent: show what upgrading
+   unlocks). Sidebar.tsx is on the legacy inline-style exemption list, but
+   this is a new shared class, not an inline style. */
+.nav-item--locked {
+  opacity: 0.55;
+}
+
+.nav-item__lock-badge {
+  font-size: 11px;
+  margin-left: auto;
 }
