@@ -5,13 +5,14 @@ it may carry unfinished work from a previous AI agent's session.
 
 ## Status: DONE
 
-## Task: (none — Phase 1, Phase 3, Phase 4, and Phase 5 of
-BUSINESS_READINESS_ROADMAP.md complete; Phase 2 intentionally skipped for
-now on the user's decision — see `docs/BUSINESS_READINESS_ROADMAP.md` for
-Phase 6 onward)
+## Task: (none — Phase 1, Phase 3, Phase 4, Phase 5, and Phase 6 (scaffolding
+only) of BUSINESS_READINESS_ROADMAP.md complete; Phase 2 intentionally
+skipped for now on the user's decision — see
+`docs/BUSINESS_READINESS_ROADMAP.md` for Phase 7 onward)
 
 ### সম্পন্ন
-(cleared — see git history for Phase 1's, Phase 3's, and Phase 4's diffs)
+(cleared — see git history for Phase 1's, Phase 3's, Phase 4's, and Phase
+6's diffs)
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
 (none queued — next agent should read `docs/BUSINESS_READINESS_ROADMAP.md`
@@ -22,6 +23,31 @@ emails, so they chose to come back to it later. Don't auto-start Phase 2
 without the user explicitly asking.)
 
 ### নোট
+Phase 6 (plan-tiering, **scaffolding only**) finished 2026-08-05:
+- User decided the tier structure: `basic` / `standard` / `pro` / `premium`,
+  mapped to what's actually built in this repo (Basic = student/attendance/
+  results/notices/guardian portal; Standard = + fees collection/expenses/
+  reports/Hifz tracking/assignments; Pro = + custom domain, unchanged from
+  before; Premium = payroll/library/ID cards/hostel/SMS/bKash, none of
+  which exist in code yet — "Coming Soon" marketing only).
+- **Deliberately did NOT turn this into a real paywall yet.** Before today,
+  every tenant regardless of `plan` already had unrestricted access to fees
+  collection, Hifz tracking, reports, assignments, and audit logs — locking
+  those behind `standard`/`pro` now would silently cut off any tenant
+  currently on `plan = "basic"` in the database. So `server/src/config/
+  planFeatures.js` now has 4 tier objects, but the already-in-use features
+  are `true` on all 4, and the not-yet-built Premium features are `false`
+  on all 4 (placeholder keys only, not gates on working code).
+  `customDomain` is untouched (still pro+ only, same as before).
+- **Still open — needs the user's explicit decision before coding further:**
+  (1) pricing per tier (not decided), (2) which of the already-built
+  features (if any) actually move behind a real paywall, and if so what
+  happens to existing tenants already on a lower plan (a migration/
+  grandfathering decision, not a code decision), (3) whether "Coming Soon"
+  Premium features get a marketing page now or wait until built.
+- No client-side UI changes this round — no new lock/unlock screens, no
+  pricing page changes. Only `server/src/config/planFeatures.js` touched.
+
 Phase 5 (core business-logic test coverage) finished 2026-08-05:
 - **Part 1 — payments/fees logic:** `payments.js`'s inline due/conflict/
   status math (the `isConflict` block the roadmap flagged as risky) was

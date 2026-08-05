@@ -11,12 +11,78 @@
 // entry is a loud bug at review time, not a silent false/true guess.
 // ============================================================================
 
+// Phase 6 (scaffolding step) — 4 tiers now exist (basic/standard/pro/
+// premium), matching what's actually built in this repo today. This step
+// is deliberately NON-BREAKING: every feature that's already in active use
+// by tenants regardless of their `plan` value (fees collection, Hifz
+// tracking, reports, assignments broadcast, audit logs) is left `true` on
+// every tier below, so no existing tenant loses access. Turning any of
+// these into a real paywall is a separate, later decision (needs a
+// migration plan for existing tenants' plan assignment first — see
+// docs/BUSINESS_READINESS_ROADMAP.md Phase 6).
+//
+// The premium-only keys (payroll/library/idCards/hostel/sms/bkash) are
+// `false` everywhere because those modules don't exist in the codebase yet
+// — they're placeholders for "Coming Soon" marketing, not real gates on
+// working features.
+//
+// customDomain keeps its existing behavior unchanged (pro+ only).
 const PLAN_FEATURES = {
   basic: {
     customDomain: false,
+    feesCollection: true,
+    hifzTracking: true,
+    reportsExport: true,
+    assignmentsBroadcast: true,
+    auditLogs: true,
+    payroll: false,
+    library: false,
+    idCards: false,
+    hostel: false,
+    sms: false,
+    bkash: false,
+  },
+  standard: {
+    customDomain: false,
+    feesCollection: true,
+    hifzTracking: true,
+    reportsExport: true,
+    assignmentsBroadcast: true,
+    auditLogs: true,
+    payroll: false,
+    library: false,
+    idCards: false,
+    hostel: false,
+    sms: false,
+    bkash: false,
   },
   pro: {
     customDomain: true,
+    feesCollection: true,
+    hifzTracking: true,
+    reportsExport: true,
+    assignmentsBroadcast: true,
+    auditLogs: true,
+    payroll: false,
+    library: false,
+    idCards: false,
+    hostel: false,
+    sms: false,
+    bkash: false,
+  },
+  premium: {
+    customDomain: true,
+    feesCollection: true,
+    hifzTracking: true,
+    reportsExport: true,
+    assignmentsBroadcast: true,
+    auditLogs: true,
+    payroll: false,
+    library: false,
+    idCards: false,
+    hostel: false,
+    sms: false,
+    bkash: false,
   },
 };
 
