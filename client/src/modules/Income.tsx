@@ -5,6 +5,7 @@ import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { SkeletonCardList, SkeletonTableRows } from "../components/Skeleton";
 import { StatCard } from "../components/StatCard";
 import { StudentPicker } from "../components/StudentPicker";
+import { Button } from "../components/ui/Button";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
@@ -36,6 +37,8 @@ export function Income() {
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Phase 8D fee-due-reminder (manual/on-demand — see api.sendDueReminders).
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   const [form, setForm] = useState({
     category: "Donation",
@@ -220,6 +223,29 @@ export function Income() {
     load();
   };
 
+  // Phase 8D fee-due-reminder: manual/on-demand SMS to every guardian whose
+  // student currently has due > 0. Best-effort on the server (never fails
+  // per-student — no phone on file, plan/wallet not SMS-enabled, provider
+  // error all just count as "not sent"), so this only needs to show the
+  // returned summary, not handle a partial-failure case.
+  const handleSendDueReminders = async () => {
+    if (!confirm("সব বকেয়া ছাত্রের গার্ডিয়ানকে SMS reminder পাঠাবেন?")) return;
+    setSendingReminders(true);
+    setMsg("");
+    try {
+      const result = await api.sendDueReminders();
+      setMsg(
+        `বকেয়া ছাত্র ${result.totalDue} জন — ${result.sent} জন গার্ডিয়ানকে SMS পাঠানো হয়েছে` +
+          (result.noPhone ? `, ${result.noPhone} জনের ফোন নম্বর নেই` : "") +
+          (result.notSent ? `, ${result.notSent} জন পাঠানো যায়নি (প্ল্যান/ব্যালেন্স)` : "")
+      );
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Reminder send failed");
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
   const openReceipt = (e: IncomeEntry) => {
     setShowReceipt({
       id: e.id,
@@ -235,7 +261,12 @@ export function Income() {
   };
   return (
     <div>
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.income.title}</h2>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>{t.income.title}</h2>
+        <Button variant="amber" disabled={sendingReminders} onClick={handleSendDueReminders}>
+          {sendingReminders ? "পাঠানো হচ্ছে..." : "বকেয়া reminder পাঠান"}
+        </Button>
+      </div>
       {msg && <p style={{ color: msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("invalid") ? C.rose : C.teal, fontSize: 13, marginTop: -8, marginBottom: 12 }}>{msg}</p>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
         <StatCard label={t.income.total} value={fmt(totalIncome)} icon="💰" color={C.emerald} />

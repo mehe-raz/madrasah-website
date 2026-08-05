@@ -8,6 +8,7 @@ const { idempotent } = require("../middleware/idempotency");
 const { isApprovalRole } = require("../lib/deleteRequests");
 const { createNotification } = require("../lib/notifications");
 const { computePaymentOutcome, computeDueAfterPayment } = require("../lib/paymentLogic");
+const { sendGuardianSms } = require("../lib/guardianSms");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -203,6 +204,51 @@ router.post("/:id/resolve-flag", async (req, res) => {
   });
 
   res.json({ ok: true, status: finalStatus });
+});
+
+// BUSINESS_READINESS_ROADMAP.md Phase 8D — "fee-due-reminder", manual/
+// on-demand variant (user's explicit choice over an automatic cron — see
+// docs/CURRENT_TASK.md: no new dependency like node-cron needed, and the
+// threshold is simply "any due > 0", not a separate amount/day cutoff).
+// Admin/Accountant (the "income" permission already required by
+// router.use above) presses a button; this SMSes every student's
+// guardian who currently has due > 0, best-effort via the existing
+// sendGuardianSms() (Phase 8C) — same "never throws" contract already
+// used by routes/results.js's publish hook: no phone on file, the
+// institution's plan not including "sms", an empty SMS wallet, or a
+// provider error all just count as "not sent" and move on to the next
+// student, they never fail this request.
+router.post("/send-due-reminders", async (req, res) => {
+  const students = await db.all(
+    `SELECT id, name, roll, class, due, phone FROM students WHERE due > 0 ORDER BY id`
+  );
+
+  let sent = 0;
+  let noPhone = 0;
+  let notSent = 0;
+  for (const student of students) {
+    if (!student.phone) {
+      noPhone += 1;
+      continue;
+    }
+    const result = await sendGuardianSms({
+      to: student.phone,
+      message: `${student.name} (রোল ${student.roll}) এর বকেয়া বেতন ৳${student.due}। অনুগ্রহ করে দ্রুত পরিশোধ করুন।`,
+      reference: `fee-due-reminder:${student.id}`,
+    });
+    if (result.sent) sent += 1;
+    else notSent += 1;
+  }
+
+  await recordAudit({
+    action: "payment.due-reminders-sent",
+    actor: req.user,
+    entityType: "payment",
+    label: `বকেয়া reminder: ${students.length} জন বকেয়া, ${sent} জনকে SMS পাঠানো হয়েছে`,
+    details: { totalDue: students.length, sent, noPhone, notSent },
+  });
+
+  res.json({ totalDue: students.length, sent, noPhone, notSent });
 });
 
 // Exposed for unit testing only; does not affect route behavior.

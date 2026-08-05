@@ -335,6 +335,16 @@ export const api = {
 
   getFlaggedPayments: () => request<Payment[]>("/payments/flagged"),
 
+  // Manual/on-demand fee-due-reminder (BUSINESS_READINESS_ROADMAP.md Phase
+  // 8D) — SMSes every student's guardian who currently has due > 0.
+  // Best-effort on the server (never fails per-student), so this just
+  // reports how many were attempted/sent for the caller to show a summary.
+  sendDueReminders: () =>
+    request<{ totalDue: number; sent: number; noPhone: number; notSent: number }>(
+      "/payments/send-due-reminders",
+      { method: "POST" }
+    ),
+
   resolvePaymentFlag: (id: number, action: "confirm" | "void") =>
     request<{ ok: boolean; status: string }>(`/payments/${id}/resolve-flag`, {
       method: "POST",

@@ -5,6 +5,61 @@ it may carry unfinished work from a previous AI agent's session.
 
 ## Status: DONE
 
+## Task: BUSINESS_READINESS_ROADMAP Phase 8D — fee-due-reminder, manual/
+on-demand variant (2026-08-06 সম্পন্ন)
+
+### সিদ্ধান্ত (ব্যবহারকারী কনফার্ম করেছেন এই সেশনে)
+Phase 8C-এর "বাকি" সেকশনে রাখা দুটো প্রশ্নের উত্তর:
+- **ডেলিভারি মেকানিজম:** ম্যানুয়াল/অন-ডিমান্ড (Admin/Accountant একটা বাটনে
+  চাপলে পাঠাবে) — অটোমেটিক/cron না। তাই `node-cron`-এর মতো কোনো নতুন
+  dependency লাগেনি (AGENTS.md Rule 5)।
+- **থ্রেশহোল্ড:** যেকোনো বকেয়া থাকলেই (`due > 0`) — আলাদা টাকা/দিনের
+  থ্রেশহোল্ড নেই।
+
+### সম্পন্ন
+- `server/src/routes/payments.js` — নতুন `POST /api/payments/send-due-reminders`।
+  `due > 0` থাকা সব ছাত্র খুঁজে বের করে, প্রতিটার জন্য existing
+  `sendGuardianSms()` (Phase 8C) কল করে বকেয়ার পরিমাণ উল্লেখ করে একটা SMS
+  পাঠায় — phone না থাকলে, plan-এ sms ফিচার না থাকলে, বা wallet খালি থাকলে
+  silently স্কিপ (কখনো throw করে না, `results.js`-এর publish hook-এর মতোই)।
+  রুটটা ইতিমধ্যে `router.use(requirePermission("income"))` +
+  `router.use(requirePlanFeature("feesCollection"))`-এর আওতায় (ফাইলের
+  উপরে), তাই আলাদা কোনো গেটিং কোড লাগেনি। শেষে একটাই সামারি
+  `recordAudit()` কল (প্রতি ছাত্রের জন্য আলাদা অডিট রো না — burst এড়াতে)।
+  রেসপন্স: `{ totalDue, sent, noPhone, notSent }`।
+- `client/src/lib/api.ts` — নতুন `api.sendDueReminders()`।
+- `client/src/modules/Income.tsx` — টাইটেলের পাশে "বকেয়া reminder পাঠান"
+  বাটন (নতুন `components/ui/Button` ব্যবহার করে, raw `style={{}}` না —
+  এই ফাইল legacy exemption list-এ থাকলেও AGENTS.md-এর "Migration status"
+  নির্দেশনা অনুযায়ী নতুন অংশ design system দিয়ে লেখা হয়েছে)। চাপার আগে
+  `confirm()`, চাপার পর ফলাফলের সামারি বিদ্যমান `msg` ব্যানারে দেখায়
+  (কত জন বকেয়া, কত জনকে SMS গেছে, ফোন না থাকলে/পাঠানো না গেলে কত জন)।
+- `server/src/routes/payments.js`-এর নতুন রুটের ওপরের কমেন্টে ব্যাখ্যা
+  করা আছে কেন ম্যানুয়াল বেছে নেওয়া হয়েছে, যাতে পরের এজেন্ট
+  cron-এ পরিবর্তন করার আগে বুঝতে পারে এটা ইচ্ছাকৃত সিদ্ধান্ত ছিল, অনুমান
+  নয়।
+- নতুন/পরিবর্তিত `.js` ফাইল `node --check` পাস করেছে; `.ts`/`.tsx`
+  ফাইলের brace/paren ব্যালেন্স ম্যানুয়ালি যাচাই করা হয়েছে (network
+  sandbox-এ বন্ধ ছিল বলে `npm run check` এখানে চালানো যায়নি — packaged
+  CMD-এ সেটাই প্রথম ধাপ, আগের সব Phase-এর মতোই)।
+
+### বাকি
+কিছু না — এই সাব-ফেজ সম্পূর্ণ। fee-due-reminder-এর জন্য অটোমেটিক/cron
+ভ্যারিয়েন্ট এখনো বানানো হয়নি — ব্যবহারকারী ভবিষ্যতে সেটা চাইলে এটা একটা
+আলাদা সাব-টাস্ক হবে (তখন `node-cron` বা হোস্টিং প্ল্যাটফর্মের নিজস্ব
+scheduled-task ফিচার — কোনটা, আবার জিজ্ঞেস করে নিতে হবে)।
+
+### নোট
+এই ফিচারও আজ বাস্তবে কোনো SMS পাঠাচ্ছে না — `sendGuardianSms()`/
+`sendSms()`-এর একই কারণে (`config/planFeatures.js`-এ `sms` এখনো সব
+tier-এ `false`, `SMS_PROVIDER_API_KEY`-ও সেট নেই)। বাটনে চাপলে
+`totalDue`/`sent`/`noPhone`/`notSent` সব ঠিকভাবে গণনা হবে, কিন্তু `sent`
+সবসময় ০ থাকবে যতক্ষণ না Phase 8D-এর premium SMS ফিচার চালু হয় বা
+`SMS_PROVIDER_API_KEY` বসানো হয় — প্রোডাকশনে কোনো ঝুঁকি ছাড়াই ডিপ্লয় করা
+যায়।
+
+---
+
 ## Task: BUSINESS_READINESS_ROADMAP Phase 8C — Notification hook-এ SMS
 চ্যানেল যোগ (2026-08-06 সম্পন্ন)
 
