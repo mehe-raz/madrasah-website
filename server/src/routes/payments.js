@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { requirePlanFeature } = require("../middleware/planGate");
 const { nextReceipt } = require("../lib/receiptCounter");
 const { recordAudit } = require("../lib/auditLog");
 const { idempotent } = require("../middleware/idempotency");
@@ -12,6 +13,8 @@ const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 // (payments maps to the "income" permission, matching ROUTE_PERMISSION in rbac.js)
 router.use(requirePermission("income"));
+// Phase 6: fees/payments collection is a Standard+ plan feature.
+router.use(requirePlanFeature("feesCollection"));
 
 function clampInt(value, fallback, min, max) {
   const n = Number.parseInt(String(value ?? ""), 10);

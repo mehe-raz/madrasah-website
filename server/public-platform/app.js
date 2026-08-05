@@ -182,7 +182,11 @@ function institutionRow(inst) {
       <td class="mono" data-label="কোড">${escapeHtml(inst.code)}</td>
       <td class="mono muted" data-label="ডোমেইন">${inst.custom_domain ? escapeHtml(inst.custom_domain) : "—"}</td>
       <td data-label="স্ট্যাটাস"><span class="badge ${status}">${STATUS_LABELS[status] || status}</span></td>
-      <td data-label="প্ল্যান">${escapeHtml(inst.plan)}</td>
+      <td data-label="প্ল্যান">${escapeHtml(inst.plan)}${
+        inst.billing_model
+          ? ` <span class="muted">(${inst.billing_model === "student" ? "প্রতি স্টুডেন্ট" : "ফ্ল্যাট"}${inst.price_amount != null ? ` ৳${inst.price_amount}` : ""})</span>`
+          : ""
+      }</td>
       <td class="muted" data-label="ট্রায়াল শেষ">${fmtDate(inst.trial_ends_at)}</td>
       <td class="muted" data-label="সাবস্ক্রিপশন শেষ">${fmtDate(inst.subscription_ends_at)}</td>
       <td class="row-actions-cell">
@@ -350,9 +354,21 @@ function renderSubscriptionModal() {
         ${state.modal.error ? `<div class="error-box">${escapeHtml(state.modal.error)}</div>` : ""}
         <form id="subscription-form">
           <label>প্ল্যান</label>
-          <input name="plan" value="${escapeHtml(inst.plan)}" />
+          <select name="plan">
+            ${["basic", "standard", "pro", "premium"]
+              .map((p) => `<option value="${p}" ${p === inst.plan ? "selected" : ""}>${p}</option>`)
+              .join("")}
+          </select>
           <label>সাবস্ক্রিপশন শেষের তারিখ</label>
           <input name="subscriptionEndsAt" type="date" value="${inst.subscription_ends_at ? String(inst.subscription_ends_at).slice(0, 10) : ""}" />
+          <label>বিলিং মডেল</label>
+          <select name="billingModel">
+            <option value="">— অপরিবর্তিত —</option>
+            <option value="student" ${inst.billing_model === "student" ? "selected" : ""}>প্রতি স্টুডেন্ট</option>
+            <option value="flat" ${inst.billing_model === "flat" ? "selected" : ""}>ফ্ল্যাট রেট</option>
+          </select>
+          <label>মূল্য (৳) ${inst.billing_model === "student" ? "প্রতি স্টুডেন্ট/মাস" : inst.billing_model === "flat" ? "ফ্ল্যাট/মাস" : ""}</label>
+          <input name="priceAmount" type="number" min="0" step="0.01" placeholder="${inst.price_amount != null ? inst.price_amount : "এখনো ঠিক হয়নি"}" />
           <div class="modal-actions">
             <button type="button" class="secondary" id="modal-cancel">বাতিল</button>
             <button type="submit">সংরক্ষণ করুন</button>
@@ -844,6 +860,8 @@ function wireDashboardEvents() {
       const body = {};
       if (fd.get("plan")) body.plan = fd.get("plan");
       if (fd.get("subscriptionEndsAt")) body.subscriptionEndsAt = fd.get("subscriptionEndsAt");
+      if (fd.get("billingModel")) body.billingModel = fd.get("billingModel");
+      if (fd.get("priceAmount")) body.priceAmount = fd.get("priceAmount");
       try {
         await api(`/institutions/${state.modal.institutionId}/subscription`, {
           method: "PATCH",

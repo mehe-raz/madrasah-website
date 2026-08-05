@@ -160,12 +160,29 @@ router.patch("/institutions/:id/subscription", requirePlatformRole("super_admin"
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid institution id" });
-    const { plan, subscriptionEndsAt } = req.body || {};
-    const updated = await registryDb.updateSubscription(id, { plan, subscriptionEndsAt });
+    const { plan, subscriptionEndsAt, billingModel, priceAmount } = req.body || {};
+    if (billingModel && !["student", "flat"].includes(billingModel)) {
+      return res.status(400).json({ error: "billingModel must be 'student' or 'flat'" });
+    }
+    let parsedPrice = null;
+    if (priceAmount !== undefined && priceAmount !== null && priceAmount !== "") {
+      parsedPrice = Number(priceAmount);
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+        return res.status(400).json({ error: "priceAmount must be a non-negative number" });
+      }
+    }
+    const updated = await registryDb.updateSubscription(id, {
+      plan,
+      subscriptionEndsAt,
+      billingModel,
+      priceAmount: parsedPrice,
+    });
     if (!updated) return res.status(404).json({ error: "Institution not found" });
     await registryDb.logAction(id, req.platformAdmin.email, "subscription_changed", {
       plan,
       subscriptionEndsAt,
+      billingModel,
+      priceAmount: parsedPrice,
     });
     res.json(updated);
   } catch (err) {

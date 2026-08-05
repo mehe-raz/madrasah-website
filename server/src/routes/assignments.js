@@ -13,6 +13,7 @@
 const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { requirePlanFeature } = require("../middleware/planGate");
 const { attachTeacherClasses } = require("../lib/teacherScope");
 const { getClassOptions } = require("../lib/classOptions");
 const { recordAudit } = require("../lib/auditLog");
@@ -24,6 +25,11 @@ const { createPost, listPosts, getPost, deletePost } = require("../lib/classPost
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 router.use(requirePermission("assignments"));
+// Phase 6: assignments/notice broadcast is a Standard+ plan feature. (The
+// guardian-facing read side in routes/guardianAuth.js is intentionally NOT
+// gated — a guardian should still be able to read posts made before any
+// downgrade; this only blocks staff from creating new ones.)
+router.use(requirePlanFeature("assignmentsBroadcast"));
 // Same contract as attendance.js/results.js — see lib/teacherScope.js.
 router.use(attachTeacherClasses);
 

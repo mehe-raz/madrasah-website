@@ -200,15 +200,21 @@ async function updateStatus(id, status) {
   return result.rows[0];
 }
 
-async function updateSubscription(id, { plan, subscriptionEndsAt }) {
+// billingModel/priceAmount: Phase 6 billing scaffolding (see
+// registry_schema.sql). Same COALESCE-if-not-provided pattern as
+// plan/subscriptionEndsAt above — pass undefined/null/"" to leave the
+// existing value untouched, pass a real value to set it.
+async function updateSubscription(id, { plan, subscriptionEndsAt, billingModel, priceAmount }) {
   const result = await registryPool.query(
     `UPDATE registry.institutions
      SET plan = COALESCE($1, plan),
          subscription_ends_at = COALESCE($2, subscription_ends_at),
+         billing_model = COALESCE($3, billing_model),
+         price_amount = COALESCE($4, price_amount),
          updated_at = now()
-     WHERE id = $3
+     WHERE id = $5
      RETURNING *`,
-    [plan || null, subscriptionEndsAt || null, id]
+    [plan || null, subscriptionEndsAt || null, billingModel || null, priceAmount ?? null, id]
   );
   return result.rows[0];
 }

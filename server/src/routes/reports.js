@@ -4,10 +4,13 @@
 const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { requirePlanFeature } = require("../middleware/planGate");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 router.use(requirePermission("reports"));
+// Phase 6: reports is a Standard+ plan feature.
+router.use(requirePlanFeature("reportsExport"));
 
 function parseRange(from, to) {
   const f = from || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);

@@ -101,6 +101,25 @@ create table if not exists registry.platform_admins (
 create unique index if not exists platform_admins_email_unique
   on registry.platform_admins (lower(email));
 
+-- Phase 6 — billing model scaffolding. The user wants two supported
+-- pricing systems (per-student and flat monthly) but hasn't decided the
+-- actual numbers yet, so both columns are nullable: NULL means "not priced
+-- yet" (e.g. demo/trial institutions), to be set per-institution later from
+-- the Super-Admin panel (routes/platform.js) once real pricing is decided.
+-- Nothing reads these columns to gate access yet — server/src/config/
+-- planFeatures.js (plan tier) is what actually gates features; these two
+-- columns are for billing/invoicing bookkeeping only.
+alter table registry.institutions
+  add column if not exists billing_model text;
+
+alter table registry.institutions drop constraint if exists institutions_billing_model_check;
+alter table registry.institutions
+  add constraint institutions_billing_model_check
+  check (billing_model is null or billing_model in ('student', 'flat'));
+
+alter table registry.institutions
+  add column if not exists price_amount numeric(12, 2);
+
 -- Multiple platform-level operator accounts (Part 5.1): every existing row
 -- predates this column and represents an account that already had full
 -- control of the panel, so the default keeps that behavior unchanged for

@@ -3,6 +3,7 @@ const db = require("../db");
 const { getIncomeCategories, setIncomeCategories } = require("../lib/incomeCategories");
 const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests");
 const { requirePermission } = require("../middleware/rbac");
+const { requirePlanFeature } = require("../middleware/planGate");
 const { nextReceipt } = require("../lib/receiptCounter");
 const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
@@ -11,6 +12,8 @@ const { incomeCreateSchema, incomeUpdateSchema } = require("../lib/financeSchema
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 router.use(requirePermission("income"));
+// Phase 6: same Income screen as payments.js (tabs share one page client-side).
+router.use(requirePlanFeature("feesCollection"));
 
 router.get("/categories", async (_req, res) => {
   res.json(await getIncomeCategories());

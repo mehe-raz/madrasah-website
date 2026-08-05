@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { createDeleteRequest, isApprovalRole } = require("../lib/deleteRequests");
 const { requirePermission } = require("../middleware/rbac");
+const { requirePlanFeature } = require("../middleware/planGate");
 const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
 const { expenseCreateSchema } = require("../lib/opsSchemas");
@@ -9,6 +10,8 @@ const { expenseCreateSchema } = require("../lib/opsSchemas");
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 router.use(requirePermission("expenses"));
+// Phase 6: expense tracking is a Standard+ plan feature.
+router.use(requirePlanFeature("expenses"));
 
 function clampInt(value, fallback, min, max) {
   const n = Number.parseInt(String(value ?? ""), 10);

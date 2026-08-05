@@ -3,27 +3,138 @@
 Read this file every session, regardless of what the user's message says —
 it may carry unfinished work from a previous AI agent's session.
 
-## Status: DONE
+## Status: IN_PROGRESS
 
-## Task: (none — Phase 1, Phase 3, Phase 4, Phase 5, and Phase 6 (scaffolding
-only) of BUSINESS_READINESS_ROADMAP.md complete; Phase 2 intentionally
-skipped for now on the user's decision — see
-`docs/BUSINESS_READINESS_ROADMAP.md` for Phase 7 onward)
+## Task: Phase 6 real paywall — backend done, frontend NOT done yet.
+The user explicitly confirmed (2026-08-05): turn the earlier Phase 6
+scaffolding into a REAL paywall now, don't wait on pricing numbers (those
+come later, separately), support two billing models (per-student and flat),
+and existing/demo tenants that lose access are fine — they'll be
+reassigned a real plan or deleted from the Super-Admin panel, since they're
+demo accounts, not paying customers.
 
-### সম্পন্ন
-(cleared — see git history for Phase 1's, Phase 3's, Phase 4's, and Phase
-6's diffs)
+### সম্পন্ন (this round, backend only)
+- `server/src/config/planFeatures.js` — rewritten from the old "everything
+  true" scaffolding to REAL per-tier gates: `basic` (nothing extra beyond
+  the always-free core), `standard` (+feesCollection/expenses/
+  hifzTracking/reportsExport/assignmentsBroadcast), `pro` (+customDomain/
+  auditLogs), `premium` (same as pro + 6 "Coming Soon" keys — payroll/
+  library/idCards/hostel/sms/bkash — all still `false` because those
+  modules don't exist in code; flip one to `true` under `premium` the day
+  its module ships, that's the only change needed). Also added
+  `PLAN_ORDER`, `FEATURE_META` (Bengali labels + `comingSoon` flag per
+  feature, for UI use), `PRICING_MODELS` (`student`/`flat` labels only, no
+  numbers), and `minPlanFor(feature)`.
+- `server/src/middleware/planGate.js` — new `requirePlanFeature(feature)`
+  middleware (parallel to `middleware/rbac.js`'s `requirePermission`).
+  Never gates single-tenant deployments (no `tenantContext.get().institution`
+  → always `next()`), same reasoning as `requireTenantContext` in
+  `routes/settings.js`. Returns 403 with `{ error, planFeatureLocked,
+  currentPlan, requiredPlan }` when blocked — `requiredPlan` is the JSON key
+  the frontend should read to build the "upgrade to X" message.
+- Applied `requirePlanFeature(...)` to: `routes/payments.js` +
+  `routes/income.js` (both → `"feesCollection"`, since the Income.tsx page's
+  tabs hit both endpoints), `routes/expenses.js` (`"expenses"`),
+  `routes/hifz.js` (`"hifzTracking"`), `routes/reports.js`
+  (`"reportsExport"`), `routes/assignments.js` (`"assignmentsBroadcast"` —
+  staff side only; the guardian-facing read routes in `guardianAuth.js` are
+  intentionally NOT gated so guardians can still read posts made before a
+  downgrade), `routes/auditLogs.js` (`"auditLogs"`).
+- `server/sql/registry_schema.sql` — added nullable `billing_model` (check
+  constraint: `student`/`flat`/null) and `price_amount numeric(12,2)`
+  columns to `registry.institutions`. Additive/non-breaking (both nullable,
+  `add column if not exists`). No numbers filled in anywhere — purely
+  billing bookkeeping columns, NOT read by any feature-gating code (plan
+  tier alone gates features).
+- `server/src/registryDb.js`'s `updateSubscription()` now also accepts
+  `billingModel`/`priceAmount` (same COALESCE-if-omitted pattern as
+  `plan`/`subscriptionEndsAt`).
+- `server/src/routes/platform.js`'s `PATCH /institutions/:id/subscription`
+  validates and passes through `billingModel` (`student`|`flat`) and
+  `priceAmount` (non-negative number).
+- `server/public-platform/app.js` (Super-Admin panel) — subscription modal's
+  plan field is now a `<select>` of the 4 real tiers instead of free text,
+  plus new billing-model select and price input; institutions table row
+  shows billing model + price next to the plan name when set. **This is
+  where you go to bump a demo institution's plan from `basic` to whatever
+  it should be, or to leave it locked until reassigned.**
+- All of the above pass `node --check`. `npm run check` (the real gate —
+  lint/typecheck/build/test) has NOT been run yet (no node_modules/network
+  in the sandbox this was written in) — **the very first thing the next
+  agent or the packaged CMD does must be `npm run check`, and it may
+  surface issues these individual syntax checks couldn't catch.**
 
-### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-(none queued — next agent should read `docs/BUSINESS_READINESS_ROADMAP.md`
-and ask the user which phase to start, per that file's "কীভাবে ব্যবহার
-করবেন" section. Note: Phase 2 (email notifications) was deliberately
-skipped, not forgotten — the user's Resend free tier only allows 100
-emails, so they chose to come back to it later. Don't auto-start Phase 2
-without the user explicitly asking.)
+### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে) — ফ্রন্টএন্ড অংশ
+This is the second half of the same task, deliberately split into a
+separate delivery. Do NOT re-decide the tier structure or feature mapping —
+it's already fixed in `server/src/config/planFeatures.js`; just build the UI
+against it.
+
+1. **Client `usePlanFeatures()` hook / context** — fetch
+   `GET /api/settings/plan` (already exists, returns
+   `{ plan, features, customDomain }` — note `features` now has many more
+   keys than just `customDomain`) once near the app root (e.g. inside
+   `AuthContext` or a new small context), so every page/component below can
+   read `features.xxx` without each re-fetching. Remember: this endpoint
+   404s outside multi-tenant mode (`requireTenantContext`) — treat that as
+   "everything unlocked" (single-tenant deployments have no plan concept),
+   don't show lock screens there.
+2. **A reusable lock/upgrade wrapper component** — e.g.
+   `client/src/components/PlanFeatureGate.tsx` — takes a `feature` key
+   (matching `planFeatures.js`'s keys) and children; if the feature isn't in
+   the current plan, renders an "upgrade" card instead of the children
+   (Bengali message, similar tone to the existing customDomain upsell text
+   in `client/src/modules/Settings.tsx` around line ~1011). Use
+   `FEATURE_META`'s labels for feature names — but that file is server-side;
+   either mirror the labels in a small client-side copy, or have
+   `GET /api/settings/plan` also return label/comingSoon per feature so
+   there's still one source of truth (prefer this — extend the `/plan`
+   route in `routes/settings.js` to include `FEATURE_META` in the response
+   rather than hand-duplicating labels in the client).
+3. **Wrap the 6 gated routes in `client/src/App.tsx`** (`income`, `expenses`,
+   `hifz`, `assignments`, `reports`, `audit-logs`) with the gate component
+   from step 2, each with its matching feature key (see the backend list
+   above for the exact mapping — `income` route covers BOTH
+   `feesCollection`-gated endpoints).
+4. **`client/src/components/Sidebar.tsx`** — currently hides nav items only
+   by RBAC permission (`canAccess`). Add a locked/greyed state (not full
+   hiding) for nav items whose feature isn't in the current plan, so users
+   see the feature exists and can be upgraded to, per the user's explicit
+   "marketing" intent — clicking a locked item still navigates to the page,
+   which now shows the upgrade card from step 2/3, so no separate "locked"
+   click-handling needed in the Sidebar itself. Note: `Sidebar.tsx` is on
+   `client/eslint.config.js`'s legacy inline-style exemption list, so
+   `style={{}}` there is fine — don't attempt a full migration to the
+   design-system classes as part of this task, that's unrelated scope.
+5. **Public pricing/marketing page** — new `client/src/pages/Pricing.tsx`
+   (public route, e.g. `/pricing`, outside `ProtectedRoute`, added to
+   `App.tsx`'s lazy imports + public `<Routes>` block alongside `/about`
+   etc.). Renders the 4 tiers (Basic/Standard/Pro/Premium) with feature
+   checklists, matching the visual reference image the user shared
+   (eXimus-style 4-column pricing cards) but with THIS repo's real feature
+   set (see `FEATURE_META`/tier mapping in `planFeatures.js`). Premium's
+   6 not-built features show a "শীঘ্রই আসছে" (Coming Soon) badge instead of
+   a checkmark. No prices shown yet (pricing not decided) — show
+   "যোগাযোগ করুন" (Contact us) / "মূল্য শীঘ্রই" instead of a number, for all
+   4 tiers, until the user gives real numbers for both the `student` and
+   `flat` billing models.
+6. **`npm run check`** — must pass before anything is committed/pushed, per
+   AGENTS.md. Fix whatever it surfaces (this batch was only syntax-checked
+   with `node --check`, not the real lint/typecheck/build/test suite).
+7. Report back explicitly which of the 6 wired routes were tested how (or
+   if only visually reasoned through, say so) — this is UI on top of a real
+   backend permission change, worth double-checking against at least one
+   `basic`-plan and one `pro`-plan institution if the user can provide test
+   accounts.
 
 ### নোট
-Phase 6 (plan-tiering, **scaffolding only**) finished 2026-08-05:
+Phase 6 (plan-tiering, real paywall — **backend half**) delivered
+2026-08-05; see সম্পন্ন above for exact file list. Frontend half above is
+queued as the immediate next task — don't ask the user which phase to do
+next, this one isn't finished.
+
+Phase 6 (plan-tiering, scaffolding-only — SUPERSEDED by the above, kept for
+history) finished 2026-08-05:
 - User decided the tier structure: `basic` / `standard` / `pro` / `premium`,
   mapped to what's actually built in this repo (Basic = student/attendance/
   results/notices/guardian portal; Standard = + fees collection/expenses/

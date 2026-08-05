@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { requirePlanFeature } = require("../middleware/planGate");
 const { LIST_COLUMNS } = require("../models/studentAdmission");
 const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
@@ -9,6 +10,8 @@ const { hifzParaSchema, hifzSabaqSchema } = require("../lib/opsSchemas");
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 router.use(requirePermission("hifz"));
+// Phase 6: Hifz tracking is a Standard+ plan feature.
+router.use(requirePlanFeature("hifzTracking"));
 
 router.get("/", async (_req, res) => {
   const students = await db.all(`SELECT ${LIST_COLUMNS} FROM students WHERE dept = 'Hifz' ORDER BY roll`);

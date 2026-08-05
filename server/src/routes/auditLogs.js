@@ -1,9 +1,12 @@
 const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
+const { requirePlanFeature } = require("../middleware/planGate");
 
 const router = express.Router();
 router.use(requirePermission("settings"));
+// Phase 6: audit log visibility is a Pro+ plan feature.
+router.use(requirePlanFeature("auditLogs"));
 
 function requireSuperAdmin(req, res, next) {
   if (req.user?.role !== "Super Admin") {
