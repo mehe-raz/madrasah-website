@@ -5,10 +5,10 @@ it may carry unfinished work from a previous AI agent's session.
 
 ## Status: DONE
 
-## Task: (none — Phase 1, Phase 3, and Phase 4 of
+## Task: (none — Phase 1, Phase 3, Phase 4, and Phase 5 of
 BUSINESS_READINESS_ROADMAP.md complete; Phase 2 intentionally skipped for
 now on the user's decision — see `docs/BUSINESS_READINESS_ROADMAP.md` for
-Phase 5 onward)
+Phase 6 onward)
 
 ### সম্পন্ন
 (cleared — see git history for Phase 1's, Phase 3's, and Phase 4's diffs)
@@ -22,6 +22,49 @@ emails, so they chose to come back to it later. Don't auto-start Phase 2
 without the user explicitly asking.)
 
 ### নোট
+Phase 5 (core business-logic test coverage) finished 2026-08-05:
+- **Part 1 — payments/fees logic:** `payments.js`'s inline due/conflict/
+  status math (the `isConflict` block the roadmap flagged as risky) was
+  extracted, unchanged in behavior, into new `server/src/lib/paymentLogic.js`
+  (`isPaymentConflict`, `computeDueAfterPayment`, `computePaymentOutcome`) —
+  the same pure-function-in-lib pattern `results.js` already uses for
+  `sanitizeSubjects`/`computeGrade`. This was necessary (not a drive-by
+  refactor) because the logic can't be meaningfully unit tested while stuck
+  inside a route handler wrapped in `db.withTransaction`. Both call sites in
+  `payments.js` (`POST /` and `POST /:id/resolve-flag`'s confirm branch,
+  which duplicated the same due/status math) now call the shared helpers.
+  New tests: `server/src/lib/__tests__/paymentLogic.test.js` — conflict
+  detection (zero/negative/missing due), Partial vs Completed status,
+  overpayment clamping to 0 due, and string-vs-number input coercion (values
+  read back from Postgres often arrive as strings).
+- **Part 2 — `teacherScope.js` expansion:** added multi-class-teacher and
+  no-class-teacher edge cases to the existing
+  `server/src/lib/__tests__/teacherScope.test.js` — asserts a Teacher with
+  nothing assigned gets a defined-but-empty array (not `undefined`, which
+  `routes/attendance.js`/`results.js`/`assignments.js` all depend on to
+  distinguish "scoped to nothing" from "unscoped"), a multi-class Teacher
+  gets the full list, and the lookup uses the request's own `user.id`.
+- **Part 3 — RBAC permission matrix:** new
+  `server/src/middleware/__tests__/rbac.test.js` (+ sibling `package.json`
+  with `"type": "module"`, matching the other `__tests__` folders per
+  `teacherScope.test.js`'s comment on why that's needed) — a hand-written
+  per-route "which roles are allowed" table checked against every route in
+  `ROUTE_PERMISSION` (fails loudly if a route is added without updating the
+  table), full `canAccess()` coverage for all 5 roles × 18 routes, plus
+  `requirePermission()` (401/403/pass, array-of-alternatives) and
+  `rbacMiddleware()` (path-segment parsing, ungated routes, nested
+  sub-paths) behavior tests.
+- **`npm run check` NOT run by this agent** (no network/node_modules in this
+  sandbox, same limitation noted for Phases 1/3/4). Instead: `node --check`
+  on every new/modified file (including the new ESM test files, which
+  correctly picked up the nested `package.json`'s `"type": "module"`), plus
+  every assertion in all three new/expanded test files was independently
+  re-run as a plain Node script against the real `paymentLogic.js`/`rbac.js`
+  modules (not vitest, since that's unavailable offline) — all passed.
+  **Run `npm run check` (which runs `test:server` + the real `vitest`
+  suite via `test:unit`) as part of this delivery's CMD before trusting
+  it** — this is exactly what the packaged CMD does.
+
 Phase 4 (Terms of Service + Privacy Policy) finished 2026-08-05:
 - New public (logged-out) pages in the tenant React client, matching the
   `About.tsx`/`Notices.tsx` public-page pattern (`PublicHeader`/

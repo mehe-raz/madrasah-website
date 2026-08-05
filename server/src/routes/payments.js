@@ -6,6 +6,7 @@ const { recordAudit } = require("../lib/auditLog");
 const { idempotent } = require("../middleware/idempotency");
 const { isApprovalRole } = require("../lib/deleteRequests");
 const { createNotification } = require("../lib/notifications");
+const { computePaymentOutcome, computeDueAfterPayment } = require("../lib/paymentLogic");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -62,9 +63,7 @@ router.post("/", idempotent(async (req, res) => {
   // "due already 0" as a conflict: keep the payment row (nothing is lost)
   // but withhold the income entry and due deduction until a Super
   // Admin/Admin reviews it via POST /:id/resolve-flag below.
-  const isConflict = currentDue <= 0;
-  const newDue = isConflict ? currentDue : Math.max(0, currentDue - payAmount);
-  const status = isConflict ? "Flagged" : newDue === 0 || payAmount >= currentDue ? "Completed" : "Partial";
+  const { isConflict, newDue, status } = computePaymentOutcome(currentDue, payAmount);
   const flagReason = isConflict
     ? `এই ছাত্রের বকেয়া ইতিমধ্যে ০, কিন্তু ৳${payAmount} এর আরেকটি পেমেন্ট এসেছে — সম্ভবত অফলাইনে দুইজন একই বেতন নিয়েছেন।`
     : null;
@@ -179,8 +178,7 @@ router.post("/:id/resolve-flag", async (req, res) => {
 
   const student = await db.get("SELECT id, name, roll, due FROM students WHERE id = $1", [row.studentId]);
   const currentDue = Number(student?.due || 0);
-  const newDue = Math.max(0, currentDue - Number(row.amount));
-  const finalStatus = newDue === 0 || Number(row.amount) >= currentDue ? "Completed" : "Partial";
+  const { newDue, status: finalStatus } = computeDueAfterPayment(currentDue, row.amount);
 
   await db.withTransaction(async (tx) => {
     await tx.run(`UPDATE payments SET status = $1, "flagReason" = NULL WHERE id = $2`, [finalStatus, id]);

@@ -115,7 +115,7 @@ Phase 2-এর উপর নির্ভর করে না। বিস্ত�
      আইনি ভাষা না।
   5. `npm run check`।
 
-## Phase 5 — Core business-logic-এর জন্য automated test coverage
+## Phase 5 — Core business-logic-এর জন্য automated test coverage ✅ সম্পন্ন (2026-08-05)
 - বর্তমান অবস্থা: `server/src/lib/__tests__/` ও
   `server/src/routes/__tests__/`-এ মাত্র ৪টা ছোট টেস্ট ফাইল। ফি হিসাব,
   attendance edge case, RBAC edge case-এর কোনো কভারেজ নেই।
