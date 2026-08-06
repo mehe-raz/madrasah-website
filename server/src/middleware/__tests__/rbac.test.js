@@ -32,6 +32,7 @@ const EXPECTED_ALLOWED = {
   "/api/admissions": ["Super Admin", "Admin"],
   "/api/class-options": ["Super Admin", "Admin", "Hostel Manager"],
   "/api/guardian-approvals": ["Super Admin", "Admin"],
+  "/api/sms": ["Admin", "Super Admin"], //
 };
 
 describe("ROUTE_PERMISSION table sanity", () => {

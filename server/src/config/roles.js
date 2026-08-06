@@ -41,6 +41,10 @@ const ROUTE_PERMISSION = {
   "/api/backup": "settings",
   "/api/reports": "reports",
   "/api/audit-logs": "settings",
+  // "SMS সেবা" settings page (Phase 8D) — wallet balance/history, per-type
+  // toggle, manual top-up requests. Same tier as /api/backup above; the
+  // route itself additionally gates on the "sms" plan feature.
+  "/api/sms": "settings",
   // Array = "any one of these is enough to reach the route" — site-content
   // bundles hero/about/admission/gallery/notices into one JSON blob (see
   // lib/siteContent.js), so someone with only "websiteGallery" or

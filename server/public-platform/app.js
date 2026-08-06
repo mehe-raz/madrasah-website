@@ -266,6 +266,7 @@ function renderDashboard() {
           <button id="view-audit" class="secondary">সব অডিট লগ</button>
           <button id="run-expiry-scan" class="secondary">মেয়াদ স্ক্যান চালান</button>
           ${isSuperAdmin ? `<button id="open-migration" class="secondary">মাইগ্রেশন টুল</button>` : ""}
+          ${canManageInstitutions ? `<button id="open-sms-topups" class="secondary">📱 SMS টপ-আপ</button>` : ""}
           ${isSuperAdmin ? `<button id="open-admins" class="secondary">👤 এডমিন ম্যানেজমেন্ট</button>` : ""}
           ${canManageInstitutions ? `<button id="open-settings" class="secondary">⚙️ প্ল্যাটফর্ম সেটিংস</button>` : ""}
         </div>
@@ -306,6 +307,7 @@ function renderModal() {
   if (state.modal.type === "delete") return renderDeleteModal();
   if (state.modal.type === "admins") return renderAdminsModal();
   if (state.modal.type === "settings") return renderSettingsModal();
+  if (state.modal.type === "sms-topups") return renderSmsTopupsModal();
   return "";
 }
 
@@ -607,6 +609,60 @@ function renderMigrationModal() {
   `;
 }
 
+// Phase 8D — pending SMS-wallet top-up requests across every institution.
+// Each row's Trx ID needs to be checked by hand against the operator's own
+// bKash inbox before approving (see routes/platform.js's header comment on
+// why this is the one place this panel reaches into a tenant schema).
+function renderSmsTopupsModal() {
+  const items = state.modal.items || [];
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal" style="max-width:680px;">
+        <h2>SMS ওয়ালেট — অপেক্ষমাণ টপ-আপ অনুরোধ</h2>
+        <p class="sub">
+          অনুমোদন করার আগে bKash ইনবক্সে Trx ID মিলিয়ে দেখুন — অনুমোদন করলে
+          তাৎক্ষণিকভাবে ওই প্রতিষ্ঠানের SMS ব্যালেন্স যোগ হয়ে যাবে।
+        </p>
+        ${state.modal.error ? `<div class="error-box">${escapeHtml(state.modal.error)}</div>` : ""}
+        ${state.modal.info ? `<div class="info-box">${escapeHtml(state.modal.info)}</div>` : ""}
+        ${
+          state.modal.loading
+            ? spinnerHtml()
+            : items.length === 0
+            ? `<p class="muted">কোনো অপেক্ষমাণ অনুরোধ নেই।</p>`
+            : `<div class="card" style="max-height:360px; overflow-y:auto;">
+                <table>
+                  <thead><tr><th>প্রতিষ্ঠান</th><th>পরিমাণ</th><th>Trx ID</th><th>তারিখ</th><th>অ্যাকশন</th></tr></thead>
+                  <tbody>
+                    ${items
+                      .map(
+                        (it) => `
+                      <tr>
+                        <td>${escapeHtml(it.institutionName)} <span class="muted">(${escapeHtml(it.institutionCode)})</span></td>
+                        <td>৳${escapeHtml(it.amountTaka)}</td>
+                        <td class="mono">${escapeHtml(it.reference)}</td>
+                        <td class="muted">${fmtDate(it.createdAt)}</td>
+                        <td class="row-actions-cell">
+                          <div class="row-actions">
+                            <button class="small sms-topup-approve" data-institution-id="${it.institutionId}" data-id="${it.id}">অনুমোদন</button>
+                            <button class="small danger sms-topup-reject" data-institution-id="${it.institutionId}" data-id="${it.id}">বাতিল</button>
+                          </div>
+                        </td>
+                      </tr>`
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>`
+        }
+        <div class="modal-actions">
+          <button type="button" class="secondary" id="modal-cancel">বন্ধ করুন</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function adminRow(admin) {
   const isSelf = state.admin && admin.id === state.admin.id;
   return `
@@ -768,6 +824,39 @@ function wireDashboardEvents() {
   if (openAdminsBtn) {
     openAdminsBtn.addEventListener("click", () => openAdminsModal());
   }
+
+  const openSmsTopupsBtn = document.getElementById("open-sms-topups");
+  if (openSmsTopupsBtn) {
+    openSmsTopupsBtn.addEventListener("click", () => openSmsTopupsModal());
+  }
+
+  root.querySelectorAll(".sms-topup-approve").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        await api(`/sms-topups/${btn.dataset.institutionId}/${btn.dataset.id}/approve`, { method: "POST" });
+        await refreshSmsTopupsModal("টপ-আপ অনুমোদন করা হয়েছে, ব্যালেন্স যোগ হয়েছে।");
+      } catch (err) {
+        state.modal.error = err.message;
+        btn.disabled = false;
+        render();
+      }
+    });
+  });
+
+  root.querySelectorAll(".sms-topup-reject").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        await api(`/sms-topups/${btn.dataset.institutionId}/${btn.dataset.id}/reject`, { method: "POST" });
+        await refreshSmsTopupsModal("অনুরোধটি বাতিল করা হয়েছে।");
+      } catch (err) {
+        state.modal.error = err.message;
+        btn.disabled = false;
+        render();
+      }
+    });
+  });
 
   const openSettingsBtn = document.getElementById("open-settings");
   if (openSettingsBtn) {
@@ -1089,6 +1178,33 @@ function wireDashboardEvents() {
       }
     });
   });
+}
+
+async function openSmsTopupsModal() {
+  state.modal = { type: "sms-topups", items: [], loading: true, error: "", info: "" };
+  render();
+  try {
+    state.modal.items = await api("/sms-topups/pending");
+  } catch (err) {
+    state.modal.error = err.message;
+  } finally {
+    state.modal.loading = false;
+    render();
+  }
+}
+
+// Re-fetches the pending list into the already-open modal (used after an
+// approve/reject) without closing it, matching refreshAdminsModal()'s
+// "stay open, just refresh" behavior below.
+async function refreshSmsTopupsModal(info) {
+  const prevModal = state.modal;
+  state.modal = { type: "sms-topups", items: prevModal.items, loading: false, error: "", info: info || "" };
+  try {
+    state.modal.items = await api("/sms-topups/pending");
+  } catch (err) {
+    state.modal.error = err.message;
+  }
+  render();
 }
 
 async function openAdminsModal() {

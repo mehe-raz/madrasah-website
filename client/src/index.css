@@ -2950,3 +2950,40 @@ img {
   font-size: 11px;
   margin-left: auto;
 }
+
+/* "SMS সেবা" settings page (Phase 8D) — client/src/modules/SmsSettings.tsx.
+   .sms-cell--muted/--mono reuse the same visual weight the legacy
+   inline-style pages (AuditLogs.tsx, Income.tsx) get from their one-off
+   `style={{ color: C.slate }}` / `style={{ fontFamily: "monospace" }}`,
+   but as real classes since this page follows the design-system rule. */
+.sms-balance {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.sms-balance__amount {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.sms-balance__label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.sms-balance__meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+}
+
+.sms-cell--muted {
+  color: var(--muted);
+}
+
+.sms-cell--mono {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+}

@@ -235,6 +235,7 @@ router.post("/send-due-reminders", async (req, res) => {
       to: student.phone,
       message: `${student.name} (রোল ${student.roll}) এর বকেয়া বেতন ৳${student.due}। অনুগ্রহ করে দ্রুত পরিশোধ করুন।`,
       reference: `fee-due-reminder:${student.id}`,
+      notificationType: "feeDueReminder",
     });
     if (result.sent) sent += 1;
     else notSent += 1;

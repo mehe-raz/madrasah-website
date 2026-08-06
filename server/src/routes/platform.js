@@ -5,7 +5,11 @@
 // CRUD-ish control over registry.institutions (list/create/suspend/etc).
 // Talks ONLY to the registry schema via registryDb.js / tenantProvision.js —
 // never touches any tenant_xxx schema directly, same separation of "control
-// plane" vs "data plane" that Part 1 established.
+// plane" vs "data plane" that Part 1 established. One narrow, deliberate
+// exception: the "/sms-topups/*" routes (Phase 8D, near the bottom of this
+// file) — see the comment block right above them for why manual SMS-wallet
+// top-up approval has to cross that boundary and how it stays scoped to
+// exactly one tenant at a time.
 //
 // Mounted in index.js BEFORE the tenant requireAuth/rbac chain, and is one
 // of tenantResolve's isSkippedPath()s (middleware/tenantResolve.js already
@@ -300,6 +304,131 @@ router.post("/institutions/:id/payments", async (req, res, next) => {
       coversUntil: payment.covers_until,
     });
     res.status(201).json(payment);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// ----------------------------------------------------------------------------
+// BUSINESS_READINESS_ROADMAP.md Phase 8D — SMS wallet manual top-up
+// approval. sms_wallets/sms_transactions live in each tenant's own schema
+// (Phase 8A), not the registry, so — unlike everything else in this file —
+// these three routes DO reach into a specific tenant schema, via
+// migrateTenants.withTenantSchema(schemaName, ...). That's a deliberate,
+// narrow exception to this file's usual "registry only" rule (see the
+// header comment), scoped to exactly one institution per call, never all
+// of them — the opposite of migrations/run below, which intentionally
+// touches every tenant at once.
+// ----------------------------------------------------------------------------
+
+// Lists every institution's *pending* sms_transactions rows (submitted by
+// routes/sms.js's POST /topup-request) in one response, so the operator
+// doesn't have to open each institution individually to find one Trx ID to
+// verify. Loops tenant schemas one at a time — fine at this project's
+// current scale (a handful to a few dozen tenants); would need a proper
+// cross-schema query or a registry-side mirror table if that ever changes.
+router.get("/sms-topups/pending", async (_req, res, next) => {
+  try {
+    const tenants = await migrateTenants.listTenantSchemas();
+    const results = [];
+    for (const tenant of tenants) {
+      try {
+        const rows = await migrateTenants.withTenantSchema(tenant.schemaName, (client) =>
+          client
+            .query(
+              `SELECT id, "amountTaka", reference, "createdAt" FROM sms_transactions
+               WHERE type = 'topup' AND status = 'pending' ORDER BY "createdAt" ASC`
+            )
+            .then((r) => r.rows)
+        );
+        for (const row of rows) {
+          results.push({ institutionId: tenant.id, institutionCode: tenant.code, institutionName: tenant.name, ...row });
+        }
+      } catch (err) {
+        console.error(`sms-topups/pending: failed reading ${tenant.schemaName}:`, err.message);
+      }
+    }
+    res.json(results);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Approves one pending top-up: credits sms_wallets.balance_taka by the
+// requested amount and flips that one sms_transactions row to 'confirmed',
+// in the same tenant-scoped transaction (withTenantSchema rolls back both
+// writes together if either fails).
+router.post("/sms-topups/:institutionId/:transactionId/approve", requirePlatformRole("super_admin", "admin"), async (req, res, next) => {
+  try {
+    const institutionId = Number(req.params.institutionId);
+    const transactionId = Number(req.params.transactionId);
+    if (!Number.isInteger(institutionId) || !Number.isInteger(transactionId)) {
+      return res.status(400).json({ error: "Invalid institution or transaction id" });
+    }
+    const institution = await registryDb.getInstitutionById(institutionId);
+    if (!institution) return res.status(404).json({ error: "Institution not found" });
+
+    const updated = await migrateTenants.withTenantSchema(institution.schema_name, async (client) => {
+      const txRes = await client.query(
+        `SELECT id, "amountTaka", status FROM sms_transactions WHERE id = $1 AND type = 'topup'`,
+        [transactionId]
+      );
+      const tx = txRes.rows[0];
+      if (!tx) {
+        const err = new Error("Top-up request not found");
+        err.status = 404;
+        throw err;
+      }
+      if (tx.status !== "pending") {
+        const err = new Error(`Already ${tx.status}`);
+        err.status = 409;
+        throw err;
+      }
+      await client.query(`UPDATE sms_transactions SET status = 'confirmed' WHERE id = $1`, [transactionId]);
+      await client.query(`UPDATE sms_wallets SET balance_taka = balance_taka + $1, "updatedAt" = now()`, [tx.amountTaka]);
+      const walletRes = await client.query(`SELECT balance_taka FROM sms_wallets LIMIT 1`);
+      return { transactionId, amountTaka: tx.amountTaka, newBalance: walletRes.rows[0]?.balance_taka };
+    });
+
+    await registryDb.logAction(institutionId, req.platformAdmin.email, "sms_topup_approved", updated);
+    res.json(updated);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// Rejects one pending top-up (e.g. the Trx ID didn't match any real bKash
+// payment) — flips status to 'rejected', balance untouched.
+router.post("/sms-topups/:institutionId/:transactionId/reject", requirePlatformRole("super_admin", "admin"), async (req, res, next) => {
+  try {
+    const institutionId = Number(req.params.institutionId);
+    const transactionId = Number(req.params.transactionId);
+    if (!Number.isInteger(institutionId) || !Number.isInteger(transactionId)) {
+      return res.status(400).json({ error: "Invalid institution or transaction id" });
+    }
+    const institution = await registryDb.getInstitutionById(institutionId);
+    if (!institution) return res.status(404).json({ error: "Institution not found" });
+
+    await migrateTenants.withTenantSchema(institution.schema_name, async (client) => {
+      const txRes = await client.query(`SELECT id, status FROM sms_transactions WHERE id = $1 AND type = 'topup'`, [transactionId]);
+      const tx = txRes.rows[0];
+      if (!tx) {
+        const err = new Error("Top-up request not found");
+        err.status = 404;
+        throw err;
+      }
+      if (tx.status !== "pending") {
+        const err = new Error(`Already ${tx.status}`);
+        err.status = 409;
+        throw err;
+      }
+      await client.query(`UPDATE sms_transactions SET status = 'rejected' WHERE id = $1`, [transactionId]);
+    });
+
+    await registryDb.logAction(institutionId, req.platformAdmin.email, "sms_topup_rejected", { transactionId });
+    res.json({ transactionId, status: "rejected" });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);

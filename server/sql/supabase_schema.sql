@@ -440,4 +440,15 @@ create table if not exists sms_transactions (
   "createdAt" text not null
 );
 
+-- BUSINESS_READINESS_ROADMAP.md Phase 8D — manual top-up requests. An
+-- institution-admin submits a bKash Trx ID (type='topup', status='pending'
+-- row, balance NOT touched yet); a platform Super-Admin checks the real
+-- bKash inbox and approves/rejects from the platform panel
+-- (routes/platform.js, tenant-scoped via migrateTenants.withTenantSchema).
+-- Only approval credits sms_wallets.balance_taka. Every row inserted
+-- before this phase (Phase 8B's deduct rows) has no explicit status, so
+-- the default keeps them correctly classified as already-settled/
+-- "confirmed" rather than retroactively looking "pending".
+alter table sms_transactions add column if not exists "status" text not null default 'confirmed';
+
 create index if not exists sms_transactions_created_at_idx on sms_transactions ("createdAt" desc);

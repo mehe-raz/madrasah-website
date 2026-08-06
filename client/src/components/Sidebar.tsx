@@ -107,6 +107,40 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             </NavLink>
           );
         })}
+        {/* "SMS সেবা" (Phase 8D) — rendered outside NAV_IDS like audit-logs
+            below, because it reuses the "settings" permission for access
+            but needs its own nav LABEL (t.nav[item.key] would otherwise
+            show "Settings" twice) and its own plan-lock check ("sms", not
+            "auditLogs"). */}
+        {canAccess(role, "settings") && (
+          <NavLink
+            to="/sms"
+            onClick={onNavigate}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.sms : undefined}
+          >
+            <span style={{ fontSize: 18, flexShrink: 0 }}>📱</span>
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.sms}</span>}
+            {open && isLocked("sms") && (
+              <span className="nav-item__lock-badge" aria-hidden="true">
+                🔒
+              </span>
+            )}
+          </NavLink>
+        )}
         {canViewAuditLogs(role) && (
           <NavLink
             to="/audit-logs"

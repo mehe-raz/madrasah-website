@@ -105,6 +105,7 @@ router.patch("/:id/publish", async (req, res) => {
         to: student.phone,
         message: `${row.studentName} (রোল ${row.roll}) এর ${row.examName} ${row.year} পরীক্ষার ফলাফল প্রকাশিত হয়েছে।`,
         reference: `result-published:${row.id}`,
+        notificationType: "resultPublished",
       });
     }
   }

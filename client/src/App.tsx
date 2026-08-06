@@ -30,6 +30,7 @@ const Income = lazy(() => import("./modules/Income").then((m) => ({ default: m.I
 const Reports = lazy(() => import("./modules/Reports").then((m) => ({ default: m.Reports })));
 const Results = lazy(() => import("./modules/Results").then((m) => ({ default: m.Results })));
 const Settings = lazy(() => import("./modules/Settings").then((m) => ({ default: m.Settings })));
+const SmsSettings = lazy(() => import("./modules/SmsSettings").then((m) => ({ default: m.SmsSettings })));
 const Students = lazy(() => import("./modules/Students").then((m) => ({ default: m.Students })));
 const Website = lazy(() => import("./modules/Website").then((m) => ({ default: m.Website })));
 const WebsitePreview = lazy(() => import("./pages/WebsitePreview").then((m) => ({ default: m.WebsitePreview })));
@@ -149,6 +150,14 @@ export default function App() {
                 <Route path="website/:sectionId" element={<WebsiteSectionEditor />} />
                 <Route path="admissions" element={<AdmissionsReview />} />
                 <Route path="settings" element={<Settings />} />
+                <Route
+                  path="sms"
+                  element={
+                    <PlanFeatureGate feature="sms">
+                      <SmsSettings />
+                    </PlanFeatureGate>
+                  }
+                />
                 <Route
                   path="audit-logs"
                   element={

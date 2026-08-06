@@ -513,3 +513,32 @@ export interface ClassPost {
   createdAt: string;
   read?: boolean;
 }
+
+// "SMS সেবা" settings page — server/src/routes/sms.js (BUSINESS_READINESS_
+// ROADMAP.md Phase 8D). `type` distinguishes a wallet credit ("topup", from
+// an approved manual top-up request) from a wallet debit ("deduct", from
+// smsSender.js actually sending an SMS). `status` matters only for "topup"
+// rows — a "deduct" row is always "confirmed" the moment it's written.
+export interface SmsTransaction {
+  id: number;
+  type: "topup" | "deduct";
+  amountTaka: number;
+  smsCount: number | null;
+  reference: string;
+  status: "pending" | "confirmed" | "rejected";
+  createdAt: string;
+}
+
+export interface SmsNotificationPrefs {
+  feeDueReminder: boolean;
+  resultPublished: boolean;
+}
+
+export interface SmsWallet {
+  balanceTaka: number;
+  updatedAt: string | null;
+  transactions: SmsTransaction[];
+  notificationPrefs: SmsNotificationPrefs;
+  /** Empty string if the platform operator hasn't set SMS_TOPUP_BKASH_NUMBER yet. */
+  topupBkashNumber: string;
+}

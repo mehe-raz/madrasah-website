@@ -22,12 +22,13 @@
 //               Multi-branch are future Phase 7+ work, not gated yet
 //               because they aren't finished/built).
 //   premium  -> same working features as pro, PLUS the "Coming Soon" keys
-//               below — these stay `false` for now because the modules
-//               genuinely don't exist in the codebase (payroll, library,
-//               ID cards, hostel, SMS, bKash). The user will build and flip
-//               these on ONE AT A TIME; when a given module ships, turn its
-//               key `true` for `premium` here — that's the only change
-//               needed to activate it for premium tenants.
+//               below — these stay `false` until the module genuinely
+//               exists in the codebase (payroll, library, ID cards,
+//               hostel, bKash still don't). The user builds and flips
+//               these on ONE AT A TIME; when a module ships, turn its key
+//               `true` for `premium` here — that's the only change needed
+//               to activate it for premium tenants. `sms` was the first to
+//               flip (Phase 8D, 2026-08-06) — see routes/sms.js.
 //
 // This is now a REAL paywall (not the earlier non-breaking scaffolding):
 // any institution whose `plan` isn't at least the tier a feature requires
@@ -93,11 +94,13 @@ const PLAN_FEATURES = {
     assignmentsBroadcast: true,
     auditLogs: true,
     // "Coming Soon" — flip to true one at a time as each module ships.
+    // sms flipped 2026-08-06 (Phase 8D): the settings page, wallet ledger,
+    // and manual top-up flow are now real (routes/sms.js, routes/platform.js).
     payroll: false,
     library: false,
     idCards: false,
     hostel: false,
-    sms: false,
+    sms: true,
     bkash: false,
   },
 };
@@ -123,7 +126,7 @@ const FEATURE_META = {
   library: { label: "লাইব্রেরি ম্যানেজমেন্ট", comingSoon: true },
   idCards: { label: "আইডি কার্ড", comingSoon: true },
   hostel: { label: "হোস্টেল ম্যানেজমেন্ট", comingSoon: true },
-  sms: { label: "এসএমএস নোটিফিকেশন", comingSoon: true },
+  sms: { label: "এসএমএস নোটিফিকেশন", comingSoon: false },
   bkash: { label: "বিকাশ/নগদ পেমেন্ট", comingSoon: true },
 };
 

@@ -187,9 +187,13 @@ Testing procedure: `docs/OFFLINE_FIRST_TESTING.md`.
 - `docs/BUSINESS_READINESS_ROADMAP.md` — 8-phase plan (data-integrity fix,
   email notifications, notice-broadcast UI, legal pages, test coverage,
   plan-tiering, multi-branch, SMS/bKash architecture notes) from a
-  2026-08-05 business-readiness review. SMS and bKash/Nagad work in Phase 8
-  are explicitly blocked until the user says their provider accounts are
-  ready — don't start that phase on your own initiative.
+  2026-08-05 business-readiness review. Phase 8's SMS sub-phases (8A-8D)
+  are done — wallet/ledger schema, `smsSender.js` + BulkSMSBD provider,
+  the guardian-facing notification hook, and the "SMS সেবা" settings page
+  with manual bKash top-up. bKash/Nagad *guardian-facing payment* (8E/8F)
+  and sandbox testing (8G) are still explicitly blocked until the user
+  says their provider accounts are ready — don't start those on your own
+  initiative.
 - `docs/CURRENT_TASK.md` — **multi-part task handoff queue**. Always check
   this one regardless of task (see AGENTS.md pointer at the top of that file).
 

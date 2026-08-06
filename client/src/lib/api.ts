@@ -29,6 +29,8 @@ import type {
   ResultSubjectMark,
   Settings,
   SiteContent,
+  SmsNotificationPrefs,
+  SmsWallet,
   Student,
   StudentResult,
   User,
@@ -799,6 +801,23 @@ export const api = {
   },
 
   getAuditLogMeta: () => request<AuditLogMeta>("/audit-logs/meta"),
+
+  // -------------------------------------------------------------------------
+  // "SMS সেবা" settings page (BUSINESS_READINESS_ROADMAP.md Phase 8D) —
+  // server/src/routes/sms.js. requirePlanFeature("sms")-gated on the
+  // server; PlanFeatureGate feature="sms" wraps the /sms route on the
+  // client (App.tsx) so a locked institution never even calls these.
+  // -------------------------------------------------------------------------
+  getSmsWallet: () => request<SmsWallet>("/sms/wallet"),
+
+  updateSmsNotificationPrefs: (prefs: Partial<SmsNotificationPrefs>) =>
+    request<{ notificationPrefs: SmsNotificationPrefs }>("/sms/notification-prefs", {
+      method: "PUT",
+      body: JSON.stringify(prefs),
+    }),
+
+  requestSmsTopup: (body: { amountTaka: number; trxId: string }) =>
+    request<{ id: number }>("/sms/topup-request", { method: "POST", body: JSON.stringify(body) }),
 
   // -------------------------------------------------------------------------
   // Guardian Portal (Step 5) — separate session/cookie from the staff `api.*`

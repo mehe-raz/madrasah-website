@@ -3,9 +3,121 @@
 Read this file every session, regardless of what the user's message says —
 it may carry unfinished work from a previous AI agent's session.
 
+**Phase-naming rule (added 2026-08-06, after a mislabeling incident — see
+the second entry below for the full story):** never title a task entry
+"BUSINESS_READINESS_ROADMAP Phase N" unless the work matches what
+`docs/BUSINESS_READINESS_ROADMAP.md` itself describes under that exact
+Phase N heading. Check the roadmap file before naming an entry, every
+time — even when the task is answering a question the roadmap left open
+under a *different* phase. If it doesn't match a phase verbatim, name it
+something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
+the next sequential number.
+
+## Status: DONE (mostly — one manual step listed below)
+
+## Task: BUSINESS_READINESS_ROADMAP Phase 8D — "SMS সেবা" settings page,
+the ACTUAL Phase 8D (2026-08-06 সম্পন্ন)
+
+### একটা নামকরণ-বিভ্রান্তি ঠিক করা হলো এই সেশনে
+নিচের এন্ট্রি ("BUSINESS_READINESS_ROADMAP Phase 8C follow-up —
+fee-due-reminder...") আগে ভুলভাবে "Phase 8D" নাম নিয়ে এই ফাইলের শীর্ষে
+বসানো ছিল। ওটা আসলে roadmap-এর কোনো নির্দিষ্ট সাব-ফেজ ছিল না — Phase
+8C-এর "বাকি" সেকশনে রাখা দুটো প্রশ্নের উত্তর ছিল মাত্র, যেটা BUSINESS_
+READINESS_ROADMAP.md-এ ঠিক এই নামে কোথাও লেখা নেই। roadmap-এর আসল Phase
+8D হলো এই এন্ট্রিতে বর্ণিত কাজ — প্রতিষ্ঠান-অ্যাডমিন সাইডে "SMS সেবা"
+সেটিংস পেজ। ভুলটা কীভাবে হয়েছিল ও ভবিষ্যতে এড়াতে কী করতে হবে তার
+বিস্তারিত নিচের "### কেন এই বিভ্রান্তি হয়েছিল" সেকশনে।
+
+### সম্পন্ন
+- `server/sql/supabase_schema.sql` — `sms_transactions`-এ নতুন `"status"`
+  কলাম (`add column if not exists ... default 'confirmed'`, idempotent) —
+  Phase 8B-এর deduct রোগুলো ডিফল্টে 'confirmed' থাকে, নতুন ম্যানুয়াল
+  টপ-আপ অনুরোধ 'pending' দিয়ে শুরু হয়।
+- `server/src/migrateTenants.js` — নতুন `withTenantSchema(schemaName, fn)`
+  হেল্পার (parameterized query সাপোর্ট করে, `migrateOneTenant`-এর মতো raw
+  SQL string না) + `listTenantSchemas()`-এ `id` ফিল্ড যোগ (platform.js-এর
+  নতুন রুটের জন্য দরকার ছিল)।
+- `server/src/routes/sms.js` (নতুন, tenant-side, `requirePermission("settings")`
+  + `requirePlanFeature("sms")`):
+  - `GET /wallet` — ব্যালেন্স, সব লেনদেন (৳ ২০০টা পর্যন্ত), নোটিফিকেশন
+    প্রেফারেন্স, আর `SMS_TOPUP_BKASH_NUMBER` env var (সেট না থাকলে খালি
+    স্ট্রিং, ফ্রন্টএন্ড ফলব্যাক টেক্সট দেখায়)।
+  - `PUT /notification-prefs` — `settings` টেবিলে `smsNotificationPrefs`
+    key-তে JSON হিসেবে সেভ (২টা টাইপ: `feeDueReminder`, `resultPublished`)।
+  - `POST /topup-request` — শুধু একটা `status='pending'` রো ইনসার্ট করে,
+    ব্যালেন্স ছোঁয় না (নিচের "ভেরিফিকেশন" পয়েন্ট দেখুন)।
+- `server/src/config/roles.js` — `"/api/sms": "settings"` (ROUTE_PERMISSION)।
+- `server/src/index.js` — `app.use("/api/sms", require("./routes/sms"))`।
+- `server/src/lib/guardianSms.js` — `sendGuardianSms()`-এ নতুন ঐচ্ছিক
+  `notificationType` প্যারামিটার, `smsNotificationPrefs`-এর বিপরীতে চেক
+  করে। `routes/payments.js` (send-due-reminders) আর `routes/results.js`
+  (publish hook) দুটোই এখন `notificationType: "feeDueReminder"` /
+  `"resultPublished"` পাস করে — তাই সেটিংস পেজের টগল সত্যিই কাজ করে,
+  শুধু UI-তে দেখানোর জন্য না।
+- `server/src/config/planFeatures.js` — `premium.sms: true` (আগে `false`
+  ছিল সব tier-এ), `FEATURE_META.sms.comingSoon: false`।
+- `server/src/routes/platform.js` — ৩টা নতুন এন্ডপয়েন্ট (Super-Admin
+  প্যানেল, `requirePlatformRole("super_admin", "admin")` approve/reject-এ):
+  `GET /sms-topups/pending` (সব tenant schema লুপ করে pending রো খুঁজে
+  বের করে), `POST /sms-topups/:institutionId/:transactionId/approve`
+  (ব্যালেন্স ক্রেডিট + status='confirmed', `withTenantSchema` দিয়ে
+  এক transaction-এ), `POST .../reject` (status='rejected', ব্যালেন্স
+  অপরিবর্তিত)। এই ৩টা রুট এই ফাইলের একমাত্র ব্যতিক্রম যেখানে platform.js
+  সরাসরি একটা নির্দিষ্ট tenant schema-তে ঢোকে — কেন সেটা routes/platform.js-এর
+  নিজের কমেন্টে ব্যাখ্যা করা আছে (registry-only নিয়মের ইচ্ছাকৃত, সীমিত
+  exception, migrations/run-এর মতো "সব tenant"-এ না, একটাতেই)।
+- `server/public-platform/app.js` — "📱 SMS টপ-আপ" বাটন (ড্যাশবোর্ড
+  টুলবারে) নতুন মডাল খোলে, প্রতিটা pending অনুরোধের পাশে অনুমোদন/বাতিল
+  বাটন।
+- Client: `client/src/types/index.ts` (SmsTransaction/SmsNotificationPrefs/
+  SmsWallet), `client/src/lib/api.ts` (getSmsWallet/updateSmsNotificationPrefs/
+  requestSmsTopup), নতুন `client/src/modules/SmsSettings.tsx` (ব্যালেন্স
+  কার্ড + নোটিফিকেশন টগল + টপ-আপ ফর্ম + লেনদেন হিস্টোরি টেবিল,
+  `data-table`/`ds-card`/`ds-btn` ইত্যাদি বিদ্যমান ক্লাস ব্যবহার করে, নতুন
+  `style={{}}` নেই), `App.tsx` (lazy route, `PlanFeatureGate feature="sms"`),
+  `Sidebar.tsx` (নতুন nav আইটেম, audit-logs-এর প্যাটার্নে NAV_IDS-এর বাইরে
+  রাখা হয়েছে যেহেতু এটা "settings" পারমিশন শেয়ার করে কিন্তু নিজস্ব লেবেল/লক
+  লাগে), `i18n/bn.ts` + `i18n/en.ts` (`nav.sms` + পুরো `sms` ব্লক, key সেট
+  দুই ফাইলে হুবহু মিলিয়ে দেখা হয়েছে)।
+- `.env.example` — `SMS_TOPUP_BKASH_NUMBER` ডকুমেন্টেড (ঐচ্ছিক, খালি
+  রাখলে ফ্রন্টএন্ড ফলব্যাক মেসেজ দেখায়)।
+- সবগুলো পরিবর্তিত/নতুন `.js` ফাইল `node --check` পাস করেছে। TypeScript
+  (`npm run check`) নেটওয়ার্ক-স্যান্ডবক্সে `node_modules` না থাকায় এখানে
+  চালানো যায়নি — packaged CMD-এ npm install-এর পরে সেটাই প্রথম চেক।
+
+### বাকি (কোনো কোড বাকি নেই, শুধু ব্যবহারকারীর ম্যানুয়াল ধাপ)
+- Phase 8A-র মতোই: ইতিমধ্যে বিদ্যমান multi-tenant প্রতিষ্ঠানের schema-তে
+  নতুন `sms_transactions."status"` কলাম পৌঁছাতে Super-Admin প্যানেলের
+  মাইগ্রেশন টুল দিয়ে (অথবা নতুন "SMS টপ-আপ" বাটন-চালিত সিস্টেম প্রথমবার
+  ব্যবহারের আগে) এই একটা স্টেটমেন্ট ম্যানুয়ালি চালাতে হবে:
+  `ALTER TABLE sms_transactions ADD COLUMN IF NOT EXISTS "status" text NOT NULL DEFAULT 'confirmed';`
+- `SMS_TOPUP_BKASH_NUMBER` env var এখনো সেট করা হয়নি (এটা অপারেটর-নির্দিষ্ট
+  ডেটা, কোড না) — সেট না করলে পেজে ফলব্যাক মেসেজ দেখাবে, ভাঙবে না।
+
+### কেন এই বিভ্রান্তি হয়েছিল (ব্যবহারকারীর অনুরোধে, পরবর্তী এজেন্টদের জন্য)
+আগের একটা সেশনে Phase 8C-এর "বাকি" সেকশনে দুটো প্রশ্ন রাখা হয়েছিল
+(ডেলিভারি মেকানিজম + থ্রেশহোল্ড)। পরের সেশনে ব্যবহারকারী সেই প্রশ্ন দুটোর
+উত্তর দেন এবং fee-due-reminder ফিচারটা বানানো হয় — কিন্তু কাজটা শেষ করে
+এই ফাইলে যখন এন্ট্রি লেখা হয়, তখন ভুলভাবে roadmap-এর পরবর্তী ক্রমিক
+নম্বর ("Phase 8D") বসিয়ে দেওয়া হয়, যদিও roadmap-এ Phase 8D ইতিমধ্যে
+সম্পূর্ণ আলাদা একটা কাজ (SMS সেবা সেটিংস পেজ) হিসেবে নির্দিষ্ট করাই ছিল।
+কারণ: **"Phase N" নাম্বারিং শুধুমাত্র BUSINESS_READINESS_ROADMAP.md-এ
+লেখা সাব-ফেজগুলোর জন্য সংরক্ষিত হওয়া উচিত ছিল — কোনো ad-hoc ফলো-আপ কাজের
+জন্য পরবর্তী ক্রমিক সংখ্যাটা "ধার করা" ঠিক হয়নি।**
+
+এড়ানোর উপায় (পরবর্তী এজেন্টদের জন্য নিয়ম): কোনো কাজ roadmap-এর কোনো
+Phase-এর নাম নেওয়ার আগে, `docs/BUSINESS_READINESS_ROADMAP.md`-এ ঠিক সেই
+Phase নম্বরের নিচে লেখা বিবরণের সাথে কাজটা মিলিয়ে দেখা বাধ্যতামূলক। না
+মিললে সেটা "Phase 8C follow-up" বা "ad-hoc" জাতীয় নাম দিতে হবে, কোনো
+Phase নম্বর বসানো যাবে না — এমনকি এটা roadmap-এর কোনো Phase-এর প্রশ্নের
+জবাব হলেও (এই ঘটনায় যেমন হয়েছিল)। নিচের এন্ট্রিটা এই নিয়ম অনুসরণ করতে
+রিটাইটেল করা হয়েছে।
+
+---
+
 ## Status: DONE
 
-## Task: BUSINESS_READINESS_ROADMAP Phase 8D — fee-due-reminder, manual/
+## Task: BUSINESS_READINESS_ROADMAP Phase 8C follow-up — fee-due-reminder, manual/
 on-demand variant (2026-08-06 সম্পন্ন)
 
 ### সিদ্ধান্ত (ব্যবহারকারী কনফার্ম করেছেন এই সেশনে)

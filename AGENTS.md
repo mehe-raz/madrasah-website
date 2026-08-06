@@ -209,8 +209,20 @@ part of an unrelated task.
   branching inside `smsSender.js`).
 - Guardian-facing plan-gated SMS: `sendGuardianSms()` in
   `server/src/lib/guardianSms.js` (checks the institution's `sms` plan
-  feature, then calls `sendSms()`) — use this, not `sendSms()` directly,
-  for any new guardian-facing SMS trigger (fee reminders, notices, ...).
+  feature, then — if you pass `notificationType` — the admin's per-type
+  toggle from the SMS settings page, then calls `sendSms()`) — use this,
+  not `sendSms()` directly, for any new guardian-facing SMS trigger (fee
+  reminders, notices, ...). Pass `notificationType` matching one of
+  `server/src/routes/sms.js`'s `NOTIFICATION_TYPES` if the new trigger
+  should be individually toggleable from that settings page.
+- Running a query against exactly one tenant's schema (not all of them):
+  `withTenantSchema(schemaName, fn)` in `server/src/migrateTenants.js` —
+  hands `fn` a live pg client with `search_path` already set, so `fn` can
+  run its own parameterized queries (unlike `migrateOneTenant`, which only
+  takes a raw SQL string with no bind-parameter support). Only ever call
+  this from `routes/platform.js` (the one file allowed to cross the
+  registry/tenant-schema boundary) — see that file's `/sms-topups/*`
+  routes for the pattern.
 
 ## Single source of truth
 
