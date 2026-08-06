@@ -542,3 +542,15 @@ export interface SmsWallet {
   /** Empty string if the platform operator hasn't set SMS_TOPUP_BKASH_NUMBER yet. */
   topupBkashNumber: string;
 }
+
+// bKash self-connect settings — server/src/routes/paymentGateway.js
+// (BUSINESS_READINESS_ROADMAP.md Phase 8E). Credentials themselves never
+// come back from the server after being saved — only connection status.
+export interface PaymentGatewayStatus {
+  connected: boolean;
+  provider: "bkash";
+  lastCheckedAt: string | null;
+  lastError: string | null;
+  /** false if the server has no GATEWAY_CREDENTIAL_KEY set — connect attempts will fail with a clear message. */
+  configured: boolean;
+}

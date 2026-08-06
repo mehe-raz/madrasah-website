@@ -27,6 +27,9 @@ const Dashboard = lazy(() => import("./modules/Dashboard").then((m) => ({ defaul
 const Expenses = lazy(() => import("./modules/Expenses").then((m) => ({ default: m.Expenses })));
 const HifzTracking = lazy(() => import("./modules/HifzTracking").then((m) => ({ default: m.HifzTracking })));
 const Income = lazy(() => import("./modules/Income").then((m) => ({ default: m.Income })));
+const PaymentGatewaySettings = lazy(() =>
+  import("./modules/PaymentGatewaySettings").then((m) => ({ default: m.PaymentGatewaySettings }))
+);
 const Reports = lazy(() => import("./modules/Reports").then((m) => ({ default: m.Reports })));
 const Results = lazy(() => import("./modules/Results").then((m) => ({ default: m.Results })));
 const Settings = lazy(() => import("./modules/Settings").then((m) => ({ default: m.Settings })));
@@ -155,6 +158,14 @@ export default function App() {
                   element={
                     <PlanFeatureGate feature="sms">
                       <SmsSettings />
+                    </PlanFeatureGate>
+                  }
+                />
+                <Route
+                  path="payment-gateway"
+                  element={
+                    <PlanFeatureGate feature="bkash">
+                      <PaymentGatewaySettings />
                     </PlanFeatureGate>
                   }
                 />

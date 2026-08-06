@@ -29,6 +29,7 @@ import type {
   ResultSubjectMark,
   Settings,
   SiteContent,
+  PaymentGatewayStatus,
   SmsNotificationPrefs,
   SmsWallet,
   Student,
@@ -818,6 +819,23 @@ export const api = {
 
   requestSmsTopup: (body: { amountTaka: number; trxId: string }) =>
     request<{ id: number }>("/sms/topup-request", { method: "POST", body: JSON.stringify(body) }),
+
+  // -------------------------------------------------------------------------
+  // bKash self-connect settings (BUSINESS_READINESS_ROADMAP.md Phase 8E) —
+  // server/src/routes/paymentGateway.js. requirePlanFeature("bkash")-gated
+  // on the server; PlanFeatureGate feature="bkash" wraps the /payment-
+  // gateway route on the client (App.tsx).
+  // -------------------------------------------------------------------------
+  getPaymentGatewayStatus: () => request<PaymentGatewayStatus>("/payment-gateway/status"),
+
+  connectPaymentGateway: (body: { appKey: string; appSecret: string; username: string; password: string }) =>
+    request<{ connected: boolean; provider?: string; lastCheckedAt?: string; error?: string }>("/payment-gateway/connect", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  disconnectPaymentGateway: () =>
+    request<{ connected: boolean }>("/payment-gateway/disconnect", { method: "POST" }),
 
   // -------------------------------------------------------------------------
   // Guardian Portal (Step 5) — separate session/cookie from the staff `api.*`

@@ -96,12 +96,15 @@ const PLAN_FEATURES = {
     // "Coming Soon" — flip to true one at a time as each module ships.
     // sms flipped 2026-08-06 (Phase 8D): the settings page, wallet ledger,
     // and manual top-up flow are now real (routes/sms.js, routes/platform.js).
+    // bkash flipped 2026-08-06 (Phase 8E): institution self-connect of its
+    // own bKash agent/merchant account is now real (routes/paymentGateway.js).
+    // Guardian-facing payment collection itself is still Phase 8F, not this.
     payroll: false,
     library: false,
     idCards: false,
     hostel: false,
     sms: true,
-    bkash: false,
+    bkash: true,
   },
 };
 
@@ -127,7 +130,7 @@ const FEATURE_META = {
   idCards: { label: "আইডি কার্ড", comingSoon: true },
   hostel: { label: "হোস্টেল ম্যানেজমেন্ট", comingSoon: true },
   sms: { label: "এসএমএস নোটিফিকেশন", comingSoon: false },
-  bkash: { label: "বিকাশ/নগদ পেমেন্ট", comingSoon: true },
+  bkash: { label: "বিকাশ/নগদ পেমেন্ট", comingSoon: false },
 };
 
 // The two billing models the user wants supported (actual prices decided

@@ -57,6 +57,7 @@ export const ROUTE_PERMISSION = {
   "/api/reports": "reports",
   "/api/audit-logs": "settings",
   "/api/sms": "settings",
+  "/api/payment-gateway": "settings",
   "/api/site-content": [
     "website",
     "websiteGallery",

@@ -33,6 +33,7 @@ const EXPECTED_ALLOWED = {
   "/api/class-options": ["Super Admin", "Admin", "Hostel Manager"],
   "/api/guardian-approvals": ["Super Admin", "Admin"],
   "/api/sms": ["Admin", "Super Admin"], //
+  "/api/payment-gateway": ["Admin", "Super Admin"], // Phase 8E — bKash self-connect, same tier as /api/sms
 };
 
 describe("ROUTE_PERMISSION table sanity", () => {

@@ -15,6 +15,71 @@ the next sequential number.
 
 ## Status: DONE (mostly — one manual step listed below)
 
+## Task: BUSINESS_READINESS_ROADMAP Phase 8E — bKash self-connect (bKash
+only; Nagad deferred, per the roadmap's own note under this heading)
+(2026-08-06 সম্পন্ন)
+
+### সম্পন্ন
+- `server/sql/supabase_schema.sql` (protected path) — নতুন
+  `institution_payment_gateways` টেবিল: `provider`, ৪টা এনক্রিপ্টেড
+  ক্রেডেনশিয়াল কলাম (`appKeyEnc`/`appSecretEnc`/`usernameEnc`/
+  `passwordEnc`, প্লেইনটেক্সট না), `connected`, `lastCheckedAt`,
+  `lastError`, `updatedAt`। `sms_wallets`-এর মতোই tenant-schema-প্রতি এক
+  রো, কোনো `institutionId` কলাম লাগে না।
+- `server/src/lib/gatewayCredentialCrypto.js` (নতুন) — `backupEncryption.js`
+  এর AES-256-GCM প্যাটার্ন, কিন্তু ফাইলের বদলে ছোট স্ট্রিং-এর জন্য, আলাদা
+  `GATEWAY_CREDENTIAL_KEY` env var দিয়ে (ব্যাকআপ কী লিক হলেও এই
+  ক্রেডেনশিয়াল সুরক্ষিত থাকে)।
+- `server/src/lib/bkashGateway.js` (নতুন) — bKash-এর grant-token
+  এন্ডপয়েন্টে কল করে credential ভ্যালিডেট করে (কখনো throw করে না ordinary
+  rejection-এ, `smsProviders/bulksmsbd.js`-এর প্যাটার্নে)। `BKASH_BASE_URL`
+  ডিফল্ট bKash-এর পাবলিক sandbox (`tokenized.sandbox.bka.sh`)।
+- `server/src/routes/paymentGateway.js` (নতুন, tenant-side,
+  `requirePermission("settings")` + `requirePlanFeature("bkash")`):
+  `GET /status` (connected/provider/lastCheckedAt/lastError/configured,
+  কখনো ডিক্রিপ্টেড secret ফেরত দেয় না), `POST /connect` (validate → সফল
+  হলে এনক্রিপ্ট করে সেভ, ব্যর্থ হলে জমা দেওয়া ক্রেডেনশিয়াল সেভ হয় না),
+  `POST /disconnect` (কানেকশন ক্লিয়ার করে, এনক্রিপ্টেড কলামগুলো NULL করে)।
+- `server/src/config/roles.js` — `"/api/payment-gateway": "settings"`।
+- `server/src/index.js` — `app.use("/api/payment-gateway", ...)`।
+- `server/src/config/planFeatures.js` — `premium.bkash: true` (আগে
+  `false`/`comingSoon: true` ছিল), `FEATURE_META.bkash.comingSoon: false`।
+  Guardian-facing পেমেন্ট কালেকশন (Phase 8F) এখনো বাকি — এটা শুধু
+  institution-এর নিজের অ্যাকাউন্ট কানেক্ট করার অংশ।
+- `.env.example` — `GATEWAY_CREDENTIAL_KEY` (আবশ্যক, না থাকলে
+  `/connect` একটা পরিষ্কার 503 দেয়) ও `BKASH_BASE_URL` (ঐচ্ছিক,
+  sandbox ডিফল্ট) ডকুমেন্টেড।
+- Client: `client/src/types/index.ts` (`PaymentGatewayStatus`),
+  `client/src/lib/api.ts` (`getPaymentGatewayStatus`/
+  `connectPaymentGateway`/`disconnectPaymentGateway`), নতুন
+  `client/src/modules/PaymentGatewaySettings.tsx` (স্ট্যাটাস কার্ড +
+  কানেক্ট ফর্ম + ডিসকানেক্ট বাটন, শুধু `components/ui/` + `.ds-*`/বিদ্যমান
+  ক্লাস ব্যবহার করে, নতুন `style={{}}` নেই), `App.tsx` (lazy route,
+  `PlanFeatureGate feature="bkash"`), `Sidebar.tsx` (sms-block-এর
+  প্যাটার্নে নতুন nav আইটেম, NAV_IDS-এর বাইরে), `i18n/bn.ts` + `i18n/en.ts`
+  (`nav.paymentGateway` + পুরো `gateway` ব্লক, স্ক্রিপ্ট দিয়ে key parity
+  যাচাই করা হয়েছে)।
+- সবগুলো পরিবর্তিত/নতুন `.js` ফাইল `node --check` পাস করেছে। TypeScript
+  (`npm run check`) এই sandbox-এ `node_modules`/নেটওয়ার্ক না থাকায় চালানো
+  যায়নি — bracket-balance script দিয়ে সব `.ts`/`.tsx` ফাইলে ম্যানুয়াল
+  sanity-check করা হয়েছে। **Run `npm run check` as part of this
+  delivery's CMD before trusting it** — packaged CMD-এ এটাই প্রথম রিয়েল
+  চেক।
+
+### বাকি (কোনো কোড বাকি নেই, শুধু ব্যবহারকারীর ম্যানুয়াল ধাপ)
+- `GATEWAY_CREDENTIAL_KEY` env var এখনো সেট করা হয়নি — সেট না করলে
+  "কানেক্ট করুন" বাটনে একটা পরিষ্কার এরর মেসেজ দেখাবে, ভাঙবে না। জেনারেট
+  করার কমান্ড `.env.example`-এ আছে।
+- 8E–8G roadmap নোট অনুযায়ী, sandbox দিয়ে আসল টেস্ট (bKash sandbox
+  credential দিয়ে কানেক্ট করে দেখা) এখনো বাকি — কোড রেডি, শুধু sandbox
+  অ্যাকাউন্ট রেজিস্টার করে ট্রাই করা দরকার (roadmap 8G)।
+- Nagad self-connect ইচ্ছাকৃতভাবে এই সাব-ফেজে করা হয়নি — roadmap নিজেই এটা
+  "bKash সফল হওয়ার পর আলাদা সাব-ফেজ" হিসেবে চিহ্নিত করেছে।
+
+---
+
+## Status: DONE (mostly — one manual step listed below)
+
 ## Task: BUSINESS_READINESS_ROADMAP Phase 8D — "SMS সেবা" settings page,
 the ACTUAL Phase 8D (2026-08-06 সম্পন্ন)
 

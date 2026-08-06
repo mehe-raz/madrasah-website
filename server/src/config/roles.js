@@ -45,6 +45,10 @@ const ROUTE_PERMISSION = {
   // toggle, manual top-up requests. Same tier as /api/backup above; the
   // route itself additionally gates on the "sms" plan feature.
   "/api/sms": "settings",
+  // bKash self-connect settings (Phase 8E) — institution submits its own
+  // agent/merchant credentials. Same tier as /api/sms above; the route
+  // itself additionally gates on the "bkash" plan feature.
+  "/api/payment-gateway": "settings",
   // Array = "any one of these is enough to reach the route" — site-content
   // bundles hero/about/admission/gallery/notices into one JSON blob (see
   // lib/siteContent.js), so someone with only "websiteGallery" or

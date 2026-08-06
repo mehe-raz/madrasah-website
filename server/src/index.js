@@ -433,6 +433,7 @@ app.use("/api/site-content", require("./routes/siteContent"));
 app.use("/api/admissions", require("./routes/admissions"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/sms", require("./routes/sms"));
+app.use("/api/payment-gateway", require("./routes/paymentGateway"));
 
 // Reports any error thrown/passed to next() by the routes above to Sentry
 // (no-op when SENTRY_DSN is unset, same as Sentry.init above) — must be

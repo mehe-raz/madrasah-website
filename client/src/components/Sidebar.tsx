@@ -141,6 +141,40 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             )}
           </NavLink>
         )}
+        {/* "বিকাশ পেমেন্ট গেটওয়ে" (Phase 8E) — same reasoning as the SMS
+            block above: reuses "settings" permission, own label/lock via
+            the "bkash" plan feature, kept outside NAV_IDS. */}
+        {canAccess(role, "settings") && (
+          <NavLink
+            to="/payment-gateway"
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              `pill nav-chip ${isActive ? "active" : ""} ${isLocked("bkash") ? "nav-item--locked" : ""}`
+            }
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.paymentGateway : undefined}
+          >
+            <span style={{ fontSize: 18, flexShrink: 0 }}>💳</span>
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.paymentGateway}</span>}
+            {open && isLocked("bkash") && (
+              <span className="nav-item__lock-badge" aria-hidden="true">
+                🔒
+              </span>
+            )}
+          </NavLink>
+        )}
         {canViewAuditLogs(role) && (
           <NavLink
             to="/audit-logs"
