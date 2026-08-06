@@ -29,6 +29,7 @@ import type {
   ResultSubjectMark,
   Settings,
   SiteContent,
+  BkashCheckoutStart,
   PaymentGatewayStatus,
   SmsNotificationPrefs,
   SmsWallet,
@@ -837,6 +838,21 @@ export const api = {
   disconnectPaymentGateway: () =>
     request<{ connected: boolean }>("/payment-gateway/disconnect", { method: "POST" }),
 
+  // Phase 8F — SMS wallet top-up via the connected bKash gateway (see
+  // routes/sms.js). Admin-initiated, same create→execute shape as the
+  // guardian fee-payment flow below.
+  createSmsTopupViaGateway: (amountTaka: number) =>
+    request<BkashCheckoutStart>("/sms/topup-via-gateway/create", {
+      method: "POST",
+      body: JSON.stringify({ amountTaka }),
+    }),
+
+  executeSmsTopupViaGateway: (paymentID: string) =>
+    request<{ ok: boolean; amountTaka?: number; alreadyCompleted?: boolean; error?: string }>(
+      "/sms/topup-via-gateway/execute",
+      { method: "POST", body: JSON.stringify({ paymentID }) }
+    ),
+
   // -------------------------------------------------------------------------
   // Guardian Portal (Step 5) — separate session/cookie from the staff `api.*`
   // calls above (see /api/guardian-auth on the server, GuardianAuthContext on
@@ -889,5 +905,22 @@ export const api = {
     getFeedUnreadCount: () => request<{ count: number }>("/guardian-auth/feed/unread-count"),
 
     markFeedRead: (postId: number) => request<{ ok: boolean }>(`/guardian-auth/feed/${postId}/read`, { method: "POST" }),
+
+    // Phase 8F — fee payment via the institution's own connected bKash
+    // gateway (routes/guardianAuth.js's /students/:id/bkash/create + POST
+    // /bkash/execute). Two-step: create() gets a checkout URL to redirect
+    // to; execute() is called once bKash redirects back with a paymentID,
+    // and is what actually finalizes the payment.
+    createBkashPayment: (studentId: number, amount: number) =>
+      request<BkashCheckoutStart>(`/guardian-auth/students/${studentId}/bkash/create`, {
+        method: "POST",
+        body: JSON.stringify({ amount }),
+      }),
+
+    executeBkashPayment: (paymentID: string) =>
+      request<{ ok: boolean; receipt?: string; newDue?: number; alreadyCompleted?: boolean; error?: string }>(
+        "/guardian-auth/bkash/execute",
+        { method: "POST", body: JSON.stringify({ paymentID }) }
+      ),
   },
 };

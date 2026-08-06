@@ -470,6 +470,8 @@ export interface GuardianChild {
   section?: string;
   dept: string;
   studentPhoto?: string;
+  fee: number;
+  due: number;
 }
 
 export interface GuardianDashboardChild extends GuardianChild {
@@ -532,6 +534,7 @@ export interface SmsTransaction {
 export interface SmsNotificationPrefs {
   feeDueReminder: boolean;
   resultPublished: boolean;
+  paymentReceived: boolean;
 }
 
 export interface SmsWallet {
@@ -553,4 +556,12 @@ export interface PaymentGatewayStatus {
   lastError: string | null;
   /** false if the server has no GATEWAY_CREDENTIAL_KEY set — connect attempts will fail with a clear message. */
   configured: boolean;
+}
+
+// bKash create→execute checkout (Phase 8F) — shared shape for both the
+// guardian fee-payment flow (routes/guardianAuth.js) and the admin SMS
+// wallet gateway top-up (routes/sms.js's /topup-via-gateway/*).
+export interface BkashCheckoutStart {
+  bkashURL: string;
+  paymentID: string;
 }

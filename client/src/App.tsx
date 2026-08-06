@@ -45,6 +45,10 @@ const GuardianDashboard = lazy(() => import("./pages/guardian/GuardianDashboard"
 const GuardianAttendance = lazy(() => import("./pages/guardian/GuardianAttendance").then((m) => ({ default: m.GuardianAttendance })));
 const GuardianResults = lazy(() => import("./pages/guardian/GuardianResults").then((m) => ({ default: m.GuardianResults })));
 const GuardianFeed = lazy(() => import("./pages/guardian/GuardianFeed").then((m) => ({ default: m.GuardianFeed })));
+const GuardianPayFee = lazy(() => import("./pages/guardian/GuardianPayFee").then((m) => ({ default: m.GuardianPayFee })));
+const GuardianPayCallback = lazy(() =>
+  import("./pages/guardian/GuardianPayCallback").then((m) => ({ default: m.GuardianPayCallback }))
+);
 
 function PageFallback() {
   // Intentionally not a spinner: in-app navigation should feel like the page
@@ -94,6 +98,8 @@ export default function App() {
                         <Route path="attendance" element={<GuardianAttendance />} />
                         <Route path="results" element={<GuardianResults />} />
                         <Route path="feed" element={<GuardianFeed />} />
+                        <Route path="pay/callback" element={<GuardianPayCallback />} />
+                        <Route path="pay/:studentId" element={<GuardianPayFee />} />
                         <Route path="*" element={<Navigate to="/guardian" replace />} />
                       </Route>
                     </Route>

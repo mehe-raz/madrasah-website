@@ -32,10 +32,12 @@ async function assertGuardianOwnsStudent(guardianId, studentId) {
 
 // Only the fields a guardian needs to identify/switch between their
 // children — same narrow-columns reasoning as routes/results.js's
-// GET /students (no phone/address/document fields).
+// GET /students (no phone/address/document fields). fee/due were added in
+// Phase 8F so the guardian dashboard can show what's owed and offer a
+// "Pay" button without a second round-trip per child.
 async function activeChildrenForGuardian(guardianId) {
   return db.all(
-    `SELECT s.id, s.name, s.roll, s.class, s.section, s.dept, s."studentPhoto"
+    `SELECT s.id, s.name, s.roll, s.class, s.section, s.dept, s."studentPhoto", s.fee, s.due
      FROM guardian_students gs
      JOIN students s ON s.id = gs."studentId"
      WHERE gs."guardianId" = $1 AND gs.status = 'active'

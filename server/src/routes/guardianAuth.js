@@ -28,10 +28,18 @@ const { recordAudit } = require("../lib/auditLog");
 const { feedForGuardian, markPostRead, unreadCountForGuardian } = require("../lib/classPosts");
 const {
   activeChildrenForGuardian,
+  assertGuardianOwnsStudent,
   attendanceHistoryForStudent,
   publishedResultsForStudent,
   todayAttendanceForStudent,
 } = require("../lib/guardianData");
+const { requirePlanFeature } = require("../middleware/planGate");
+const bkashGateway = require("../lib/bkashGateway");
+const { getConnectedGateway } = require("../lib/paymentGatewayCredentials");
+const { nextReceipt } = require("../lib/receiptCounter");
+const { computePaymentOutcome } = require("../lib/paymentLogic");
+const { sendGuardianSms } = require("../lib/guardianSms");
+const { createNotification } = require("../lib/notifications");
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -438,6 +446,167 @@ router.get("/students/:id/results", async (req, res) => {
     const guardianId = await requireActiveGuardianId(req);
     const studentId = Number(req.params.id);
     res.json(await publishedResultsForStudent(guardianId, studentId));
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Phase 8F: guardian-facing bKash fee payment, using the institution's own
+// connected gateway (Phase 8E's institution_payment_gateways). Two-step
+// create→execute, matching how bKash's checkout actually works: 1) we ask
+// bKash for a paymentID + checkout URL and hand the URL to the guardian's
+// browser, 2) bKash redirects the browser back to our frontend once the
+// guardian completes the OTP/PIN step on bKash's own page, 3) the frontend
+// calls /bkash/execute with that paymentID and THIS is what actually
+// confirms/finalizes the payment — never the redirect's query string alone
+// (see the schema comment on bkash_payment_intents for why).
+// ---------------------------------------------------------------------------
+
+function guardianCallbackUrl(req) {
+  const origin = req.get("origin") || req.get("referer") || process.env.CLIENT_ORIGIN || "";
+  const base = origin.replace(/\/+$/, "").replace(/\/guardian.*$/, "");
+  return `${base}/guardian/pay/callback`;
+}
+
+router.post("/students/:id/bkash/create", requirePlanFeature("bkash"), async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    const studentId = Number(req.params.id);
+    await assertGuardianOwnsStudent(guardianId, studentId);
+
+    const student = await db.get("SELECT id, name, roll, due FROM students WHERE id = $1", [studentId]);
+    if (!student) return res.status(404).json({ error: "Student not found" });
+
+    const amount = Number(req.body?.amount);
+    if (!amount || amount <= 0) return res.status(400).json({ error: "সঠিক পরিমাণ দিন" });
+    if (amount > Number(student.due || 0)) {
+      return res.status(400).json({ error: "বকেয়ার চেয়ে বেশি পরিমাণ দেওয়া যাবে না" });
+    }
+
+    const gateway = await getConnectedGateway();
+    if (!gateway) return res.status(503).json({ error: "প্রতিষ্ঠানের বিকাশ গেটওয়ে কানেক্টেড নেই" });
+
+    const now = new Date().toISOString();
+    const intent = await db.get(
+      `INSERT INTO bkash_payment_intents (purpose, "guardianId", "studentId", amount, status, "createdAt")
+       VALUES ('fee', $1, $2, $3, 'initiated', $4) RETURNING id`,
+      [guardianId, studentId, amount, now]
+    );
+
+    const grant = await bkashGateway.grantToken(gateway);
+    if (!grant.ok) return res.status(502).json({ error: grant.error });
+
+    const created = await bkashGateway.createPayment({
+      idToken: grant.idToken,
+      appKey: gateway.appKey,
+      amount,
+      invoiceId: intent.id,
+      callbackURL: guardianCallbackUrl(req),
+    });
+    if (!created.ok) return res.status(502).json({ error: created.error });
+
+    await db.run('UPDATE bkash_payment_intents SET "paymentId" = $1 WHERE id = $2', [created.paymentID, intent.id]);
+    res.json({ bkashURL: created.bkashURL, paymentID: created.paymentID });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+router.post("/bkash/execute", async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    const paymentID = String(req.body?.paymentID || "");
+    if (!paymentID) return res.status(400).json({ error: "paymentID প্রয়োজন" });
+
+    const intent = await db.get(
+      `SELECT * FROM bkash_payment_intents WHERE "paymentId" = $1 AND "guardianId" = $2 AND purpose = 'fee'`,
+      [paymentID, guardianId]
+    );
+    if (!intent) return res.status(404).json({ error: "পেমেন্ট পাওয়া যায়নি" });
+
+    // Already finalized (guardian's browser can legitimately hit this
+    // twice — e.g. a refresh on the callback page) — return the same
+    // success without calling bKash or crediting anything a second time.
+    if (intent.status === "completed") return res.json({ ok: true, alreadyCompleted: true });
+
+    const gateway = await getConnectedGateway();
+    if (!gateway) return res.status(503).json({ error: "প্রতিষ্ঠানের বিকাশ গেটওয়ে কানেক্টেড নেই" });
+
+    const grant = await bkashGateway.grantToken(gateway);
+    if (!grant.ok) return res.status(502).json({ error: grant.error });
+
+    const executed = await bkashGateway.executePayment({ idToken: grant.idToken, appKey: gateway.appKey, paymentID });
+    if (!executed.ok) {
+      await db.run(`UPDATE bkash_payment_intents SET status = 'failed' WHERE id = $1`, [intent.id]);
+      return res.status(402).json({ ok: false, error: executed.error });
+    }
+
+    const student = await db.get("SELECT id, name, roll, due, phone FROM students WHERE id = $1", [intent.studentId]);
+    const currentDue = Number(student?.due || 0);
+    const { isConflict, newDue, status } = computePaymentOutcome(currentDue, Number(intent.amount));
+    const date = new Date().toISOString().slice(0, 10);
+
+    const { insertId, receipt } = await db.withTransaction(async (tx) => {
+      const receipt = await nextReceipt(tx, { table: "payments", key: "payment_receipt", prefix: `RCP-${new Date().getFullYear()}-`, pad: 3 });
+      const result = await tx.run(
+        `INSERT INTO payments ("studentId", student, roll, amount, date, receipt, method, status, "flagReason")
+         VALUES ($1, $2, $3, $4, $5, $6, 'bKash', $7, $8) RETURNING id`,
+        [
+          intent.studentId,
+          student?.name || "",
+          student?.roll || "",
+          intent.amount,
+          date,
+          receipt,
+          status,
+          isConflict ? `এই ছাত্রের বকেয়া ইতিমধ্যে ০, কিন্তু গার্ডিয়ান পোর্টাল থেকে বিকাশে ৳${intent.amount} পেমেন্ট এসেছে।` : null,
+        ]
+      );
+      if (!isConflict) {
+        await tx.run(
+          `INSERT INTO income (category, amount, date, note, method, receipt, "studentId", status)
+           VALUES ('Student Fee', $1, $2, $3, 'bKash', $4, $5, 'Completed')`,
+          [intent.amount, date, `Fee from ${student?.name || ""} (Guardian Portal — bKash)`, receipt, intent.studentId]
+        );
+        await tx.run("UPDATE students SET due = $1 WHERE id = $2", [newDue, intent.studentId]);
+      }
+      await tx.run(
+        `UPDATE bkash_payment_intents SET status = 'completed', "bkashTrxId" = $1, "completedAt" = $2 WHERE id = $3`,
+        [executed.trxID, new Date().toISOString(), intent.id]
+      );
+      return { insertId: result.insertId, receipt };
+    });
+
+    await recordAudit({
+      action: isConflict ? "payment.flagged" : "payment.created",
+      actor: null,
+      entityType: "payment",
+      entityId: insertId,
+      label: isConflict
+        ? `Flagged bKash payment ৳${intent.amount} from guardian portal — due already 0`
+        : `bKash payment ৳${intent.amount} from ${student?.name || ""} via Guardian Portal`,
+      details: { studentId: intent.studentId, amount: intent.amount, receipt, trxID: executed.trxID },
+    });
+
+    if (isConflict) {
+      await createNotification({
+        type: "payment-flagged",
+        title: "একটি পেমেন্ট পর্যালোচনা প্রয়োজন",
+        body: `${student?.name || ""} — ৳${intent.amount} (বিকাশ, গার্ডিয়ান পোর্টাল), বকেয়া ইতিমধ্যে শূন্য ছিল`,
+        entityType: "payment",
+        entityId: insertId,
+      });
+    } else if (student?.phone) {
+      await sendGuardianSms({
+        to: student.phone,
+        message: `${student.name} এর ৳${intent.amount} বেতন বিকাশের মাধ্যমে সফলভাবে গৃহীত হয়েছে। রশিদ: ${receipt}`,
+        reference: `bkash-payment-receipt:${insertId}`,
+        notificationType: "paymentReceived",
+      });
+    }
+
+    res.json({ ok: true, receipt, newDue: isConflict ? currentDue : newDue });
   } catch (err) {
     res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
   }

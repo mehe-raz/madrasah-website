@@ -20,6 +20,8 @@ const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { requirePlanFeature } = require("../middleware/planGate");
 const { recordAudit } = require("../lib/auditLog");
+const bkashGateway = require("../lib/bkashGateway");
+const { getConnectedGateway } = require("../lib/paymentGatewayCredentials");
 
 const router = express.Router();
 router.use(requirePermission("settings"));
@@ -31,7 +33,7 @@ const PREFS_KEY = "smsNotificationPrefs";
 // this list here (not just inferred from whatever keys happen to exist in
 // the stored JSON) means the settings page always shows every togglable
 // type, even before the admin has saved any preferences at all.
-const NOTIFICATION_TYPES = ["feeDueReminder", "resultPublished"];
+const NOTIFICATION_TYPES = ["feeDueReminder", "resultPublished", "paymentReceived"];
 
 async function getPrefs() {
   const row = await db.get("SELECT value FROM settings WHERE key = $1", [PREFS_KEY]);
@@ -117,6 +119,103 @@ router.post("/topup-request", async (req, res) => {
   });
 
   res.status(201).json(row);
+});
+
+// ---------------------------------------------------------------------------
+// Phase 8F: SMS wallet top-up via the institution's own connected bKash
+// gateway (Phase 8E) — an automatic alternative to the manual Trx-ID flow
+// above, once one is connected. Same create→execute→credit shape as the
+// guardian fee-payment flow in routes/guardianAuth.js, just admin-initiated
+// (requirePermission("settings"), already applied to this whole router)
+// and crediting sms_wallets instead of reducing a student's due.
+// ---------------------------------------------------------------------------
+
+function adminCallbackUrl(req) {
+  const origin = req.get("origin") || req.get("referer") || process.env.CLIENT_ORIGIN || "";
+  const base = origin.replace(/\/+$/, "").replace(/\/(sms|payment-gateway).*$/, "");
+  return `${base}/sms`;
+}
+
+router.post("/topup-via-gateway/create", async (req, res) => {
+  const amountTaka = Number(req.body?.amountTaka);
+  if (!(amountTaka > 0)) return res.status(400).json({ error: "amountTaka must be a positive number" });
+
+  const gateway = await getConnectedGateway();
+  if (!gateway) return res.status(503).json({ error: "প্রতিষ্ঠানের বিকাশ গেটওয়ে কানেক্টেড নেই" });
+
+  const now = new Date().toISOString();
+  const intent = await db.get(
+    `INSERT INTO bkash_payment_intents (purpose, amount, status, "createdAt")
+     VALUES ('sms-topup', $1, 'initiated', $2) RETURNING id`,
+    [amountTaka, now]
+  );
+
+  const grant = await bkashGateway.grantToken(gateway);
+  if (!grant.ok) return res.status(502).json({ error: grant.error });
+
+  const created = await bkashGateway.createPayment({
+    idToken: grant.idToken,
+    appKey: gateway.appKey,
+    amount: amountTaka,
+    invoiceId: intent.id,
+    callbackURL: adminCallbackUrl(req),
+  });
+  if (!created.ok) return res.status(502).json({ error: created.error });
+
+  await db.run('UPDATE bkash_payment_intents SET "paymentId" = $1 WHERE id = $2', [created.paymentID, intent.id]);
+  res.json({ bkashURL: created.bkashURL, paymentID: created.paymentID });
+});
+
+router.post("/topup-via-gateway/execute", async (req, res) => {
+  const paymentID = String(req.body?.paymentID || "");
+  if (!paymentID) return res.status(400).json({ error: "paymentID প্রয়োজন" });
+
+  const intent = await db.get(
+    `SELECT * FROM bkash_payment_intents WHERE "paymentId" = $1 AND purpose = 'sms-topup'`,
+    [paymentID]
+  );
+  if (!intent) return res.status(404).json({ error: "পেমেন্ট পাওয়া যায়নি" });
+  if (intent.status === "completed") return res.json({ ok: true, alreadyCompleted: true });
+
+  const gateway = await getConnectedGateway();
+  if (!gateway) return res.status(503).json({ error: "প্রতিষ্ঠানের বিকাশ গেটওয়ে কানেক্টেড নেই" });
+
+  const grant = await bkashGateway.grantToken(gateway);
+  if (!grant.ok) return res.status(502).json({ error: grant.error });
+
+  const executed = await bkashGateway.executePayment({ idToken: grant.idToken, appKey: gateway.appKey, paymentID });
+  if (!executed.ok) {
+    await db.run(`UPDATE bkash_payment_intents SET status = 'failed' WHERE id = $1`, [intent.id]);
+    return res.status(402).json({ ok: false, error: executed.error });
+  }
+
+  const now = new Date().toISOString();
+  await db.withTransaction(async (tx) => {
+    await tx.run(
+      `INSERT INTO sms_transactions (type, "amountTaka", "smsCount", reference, status, "createdAt")
+       VALUES ('topup', $1, NULL, $2, 'confirmed', $3)`,
+      [intent.amount, `bKash gateway: ${executed.trxID || paymentID}`, now]
+    );
+    await tx.run(
+      `UPDATE sms_wallets SET balance_taka = balance_taka + $1, "updatedAt" = $2`,
+      [intent.amount, now]
+    );
+    await tx.run(
+      `UPDATE bkash_payment_intents SET status = 'completed', "bkashTrxId" = $1, "completedAt" = $2 WHERE id = $3`,
+      [executed.trxID, now, intent.id]
+    );
+  });
+
+  await recordAudit({
+    action: "sms.topup-via-gateway",
+    actor: req.user,
+    entityType: "sms_transactions",
+    entityId: intent.id,
+    label: `৳${intent.amount} টাকা বিকাশ গেটওয়ে দিয়ে SMS ওয়ালেটে টপ-আপ হয়েছে`,
+    details: { amountTaka: intent.amount, trxID: executed.trxID },
+  });
+
+  res.json({ ok: true, amountTaka: intent.amount });
 });
 
 module.exports = router;

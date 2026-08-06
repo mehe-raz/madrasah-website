@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Badge } from "../components/Badge";
 import { SkeletonCardList } from "../components/Skeleton";
 import { Button, Card, Field, Input } from "../components/ui";
@@ -6,7 +7,7 @@ import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
-import type { SmsTransaction, SmsWallet } from "../types";
+import type { PaymentGatewayStatus, SmsTransaction, SmsWallet } from "../types";
 
 const STATUS_COLOR: Record<SmsTransaction["status"], string> = {
   pending: C.amber,
@@ -29,6 +30,33 @@ export function SmsSettings() {
 
   const [savingPrefs, setSavingPrefs] = useState(false);
 
+  // Phase 8F: if the institution's own bKash gateway (Phase 8E) is
+  // connected, offer an automatic top-up alongside the manual Trx-ID flow
+  // above. Loaded separately from the wallet — a gateway-status failure
+  // (e.g. not configured) should never block the wallet page itself.
+  const [gateway, setGateway] = useState<PaymentGatewayStatus | null>(null);
+  const [gatewayTopupAmount, setGatewayTopupAmount] = useState("");
+  const [gatewayTopupLoading, setGatewayTopupLoading] = useState(false);
+  const [gatewayTopupError, setGatewayTopupError] = useState("");
+
+  const startGatewayTopup = async () => {
+    const value = Number(gatewayTopupAmount);
+    if (!(value > 0)) {
+      setGatewayTopupError(t.sms.topupValidation);
+      return;
+    }
+    setGatewayTopupLoading(true);
+    setGatewayTopupError("");
+    try {
+      const { bkashURL, paymentID } = await api.createSmsTopupViaGateway(value);
+      sessionStorage.setItem("smsGatewayTopupPaymentId", paymentID);
+      window.location.href = bkashURL;
+    } catch (err) {
+      setGatewayTopupError(err instanceof Error ? err.message : t.sms.topupFailed);
+      setGatewayTopupLoading(false);
+    }
+  };
+
   const load = () => {
     setLoading(true);
     setError("");
@@ -37,6 +65,7 @@ export function SmsSettings() {
       .then(setWallet)
       .catch((err) => setError(err instanceof Error ? err.message : t.sms.loadFailed))
       .finally(() => setLoading(false));
+    api.getPaymentGatewayStatus().then(setGateway).catch(() => {});
   };
 
   useEffect(() => {
@@ -45,7 +74,32 @@ export function SmsSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const togglePref = async (key: "feeDueReminder" | "resultPublished", value: boolean) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Phase 8F: bKash redirects the admin's browser back to this same /sms
+  // page with ?paymentID=... after the gateway top-up checkout. Confirm it
+  // exactly once on load — never trust the query string's own status/
+  // amount, only the paymentID as a lookup key (see the schema comment on
+  // bkash_payment_intents and executePayment() in bkashGateway.js for why).
+  useEffect(() => {
+    const paymentID = searchParams.get("paymentID") || sessionStorage.getItem("smsGatewayTopupPaymentId");
+    if (!paymentID) return;
+    sessionStorage.removeItem("smsGatewayTopupPaymentId");
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("paymentID");
+      return next;
+    });
+    api
+      .executeSmsTopupViaGateway(paymentID)
+      .then((res) => {
+        if (!res.ok) setGatewayTopupError(res.error || t.sms.topupFailed);
+        load();
+      })
+      .catch((err) => setGatewayTopupError(err instanceof Error ? err.message : t.sms.topupFailed));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const togglePref = async (key: "feeDueReminder" | "resultPublished" | "paymentReceived", value: boolean) => {
     if (!wallet) return;
     const prevPrefs = wallet.notificationPrefs;
     setWallet({ ...wallet, notificationPrefs: { ...prevPrefs, [key]: value } });
@@ -135,7 +189,38 @@ export function SmsSettings() {
               />
               {t.sms.notifyResultPublished}
             </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={wallet.notificationPrefs.paymentReceived}
+                disabled={savingPrefs}
+                onChange={(e) => togglePref("paymentReceived", e.target.checked)}
+              />
+              {t.sms.notifyPaymentReceived}
+            </label>
           </Card>
+
+          {gateway?.connected && (
+            <Card>
+              <h3 className="page-header__title">{t.sms.gatewayTopupTitle}</h3>
+              <p className="page-subtitle">{t.sms.gatewayTopupSubtitle}</p>
+              {gatewayTopupError && <div className="alert alert--rose">{gatewayTopupError}</div>}
+              <div className="form-grid">
+                <Field label={t.sms.amountLabel}>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={gatewayTopupAmount}
+                    onChange={(e) => setGatewayTopupAmount(e.target.value)}
+                    placeholder={t.sms.amountPlaceholder}
+                  />
+                </Field>
+              </div>
+              <Button variant="emerald" solid onClick={startGatewayTopup} disabled={gatewayTopupLoading}>
+                {gatewayTopupLoading ? t.sms.submitting : t.sms.gatewayTopupButton}
+              </Button>
+            </Card>
+          )}
 
           <Card>
             <h3 className="page-header__title">{t.sms.topupTitle}</h3>

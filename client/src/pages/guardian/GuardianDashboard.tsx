@@ -107,6 +107,15 @@ export function GuardianDashboard() {
                 <span className={`guardian-status-badge ${statusBadgeClass(c.todayAttendance)}`}>
                   {c.todayAttendance || "এখনো নেওয়া হয়নি"}
                 </span>
+                {c.due > 0 && (
+                  <>
+                    <div className="guardian-child-status__label guardian-mt-md">বকেয়া বেতন</div>
+                    <span className="guardian-status-badge guardian-status-badge--absent">৳{c.due}</span>
+                    <Button variant="sky" solid onClick={() => navigate(`/guardian/pay/${c.id}`)}>
+                      বিকাশে পরিশোধ করুন
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           ))}

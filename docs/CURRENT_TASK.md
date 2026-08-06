@@ -15,6 +15,83 @@ the next sequential number.
 
 ## Status: DONE (mostly — one manual step listed below)
 
+## Task: BUSINESS_READINESS_ROADMAP Phase 8F — guardian bKash fee payment
++ SMS wallet gateway auto-topup (2026-08-06 সম্পন্ন)
+
+### সম্পন্ন
+- `server/sql/supabase_schema.sql` (protected path) — নতুন
+  `bkash_payment_intents` টেবিল: প্রতিটা bKash checkout attempt-এর
+  create→execute lifecycle ট্র্যাক করে (`paymentId`, `purpose`
+  `'fee'`/`'sms-topup'`, `guardianId`/`studentId` (fee-only), `amount`,
+  `status`, `bkashTrxId`)। `paymentId`-এ unique index, যাতে একই
+  paymentID দুইবার finalize/double-credit না হয়।
+- `server/src/lib/bkashGateway.js` — `validateCredentials`কে
+  `grantToken`-এ রিফ্যাক্টর করে (আগের নাম alias হিসেবে রাখা হয়েছে,
+  routes/paymentGateway.js অপরিবর্তিত), নতুন `createPayment()` ও
+  `executePayment()` bKash API wrapper যোগ।
+- `server/src/lib/paymentGatewayCredentials.js` (নতুন) — কানেক্টেড
+  গেটওয়ের এনক্রিপ্টেড ক্রেডেনশিয়াল ডিক্রিপ্ট করে ফেরত দেয়, শুধু একটা
+  actual পেমেন্ট কলের ঠিক আগে ব্যবহারের জন্য (routes/paymentGateway.js
+  কখনো নিজে ডিক্রিপ্ট করে না, শুধু স্টোর করে)।
+- `server/src/lib/guardianData.js` — `activeChildrenForGuardian()`
+  এখন `fee`/`due`ও ফেরত দেয়, যাতে গার্ডিয়ান ড্যাশবোর্ডে বকেয়া দেখানো
+  ও "পরিশোধ করুন" বাটন দেখাতে আলাদা API কল না লাগে।
+- `server/src/routes/guardianAuth.js` — নতুন `POST
+  /students/:id/bkash/create` (ownership check, amount ≤ due validate,
+  bKash checkout শুরু করে bkashURL ফেরত দেয়) ও `POST /bkash/execute`
+  (paymentID দিয়ে intent লুকআপ, bKash-কে execute কল করে *শুধু সেই
+  রেসপন্স* বিশ্বাস করে — redirect-এর query string না, কারণ সেটা signed
+  না — সফল হলে `payments`+`income` ইনসার্ট, due কমানো,
+  guardianSms দিয়ে রশিদ SMS, ব্যর্থ হলে বা due আগেই ০ থাকলে staff-side
+  payments.js-এর মতোই `Flagged` করে admin notification)। ইতিমধ্যে
+  `completed` intent-এ দ্বিতীয়বার execute কল করলে re-credit হয় না
+  (idempotent)।
+- `server/src/routes/sms.js` — নতুন `POST /topup-via-gateway/create` +
+  `/execute` (admin-side, "settings" পারমিশন — router-এ আগে থেকেই
+  আছে): একই কানেক্টেড গেটওয়ে দিয়ে SMS ওয়ালেট টপ-আপ, 8D-এর ম্যানুয়াল
+  Trx-ID ফ্লো এখন এটার পাশাপাশি (প্রতিস্থাপন না) থাকবে। নতুন
+  `NOTIFICATION_TYPES` এন্ট্রি `paymentReceived` (বিকাশে পেমেন্ট
+  পাওয়া গেলে guardianSms পাঠানো হয় কিনা টগল করার জন্য)।
+- Client: `types/index.ts` (`fee`/`due` on `GuardianChild`,
+  `BkashCheckoutStart`), `lib/api.ts` (`guardian.createBkashPayment`/
+  `executeBkashPayment`, `createSmsTopupViaGateway`/
+  `executeSmsTopupViaGateway`), নতুন
+  `pages/guardian/GuardianPayFee.tsx` (amount ফর্ম → bKash checkout
+  redirect, sessionStorage-এ paymentID রাখে) ও
+  `pages/guardian/GuardianPayCallback.tsx` (bKash থেকে ফিরে এসে
+  execute কল করে ফলাফল দেখায়), `App.tsx` (`/guardian/pay/:studentId` +
+  `/guardian/pay/callback` রুট), `GuardianDashboard.tsx` (বকেয়া +
+  "বিকাশে পরিশোধ করুন" বাটন), `SmsSettings.tsx` (গেটওয়ে কানেক্টেড
+  থাকলে "স্বয়ংক্রিয় টপ-আপ" কার্ড + `?paymentID=` দিয়ে ফিরে আসলে
+  স্বয়ংক্রিয়ভাবে execute কল), `i18n/bn.ts`+`i18n/en.ts`
+  (`notifyPaymentReceived`, `gatewayTopupTitle/Subtitle/Button` —
+  script দিয়ে key parity যাচাই করা হয়েছে)।
+- এই Phase-এ কোনো নতুন top-level route prefix যোগ হয়নি (সব
+  `/api/sms/...` ও `/api/guardian-auth/...` এর আন্ডারে) — তাই
+  `rbac.test.js`-এর `EXPECTED_ALLOWED` টেবিল ছুঁতে হয়নি, Phase 8E-এর
+  মতো ঘটনা এখানে ঘটেনি।
+- সবগুলো পরিবর্তিত/নতুন `.js` ফাইল `node --check` পাস করেছে, সব
+  `.ts`/`.tsx` ফাইলে bracket-balance script + i18n key-parity script
+  দিয়ে ম্যানুয়াল sanity-check করা হয়েছে। **এই sandbox-এ `node_modules`/
+  নেটওয়ার্ক না থাকায় `npm run check` চালানো যায়নি — packaged CMD-এর
+  `npm run check` এই ডেলিভারির প্রথম রিয়েল যাচাই, সেটার ফলাফলকেই
+  বিশ্বাস করুন আমার ম্যানুয়াল চেকের চেয়ে বেশি।**
+
+### বাকি (কোনো কোড বাকি নেই, শুধু ম্যানুয়াল ধাপ)
+- Phase 8E-এর মতোই `GATEWAY_CREDENTIAL_KEY` সেট থাকা লাগবে — না থাকলে
+  উভয় create রুট একটা পরিষ্কার 503 দেয়, ভাঙে না।
+- callbackURL রিকোয়েস্টের `Origin`/`Referer` হেডার থেকে অনুমান করা হয়
+  (নতুন কোনো env var লাগেনি) — যদি কোনো প্রক্সি/CDN এই হেডারগুলো strip
+  করে ফেলে, bKash checkout ভুল URL-এ redirect করবে। প্রোডাকশনে প্রথম
+  আসল পেমেন্ট টেস্টের সময় এটা যাচাই করে নেওয়া দরকার (roadmap 8G)।
+- roadmap 8G-এর sandbox QA checklist (ভুল/সঠিক sandbox credential,
+  callback সঠিকভাবে বসছে কিনা ইত্যাদি) এখনো বাকি — কোড রেডি, শুধু
+  sandbox অ্যাকাউন্ট দিয়ে হাতে-কলমে টেস্ট করা দরকার।
+
+---
+
+## Status: DONE (mostly — one manual step listed below)
+
 ## Task: BUSINESS_READINESS_ROADMAP Phase 8E — bKash self-connect (bKash
 only; Nagad deferred, per the roadmap's own note under this heading)
 (2026-08-06 সম্পন্ন)
