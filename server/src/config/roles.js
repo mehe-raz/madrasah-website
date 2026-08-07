@@ -69,6 +69,14 @@ const ROUTE_PERMISSION = {
   // the actual enforcement; this entry just keeps rbacMiddleware's table
   // complete/consistent with every other admin route above.
   "/api/guardian-approvals": "settings",
+  // Guardian Reminder Messenger (ad-hoc, docs/CURRENT_TASK.md) — admin-side
+  // compose/list/dispatch screen. Same "settings" tier as /api/sms and
+  // /api/payment-gateway above: an admin-configuration screen, not
+  // day-to-day student data, so Teacher/Accountant/Hostel Manager stay
+  // excluded without touching ROLE_PERMISSIONS. The guardian-facing read
+  // side (message list, unread count, mark-read) lives under
+  // /api/guardian-auth instead — see routes/guardianAuth.js.
+  "/api/guardian-reminders": "settings",
 };
 
 module.exports = { ROLE_PERMISSIONS, ROUTE_PERMISSION };

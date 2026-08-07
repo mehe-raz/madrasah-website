@@ -516,6 +516,32 @@ export interface ClassPost {
   read?: boolean;
 }
 
+// Guardian Reminder Messenger (ad-hoc, docs/CURRENT_TASK.md) —
+// server/src/routes/guardianReminders.js (admin side) +
+// server/src/routes/guardianAuth.js (guardian read side).
+export interface GuardianReminder {
+  id: number;
+  title: string;
+  body: string;
+  targetType: "all" | "class" | "student";
+  targetClass: string | null;
+  targetStudentId: number | null;
+  scheduleType: "once" | "daily" | "specificDate";
+  scheduleDate: string | null;
+  active: boolean;
+  createdAt: string;
+  lastSentAt: string | null;
+}
+
+export interface GuardianMessage {
+  id: number;
+  reminderId: number | null;
+  title: string;
+  body: string;
+  createdAt: string;
+  read: boolean;
+}
+
 // "SMS সেবা" settings page — server/src/routes/sms.js (BUSINESS_READINESS_
 // ROADMAP.md Phase 8D). `type` distinguishes a wallet credit ("topup", from
 // an approved manual top-up request) from a wallet debit ("deduct", from

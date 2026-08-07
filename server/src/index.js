@@ -434,6 +434,7 @@ app.use("/api/admissions", require("./routes/admissions"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/sms", require("./routes/sms"));
 app.use("/api/payment-gateway", require("./routes/paymentGateway"));
+app.use("/api/guardian-reminders", require("./routes/guardianReminders"));
 
 // Reports any error thrown/passed to next() by the routes above to Sentry
 // (no-op when SENTRY_DSN is unset, same as Sentry.init above) — must be
@@ -528,6 +529,13 @@ async function start() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Madrasah ERP API running on port ${PORT}`);
   });
+
+  // Guardian Reminder Messenger (ad-hoc) — periodic auto-dispatch sweep for
+  // 'daily'/'specificDate' reminders. Unlike billing's registry job below,
+  // this belongs to the core single-tenant schema db.init() just created
+  // above, so it starts right away rather than waiting on the optional
+  // multi-tenant registry init. See guardianReminderScheduler.js.
+  require("./guardianReminderScheduler").startGuardianReminderJob();
 
   // registry.* (Part 5/6 — platform/Super-Admin panel: institutions,
   // platform_admins incl. its `role` column, audit_logs, payments) still

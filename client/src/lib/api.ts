@@ -17,6 +17,8 @@ import type {
   GuardianAttendanceResponse,
   GuardianChild,
   GuardianDashboardData,
+  GuardianMessage,
+  GuardianReminder,
   GuardianUser,
   IncomeEntry,
   IncomeSummary,
@@ -507,6 +509,36 @@ export const api = {
 
   deleteClassPost: (id: number) => request<{ ok: boolean }>(`/assignments/${id}`, { method: "DELETE" }),
 
+  // Guardian Reminder Messenger (ad-hoc, docs/CURRENT_TASK.md) — admin
+  // side of guardian_reminders. Gated by the "settings" permission (see
+  // server/src/config/roles.js's ROUTE_PERMISSION entry). The
+  // guardian-facing read side lives under `api.guardian` below instead
+  // (getMessages/markMessageRead), since it needs a guardian session.
+  getGuardianReminders: () => request<GuardianReminder[]>("/guardian-reminders"),
+
+  createGuardianReminder: (body: {
+    title: string;
+    body: string;
+    targetType: GuardianReminder["targetType"];
+    targetClass?: string;
+    targetStudentId?: number;
+    scheduleType: GuardianReminder["scheduleType"];
+    scheduleDate?: string;
+  }) => request<GuardianReminder>("/guardian-reminders", { method: "POST", body: JSON.stringify(body) }),
+
+  toggleGuardianReminder: (id: number, active: boolean) =>
+    request<GuardianReminder>(`/guardian-reminders/${id}`, { method: "PATCH", body: JSON.stringify({ active }) }),
+
+  deleteGuardianReminder: (id: number) => request<{ ok: boolean }>(`/guardian-reminders/${id}`, { method: "DELETE" }),
+
+  // Manual/on-demand dispatch button — see routes/guardianReminders.js's
+  // POST /dispatch. Safe to press any time: dispatchDueReminders() is
+  // same-day-dedup'd against the automatic periodic sweep.
+  dispatchGuardianReminders: () =>
+    request<{ dispatched: { reminderId: number; title: string; count: number }[] }>("/guardian-reminders/dispatch", {
+      method: "POST",
+    }),
+
   // Public: no login required. Powers the "ফলাফল দেখুন" page. Exact
   // class + roll match only, server enforces its own rate limit.
   searchPublicResults: (params: { class: string; roll: string; examName?: string }) => {
@@ -905,6 +937,15 @@ export const api = {
     getFeedUnreadCount: () => request<{ count: number }>("/guardian-auth/feed/unread-count"),
 
     markFeedRead: (postId: number) => request<{ ok: boolean }>(`/guardian-auth/feed/${postId}/read`, { method: "POST" }),
+
+    // Guardian Reminder Messenger (ad-hoc, docs/CURRENT_TASK.md) — read
+    // side of admin-composed reminders. Same shape as getFeed/
+    // getFeedUnreadCount/markFeedRead just above.
+    getMessages: () => request<GuardianMessage[]>("/guardian-auth/messages"),
+
+    getMessagesUnreadCount: () => request<{ count: number }>("/guardian-auth/messages/unread-count"),
+
+    markMessageRead: (id: number) => request<{ ok: boolean }>(`/guardian-auth/messages/${id}/read`, { method: "POST" }),
 
     // Phase 8F — fee payment via the institution's own connected bKash
     // gateway (routes/guardianAuth.js's /students/:id/bkash/create + POST

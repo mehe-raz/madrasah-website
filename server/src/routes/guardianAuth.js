@@ -27,6 +27,11 @@ const { signupSchema, loginSchema, addChildSchema } = require("../lib/guardianAu
 const { recordAudit } = require("../lib/auditLog");
 const { feedForGuardian, markPostRead, unreadCountForGuardian } = require("../lib/classPosts");
 const {
+  listMessagesForGuardian,
+  unreadMessageCountForGuardian,
+  markMessageRead,
+} = require("../lib/guardianReminders");
+const {
   activeChildrenForGuardian,
   assertGuardianOwnsStudent,
   attendanceHistoryForStudent,
@@ -390,6 +395,41 @@ router.post("/feed/:postId/read", verifyCsrfToken, async (req, res) => {
   try {
     const guardianId = await requireActiveGuardianId(req);
     await markPostRead(guardianId, Number(req.params.postId));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Guardian Reminder Messenger (ad-hoc) — read side of routes/
+// guardianReminders.js. Same requireActiveGuardianId gate + try/catch
+// shape as the Step 4 feed routes above, since a reminder-message is just
+// a second, per-guardian-fan-out flavor of "things a guardian reads".
+// ---------------------------------------------------------------------------
+
+router.get("/messages", async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    res.json(await listMessagesForGuardian(guardianId));
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+router.get("/messages/unread-count", async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    res.json({ count: await unreadMessageCountForGuardian(guardianId) });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+router.post("/messages/:id/read", verifyCsrfToken, async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    await markMessageRead(guardianId, Number(req.params.id));
     res.json({ ok: true });
   } catch (err) {
     res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });

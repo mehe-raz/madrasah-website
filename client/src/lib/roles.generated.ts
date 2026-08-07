@@ -68,5 +68,6 @@ export const ROUTE_PERMISSION = {
     "students",
     "settings"
   ],
-  "/api/guardian-approvals": "settings"
+  "/api/guardian-approvals": "settings",
+  "/api/guardian-reminders": "settings"
 } as const;

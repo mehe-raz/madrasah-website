@@ -13,6 +13,193 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
+## Status: IN_PROGRESS
+
+## Task: Guardian Reminder Messenger — গার্ডিয়ান পোর্টালে অ্যাডমিন-নিয়ন্ত্রিত
+শিডিউলড রিমাইন্ডার মেসেজ, ভাসমান গোল আইকন থেকে খোলা মেসেজ থ্রেড
+(ad-hoc — `docs/BUSINESS_READINESS_ROADMAP.md`-এর কোনো Phase-এর সাথে মেলে
+না, তাই উপরের নিয়ম অনুযায়ী "Phase N" নাম দেওয়া হয়নি)
+Started: 2026-08-07
+
+### ফিচার (ব্যবহারকারীর অনুরোধ থেকে)
+- অ্যাডমিন প্যানেল থেকে নিয়ন্ত্রণযোগ্য রিমাইন্ডার মেসেজ।
+- গার্ডিয়ান পোর্টালে Messenger-এর মতো একটা ভাসমান গোল আইকন — ক্লিক করলে
+  আলাদা একটা মেসেজ প্যানেল/পোর্টাল খুলে সেই ব্যক্তির (guardian-এর নিজের)
+  মেসেজ থ্রেডে নিয়ে যায়।
+- শিডিউল: Daily (প্রতিদিন) অথবা নির্দিষ্ট তারিখ সিলেক্ট করে।
+
+### কোডবেস রিসার্চ করে পাওয়া প্রাসঙ্গিক জিনিস (রিইউজ করতে হবে, নতুন বানানো
+যাবে না)
+- **`server/src/lib/notifications.js`** স্টাফ-সাইড — `targetUserId`/
+  `targetRoles` সম্পূর্ণ `users.id`/staff-role ভিত্তিক। গার্ডিয়ানদের জন্য
+  কোনো `users` রো নেই (Phase 8C-তে এটা আগেই আবিষ্কার হয়েছিল, `guardianSms.js`
+  বানানোর কারণ এটাই)। **তাই এই টেবিল/ফাংশন রিমাইন্ডারের জন্য ব্যবহার করা
+  যাবে না** — guardian-facing একটা সমতুল্য নতুন স্তর লাগবে।
+- **`server/src/lib/classPosts.js`** (+ SQL টেবিল `class_posts`,
+  `class_post_reads`) — এটাই সঠিক রেফারেন্স প্যাটার্ন: guardian-facing
+  broadcast, read-tracking সহ, `feedForGuardian()`-এ
+  `guardian_students ... status='active'` দিয়ে ownership filter। রিমাইন্ডার
+  ফিচারের DB ডিজাইন এই প্যাটার্ন অনুসরণ করবে, কপি-পেস্ট না — রিমাইন্ডারের
+  নিজস্ব targeting/scheduling দরকার যা class_posts-এ নেই।
+- **`server/src/lib/guardianData.js`** — `assertGuardianOwnsStudent()`
+  reuse করা যাবে single-guardian-target রিমাইন্ডারে ownership চেকের জন্য।
+- **`client/src/components/GuardianShell.tsx`** — সব guardian পেজ এই শেলের
+  ভেতরে render হয় (`<Outlet>`)। ভাসমান গোল আইকনটা এখানেই বসবে (persistent,
+  সব guardian route-এ দেখা যাবে) — নতুন কোনো wrapper লাগবে না।
+  `unreadCount`/`load()`-এর প্যাটার্ন (GuardianShellContext) ইতিমধ্যে
+  আছে notice-feed-এর জন্য; রিমাইন্ডার-থ্রেডের unread count এই একই শেলে
+  পোল করা যেতে পারে, অথবা আলাদা lightweight পোল — Part 3-এ ঠিক হবে।
+- **`client/src/components/NotificationBell.tsx`** — polling প্যাটার্ন
+  (৪৫ সেকেন্ড ইন্টারভাল, কোনো websocket নেই এই অ্যাপে) — মেসেজ
+  থ্রেড/আনরিড কাউন্টের জন্য এটাই রেফারেন্স, নতুন realtime infra লাগবে না।
+- **`server/src/lib/guardianSms.js`** — চাইলে রিমাইন্ডার পাঠানোর সময়
+  SMS-ও পাঠানো যায় (একই plan+wallet-gated কল), নতুন `notificationType`
+  যোগ করে `server/src/routes/sms.js`-এর `NOTIFICATION_TYPES`-এ, Phase 8F-এর
+  `paymentReceived`-এর প্যাটার্নে — এটা optional, Part 5-এ, admin টগল করতে
+  পারবে কিনা তা সিদ্ধান্তসাপেক্ষ।
+- **Scheduling infra নেই** — `server/package.json`-এ কোনো cron/scheduler
+  লাইব্রেরি ইনস্টল করা নেই (`node-cron` ইত্যাদি)। Phase 8C-তেও ঠিক এই একই
+  বাধায় পড়ে fee-due-reminder ফিচারটা "ম্যানুয়াল/অন-ডিমান্ড" বেছে নেওয়া
+  হয়েছিল, cron না। এখানেও AGENTS.md Rule 5 অনুযায়ী নতুন dependency যোগ
+  করার আগে ব্যবহারকারীকে বলে নিতে হবে — নিচে "সিদ্ধান্ত দরকার" দেখুন।
+- **`server/src/config/roles.js`** protected path (AGENTS.md Rule 4) —
+  admin-সাইড রিমাইন্ডার ম্যানেজমেন্ট পেজের জন্য কোন permission ব্যবহার হবে
+  (বিদ্যমান কোনোটা রিইউজ, নাকি নতুন `\"guardianReminders\"` permission)
+  সেটা এডিট করার আগে কনফার্ম করে নিতে হবে।
+
+### সিদ্ধান্ত (ব্যবহারকারী কনফার্ম করেছেন, 2026-08-08)
+1. **Daily/scheduled ডেলিভারি:** দুইটা মেকানিজমই — (ক) স্বয়ংক্রিয় সার্ভার-সাইড
+   সুইপ এবং (গ) ম্যানুয়াল Admin বাটন — দুটোই থাকবে। **বাস্তবায়নের সময়
+   `node-cron` dependency যোগ না করে `setInterval`-ভিত্তিক sweep করা
+   হয়েছে** (`server/src/billing.js`-এর `startExpiryScanJob()`-এর ঠিক একই
+   প্যাটার্ন — AGENTS.md Rule 5 অনুযায়ী নতুন dependency এড়ানো হলো, ফলাফল
+   ব্যবহারকারীর চাওয়া "সার্ভার নিজে চেক করবে" আচরণই, শুধু ভিন্ন
+   ইমপ্লিমেন্টেশনে)। প্রি-সেভড মেসেজসহ একাধিক রিমাইন্ডার সেট করার সুবিধা
+   Part 1-এর টেবিল ডিজাইনেই আছে (প্রতিটা রিমাইন্ডার একটা আলাদা রো)।
+2. **Admin permission:** `settings` রিইউজ করা হয়েছে (roles.js-এ
+   `ROLE_PERMISSIONS` স্পর্শ করা হয়নি, শুধু `ROUTE_PERMISSION`-এ একটা
+   নতুন লাইন — `/api/sms`/`/api/payment-gateway`-এর মতোই)।
+3. **মেসেজ থ্রেড UI:** ভাসমান বাটনে ক্লিকে মডাল/স্লাইড-ওভার প্যানেল
+   (আলাদা রুটের বদলে) — এখনো বাস্তবায়ন করা হয়নি, নিচে "বাকি" দেখুন।
+4. **SMS টাই-ইন + plan-gating (Part 5):** এখনো সিদ্ধান্ত হয়নি, ঐচ্ছিক
+   হিসেবে ডিফার করা হয়েছে।
+
+### সম্পন্ন (এই সেশনে, ব্যাকএন্ড সম্পূর্ণ)
+- [x] `server/sql/supabase_schema.sql` — `guardian_reminders` +
+  `guardian_messages` টেবিল যোগ (ইনডেক্সসহ)।
+- [x] `server/src/lib/guardianReminderSchemas.js` (নতুন) — zod
+  create/update schema।
+- [x] `server/src/lib/guardianReminders.js` (নতুন) — CRUD
+  (`createReminder`/`listReminders`/`getReminder`/`setReminderActive`/
+  `deleteReminder`), টার্গেট-রেজলভ (`resolveTargetGuardianIds` —
+  all/class/student, সব জায়গায় `guardian_students status='active'`
+  ফিল্টার), ডিসপ্যাচ (`dispatchReminder`, `dispatchDueReminders` — same-day
+  dedup সহ, `once`/`daily`/`specificDate` তিন টাইপের লজিক), এবং
+  guardian-সাইড read ফাংশন (`listMessagesForGuardian`/
+  `unreadMessageCountForGuardian`/`markMessageRead`, `classPosts.js`-এর
+  প্যাটার্নে)।
+- [x] `server/src/routes/guardianReminders.js` (নতুন, admin-সাইড,
+  `requirePermission("settings")`) — `GET /`, `POST /` (তৈরি + `once`
+  হলে সাথে সাথে dispatch), `PATCH /:id` (active টগল), `DELETE /:id`,
+  `POST /dispatch` (ম্যানুয়াল বাটনের endpoint)। সবকিছুতে `recordAudit`।
+- [x] `server/src/guardianReminderScheduler.js` (নতুন) — `setInterval`
+  sweep (ডিফল্ট প্রতি ৩০ মিনিটে, `GUARDIAN_REMINDER_INTERVAL_MINUTES`
+  দিয়ে override করা যায়, `DISABLE_GUARDIAN_REMINDERS=true` দিয়ে বন্ধ করা
+  যায় — `billing.js`-এর env var নেমিং কনভেনশন অনুসরণ করে)।
+- [x] `server/src/index.js` — `/api/guardian-reminders` রুট মাউন্ট +
+  `app.listen()`-এর পরে `startGuardianReminderJob()` কল।
+- [x] `server/src/config/roles.js` — `ROUTE_PERMISSION`-এ
+  `"/api/guardian-reminders": "settings"` যোগ (শুধু এই এক লাইন)।
+- [x] `server/src/routes/guardianAuth.js` — guardian-সাইড
+  `GET /messages`, `GET /messages/unread-count`, `POST /messages/:id/read`
+  যোগ (`requireActiveGuardianId` + `feed`-রুটগুলোর একই try/catch শেপ)।
+- [x] `client/src/types/index.ts` — `GuardianReminder` + `GuardianMessage`
+  টাইপ যোগ।
+- [x] `client/src/lib/api.ts` — admin ফাংশন যোগ (`getGuardianReminders`,
+  `createGuardianReminder`, `toggleGuardianReminder`,
+  `deleteGuardianReminder`, `dispatchGuardianReminders`,
+  `getClassPosts`/`createClassPost`-এর ঠিক পাশে) + `api.guardian`
+  অবজেক্টে guardian-সাইড ফাংশন (`getMessages`, `getMessagesUnreadCount`,
+  `markMessageRead`, `getFeed`/`markFeedRead`-এর ঠিক পাশে)। আগের প্যাকেজে
+  শুধু টাইপ-ইম্পোর্ট যোগ হয়েছিল আর ফাংশন বডি বাকি ছিল — যার কারণে
+  `npm run check`-এর lint ধাপে `GuardianReminder`/`GuardianMessage`
+  "defined but never used" এরর দিয়েছিল (unused import — এই ফাংশনগুলোই
+  সেগুলো ব্যবহার করা শুরু করল, তাই ফিক্স হয়ে গেছে)।
+
+### বাকি (পরের এজেন্ট/সেশন এখান থেকে চালিয়ে যাবে)
+- [ ] **`client/src/components/StudentPicker.tsx` রিইউজ** — নিচের admin
+  মডিউলে `targetType === "student"` হলে ছাত্র বাছাইয়ের জন্য এই বিদ্যমান
+  কম্পোনেন্টটা reuse করা, নতুন কিছু বানানো লাগবে না
+  (`<StudentPicker value={...} onSelect={...} />`)।
+- [ ] **`client/src/modules/GuardianReminders.tsx`** (নতুন) —
+  `ClassPosts.tsx`-এর কাঠামো অনুসরণ করে: কম্পোজ ফর্ম (title/body/
+  targetType Select [all/class/student] → conditionally targetClass
+  Select [`api.getAssignmentClasses()` রিইউজ] অথবা `<StudentPicker>`,
+  scheduleType Select [once/daily/specificDate] → conditionally
+  scheduleDate date input) + "এখনই সব পাঠান" ম্যানুয়াল ডিসপ্যাচ বাটন
+  (`api.dispatchGuardianReminders()`) + তৈরি করা রিমাইন্ডারের তালিকা
+  (active টগল বাটন, ডিলিট বাটন, `lastSentAt` দেখানো)। শুধু
+  `components/ui/` (`Card`/`Field`/`Input`/`Select`/`Textarea`/`Button`)
+  ব্যবহার করা — কোনো raw `style={{}}` না (AGENTS.md Design System rule)।
+- [ ] **`client/src/components/GuardianMessengerBubble.tsx`** (নতুন) —
+  সিদ্ধান্ত #3 অনুযায়ী: নিচে-ডানে ভাসমান গোল বাটন (Messenger-স্টাইল),
+  `NotificationBell.tsx`-এর ৪৫-সেকেন্ড পোলিং প্যাটার্নে আনরিড ব্যাজ
+  (`api.guardian.getMessagesUnreadCount()`), ক্লিকে মডাল/স্লাইড-ওভার
+  প্যানেল খুলবে যেখানে `GuardianFeed.tsx`-এর লিস্ট-রেন্ডার প্যাটার্নে
+  মেসেজগুলো দেখাবে (ক্লিকে `markMessageRead` কল + অপ্টিমিস্টিক আনরিড
+  আপডেট)।
+- [ ] **`client/src/components/GuardianShell.tsx`**-এ
+  `<GuardianMessengerBubble />` বসানো (main এর বাইরে, শেলের রুট লেভেলে,
+  যাতে সব guardian পেজে persist করে)।
+- [ ] **`client/src/App.tsx`** — নতুন lazy import + admin route
+  `path="guardian-reminders"` (ClassPosts-এর `path="assignments"`-এর
+  ঠিক পাশে, `PlanFeatureGate` ছাড়াই যেহেতু plan-gating এখনো সিদ্ধান্ত
+  হয়নি — সিদ্ধান্ত #4 দেখুন)।
+- [ ] **`client/src/components/Sidebar.tsx`** — `NAV_IDS`-এ নতুন এন্ট্রি
+  (`key: "settings"`, নতুন আইকন যেমন 🔔 বা 📨, `path: "/guardian-reminders"`)।
+- [ ] **`client/src/i18n/bn.ts` + `en.ts`** — নতুন কী-ব্লক দুটো: admin
+  মডিউলের জন্য (`guardianReminders: {...}`, `classPosts` ব্লকের প্যাটার্নে)
+  এবং guardian-সাইড বাবলের জন্য (`guardianMessenger: {...}`) — দুই ফাইলে
+  key-parity বজায় রাখা আবশ্যক (স্ক্রিপ্ট দিয়ে যাচাই করা যায় কিনা দেখা,
+  `scripts/` ফোল্ডারে আছে কিনা চেক করা)।
+- [ ] **`client/src/index.css`** — `.guardian-messenger-bubble`,
+  `.guardian-messenger-panel` ইত্যাদি নতুন ক্লাস (`.guardian-nav-badge`,
+  `.guardian-post`, `.soft-panel` কনভেনশন অনুসরণ করে, কোনো raw inline
+  style না)।
+- [x] **`server/src/middleware/__tests__/rbac.test.js`** — `EXPECTED_ALLOWED`
+  টেবিলে `"/api/guardian-reminders": ["Admin", "Super Admin"]` যোগ করা
+  হয়েছে। **এই ফাইলটা `roles.js`-এ নতুন রুট যোগ করার সাথে সাথেই আপডেট
+  করা উচিত ছিল, প্রথম প্যাকেজে বাদ পড়ে গিয়েছিল** — `npm run test:unit`
+  চালানোর সময় `rbac.test.js`-এর "ROUTE_PERMISSION table sanity" টেস্টটা
+  ধরেছে (এই টেবিলটা `ROUTE_PERMISSION`-এর keys-এর সাথে হুবহু মিলতে হয়,
+  নাহলে fail করবে — ফাইলের উপরের কমেন্টেই এই নিয়ম লেখা আছে)। **শিক্ষা:
+  ভবিষ্যতে `config/roles.js`-এ কোনো নতুন `ROUTE_PERMISSION` এন্ট্রি যোগ
+  করলে একই কমিটে `middleware/__tests__/rbac.test.js`-এর `EXPECTED_ALLOWED`
+  টেবিলেও এন্ট্রি যোগ করতে হবে — নাহলে `npm run test:unit` ফেইল করবে।**
+- [ ] **টেস্ট/যাচাই** — সব ফাইল যোগ হওয়ার পর `npm run check` (root থেকে,
+  client+server উভয় জায়গায়) — বিশেষ করে `scripts/sync-roles.js` ঠিকমতো
+  চলে কিনা (roles.js এডিট হয়েছে) এবং TypeScript-এ নতুন টাইপ/ফাংশন সব
+  জায়গায় ব্যবহৃত হচ্ছে কিনা। **2026-08-07 পর্যন্ত: lint ✅, typecheck ✅,
+  build ✅, test:server ✅, test:unit ✅ (rbac.test.js ফিক্সের পর) — সব
+  ধাপ পাস করেছে বলে ব্যবহারকারীর কাছ থেকে কনফার্মেশন এখনো আসেনি, পরের
+  সেশনে/এজেন্ট আগে `npm run check` চালিয়ে নিশ্চিত হয়ে নেবে।**
+- [ ] **Part 5 (ঐচ্ছিক, সিদ্ধান্ত #4 এখনো বাকি)** — SMS টাই-ইন
+  (`guardianSms.js` দিয়ে) + `planFeatures.js`-এ প্ল্যান-গেটিং, যদি
+  ব্যবহারকারী চান।
+
+### নোট
+এই এন্ট্রি লেখার আগে পুরো প্রজেক্ট রিসার্চ করা হয়েছে এবং তারপর ব্যাকএন্ড
+সম্পূর্ণ বাস্তবায়ন করা হয়েছে (উপরের "সম্পন্ন" দেখুন) — schema, lib,
+routes, scheduler, index.js/roles.js ওয়্যারিং সব কাজ করছে এবং
+স্বনির্ভর (ফ্রন্টএন্ড ছাড়াও সার্ভার এই মুহূর্তে ক্র্যাশ করবে না)।
+**ফ্রন্টএন্ড এখনো বাকি** — কোনো UI নেই এখনো, তাই ফিচারটা এই মুহূর্তে
+ব্যবহারযোগ্য না, কিন্তু API সম্পূর্ণ প্রস্তুত। পরের সেশন সরাসরি
+`client/src/lib/api.ts`-এর ফাংশন যোগ করা থেকে শুরু করতে পারবে — উপরের
+"বাকি" সেকশনে ঠিক কোন ফাইলে কী বসবে তার বিস্তারিত আছে, নতুন করে ব্যাকএন্ড
+রিসার্চ করার দরকার নেই।
+
+---
+
 ## Status: DONE (mostly — one manual step listed below)
 
 ## Task: BUSINESS_READINESS_ROADMAP Phase 8F — guardian bKash fee payment
