@@ -107,6 +107,37 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             </NavLink>
           );
         })}
+        {/* Guardian Reminder Messenger admin module — rendered outside
+            NAV_IDS for the same reason as the SMS/bKash blocks below: it
+            reuses the "settings" permission but needs its own nav LABEL
+            (t.nav[item.key] would otherwise show "Settings" twice). No
+            plan-lock check yet — plan-gating for this feature is still an
+            open decision (docs/CURRENT_TASK.md), so isLocked() isn't
+            called here the way it is for "sms"/"bkash" below. */}
+        {canAccess(role, "settings") && (
+          <NavLink
+            to="/guardian-reminders"
+            onClick={onNavigate}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.guardianReminders : undefined}
+          >
+            <span style={{ fontSize: 18, flexShrink: 0 }}>🔔</span>
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.guardianReminders}</span>}
+          </NavLink>
+        )}
         {/* "SMS সেবা" (Phase 8D) — rendered outside NAV_IDS like audit-logs
             below, because it reuses the "settings" permission for access
             but needs its own nav LABEL (t.nav[item.key] would otherwise

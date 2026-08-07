@@ -668,6 +668,133 @@ img {
   margin-top: 10px;
 }
 
+/* Guardian Reminder Messenger — admin module (client/src/modules/GuardianReminders.tsx) */
+.guardian-reminder-form {
+  margin-bottom: 20px;
+}
+
+.guardian-reminder-dispatch {
+  margin-bottom: 24px;
+  padding: 16px;
+}
+
+.guardian-reminder-dispatch__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.guardian-reminder-dispatch__msg {
+  margin-top: 8px;
+}
+
+.guardian-reminder-item {
+  margin-bottom: 10px;
+}
+
+.guardian-reminder-item__last-sent {
+  margin-top: 4px;
+}
+
+.guardian-reminder-item__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Guardian Reminder Messenger — guardian-facing floating bubble
+   (client/src/components/GuardianMessengerBubble.tsx). Fixed to the
+   viewport (not .guardian-main, which is max-width:720px centered) so it
+   stays reachable regardless of scroll position on any guardian page. */
+.guardian-messenger {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 30;
+}
+
+.guardian-messenger-bubble {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #0ea5e9, #10b981); /* C.sky -> C.emerald */
+  color: #fff;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+}
+
+.guardian-messenger-badge {
+  top: -4px;
+  right: -4px;
+}
+
+.guardian-messenger-panel {
+  position: absolute;
+  right: 0;
+  bottom: 66px;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+  padding: 0;
+}
+
+.guardian-messenger-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.guardian-messenger-panel__title {
+  font-weight: 900;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.guardian-messenger-list {
+  display: grid;
+}
+
+.guardian-messenger-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+  cursor: default;
+  font-family: inherit;
+}
+
+.guardian-messenger-item--unread {
+  background: #e0f2fe; /* C.skyL */
+  cursor: pointer;
+}
+
+.guardian-messenger-item__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.guardian-messenger-item__title {
+  margin-bottom: 0;
+}
+
 /* Public footer — legal links row (Terms/Privacy) */
 .public-footer__legal {
   display: flex;

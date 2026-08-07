@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useGuardianAuth } from "../context/GuardianAuthContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { api } from "../lib/api";
+import { GuardianMessengerBubble } from "./GuardianMessengerBubble";
 import { HudSpinner } from "./HudSpinner";
 import type { GuardianDashboardChild } from "../types";
 
@@ -156,6 +157,11 @@ export function GuardianShell() {
         )}
         <Outlet context={context} />
       </main>
+
+      {/* Guardian Reminder Messenger — persistent floating bubble, rendered
+          once at the shell root (not inside <main>) so it stays visible
+          across every guardian route, same reasoning as the nav above. */}
+      <GuardianMessengerBubble />
     </div>
   );
 }

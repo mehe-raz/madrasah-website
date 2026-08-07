@@ -25,6 +25,7 @@ const AuditLogs = lazy(() => import("./modules/AuditLogs").then((m) => ({ defaul
 const ClassPosts = lazy(() => import("./modules/ClassPosts").then((m) => ({ default: m.ClassPosts })));
 const Dashboard = lazy(() => import("./modules/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Expenses = lazy(() => import("./modules/Expenses").then((m) => ({ default: m.Expenses })));
+const GuardianReminders = lazy(() => import("./modules/GuardianReminders").then((m) => ({ default: m.GuardianReminders })));
 const HifzTracking = lazy(() => import("./modules/HifzTracking").then((m) => ({ default: m.HifzTracking })));
 const Income = lazy(() => import("./modules/Income").then((m) => ({ default: m.Income })));
 const PaymentGatewaySettings = lazy(() =>
@@ -159,6 +160,12 @@ export default function App() {
                 <Route path="website/:sectionId" element={<WebsiteSectionEditor />} />
                 <Route path="admissions" element={<AdmissionsReview />} />
                 <Route path="settings" element={<Settings />} />
+                {/* Guardian Reminder Messenger admin module — reuses the
+                    "settings" permission (see server/src/config/roles.js's
+                    ROUTE_PERMISSION entry for /api/guardian-reminders). No
+                    PlanFeatureGate yet: plan-gating for this feature is
+                    still an open decision (docs/CURRENT_TASK.md). */}
+                <Route path="guardian-reminders" element={<GuardianReminders />} />
                 <Route
                   path="sms"
                   element={

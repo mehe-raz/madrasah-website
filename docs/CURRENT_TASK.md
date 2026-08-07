@@ -126,46 +126,64 @@ Started: 2026-08-07
   "defined but never used" এরর দিয়েছিল (unused import — এই ফাংশনগুলোই
   সেগুলো ব্যবহার করা শুরু করল, তাই ফিক্স হয়ে গেছে)।
 
-### বাকি (পরের এজেন্ট/সেশন এখান থেকে চালিয়ে যাবে)
-- [ ] **`client/src/components/StudentPicker.tsx` রিইউজ** — নিচের admin
-  মডিউলে `targetType === "student"` হলে ছাত্র বাছাইয়ের জন্য এই বিদ্যমান
-  কম্পোনেন্টটা reuse করা, নতুন কিছু বানানো লাগবে না
-  (`<StudentPicker value={...} onSelect={...} />`)।
-- [ ] **`client/src/modules/GuardianReminders.tsx`** (নতুন) —
+### সম্পন্ন (এই সেশনে, ফ্রন্টএন্ড)
+- [x] **`client/src/modules/GuardianReminders.tsx`** (নতুন) —
   `ClassPosts.tsx`-এর কাঠামো অনুসরণ করে: কম্পোজ ফর্ম (title/body/
   targetType Select [all/class/student] → conditionally targetClass
-  Select [`api.getAssignmentClasses()` রিইউজ] অথবা `<StudentPicker>`,
-  scheduleType Select [once/daily/specificDate] → conditionally
-  scheduleDate date input) + "এখনই সব পাঠান" ম্যানুয়াল ডিসপ্যাচ বাটন
-  (`api.dispatchGuardianReminders()`) + তৈরি করা রিমাইন্ডারের তালিকা
-  (active টগল বাটন, ডিলিট বাটন, `lastSentAt` দেখানো)। শুধু
-  `components/ui/` (`Card`/`Field`/`Input`/`Select`/`Textarea`/`Button`)
-  ব্যবহার করা — কোনো raw `style={{}}` না (AGENTS.md Design System rule)।
-- [ ] **`client/src/components/GuardianMessengerBubble.tsx`** (নতুন) —
+  Select [`api.getAssignmentClasses()` রিইউজ] অথবা বিদ্যমান
+  `<StudentPicker>`, scheduleType Select [once/daily/specificDate] →
+  conditionally scheduleDate date input) + "এখনই সব পাঠান" ম্যানুয়াল
+  ডিসপ্যাচ বাটন (`api.dispatchGuardianReminders()`) + তৈরি করা
+  রিমাইন্ডারের তালিকা (active টগল বাটন, ডিলিট বাটন, `lastSentAt`
+  দেখানো, `Badge` দিয়ে target/schedule চিপ)। শুধু `components/ui/`
+  (`Card`/`Field`/`Input`/`Select`/`Textarea`/`Button`) ব্যবহার করা
+  হয়েছে — কোনো raw `style={{}}` নেই (AGENTS.md Design System rule)।
+  পুরোপুরি `useLanguage()`/`t.guardianReminders.*` দিয়ে — কোনো
+  hardcoded স্ট্রিং নেই।
+- [x] **`client/src/components/GuardianMessengerBubble.tsx`** (নতুন) —
   সিদ্ধান্ত #3 অনুযায়ী: নিচে-ডানে ভাসমান গোল বাটন (Messenger-স্টাইল),
   `NotificationBell.tsx`-এর ৪৫-সেকেন্ড পোলিং প্যাটার্নে আনরিড ব্যাজ
-  (`api.guardian.getMessagesUnreadCount()`), ক্লিকে মডাল/স্লাইড-ওভার
-  প্যানেল খুলবে যেখানে `GuardianFeed.tsx`-এর লিস্ট-রেন্ডার প্যাটার্নে
-  মেসেজগুলো দেখাবে (ক্লিকে `markMessageRead` কল + অপ্টিমিস্টিক আনরিড
-  আপডেট)।
-- [ ] **`client/src/components/GuardianShell.tsx`**-এ
-  `<GuardianMessengerBubble />` বসানো (main এর বাইরে, শেলের রুট লেভেলে,
-  যাতে সব guardian পেজে persist করে)।
-- [ ] **`client/src/App.tsx`** — নতুন lazy import + admin route
-  `path="guardian-reminders"` (ClassPosts-এর `path="assignments"`-এর
-  ঠিক পাশে, `PlanFeatureGate` ছাড়াই যেহেতু plan-gating এখনো সিদ্ধান্ত
-  হয়নি — সিদ্ধান্ত #4 দেখুন)।
-- [ ] **`client/src/components/Sidebar.tsx`** — `NAV_IDS`-এ নতুন এন্ট্রি
-  (`key: "settings"`, নতুন আইকন যেমন 🔔 বা 📨, `path: "/guardian-reminders"`)।
-- [ ] **`client/src/i18n/bn.ts` + `en.ts`** — নতুন কী-ব্লক দুটো: admin
-  মডিউলের জন্য (`guardianReminders: {...}`, `classPosts` ব্লকের প্যাটার্নে)
-  এবং guardian-সাইড বাবলের জন্য (`guardianMessenger: {...}`) — দুই ফাইলে
-  key-parity বজায় রাখা আবশ্যক (স্ক্রিপ্ট দিয়ে যাচাই করা যায় কিনা দেখা,
-  `scripts/` ফোল্ডারে আছে কিনা চেক করা)।
-- [ ] **`client/src/index.css`** — `.guardian-messenger-bubble`,
-  `.guardian-messenger-panel` ইত্যাদি নতুন ক্লাস (`.guardian-nav-badge`,
-  `.guardian-post`, `.soft-panel` কনভেনশন অনুসরণ করে, কোনো raw inline
-  style না)।
+  (`api.guardian.getMessagesUnreadCount()`), ক্লিকে স্লাইড-ওভার প্যানেল
+  খুলে `GuardianFeed.tsx`-এর লিস্ট-রেন্ডার প্যাটার্নে মেসেজ দেখায়
+  (ক্লিকে `markMessageRead` কল + অপ্টিমিস্টিক আনরিড কাউন্ট আপডেট)।
+  **সিদ্ধান্ত (ব্যবহারকারী কনফার্ম করেছেন, 2026-08-08):** যদিও বিদ্যমান
+  guardian-সাইড পেজগুলো (`GuardianShell.tsx`, `GuardianFeed.tsx`)
+  hardcoded বাংলা ব্যবহার করে (কোনো i18n নেই), এই নতুন কম্পোনেন্টে
+  `useLanguage()`/`t.guardianMessenger.*` ব্যবহার করা হয়েছে —
+  `AppSettingsProvider` পুরো অ্যাপ রুট (`main.tsx`) থেকে wrap করে বলে
+  guardian রুটেও উপলব্ধ। ভবিষ্যতে অন্য guardian-সাইড পেজ/ফিচার একই
+  ধরনের সিদ্ধান্তের মুখোমুখি হলে i18n-ই ব্যবহার করা উচিত, hardcoded না
+  — এটাই এখন থেকে guardian-সাইড নতুন কাজের কনভেনশন, পুরনো ফাইলগুলো
+  migrate করার দরকার নেই (AGENTS.md Rule 1, minimal diff)।
+- [x] **`client/src/components/GuardianShell.tsx`**-এ
+  `<GuardianMessengerBubble />` বসানো হয়েছে (main এর বাইরে, শেলের রুট
+  লেভেলে, সব guardian পেজে persist করে)।
+- [x] **`client/src/App.tsx`** — নতুন lazy import + admin route
+  `path="guardian-reminders"` (`settings` রুটের ঠিক পাশে বসানো হয়েছে,
+  `assignments`-এর পাশে না — কারণ permission-ভিত্তিক গ্রুপিং
+  `"settings"` permission-কেই অনুসরণ করে, `PlanFeatureGate` ছাড়াই
+  যেহেতু plan-gating এখনো সিদ্ধান্ত হয়নি — সিদ্ধান্ত #4 দেখুন)।
+- [x] **`client/src/components/Sidebar.tsx`** — `NAV_IDS`-এর ভেতরে না
+  বসিয়ে, `sms`/`payment-gateway` ব্লকের ঠিক প্যাটার্নে NAV_IDS-এর বাইরে
+  একটা নতুন `NavLink` যোগ করা হয়েছে (`canAccess(role, "settings")`,
+  আইকন 🔔, `t.nav.guardianReminders` লেবেল, কোনো plan-lock নেই) — কারণ
+  `key: "settings"` দিয়ে NAV_IDS-এ যোগ করলে লেবেল "সেটিংস" দুইবার দেখাত
+  (এই একই কারণে SMS/bKash ব্লক দুটোও NAV_IDS-এর বাইরে রাখা হয়েছিল,
+  কোড কমেন্টে ব্যাখ্যা করা আছে)।
+- [x] **`client/src/i18n/bn.ts` + `en.ts`** — নতুন কী-ব্লক দুটো যোগ করা
+  হয়েছে: `guardianReminders: {...}` (admin মডিউল, `classPosts`
+  ব্লকের প্যাটার্নে, ৩৯টা কী) এবং `guardianMessenger: {...}`
+  (guardian-সাইড বাবল, ৬টা কী) + `nav.guardianReminders`। দুই ফাইলে
+  key-parity একটা ছোট পাইথন স্ক্রিপ্ট দিয়ে যাচাই করা হয়েছে (এই
+  রিপোতে কোনো বিদ্যমান key-parity script খুঁজে পাওয়া যায়নি —
+  `scripts/`/`client/scripts/`-এ নেই, তাই ম্যানুয়ালি যাচাই করা
+  হয়েছে; ভবিষ্যতে একই কাজ বারবার লাগলে এরকম একটা স্ক্রিপ্ট
+  `client/scripts/`-এ যোগ করার কথা বিবেচনা করা যেতে পারে)।
+- [x] **`client/src/index.css`** — `.guardian-reminder-*` (admin মডিউলের
+  জন্য) ও `.guardian-messenger-*` (ভাসমান বাবল/প্যানেলের জন্য) নতুন
+  ক্লাস যোগ করা হয়েছে, বিদ্যমান `.guardian-nav-badge`, `.guardian-post`,
+  `.soft-panel`, `.class-post__*` কনভেনশন অনুসরণ করে, কোনো raw inline
+  style ছাড়াই।
 - [x] **`server/src/middleware/__tests__/rbac.test.js`** — `EXPECTED_ALLOWED`
   টেবিলে `"/api/guardian-reminders": ["Admin", "Super Admin"]` যোগ করা
   হয়েছে। **এই ফাইলটা `roles.js`-এ নতুন রুট যোগ করার সাথে সাথেই আপডেট
@@ -176,27 +194,34 @@ Started: 2026-08-07
   ভবিষ্যতে `config/roles.js`-এ কোনো নতুন `ROUTE_PERMISSION` এন্ট্রি যোগ
   করলে একই কমিটে `middleware/__tests__/rbac.test.js`-এর `EXPECTED_ALLOWED`
   টেবিলেও এন্ট্রি যোগ করতে হবে — নাহলে `npm run test:unit` ফেইল করবে।**
-- [ ] **টেস্ট/যাচাই** — সব ফাইল যোগ হওয়ার পর `npm run check` (root থেকে,
-  client+server উভয় জায়গায়) — বিশেষ করে `scripts/sync-roles.js` ঠিকমতো
-  চলে কিনা (roles.js এডিট হয়েছে) এবং TypeScript-এ নতুন টাইপ/ফাংশন সব
-  জায়গায় ব্যবহৃত হচ্ছে কিনা। **2026-08-07 পর্যন্ত: lint ✅, typecheck ✅,
-  build ✅, test:server ✅, test:unit ✅ (rbac.test.js ফিক্সের পর) — সব
-  ধাপ পাস করেছে বলে ব্যবহারকারীর কাছ থেকে কনফার্মেশন এখনো আসেনি, পরের
-  সেশনে/এজেন্ট আগে `npm run check` চালিয়ে নিশ্চিত হয়ে নেবে।**
+### বাকি (পরের এজেন্ট/সেশন এখান থেকে চালিয়ে যাবে)
+- [ ] **টেস্ট/যাচাই** — এই sandbox-এ `node_modules`/নেটওয়ার্ক না থাকায়
+  `npm run check` চালানো যায়নি। এই সেশনে করা ম্যানুয়াল sanity-check:
+  সব নতুন/এডিট করা `.tsx` ফাইলে bracket-balance script (parens/braces/
+  brackets প্রতিটা ফাইলে মিলেছে), সব import ব্যবহৃত হচ্ছে কিনা যাচাই
+  (unused-import lint এড়াতে), `guardianReminders`/`guardianMessenger`/
+  `nav` ব্লকের bn.ts↔en.ts key-parity স্ক্রিপ্ট দিয়ে যাচাই (মিলেছে),
+  প্রতিটা নতুন CSS ক্লাস ঠিক একবার ডিফাইন হয়েছে কিনা চেক, `Permission`
+  ইউনিয়নে `"settings"` আগে থেকেই আছে কিনা নিশ্চিত করা (নতুন permission
+  লাগেনি), rbac.test.js-এর `EXPECTED_ALLOWED` টেবিল আগের সেশনেই ঠিক করা
+  হয়েছে তা পুনরায় নিশ্চিত করা। **এইগুলো tsc/eslint-এর বিকল্প না — `npm
+  run check` (root থেকে, sync:roles/lint/typecheck/build/test:server সব
+  ধাপসহ) এই ডেলিভারির প্রথম রিয়েল যাচাই, packaged CMD-এর ফলাফলকেই
+  বিশ্বাস করুন এই ম্যানুয়াল চেকের চেয়ে বেশি।**
 - [ ] **Part 5 (ঐচ্ছিক, সিদ্ধান্ত #4 এখনো বাকি)** — SMS টাই-ইন
   (`guardianSms.js` দিয়ে) + `planFeatures.js`-এ প্ল্যান-গেটিং, যদি
-  ব্যবহারকারী চান।
+  ব্যবহারকারী চান। কোর ফিচার (backend + frontend UI, এই এন্ট্রি) এটা
+  ছাড়াই সম্পূর্ণ ব্যবহারযোগ্য — Part 5 শুধু ঐচ্ছিক সম্প্রসারণ।
 
 ### নোট
-এই এন্ট্রি লেখার আগে পুরো প্রজেক্ট রিসার্চ করা হয়েছে এবং তারপর ব্যাকএন্ড
-সম্পূর্ণ বাস্তবায়ন করা হয়েছে (উপরের "সম্পন্ন" দেখুন) — schema, lib,
-routes, scheduler, index.js/roles.js ওয়্যারিং সব কাজ করছে এবং
-স্বনির্ভর (ফ্রন্টএন্ড ছাড়াও সার্ভার এই মুহূর্তে ক্র্যাশ করবে না)।
-**ফ্রন্টএন্ড এখনো বাকি** — কোনো UI নেই এখনো, তাই ফিচারটা এই মুহূর্তে
-ব্যবহারযোগ্য না, কিন্তু API সম্পূর্ণ প্রস্তুত। পরের সেশন সরাসরি
-`client/src/lib/api.ts`-এর ফাংশন যোগ করা থেকে শুরু করতে পারবে — উপরের
-"বাকি" সেকশনে ঠিক কোন ফাইলে কী বসবে তার বিস্তারিত আছে, নতুন করে ব্যাকএন্ড
-রিসার্চ করার দরকার নেই।
+ব্যাকএন্ড ও ফ্রন্টএন্ড দুটোই এখন সম্পূর্ণ — schema, lib, routes,
+scheduler, index.js/roles.js ওয়্যারিং, admin কম্পোজ/লিস্ট মডিউল, এবং
+guardian-সাইড ভাসমান মেসেজ বাবল, সব বসানো হয়েছে। ফিচারটা এখন এন্ড-টু-এন্ড
+ব্যবহারযোগ্য, শুধু `npm run check` দিয়ে প্যাকেজড CMD-এ যাচাই বাকি (উপরের
+"বাকি" দেখুন) এবং Part 5 (ঐচ্ছিক SMS টাই-ইন) ব্যবহারকারীর সিদ্ধান্ত
+সাপেক্ষে। `npm run check` পাস করলে এই এন্ট্রির Status `DONE`-এ পাল্টে
+দিতে হবে এবং "বাকি"-তে শুধু Part 5 (যদি ব্যবহারকারী না চান) থাকলে সেটাও
+ড্রপ করে টেমপ্লেটে রিসেট করতে হবে (নিচের "How to use this file" দেখুন)।
 
 ---
 
