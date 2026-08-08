@@ -13,6 +13,52 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
+## Status: NOT_STARTED
+
+## Task: শর্তভিত্তিক (conditional) গার্ডিয়ান রিমাইন্ডার — বকেয়া বেতন/দেরিতে
+উপস্থিতি/হাজিরা-মিসিং/নির্বাচিত-ছাত্র, ইন্টারভাল+সময়-ভিত্তিক শিডিউল
+(ad-hoc, docs/BUSINESS_READINESS_ROADMAP.md-এর কোনো Phase-এর সাথে মেলে না)
+Started: not yet — শুধু পরিকল্পনা লেখা হয়েছে, বাস্তবায়ন শুরু হয়নি
+
+**পূর্ণাঙ্গ পরিকল্পনা `docs/CONDITIONAL_REMINDERS_PLAN.md`-এ লেখা আছে —
+বাস্তবায়ন শুরুর আগে অবশ্যই সেই ফাইলটা পুরোটা পড়ে নিতে হবে। এখানে শুধু
+সারসংক্ষেপ ও ট্র্যাকিং।**
+
+### ব্যবহারকারীর নিশ্চিত করা সিদ্ধান্ত (চ্যাট থেকে)
+1. ৪টা নতুন targetType: `feeDue` (বকেয়া বেতন, গার্ডিয়ান-ভিত্তিক গ্রুপড
+   মেসেজ), `lateArrival` (আজ দেরিতে-মার্ক), `attendanceMissing` (নির্দিষ্ট
+   সময়ের পরও হাজিরা রো নেই), `selectedStudents` (Attendance পেজ থেকে
+   ম্যানুয়াল সিলেকশন, existing `scheduleType:"once"` মেকানিজম রিইউজ করে
+   তাৎক্ষণিক পাঠানো — নতুন এন্ডপয়েন্ট লাগবে না)।
+2. তিনটা অটোমেটিক টাইপের (feeDue/lateArrival/attendanceMissing) জন্যই
+   `intervalDays` (কত দিন পরপর, admin-সিলেক্টেবল ১-৩০) + `scheduleTime`
+   (কয়টায়) — প্রতি ক্লাসের জন্য আলাদা রুল বানিয়ে আলাদা সময় দেওয়া যাবে।
+3. `feeDue`-এর "১০ তারিখের পর থেকে" শুরুর ধারণাটা হার্ডকোড না করে
+   ইন্টারভাল-ভিত্তিক জেনারেল সিস্টেমে মিশিয়ে দেওয়া হয়েছে — শুরুর তারিখ
+   = রিমাইন্ডার তৈরি/সক্রিয় করার দিন। আলাদা dayOfMonth ফিল্ড এই ফেজে
+   নেই (প্ল্যান ডকের §১ পয়েন্ট ৫-এ কারণ লেখা আছে)।
+
+### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে — CONDITIONAL_REMINDERS_PLAN.md-এর
+ফেজ নাম্বারের সাথে মিলিয়ে)
+- [ ] Phase 1 — DB migration (`server/sql/supabase_schema.sql`-এ ৩টা নতুন
+  কলাম `guardian_reminders`-এ, প্ল্যান ডকের §২)
+- [ ] Phase 2 — `resolveTargetGuardianIds()`-এ ৪টা নতুন ব্রাঞ্চ +
+  `buildFeeDueBodies()` + `dispatchReminder()`-এ feeDue শাখা (§৩)
+- [ ] Phase 3 — `dispatchDueReminders()`-এ interval+time লজিক, সুইপ
+  ফ্রিকোয়েন্সি ৩০→১০ মিনিট, **সার্ভার টাইমজোন যাচাই বাধ্যতামূলক** (§৪ —
+  এটা ভুল হলে পুরো ফিচার কার্যত অকেজো মনে হবে, প্রথমেই চেক করা)
+- [ ] Phase 4 — Zod স্কিমা + route + `createReminder()` প্যাসথ্রু (§৫)
+- [ ] Phase 5 — `GuardianReminders.tsx` UI + `Attendance.tsx` চেকবক্স/বাটন (§৬)
+- [ ] Phase 6 — টেস্ট চেকলিস্ট (§৮)
+
+### নোট
+কোনো নতুন টেবিল বা নতুন API রুট লাগছে না — সবকিছু existing
+`guardian_reminders`/`guardian_messages` টেবিল আর existing
+`POST /api/guardian-reminders` এন্ডপয়েন্টের সম্প্রসারণ। বিস্তারিত কারণ ও
+কোড স্নিপেট প্ল্যান ডকে আছে, এখানে পুনরাবৃত্তি করা হলো না।
+
+---
+
 ## Status: DONE
 
 ## Task: Guardian push "sent successfully but never shows on phone" — root
