@@ -15,6 +15,66 @@ the next sequential number.
 
 ## Status: IN_PROGRESS
 
+## Task: Guardian Push Notification — গার্ডিয়ান-মুখী সব বার্তা (রিমাইন্ডার +
+ক্লাস পোস্ট/এসাইনমেন্ট-নোটিশ) ব্রাউজার/ফোন push notification হিসেবে যাওয়া
+Started: 2026-08-08
+
+**পূর্ণাঙ্গ পরিকল্পনা `docs/PUSH_NOTIFICATION_PLAN.md`-এ লেখা আছে —
+বাস্তবায়ন শুরুর আগে অবশ্যই সেই ফাইলটা পুরোটা পড়ে নিতে হবে। এখানে শুধু
+সারসংক্ষেপ ও ট্র্যাকিং।**
+
+### ব্যবহারকারীর নিশ্চিত করা সিদ্ধান্ত (2026-08-08)
+1. প্রযুক্তি: Web Push API + VAPID (নতুন dependency শুধু `web-push`,
+   কোনো Firebase/Google অ্যাকাউন্ট লাগবে না — AGENTS.md Rule 5 অনুযায়ী
+   আগেই ব্যবহারকারীকে জানানো ও কনফার্ম করা হয়েছে)।
+2. স্কোপ: শুধু guardian reminder না — গার্ডিয়ান রিমাইন্ডার **এবং**
+   ক্লাস পোস্ট/এসাইনমেন্ট/নোটিশ/বার্তা (`classPosts.js`) দুটোই একই
+   কেন্দ্রীয় `notifyGuardians()` ফাংশন দিয়ে পুশ পাবে।
+3. Admin-সাইড নোটিফিকেশন বেল (`NotificationBell.tsx`) অপরিবর্তিত থাকবে —
+   পুশ শুধু গার্ডিয়ান সাইডেই, স্টাফ সাইডে না।
+
+### সম্পন্ন
+- [x] পূর্ণাঙ্গ ৭-ফেজ পরিকল্পনা লেখা হয়েছে (`docs/PUSH_NOTIFICATION_PLAN.md`) —
+  আর্কিটেকচার, প্রতিটি ফেজে কোন ফাইল ছোঁয়া হবে তার টেবিল, বিদ্যমান
+  guardian reminder ও class-posts সিস্টেমের সাথে সংযোগ-বিন্দু ব্যাখ্যা।
+
+### বাকি (পরের এজেন্ট/সেশন এখান থেকে শুরু করবে — কোনো কোড এখনো লেখা হয়নি)
+- [ ] **Phase 0** — VAPID কীপেয়ার জেনারেট + `.env.example`-এ
+  `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` ডকুমেন্ট করা।
+- [ ] **Phase 1** — `server/sql/supabase_schema.sql`-এ
+  `guardian_push_subscriptions` টেবিল (protected path — SQL migration,
+  কিন্তু কাজটা explicitly এই বিষয়েই তাই অনুমোদিত, AGENTS.md Rule 4) +
+  `migrateTenants.js`-এ এন্ট্রি বিদ্যমান tenant-দের জন্য।
+- [ ] **Phase 2** — নতুন `server/src/lib/guardianPush.js`
+  (`notifyGuardians()`), `web-push` npm ডিপেন্ডেন্সি যোগ।
+- [ ] **Phase 3** — সাবস্ক্রাইব/আনসাবস্ক্রাইব API
+  (`routes/guardianAuth.js`), `client/public/sw.js`-এ push/notificationclick
+  handler, গার্ডিয়ান পোর্টালে permission-প্রম্পট কম্পোনেন্ট
+  (`GuardianShell.tsx`-এ মাউন্ট, `GuardianMessengerBubble.tsx` অক্ষত রেখে
+  পাশে বসবে)।
+- [ ] **Phase 4** — `guardianReminders.js`-এর `dispatchReminder()`-এ
+  `notifyGuardians()` কল যোগ।
+- [ ] **Phase 5** — `classPosts.js`-এ `resolveGuardiansForClass()` হেল্পার +
+  `routes/assignments.js`-এর POST হ্যান্ডলারে `notifyGuardians()` কল।
+- [ ] **Phase 6 (ঐচ্ছিক)** — `lib/results.js`-এ রেজাল্ট-প্রকাশেও একই hook,
+  শুধু ব্যবহারকারী চাইলে।
+- [ ] **Phase 7** — ম্যানুয়াল টেস্ট চেকলিস্ট (ফোনে permission → app বন্ধ →
+  push আসছে কিনা), `docs/PROJECT_MAP.md` আপডেট, এই এন্ট্রি DONE-এ রিসেট।
+
+প্রতিটা ফেজ আলাদা ডেলিভারি (AGENTS.md Rule 1, minimal diff) — একসাথে সব
+ফেজ করা হবে না, প্রতিটার পরে `npm run check`।
+
+### নোট
+এই টাস্কটা বিদ্যমান "Guardian Reminder Messenger" এন্ট্রির (নিচে) উপরে
+নতুন এন্ট্রি হিসেবে যোগ করা হয়েছে — সেই এন্ট্রি টাচ করা হয়নি, কারণ ওটা
+আলাদা, এখনো নিজের "বাকি" আছে (`npm run check` যাচাই + ঐচ্ছিক Part 5)।
+দুটো IN_PROGRESS এন্ট্রি একসাথে থাকা ইচ্ছাকৃত (এই ফাইলের "How to use this
+file" নির্দেশনা অনুযায়ী — নতুন টাস্ক পুরনোটাকে merge করবে না)।
+
+---
+
+## Status: IN_PROGRESS
+
 ## Task: Guardian Reminder Messenger — গার্ডিয়ান পোর্টালে অ্যাডমিন-নিয়ন্ত্রিত
 শিডিউলড রিমাইন্ডার মেসেজ, ভাসমান গোল আইকন থেকে খোলা মেসেজ থ্রেড
 (ad-hoc — `docs/BUSINESS_READINESS_ROADMAP.md`-এর কোনো Phase-এর সাথে মেলে
