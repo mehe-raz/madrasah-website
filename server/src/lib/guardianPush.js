@@ -58,10 +58,27 @@ async function subscriptionsForGuardians(guardianIds) {
 // attempted independently — one guardian's dead subscription never stops
 // delivery to the rest.
 async function notifyGuardians(guardianIds, { title, body, url } = {}) {
-  if (!ensureConfigured()) return { sent: 0, reason: "not_configured" };
-  if (!guardianIds || guardianIds.length === 0) return { sent: 0, reason: "no_targets" };
+  // ---------------------------------------------------------------------
+  // TEMPORARY DIAGNOSTIC LOGGING — added 2026-08-08 to debug "no push ever
+  // arrives" with the guardian's phone. Safe to remove once confirmed
+  // working (see docs/CURRENT_TASK.md). Every line is prefixed
+  // "guardianPush[debug]" so it's easy to filter out later.
+  // ---------------------------------------------------------------------
+  console.log("guardianPush[debug]: notifyGuardians called", {
+    guardianIds,
+    title,
+  });
+  if (!ensureConfigured()) {
+    console.log("guardianPush[debug]: not configured — VAPID env vars missing/invalid");
+    return { sent: 0, reason: "not_configured" };
+  }
+  if (!guardianIds || guardianIds.length === 0) {
+    console.log("guardianPush[debug]: no target guardianIds passed in");
+    return { sent: 0, reason: "no_targets" };
+  }
 
   const subscriptions = await subscriptionsForGuardians(guardianIds);
+  console.log("guardianPush[debug]: subscriptions found", subscriptions.length, "for guardianIds", guardianIds);
   if (subscriptions.length === 0) return { sent: 0, reason: "no_subscriptions" };
 
   const payload = JSON.stringify({ title: title || "", body: body || "", url: url || "/" });
@@ -75,8 +92,10 @@ async function notifyGuardians(guardianIds, { title, body, url } = {}) {
     try {
       await webpush.sendNotification(pushSubscription, payload);
       sent += 1;
+      console.log("guardianPush[debug]: send OK", sub.id, "guardianId", sub.guardianId);
     } catch (err) {
       const statusCode = err && err.statusCode;
+      console.log("guardianPush[debug]: send FAILED", sub.id, "statusCode", statusCode, "message", err.message);
       if (statusCode === 404 || statusCode === 410) {
         // Subscription expired/revoked on the browser's side (uninstalled,
         // site data cleared, permission revoked) — the push service will
