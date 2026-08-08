@@ -37,11 +37,22 @@ Started: 2026-08-08
 - [x] পূর্ণাঙ্গ ৭-ফেজ পরিকল্পনা লেখা হয়েছে (`docs/PUSH_NOTIFICATION_PLAN.md`) —
   আর্কিটেকচার, প্রতিটি ফেজে কোন ফাইল ছোঁয়া হবে তার টেবিল, বিদ্যমান
   guardian reminder ও class-posts সিস্টেমের সাথে সংযোগ-বিন্দু ব্যাখ্যা।
+- [x] **Phase 0** — `.env.example`-এ নতুন "Guardian Push Notifications"
+  সেকশন যোগ (`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, সব
+  কমেন্ট-আউট — unset থাকলে push disabled, বিদ্যমান পোলিং বাবল স্বাভাবিক
+  কাজ করে, ঠিক `SMS_PROVIDER_API_KEY`-এর no-op-if-unset প্যাটার্নে)। একটা
+  বাস্তব VAPID কীপেয়ার এই সেশনে জেনারেট করে ব্যবহারকারীকে চ্যাটে সরাসরি
+  দেওয়া হয়েছে (`.env.example`-এ real secret লেখা হয়নি, শুধু জেনারেট করার
+  কমান্ড — `BACKUP_ENCRYPTION_KEY`-এর ঠিক প্যাটার্নে)। **কোনো npm install
+  লাগেনি** — pure Node `crypto.createECDH('prime256v1')` দিয়েই `web-push`
+  প্যাকেজের `generateVAPIDKeys()`-এর সমতুল্য কী জেনারেট করা হয়েছে।
+  ব্যবহারকারীর এখনো বাকি (কোড না, শুধু তার নিজের অ্যাকশন): জেনারেট করা
+  আসল কী দুটো তার (গিট-ইগনোর করা) আসল `.env` ফাইলে বসানো — `.env.example`
+  টেমপ্লেটে বসানো হয়নি, অন্য সব secret-এর মতোই।
 
-### বাকি (পরের এজেন্ট/সেশন এখান থেকে শুরু করবে — কোনো কোড এখনো লেখা হয়নি)
-- [ ] **Phase 0** — VAPID কীপেয়ার জেনারেট + `.env.example`-এ
-  `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` ডকুমেন্ট করা।
-- [ ] **Phase 1** — `server/sql/supabase_schema.sql`-এ
+### বাকি (পরের এজেন্ট/সেশন এখান থেকে শুরু করবে)
+- [ ] **Phase 1 — পরের কাজ, এখনো শুরু হয়নি।**
+  `server/sql/supabase_schema.sql`-এ
   `guardian_push_subscriptions` টেবিল (protected path — SQL migration,
   কিন্তু কাজটা explicitly এই বিষয়েই তাই অনুমোদিত, AGENTS.md Rule 4) +
   `migrateTenants.js`-এ এন্ট্রি বিদ্যমান tenant-দের জন্য।
