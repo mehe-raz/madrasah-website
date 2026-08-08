@@ -13,12 +13,12 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
-## Status: NOT_STARTED
+## Status: IN_PROGRESS
 
 ## Task: শর্তভিত্তিক (conditional) গার্ডিয়ান রিমাইন্ডার — বকেয়া বেতন/দেরিতে
 উপস্থিতি/হাজিরা-মিসিং/নির্বাচিত-ছাত্র, ইন্টারভাল+সময়-ভিত্তিক শিডিউল
 (ad-hoc, docs/BUSINESS_READINESS_ROADMAP.md-এর কোনো Phase-এর সাথে মেলে না)
-Started: not yet — শুধু পরিকল্পনা লেখা হয়েছে, বাস্তবায়ন শুরু হয়নি
+Started: 2026-08-08
 
 **পূর্ণাঙ্গ পরিকল্পনা `docs/CONDITIONAL_REMINDERS_PLAN.md`-এ লেখা আছে —
 বাস্তবায়ন শুরুর আগে অবশ্যই সেই ফাইলটা পুরোটা পড়ে নিতে হবে। এখানে শুধু
@@ -38,12 +38,24 @@ Started: not yet — শুধু পরিকল্পনা লেখা হ�
    = রিমাইন্ডার তৈরি/সক্রিয় করার দিন। আলাদা dayOfMonth ফিল্ড এই ফেজে
    নেই (প্ল্যান ডকের §১ পয়েন্ট ৫-এ কারণ লেখা আছে)।
 
+### সম্পন্ন
+- [x] Phase 1 — DB migration। `server/sql/supabase_schema.sql`-এ
+  `guardian_reminders`-এর নিচে ৩টা `alter table ... add column if not
+  exists` (`scheduleTime` text, `intervalDays` integer default 1,
+  `selectedStudentIds` jsonb) + `"targetType"` কলামের কমেন্টে ৪টা নতুন
+  ভ্যালু যোগ। কোনো নতুন টেবিল না, backward compatible।
+- [x] Phase 2 — `server/src/lib/guardianReminders.js`:
+  `resolveTargetGuardianIds()`-এ ৪টা নতুন ব্রাঞ্চ (feeDue/lateArrival/
+  attendanceMissing/selectedStudents) যোগ হয়েছে existing
+  all/class/student ব্রাঞ্চ অক্ষত রেখে। নতুন `buildFeeDueBodies()`
+  হেল্পার (per-guardian গ্রুপড ফী-বকেয়া মেসেজ)। `dispatchReminder()`-এ
+  `targetType === "feeDue"`-এর জন্য একটা early-return শাখা যোগ হয়েছে যেটা
+  প্রতি গার্ডিয়ানকে আলাদা personalized body দিয়ে `notifyGuardians()`
+  কল করে (বাকি সব টাইপ আগের shared-payload পথেই যায়, অপরিবর্তিত)।
+  `node --check` দিয়ে syntax যাচাই করা হয়েছে।
+
 ### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে — CONDITIONAL_REMINDERS_PLAN.md-এর
 ফেজ নাম্বারের সাথে মিলিয়ে)
-- [ ] Phase 1 — DB migration (`server/sql/supabase_schema.sql`-এ ৩টা নতুন
-  কলাম `guardian_reminders`-এ, প্ল্যান ডকের §২)
-- [ ] Phase 2 — `resolveTargetGuardianIds()`-এ ৪টা নতুন ব্রাঞ্চ +
-  `buildFeeDueBodies()` + `dispatchReminder()`-এ feeDue শাখা (§৩)
 - [ ] Phase 3 — `dispatchDueReminders()`-এ interval+time লজিক, সুইপ
   ফ্রিকোয়েন্সি ৩০→১০ মিনিট, **সার্ভার টাইমজোন যাচাই বাধ্যতামূলক** (§৪ —
   এটা ভুল হলে পুরো ফিচার কার্যত অকেজো মনে হবে, প্রথমেই চেক করা)

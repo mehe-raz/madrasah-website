@@ -85,9 +85,88 @@ async function resolveTargetGuardianIds(reminder) {
     );
     return rows.map((r) => r.guardianId);
   }
+  // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 2 — the four conditional
+  // target types. targetClass is optional here (whole-institution) except
+  // for lateArrival/attendanceMissing, where routes/guardianReminders.js's
+  // Zod schema requires it (see plan §5) since "which class, what time"
+  // is the whole point of those two.
+  if (reminder.targetType === "feeDue") {
+    const rows = await db.all(
+      `SELECT DISTINCT gs."guardianId"
+       FROM guardian_students gs
+       JOIN students s ON s.id = gs."studentId"
+       WHERE gs.status = 'active' AND s.due > 0
+         AND ($1::text IS NULL OR s.class = $1)`,
+      [reminder.targetClass || null]
+    );
+    return rows.map((r) => r.guardianId);
+  }
+  if (reminder.targetType === "lateArrival") {
+    const today = todayStr();
+    const rows = await db.all(
+      `SELECT DISTINCT gs."guardianId"
+       FROM guardian_students gs
+       JOIN students s ON s.id = gs."studentId"
+       JOIN attendance a ON a."studentId" = s.id AND a.date = $1
+       WHERE gs.status = 'active' AND a.status = 'দেরিতে' AND s.class = $2`,
+      [today, reminder.targetClass]
+    );
+    return rows.map((r) => r.guardianId);
+  }
+  if (reminder.targetType === "attendanceMissing") {
+    const today = todayStr();
+    const rows = await db.all(
+      `SELECT DISTINCT gs."guardianId"
+       FROM guardian_students gs
+       JOIN students s ON s.id = gs."studentId"
+       WHERE gs.status = 'active' AND s.class = $2
+         AND NOT EXISTS (SELECT 1 FROM attendance a WHERE a."studentId" = s.id AND a.date = $1)`,
+      [today, reminder.targetClass]
+    );
+    return rows.map((r) => r.guardianId);
+  }
+  if (reminder.targetType === "selectedStudents") {
+    const ids = Array.isArray(reminder.selectedStudentIds) ? reminder.selectedStudentIds : [];
+    if (ids.length === 0) return [];
+    const rows = await db.all(
+      `SELECT DISTINCT "guardianId" FROM guardian_students WHERE status = 'active' AND "studentId" = ANY($1)`,
+      [ids]
+    );
+    return rows.map((r) => r.guardianId);
+  }
   // 'all'
   const rows = await db.all(`SELECT DISTINCT "guardianId" FROM guardian_students WHERE status = 'active'`);
   return rows.map((r) => r.guardianId);
+}
+
+// docs/CONDITIONAL_REMINDERS_PLAN.md Phase 2 — feeDue is the one target
+// type where every guardian needs their OWN message body (their own
+// children's names/dues), not the admin's static reminder.body. Guardians
+// with no remaining due among the targeted students (e.g. they paid
+// between resolveTargetGuardianIds() picking them up and this running)
+// simply get no entry in the returned map — dispatchReminder() skips them.
+async function buildFeeDueBodies(guardianIds, targetClass) {
+  if (!guardianIds || guardianIds.length === 0) return new Map();
+  const rows = await db.all(
+    `SELECT gs."guardianId", s.name, s.roll, s.due
+     FROM guardian_students gs
+     JOIN students s ON s.id = gs."studentId"
+     WHERE gs.status = 'active' AND gs."guardianId" = ANY($1) AND s.due > 0
+       AND ($2::text IS NULL OR s.class = $2)
+     ORDER BY s.name`,
+    [guardianIds, targetClass || null]
+  );
+  const byGuardian = new Map();
+  for (const r of rows) {
+    const list = byGuardian.get(r.guardianId) || [];
+    list.push(`${r.name} (রোল ${r.roll}) — বকেয়া ৳${r.due}`);
+    byGuardian.set(r.guardianId, list);
+  }
+  const bodies = new Map();
+  for (const [guardianId, lines] of byGuardian) {
+    bodies.set(guardianId, `আপনার নিম্নলিখিত সন্তানের বেতন বকেয়া রয়েছে:\n${lines.join("\n")}`);
+  }
+  return bodies;
 }
 
 // Writes one guardian_messages row per targeted guardian and stamps
@@ -96,6 +175,31 @@ async function resolveTargetGuardianIds(reminder) {
 async function dispatchReminder(reminder) {
   const guardianIds = await resolveTargetGuardianIds(reminder);
   const createdAt = new Date().toISOString();
+
+  // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 2 — feeDue takes a different
+  // path from here on: personalized body per guardian instead of the one
+  // static reminder.body every other target type shares. Kept as an early
+  // return rather than threading a body-lookup through the loop below, so
+  // the existing all/class/student/lateArrival/attendanceMissing/
+  // selectedStudents path stays exactly as it was before this change.
+  if (reminder.targetType === "feeDue") {
+    const bodies = await buildFeeDueBodies(guardianIds, reminder.targetClass);
+    for (const guardianId of guardianIds) {
+      const body = bodies.get(guardianId);
+      if (!body) continue; // paid off between resolve and here — nothing to send
+      await db.run(
+        `INSERT INTO guardian_messages ("reminderId", "guardianId", title, body, "createdAt")
+         VALUES ($1, $2, $3, $4, $5)`,
+        [reminder.id, guardianId, reminder.title, body, createdAt]
+      );
+      // Personalized body means this can't go through the shared-payload
+      // notifyGuardians() batch below — one call per guardian instead.
+      await notifyGuardians([guardianId], { title: reminder.title, body, url: "/guardian" });
+    }
+    await db.run(`UPDATE guardian_reminders SET "lastSentAt" = $1 WHERE id = $2`, [createdAt, reminder.id]);
+    return guardianIds.length;
+  }
+
   for (const guardianId of guardianIds) {
     await db.run(
       `INSERT INTO guardian_messages ("reminderId", "guardianId", title, body, "createdAt")
