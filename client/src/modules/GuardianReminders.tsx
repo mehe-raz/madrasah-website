@@ -12,6 +12,10 @@ const TARGET_COLOR: Record<GuardianReminder["targetType"], string> = {
   all: C.sky,
   class: C.violet,
   student: C.emerald,
+  feeDue: C.rose,
+  lateArrival: C.amber,
+  attendanceMissing: C.teal,
+  selectedStudents: C.slate,
 };
 
 const SCHEDULE_COLOR: Record<GuardianReminder["scheduleType"], string> = {
@@ -38,6 +42,10 @@ export function GuardianReminders() {
     all: t.guardianReminders.targetAll,
     class: t.guardianReminders.targetClass,
     student: t.guardianReminders.targetStudent,
+    feeDue: t.guardianReminders.targetFeeDue,
+    lateArrival: t.guardianReminders.targetLateArrival,
+    attendanceMissing: t.guardianReminders.targetAttendanceMissing,
+    selectedStudents: t.guardianReminders.targetSelectedStudents,
   };
   const scheduleLabel: Record<GuardianReminder["scheduleType"], string> = {
     once: t.guardianReminders.scheduleOnce,
@@ -53,6 +61,8 @@ export function GuardianReminders() {
   const [targetStudent, setTargetStudent] = useState<Student | null>(null);
   const [scheduleType, setScheduleType] = useState<GuardianReminder["scheduleType"]>("once");
   const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
+  const [intervalDays, setIntervalDays] = useState(1);
 
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -64,6 +74,17 @@ export function GuardianReminders() {
 
   const [dispatching, setDispatching] = useState(false);
   const [dispatchMsg, setDispatchMsg] = useState("");
+
+  // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 5 — feeDue/lateArrival/
+  // attendanceMissing are the three "conditional/automatic" types that
+  // always run on the generalized interval+time schedule (Phase 3), so the
+  // schedule-type dropdown is hidden for them and scheduleType is forced to
+  // "daily" instead. 'selectedStudents' isn't offered in this dropdown at
+  // all — it's only ever created from the Attendance page's "send now" flow
+  // below, via scheduleType: "once" (see §7 of the plan).
+  const isConditionalType = targetType === "feeDue" || targetType === "lateArrival" || targetType === "attendanceMissing";
+  const classRequired = targetType === "class" || targetType === "lateArrival" || targetType === "attendanceMissing";
+  const classApplicable = classRequired || targetType === "feeDue";
 
   useEffect(() => {
     api.getAssignmentClasses().then(setClasses).catch(() => setClasses([]));
@@ -88,6 +109,8 @@ export function GuardianReminders() {
     setTargetClass("");
     setTargetStudent(null);
     setScheduleDate("");
+    setScheduleTime("");
+    setIntervalDays(1);
   };
 
   const send = async () => {
@@ -95,7 +118,7 @@ export function GuardianReminders() {
       setComposeError(t.guardianReminders.enterTitle);
       return;
     }
-    if (targetType === "class" && !targetClass) {
+    if (classRequired && !targetClass) {
       setComposeError(t.guardianReminders.selectClassFirst);
       return;
     }
@@ -107,6 +130,10 @@ export function GuardianReminders() {
       setComposeError(t.guardianReminders.selectDateFirst);
       return;
     }
+    if (isConditionalType && !scheduleTime) {
+      setComposeError(t.guardianReminders.selectTimeFirst);
+      return;
+    }
     setSending(true);
     setSent(false);
     setComposeError("");
@@ -115,10 +142,12 @@ export function GuardianReminders() {
         title: title.trim(),
         body: body.trim(),
         targetType,
-        targetClass: targetType === "class" ? targetClass : undefined,
+        targetClass: classApplicable ? targetClass || undefined : undefined,
         targetStudentId: targetType === "student" ? targetStudent?.id : undefined,
         scheduleType,
         scheduleDate: scheduleType === "specificDate" ? scheduleDate : undefined,
+        scheduleTime: isConditionalType ? scheduleTime : undefined,
+        intervalDays: isConditionalType ? intervalDays : undefined,
       });
       resetForm();
       setSent(true);
@@ -182,29 +211,81 @@ export function GuardianReminders() {
           </Field>
 
           <Field label={t.guardianReminders.targetTypeLabel}>
-            <Select value={targetType} onChange={(e) => setTargetType(e.target.value as GuardianReminder["targetType"])}>
+            <Select
+              value={targetType}
+              onChange={(e) => {
+                const next = e.target.value as GuardianReminder["targetType"];
+                setTargetType(next);
+                // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 5 — feeDue/lateArrival/
+                // attendanceMissing always run on the generalized interval+time
+                // schedule (Phase 3), so scheduleType is forced to "daily" the
+                // moment one of them is picked. Set directly in the event handler
+                // (not a useEffect) to avoid a synchronous setState-in-effect
+                // cascading render.
+                if (next === "feeDue" || next === "lateArrival" || next === "attendanceMissing") {
+                  setScheduleType("daily");
+                }
+              }}
+            >
               <option value="all">{t.guardianReminders.targetAll}</option>
               <option value="class">{t.guardianReminders.targetClass}</option>
               <option value="student">{t.guardianReminders.targetStudent}</option>
+              <option value="feeDue">{t.guardianReminders.targetFeeDue}</option>
+              <option value="lateArrival">{t.guardianReminders.targetLateArrival}</option>
+              <option value="attendanceMissing">{t.guardianReminders.targetAttendanceMissing}</option>
+              {/* 'selectedStudents' isn't offered here — created only from the
+                  Attendance page's checkbox selection (see §7 of the plan). */}
             </Select>
           </Field>
 
-          <Field label={t.guardianReminders.scheduleTypeLabel}>
-            <Select
-              value={scheduleType}
-              onChange={(e) => setScheduleType(e.target.value as GuardianReminder["scheduleType"])}
-            >
-              <option value="once">{t.guardianReminders.scheduleOnce}</option>
-              <option value="daily">{t.guardianReminders.scheduleDaily}</option>
-              <option value="specificDate">{t.guardianReminders.scheduleSpecificDate}</option>
-            </Select>
-          </Field>
+          {!isConditionalType && (
+            <Field label={t.guardianReminders.scheduleTypeLabel}>
+              <Select
+                value={scheduleType}
+                onChange={(e) => setScheduleType(e.target.value as GuardianReminder["scheduleType"])}
+              >
+                <option value="once">{t.guardianReminders.scheduleOnce}</option>
+                <option value="daily">{t.guardianReminders.scheduleDaily}</option>
+                <option value="specificDate">{t.guardianReminders.scheduleSpecificDate}</option>
+              </Select>
+            </Field>
+          )}
+
+          {isConditionalType && (
+            <>
+              <Field label={t.guardianReminders.intervalDaysLabel}>
+                <Input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={intervalDays}
+                  onChange={(e) => setIntervalDays(Math.max(1, Math.min(30, Number(e.target.value) || 1)))}
+                />
+              </Field>
+              <Field label={t.guardianReminders.scheduleTimeLabel}>
+                <Input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} />
+              </Field>
+            </>
+          )}
         </div>
 
-        {targetType === "class" && (
+        {(targetType === "class" || targetType === "lateArrival" || targetType === "attendanceMissing") && (
           <Field label={t.guardianReminders.selectClass}>
             <Select value={targetClass} onChange={(e) => setTargetClass(e.target.value)}>
               <option value="">{t.guardianReminders.selectClass}</option>
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        {targetType === "feeDue" && (
+          <Field label={t.guardianReminders.selectClassOptional}>
+            <Select value={targetClass} onChange={(e) => setTargetClass(e.target.value)}>
+              <option value="">{t.guardianReminders.selectClassOptional}</option>
               {classes.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -220,7 +301,7 @@ export function GuardianReminders() {
           </Field>
         )}
 
-        {scheduleType === "specificDate" && (
+        {scheduleType === "specificDate" && !isConditionalType && (
           <Field label={t.guardianReminders.scheduleDateLabel}>
             <Input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} />
           </Field>
@@ -268,6 +349,11 @@ export function GuardianReminders() {
               </div>
               <div className="class-post__title">{r.title}</div>
               {r.body && <div className="class-post__body">{r.body}</div>}
+              {r.scheduleTime && (
+                <div className="class-post__meta">
+                  {t.guardianReminders.scheduleTimeLabel}: {r.scheduleTime} · {t.guardianReminders.intervalDaysLabel}: {r.intervalDays}
+                </div>
+              )}
               <div className="class-post__meta guardian-reminder-item__last-sent">
                 {r.lastSentAt
                   ? `${t.guardianReminders.lastSentAt} ${relativeTime(r.lastSentAt)}`

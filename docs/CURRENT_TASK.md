@@ -53,15 +53,111 @@ Started: 2026-08-08
   প্রতি গার্ডিয়ানকে আলাদা personalized body দিয়ে `notifyGuardians()`
   কল করে (বাকি সব টাইপ আগের shared-payload পথেই যায়, অপরিবর্তিত)।
   `node --check` দিয়ে syntax যাচাই করা হয়েছে।
+- [x] Phase 3 — `server/src/lib/guardianReminders.js`: সার্ভার টাইমজোন
+  যাচাই করা হয়েছে — `Dockerfile` (`node:20-slim`) + `cloudbuild.yaml`
+  (Cloud Run) কোথাও `TZ` env var সেট নেই, মানে সার্ভার প্রসেসের local
+  time UTC, Bangladesh time না। তাই নতুন `nowHHMMInDhaka()` হেল্পার যোগ
+  হয়েছে যেটা `toLocaleTimeString(..., { timeZone: "Asia/Dhaka" })` দিয়ে
+  এক্সপ্লিসিটলি Dhaka সময় বের করে (process-এর নিজের timezone-এর উপর
+  নির্ভর করে না)। `dispatchDueReminders()`-এর `daily` শাখা পরিকল্পনা
+  অনুযায়ী `intervalDays`+`scheduleTime` মেনে চলে — পুরনো (scheduleTime
+  নেই এমন) daily রিমাইন্ডার আগের মতোই আচরণ করে (regression-safe)।
+  `server/src/guardianReminderScheduler.js`-এর `intervalMs()` ডিফল্ট
+  ৩০→১০ মিনিট (env var override আগের মতোই কাজ করে, ৫ মিনিট floor
+  অপরিবর্তিত)। `node --check` দিয়ে দুটো ফাইলই syntax-যাচাই করা হয়েছে।
+  নোট (পরের এজেন্টের জন্য, কোড পরিবর্তন হয়নি): `todayStr()` (একই
+  ফাইলে) এখনো UTC তারিখ বের করে, Dhaka তারিখ না — মধ্যরাতের আশেপাশে
+  কয়েক ঘণ্টার জন্য "আজ"-এর হিসাব একদিন এগিয়ে/পিছিয়ে যেতে পারে। এটা
+  আগে থেকেই ছিল, তাই "minimal diff" স্কোপে এখানে ফিক্স করা হয়নি।
+- [x] Phase 4 — `server/src/lib/guardianReminderSchemas.js`: `TARGET_TYPES`-এ
+  ৪টা নতুন ভ্যালু যোগ, নতুন `scheduleTime`/`intervalDays`/
+  `selectedStudentIds` ফিল্ড + ৩টা নতুন `.refine()` (lateArrival/
+  attendanceMissing-এ targetClass বাধ্যতামূলক, তিনটা conditional টাইপেই
+  scheduleTime বাধ্যতামূলক, selectedStudents-এ অন্তত একজন ছাত্র বাধ্যতামূলক)
+  — সবগুলো প্ল্যান ডকের §৫-এর সাথে হুবহু মিলিয়ে। `server/src/routes/
+  guardianReminders.js`-এর POST হ্যান্ডলারে নতুন ফিল্ড destructure +
+  `selectedStudents`-এর জন্য existing `student`-টাইপের মতোই DB-lookup
+  ভ্যালিডেশন (সব id আসলে বিদ্যমান কিনা) + audit log-এর `details`-এ নতুন
+  ফিল্ডগুলো যোগ। `server/src/lib/guardianReminders.js`-এর `createReminder()`
+  এখন ৩টা নতুন প্যারামিটার নেয় এবং INSERT-এ যোগ করে — `targetClass` এখন
+  `class`-এর পাশাপাশি feeDue/lateArrival/attendanceMissing-এও লেখা হয়
+  (আগে শুধু `targetType === "class"`-এ লিখত), `selectedStudentIds`
+  `JSON.stringify` করে jsonb কলামে যায়। `resolveTargetGuardianIds()`-এর
+  `selectedStudents` ব্রাঞ্চে classPosts.js-এর `attachments` প্যাটার্নের
+  মতোই একটা ডিফেন্সিভ `typeof === "string"` চেক যোগ করা হয়েছে (pg jsonb
+  সাধারণত parsed আসে, কিন্তু গ্যারান্টি না)। `node --check` দিয়ে তিনটা
+  ফাইলই syntax-যাচাই করা হয়েছে।
+- [x] Phase 5 — `client/src/modules/GuardianReminders.tsx`: টার্গেট-টাইপ
+  ড্রপডাউনে ৩টা নতুন অপশন (feeDue/lateArrival/attendanceMissing —
+  `selectedStudents` ড্রপডাউনে নেই, শুধু Attendance পেজ থেকে আসে, প্ল্যান
+  §৬ অনুযায়ী)। এই তিনটার একটা সিলেক্ট হলে শিডিউল-টাইপ ড্রপডাউন লুকিয়ে
+  `scheduleType` স্বয়ংক্রিয়ভাবে `"daily"`-তে ফিক্স হয়ে যায় (একটা
+  `useEffect`-এ), আর তার বদলে "কত দিন পরপর" (number input, ১-৩০) + "কয়টায়
+  পাঠাবে" (time input) দেখায় — এটা প্ল্যান ডকে স্পষ্ট করে লেখা ছিল না
+  (ডকে শুধু "এই দুটো ইনপুট দেখাবে" বলা ছিল, scheduleType কী হবে তা না),
+  তাই এই এজেন্টের একটা সিদ্ধান্ত: যেহেতু interval+time লজিক শুধু
+  `dispatchDueReminders()`-এর `daily` শাখাতেই আছে (Phase 3), এই তিন টাইপকে
+  `daily`-তে জোর করে বেঁধে দেওয়াই একমাত্র উপায় যাতে সেট করা সময়/ইন্টারভাল
+  আদৌ effect করে। lateArrival/attendanceMissing-এ ক্লাস বাধ্যতামূলক
+  (existing 'class' টাইপের প্যাটার্ন পুনর্ব্যবহার), feeDue-তে ক্লাস ঐচ্ছিক
+  (আলাদা "সব ক্লাসের জন্য খালি রাখুন" হেল্পার-টেক্সটসহ)। `TARGET_COLOR`/
+  `targetLabel`-এ ৪টা নতুন এন্ট্রি (feeDue=rose, lateArrival=amber,
+  attendanceMissing=teal, selectedStudents=slate)। রিমাইন্ডার লিস্টে
+  scheduleTime সেট থাকলে একটা ছোট মেটা-লাইনে সময়+ইন্টারভাল দেখানো হয়।
+  পুরোটাই existing `Field`/`Input`/`Select`/`Button` ডিজাইন-সিস্টেম
+  কম্পোনেন্ট দিয়ে, কোনো নতুন raw `style={{}}` না।
+
+  `client/src/modules/Attendance.tsx`: প্রতিটা ছাত্র-রো-তে একটা checkbox
+  কলাম যোগ (নতুন state: `Set<number>` selectedIds)। একজন নির্বাচিত হলে
+  টেবিলের উপরে একটা ব্যানার কার্ড দেখায় ("{count} জন নির্বাচিত" + "নির্বাচিতদের
+  গার্ডিয়ানে রিমাইন্ডার পাঠান" বাটন), ক্লিক করলে ইনলাইন শিরোনাম+বার্তা ফর্ম
+  খোলে, সাবমিট করলে `api.createGuardianReminder({ targetType:
+  "selectedStudents", selectedStudentIds: [...ids], scheduleType: "once",
+  title, body })` কল করে — **এটা existing এন্ডপয়েন্টই, নতুন কোনো রুট
+  লাগেনি**, `scheduleType: "once"` হওয়ায় সার্ভার create করার সাথে সাথেই
+  dispatch করে দেয় (আগে থেকেই থাকা লজিক, প্ল্যান §৭)। সফল হলে ফর্ম
+  ২-৩ সেকেন্ড পর নিজে থেকে বন্ধ হয়ে যায় ও selection ক্লিয়ার হয়। নতুন
+  UI-এর সবটুকু (ব্যানার + ফর্ম) `Card`/`Field`/`Input`/`Textarea`/`Button`
+  দিয়ে — এই ফাইলটা `docs/DESIGN_SYSTEM_MIGRATION.md`/`eslint.config.js`-এর
+  legacy-exemption লিস্টে থাকায় বিদ্যমান পুরনো `style={{}}` অক্ষত রাখা
+  হয়েছে (touch করা হয়নি), শুধু নতুন অংশটুকু ডিজাইন-সিস্টেম মেনে লেখা
+  হয়েছে (AGENTS.md-এর "যদি এই তালিকার কোনো ফাইল টাচ করা হয়, টাচ করা অংশটুকু
+  নতুন সিস্টেমে মাইগ্রেট করা"-এর সাথে সামঞ্জস্যপূর্ণ)।
+
+  **সহায়ক পরিবর্তন (একই Phase-এর অংশ, নতুন কোনো ফাইল না):**
+  `client/src/types/index.ts`-এ `GuardianReminder` ইন্টারফেসে
+  `targetType`-এর ইউনিয়নে ৪টা নতুন ভ্যালু + `scheduleTime`, `intervalDays`,
+  `selectedStudentIds` ফিল্ড। `client/src/lib/api.ts`-এর
+  `createGuardianReminder()`-এর প্যারামিটার টাইপে `scheduleTime`,
+  `intervalDays`, `selectedStudentIds` (সব ঐচ্ছিক) যোগ। `client/src/i18n/
+  bn.ts` + `en.ts`-এ `guardianReminders` ব্লকে ১১টা নতুন কী আর `attendance`
+  ব্লকে ৯টা নতুন কী — **স্ক্রিপ্ট দিয়ে দুই ফাইলের কী-প্যারিটি ও অর্ডার
+  যাচাই করা হয়েছে (হুবহু মিলেছে)**, যেহেতু `en.ts`-এ `satisfies Dict`
+  (`Dict = DeepStringRecord<typeof bn>`) থাকায় যেকোনো mismatch একটা
+  টাইপ-এরর হয়ে যেত।
+
+  **এই এজেন্ট `npm run check`/`tsc` চালাতে পারেনি** (এই sandbox-এ
+  `client/node_modules` নেই, নেটওয়ার্ক বন্ধ) — শুধু ম্যানুয়াল রিভিউ:
+  `.js` ফাইলগুলোতে `node --check`, `.tsx`/`.ts` ফাইলগুলোতে bracket/JSX
+  ব্যালান্স হাতে-চোখে যাচাই, আর উপরে বলা কী-প্যারিটি স্ক্রিপ্ট। **এই
+  ডেলিভারির CMD-তেই প্রথমবার আসল `npm run check` চলবে — সেটা পাস না
+  করলে commit/push হবে না, তাই যদি TS টাইপ-এরর কোথাও থেকে যায় সেটা
+  ওখানেই ধরা পড়বে, কোনো ক্ষতি ছাড়াই।**
 
 ### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে — CONDITIONAL_REMINDERS_PLAN.md-এর
 ফেজ নাম্বারের সাথে মিলিয়ে)
-- [ ] Phase 3 — `dispatchDueReminders()`-এ interval+time লজিক, সুইপ
-  ফ্রিকোয়েন্সি ৩০→১০ মিনিট, **সার্ভার টাইমজোন যাচাই বাধ্যতামূলক** (§৪ —
-  এটা ভুল হলে পুরো ফিচার কার্যত অকেজো মনে হবে, প্রথমেই চেক করা)
-- [ ] Phase 4 — Zod স্কিমা + route + `createReminder()` প্যাসথ্রু (§৫)
-- [ ] Phase 5 — `GuardianReminders.tsx` UI + `Attendance.tsx` চেকবক্স/বাটন (§৬)
-- [ ] Phase 6 — টেস্ট চেকলিস্ট (§৮)
+- [ ] Phase 6 — টেস্ট চেকলিস্ট (§৮, ব্যবহারকারীর ম্যানুয়াল স্মোক-টেস্ট,
+  কোনো কোড পরিবর্তন লাগবে না):
+  - বিদ্যমান `all`/`class`/`student` + `once`/`daily`/`specificDate`
+    রিমাইন্ডার আগের মতোই কাজ করছে কিনা (regression)
+  - `feeDue`: দুই সন্তানওয়ালা এক গার্ডিয়ান একটাই গ্রুপড মেসেজ পাচ্ছেন
+    কিনা, একটা সন্তানের বকেয়া শোধ হলে পরদিন থেকে সে বাদ পড়ছে কিনা
+  - `lateArrival`/`attendanceMissing`: নির্দিষ্ট সময়ের আগে না পাঠিয়ে
+    ঠিক সময়ের কাছাকাছি পাঠাচ্ছে কিনা (টাইমজোন সঠিক আছে কিনা)
+  - `intervalDays`: ৫ সেট করে ৫ দিনের কমে দ্বিতীয়বার না পাঠানো
+  - `selectedStudents`: Attendance পেজ থেকে সিলেক্ট করে পাঠালে তাৎক্ষণিক
+    যাচ্ছে কিনা, আর সেই রিমাইন্ডার লিস্টে "once" হিসেবে দেখাচ্ছে
+    (এবং dispatch হওয়ার পর `active=false` হয়ে যাচ্ছে) কিনা
 
 ### নোট
 কোনো নতুন টেবিল বা নতুন API রুট লাগছে না — সবকিছু existing

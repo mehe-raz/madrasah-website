@@ -42,7 +42,8 @@ router.post(
   "/",
   validate(guardianReminderCreateSchema),
   idempotent(async (req, res) => {
-    const { title, body, targetType, targetClass, targetStudentId, scheduleType, scheduleDate } = req.body;
+    const { title, body, targetType, targetClass, targetStudentId, scheduleType, scheduleDate, scheduleTime, intervalDays, selectedStudentIds } =
+      req.body;
 
     if (targetType === "class") {
       const row = await db.get("SELECT 1 FROM students WHERE class = $1 LIMIT 1", [targetClass]);
@@ -51,6 +52,14 @@ router.post(
     if (targetType === "student") {
       const row = await db.get("SELECT 1 FROM students WHERE id = $1", [targetStudentId]);
       if (!row) return res.status(400).json({ error: "ছাত্র পাওয়া যায়নি" });
+    }
+    // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 4 — same existence check
+    // pattern as the 'student' branch above, but for every id in the array.
+    if (targetType === "selectedStudents") {
+      const rows = await db.all("SELECT id FROM students WHERE id = ANY($1)", [selectedStudentIds]);
+      if (rows.length !== selectedStudentIds.length) {
+        return res.status(400).json({ error: "একটি বা একাধিক ছাত্র পাওয়া যায়নি" });
+      }
     }
 
     const reminder = await createReminder({
@@ -61,6 +70,9 @@ router.post(
       targetStudentId,
       scheduleType,
       scheduleDate,
+      scheduleTime,
+      intervalDays,
+      selectedStudentIds,
       createdBy: req.user.id,
     });
 
@@ -80,7 +92,7 @@ router.post(
       entityType: "guardian_reminder",
       entityId: reminder.id,
       label: `Reminder "${title}" (${targetType}${targetType === "class" ? `: ${targetClass}` : ""}, ${scheduleType})`,
-      details: { targetType, targetClass, targetStudentId, scheduleType, scheduleDate, sentCount },
+      details: { targetType, targetClass, targetStudentId, scheduleType, scheduleDate, scheduleTime, intervalDays, selectedStudentIds, sentCount },
     });
 
     res.status(201).json(await getReminder(reminder.id));

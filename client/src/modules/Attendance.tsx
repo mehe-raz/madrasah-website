@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../components/Badge";
+import { Button, Card, Field, Input, Textarea } from "../components/ui";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { classTreeLabel } from "../lib/classTree";
@@ -18,6 +19,23 @@ export function Attendance() {
   const [error, setError] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
+  // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 5 — manual "নির্বাচিত ছাত্র"
+  // reminder flow. No new endpoint: this reuses the existing
+  // POST /api/guardian-reminders with targetType:"selectedStudents" +
+  // scheduleType:"once", which the server already dispatches immediately
+  // on create (see routes/guardianReminders.js). New UI state only, kept
+  // local to this component per AGENTS.md's Design System rule — every
+  // element added here uses components/ui/*, no raw style={{}} on native
+  // elements, since existing inline styles in this file are legacy and not
+  // to be imitated in new code.
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [reminderTitle, setReminderTitle] = useState("");
+  const [reminderBody, setReminderBody] = useState("");
+  const [reminderSending, setReminderSending] = useState(false);
+  const [reminderSent, setReminderSent] = useState(false);
+  const [reminderError, setReminderError] = useState("");
+
   const load = useCallback(() => {
     api.getAttendance({ dept, date }).then((res) => {
       setAtt(res.students);
@@ -31,6 +49,14 @@ export function Attendance() {
 
   const toggle = (id: number, val: string) =>
     setAtt(att.map((s) => (s.id === id ? { ...s, att: val } : s)));
+
+  const toggleSelected = (id: number) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const stats = {
     present: att.filter((s) => s.att === "উপস্থিত").length,
@@ -69,6 +95,34 @@ export function Attendance() {
   };
 
   const bulkMark = (v: string) => setAtt(att.map((s) => ({ ...s, att: v })));
+
+  const sendSelectedReminder = async () => {
+    if (!reminderTitle.trim() || selectedIds.size === 0) return;
+    setReminderSending(true);
+    setReminderSent(false);
+    setReminderError("");
+    try {
+      await api.createGuardianReminder({
+        title: reminderTitle.trim(),
+        body: reminderBody.trim(),
+        targetType: "selectedStudents",
+        selectedStudentIds: Array.from(selectedIds),
+        scheduleType: "once",
+      });
+      setReminderSent(true);
+      setReminderTitle("");
+      setReminderBody("");
+      setSelectedIds(new Set());
+      window.setTimeout(() => {
+        setReminderSent(false);
+        setShowReminderForm(false);
+      }, 1800);
+    } catch (err) {
+      setReminderError(err instanceof Error ? err.message : t.attendance.reminderSendFailed);
+    } finally {
+      setReminderSending(false);
+    }
+  };
 
   return (
     <div>
@@ -136,11 +190,48 @@ export function Attendance() {
         ))}
       </div>
 
+      {selectedIds.size > 0 && (
+        <Card className="guardian-reminder-attendance-banner">
+          <div className="guardian-reminder-dispatch__row">
+            <span className="class-post__meta">
+              {t.attendance.selectedCount.replace("{count}", String(selectedIds.size))}
+            </span>
+            <Button variant="amber" solid onClick={() => setShowReminderForm((v) => !v)}>
+              {t.attendance.sendReminderToSelected}
+            </Button>
+          </div>
+
+          {showReminderForm && (
+            <div className="form-grid" style={{ marginTop: 12 }}>
+              <Field label={t.attendance.reminderTitleLabel}>
+                <Input value={reminderTitle} onChange={(e) => setReminderTitle(e.target.value)} />
+              </Field>
+              <Field label={t.attendance.reminderBodyLabel}>
+                <Textarea value={reminderBody} onChange={(e) => setReminderBody(e.target.value)} rows={3} />
+              </Field>
+              {reminderError && <div className="alert alert--rose">{reminderError}</div>}
+              <Button
+                variant={reminderSent ? "emerald" : "sky"}
+                solid
+                onClick={sendSelectedReminder}
+                disabled={reminderSending || !reminderTitle.trim()}
+              >
+                {reminderSending
+                  ? t.attendance.sendingReminder
+                  : reminderSent
+                    ? t.attendance.reminderSent
+                    : t.attendance.sendReminder}
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
+
       <div className="table-wrap" style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
           <thead>
             <tr style={{ background: C.slateL }}>
-              {["#", t.attendance.roll, t.attendance.name, t.attendance.class, t.attendance.dept, t.attendance.status].map((h) => (
+              {["#", t.attendance.select, t.attendance.roll, t.attendance.name, t.attendance.class, t.attendance.dept, t.attendance.status].map((h) => (
                 <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: C.muted, fontWeight: 600, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>{h}</th>
               ))}
             </tr>
@@ -149,6 +240,9 @@ export function Attendance() {
             {att.map((s, i) => (
               <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
                 <td style={{ padding: "10px 14px", color: C.muted }}>{i + 1}</td>
+                <td style={{ padding: "10px 14px" }}>
+                  <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggleSelected(s.id)} />
+                </td>
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: C.muted }}>{s.roll}</td>
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text }}>{s.name}</td>
                 <td style={{ padding: "10px 14px", color: C.muted }}>{classTreeLabel(classTree, s.class)}</td>

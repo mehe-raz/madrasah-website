@@ -524,6 +524,9 @@ export const api = {
     targetStudentId?: number;
     scheduleType: GuardianReminder["scheduleType"];
     scheduleDate?: string;
+    scheduleTime?: string;
+    intervalDays?: number;
+    selectedStudentIds?: number[];
   }) => request<GuardianReminder>("/guardian-reminders", { method: "POST", body: JSON.stringify(body) }),
 
   toggleGuardianReminder: (id: number, active: boolean) =>

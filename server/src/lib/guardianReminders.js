@@ -17,6 +17,25 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// docs/CONDITIONAL_REMINDERS_PLAN.md Phase 3 — server timezone audit: this
+// app's Dockerfile is `node:20-slim` deployed on Cloud Run (cloudbuild.yaml)
+// with no `TZ` env var set anywhere in the repo, so the process's own local
+// time is UTC, not Bangladesh time. `scheduleTime` is entered by the admin
+// as a Bangladesh-local HH:MM (the compose form has no timezone picker), so
+// comparing it against `new Date().toTimeString()` would be off by the
+// UTC+6 offset (an admin's "সকাল ১০টা" would actually fire around ৪টা
+// ভোরে). This converts explicitly via Intl instead of relying on the
+// process's local timezone, so it stays correct regardless of what TZ (if
+// any) the deployment environment sets.
+function nowHHMMInDhaka() {
+  return new Date().toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Dhaka",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 async function createReminder({
   title,
   body,
@@ -25,22 +44,36 @@ async function createReminder({
   targetStudentId,
   scheduleType,
   scheduleDate,
+  scheduleTime,
+  intervalDays,
+  selectedStudentIds,
   createdBy,
 }) {
   const createdAt = new Date().toISOString();
+  // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 4 — targetClass is also valid
+  // (optional) for feeDue/lateArrival/attendanceMissing, not just 'class',
+  // so it's no longer gated to `targetType === "class"` only. scheduleTime/
+  // intervalDays only make sense for the three conditional-daily types;
+  // selectedStudentIds only for 'selectedStudents'. Everything else keeps
+  // storing null/default, exactly as before this change.
+  const CLASS_TARGET_TYPES = ["class", "feeDue", "lateArrival", "attendanceMissing"];
+  const SCHEDULED_TARGET_TYPES = ["feeDue", "lateArrival", "attendanceMissing"];
   return db.get(
     `INSERT INTO guardian_reminders
-     (title, body, "targetType", "targetClass", "targetStudentId", "scheduleType", "scheduleDate", "createdBy", "createdAt")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     (title, body, "targetType", "targetClass", "targetStudentId", "scheduleType", "scheduleDate", "scheduleTime", "intervalDays", "selectedStudentIds", "createdBy", "createdAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      RETURNING *`,
     [
       title,
       body || "",
       targetType,
-      targetType === "class" ? targetClass : null,
+      CLASS_TARGET_TYPES.includes(targetType) ? targetClass || null : null,
       targetType === "student" ? targetStudentId : null,
       scheduleType,
       scheduleType === "specificDate" ? scheduleDate : null,
+      SCHEDULED_TARGET_TYPES.includes(targetType) ? scheduleTime || null : null,
+      Math.max(1, Number(intervalDays) || 1),
+      targetType === "selectedStudents" ? JSON.stringify(selectedStudentIds || []) : null,
       createdBy || null,
       createdAt,
     ]
@@ -126,7 +159,12 @@ async function resolveTargetGuardianIds(reminder) {
     return rows.map((r) => r.guardianId);
   }
   if (reminder.targetType === "selectedStudents") {
-    const ids = Array.isArray(reminder.selectedStudentIds) ? reminder.selectedStudentIds : [];
+    // Same defensive normalization as classPosts.js's attachments field —
+    // jsonb usually comes back already-parsed via node-postgres, but this
+    // guards the case where it doesn't.
+    const raw = reminder.selectedStudentIds;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const ids = Array.isArray(parsed) ? parsed : [];
     if (ids.length === 0) return [];
     const rows = await db.all(
       `SELECT DISTINCT "guardianId" FROM guardian_students WHERE status = 'active' AND "studentId" = ANY($1)`,
@@ -239,7 +277,17 @@ async function dispatchDueReminders({ date } = {}) {
     } else if (reminder.scheduleType === "specificDate") {
       due = reminder.scheduleDate === today && lastSentDate !== today;
     } else if (reminder.scheduleType === "daily") {
-      due = lastSentDate !== today;
+      // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 3 — generalized interval +
+      // time-of-day gating for feeDue/lateArrival/attendanceMissing (and
+      // any other daily reminder that sets these). Old daily reminders with
+      // no scheduleTime/intervalDays keep the exact old behavior below.
+      const intervalDays = Math.max(1, Number(reminder.intervalDays) || 1);
+      const daysSinceLast = reminder.lastSentAt
+        ? Math.floor((new Date(today) - new Date(lastSentDate)) / 86400000)
+        : Infinity;
+      const intervalOk = daysSinceLast >= intervalDays;
+      const timeOk = !reminder.scheduleTime || nowHHMMInDhaka() >= reminder.scheduleTime;
+      due = lastSentDate !== today && intervalOk && timeOk;
     }
     if (!due) continue;
 

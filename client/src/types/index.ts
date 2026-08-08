@@ -523,11 +523,14 @@ export interface GuardianReminder {
   id: number;
   title: string;
   body: string;
-  targetType: "all" | "class" | "student";
+  targetType: "all" | "class" | "student" | "feeDue" | "lateArrival" | "attendanceMissing" | "selectedStudents";
   targetClass: string | null;
   targetStudentId: number | null;
   scheduleType: "once" | "daily" | "specificDate";
   scheduleDate: string | null;
+  scheduleTime: string | null;
+  intervalDays: number;
+  selectedStudentIds: number[] | null;
   active: boolean;
   createdAt: string;
   lastSentAt: string | null;

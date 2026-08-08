@@ -27,12 +27,13 @@ function isEnabled() {
 }
 
 function intervalMs() {
-  // Default: every 30 minutes. A 'daily' reminder created any time of day
-  // still goes out the same day, well within a single 24h window, without
-  // needing a specific time-of-day cron trigger this app has no UI for
-  // anyway (the compose form asks for a date, not a time — see
-  // GuardianReminders.tsx).
-  const minutes = Number(process.env.GUARDIAN_REMINDER_INTERVAL_MINUTES) || 30;
+  // Default: every 10 minutes (docs/CONDITIONAL_REMINDERS_PLAN.md Phase 3 —
+  // was 30 minutes before scheduleTime existed; feeDue/lateArrival/
+  // attendanceMissing reminders now carry an admin-picked time-of-day, so
+  // the sweep needs to land within roughly 5-10 minutes of it, not just
+  // "sometime the same day". Override with GUARDIAN_REMINDER_INTERVAL_MINUTES
+  // if a deployment needs a different cadence.
+  const minutes = Number(process.env.GUARDIAN_REMINDER_INTERVAL_MINUTES) || 10;
   return Math.max(minutes, 5) * 60 * 1000; // 5-minute floor so a typo can't turn this into a hot loop
 }
 
