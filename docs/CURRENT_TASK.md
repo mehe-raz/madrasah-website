@@ -13,11 +13,43 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
-## Status: DONE (mostly — one manual step listed below)
+## Status: DONE
 
-## Task: Guardian Push Notification — গার্ডিয়ান-মুখী সব বার্তা (রিমাইন্ডার +
-ক্লাস পোস্ট/এসাইনমেন্ট-নোটিশ + রেজাল্ট প্রকাশ) ব্রাউজার/ফোন push
-notification হিসেবে যাওয়া (2026-08-08 সম্পন্ন)
+## Task: Guardian PWA install bug fix — গার্ডিয়ান পোর্টাল থেকে "Install app"
+করলে ভুল পেজে (staff root "/") ওপেন হওয়ার বাগ (ad-hoc, 2026-08-08 সম্পন্ন)
+
+### সমস্যা (ব্যবহারকারীর স্ক্রিনশট থেকে ধরা পড়েছে)
+`client/public/manifest.webmanifest`-এ `start_url: "/"` হার্ডকোডেড ছিল —
+গার্ডিয়ান `/guardian` পেজ থেকে "Install app" করলেও Chrome ইনস্টল করা
+অ্যাপটাকে সবসময় `"/"` দিয়ে খুলত, যেটা আসলে **staff-side Dashboard**
+(`ProtectedRoute` গার্ড করা, staff login লাগে) — guardian পোর্টাল না।
+গার্ডিয়ানের staff সেশন না থাকায় API কল ব্যর্থ হতো ("অনুরোধ ব্যর্থ হয়েছে"
++ সব শূন্য দেখাতো)।
+
+### সম্পন্ন
+- [x] নতুন `client/public/guardian-manifest.webmanifest` — আলাদা manifest,
+  `start_url: "/guardian"`, `scope: "/guardian/"`, নাম "মাদরাসা গার্ডিয়ান
+  পোর্টাল"।
+- [x] নতুন `client/public/manifest-select.js` (external, CSP-safe — এই
+  অ্যাপের CSP `script-src 'self'` কোনো `'unsafe-inline'` ছাড়া, তাই
+  `reload-splash.js`-এর ঠিক একই প্যাটার্নে বাইরের ফাইল হিসেবে) —
+  `location.pathname` `/guardian` দিয়ে শুরু হলে manifest `<link>`-কে
+  `guardian-manifest.webmanifest`-এ সুইচ করে দেয়, Chrome installability
+  যাচাই করার আগেই।
+- [x] `client/index.html` — manifest link-এর ঠিক পরে
+  `<script src="/manifest-select.js"></script>` যোগ।
+- মূল `manifest.webmanifest` (staff-side, `start_url: "/"`) অপরিবর্তিত —
+  স্টাফ-সাইড ইনস্টলে কোনো প্রভাব পড়েনি।
+
+### বাকি (ব্যবহারকারীর ম্যানুয়াল ধাপ, কোনো কোড না)
+- [ ] যেসব গার্ডিয়ান আগেই ভুল manifest দিয়ে অ্যাপ ইনস্টল করে ফেলেছেন,
+  তাদের **আগের ইনস্টলটা মুছে (uninstall) নতুন করে `/guardian`/
+  `/guardian/login` পেজ থেকে আবার ইনস্টল করতে হবে** — একবার ইনস্টল করা
+  PWA পুরনো manifest-এই বাঁধা থাকে, ডিপ্লয় হলেই নিজে থেকে আপডেট হয় না।
+
+---
+
+
 Started: 2026-08-08
 
 **পূর্ণাঙ্গ পরিকল্পনা `docs/PUSH_NOTIFICATION_PLAN.md`-এ লেখা আছে —

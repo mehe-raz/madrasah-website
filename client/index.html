@@ -8,6 +8,14 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!--
+      /guardian/* pages need a different PWA start_url ("/guardian" instead
+      of "/", the staff dashboard) — this swaps the manifest <link> above
+      before Chrome evaluates installability. External file, not inline,
+      per this app's CSP (script-src 'self', no 'unsafe-inline') — see
+      manifest-select.js's own comment.
+    -->
+    <script src="/manifest-select.js"></script>
     <title>মাদরাসা ইআরপি — শিক্ষা প্রতিষ্ঠান ব্যবস্থাপনা সিস্টেম</title>
     <meta
       name="description"

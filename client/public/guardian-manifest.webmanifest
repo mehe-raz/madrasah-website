@@ -1,0 +1,20 @@
+{
+  "id": "/guardian",
+  "name": "মাদরাসা গার্ডিয়ান পোর্টাল",
+  "short_name": "গার্ডিয়ান পোর্টাল",
+  "description": "অভিভাবক পোর্টাল — সন্তানের হাজিরা, ফলাফল ও নোটিশ",
+  "start_url": "/guardian",
+  "scope": "/guardian/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0891b2",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
