@@ -466,10 +466,22 @@ if (process.env.NODE_ENV === "production") {
       // routes "/" (and every other path) through the catch-all instead.
       index: false,
       setHeaders(res, filePath) {
-        if (filePath.endsWith("index.html")) {
-          res.setHeader("Cache-Control", "no-cache");
-        } else {
+        // Only Vite's content-hashed chunks (dist/assets/*.js|css|...,
+        // filename changes whenever content changes) are safe to cache
+        // "forever". Every other file copied verbatim from client/public/
+        // — index.html, sw.js, manifest.webmanifest,
+        // guardian-manifest.webmanifest, manifest-select.js, icon.svg,
+        // reload-splash.js, etc. — keeps the SAME filename across deploys,
+        // so it must always revalidate. This matters most for sw.js: an
+        // immutable-cached service worker file means a guardian's browser
+        // never even asks the server about a new sw.js (e.g. one that adds
+        // the push listener), silently running a stale SW indefinitely —
+        // this was the actual root cause of "server sends the push
+        // successfully but nothing ever shows on the phone" (2026-08-08).
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else {
+          res.setHeader("Cache-Control", "no-cache");
         }
       },
     })

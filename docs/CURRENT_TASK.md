@@ -15,7 +15,43 @@ the next sequential number.
 
 ## Status: DONE
 
-## Task: Guardian PWA install bug fix — গার্ডিয়ান পোর্টাল থেকে "Install app"
+## Task: Guardian push "sent successfully but never shows on phone" — root
+cause found & fixed: sw.js served with a 1-year immutable cache header
+(ad-hoc, 2026-08-08 সম্পন্ন)
+
+### সমস্যা (কয়েক দিনের ডিবাগিং সেশনের শেষে ধরা পড়েছে)
+`server/src/index.js`-এ `express.static(clientDist, { setHeaders... })`-এ
+শুধু `index.html`-কে `no-cache` দেওয়ার exception ছিল — বাকি **সব** ফাইলকে
+(hash-করা `dist/assets/*` চাঙ্ক এবং `client/public/`-এর হুবহু-কপি করা
+ফাইল, দুটোকেই একইভাবে) `Cache-Control: public, max-age=31536000,
+immutable` (১ বছর) দেওয়া হচ্ছিল। `sw.js` hash-করা না (ফাইলনেম কখনো
+বদলায় না), তাই একবার কোনো গার্ডিয়ানের ব্রাউজার `sw.js` ফেচ করলে
+পরবর্তী পুরো এক বছর ব্রাউজার সার্ভারকে **জিজ্ঞেসই করত না** নতুন ভার্সন
+আছে কিনা — তাই push feature আসার আগে যারা একবার সাইট ভিজিট করেছিলেন,
+তাদের ব্রাউজারে `sw.js`-এর পুরনো (push listener ছাড়া) ভার্সনই স্থায়ীভাবে
+আটকে ছিল। ডায়াগনস্টিক লগ দিয়ে নিশ্চিত হয়েছিল সার্ভার-সাইড push ১০০%
+সফল (`send OK`) হচ্ছিল, তবু ফোনে কিছুই দেখাচ্ছিল না — এই cache header-ই
+আসল কারণ।
+
+### সম্পন্ন
+- [x] `server/src/index.js`-এ `setHeaders()`-এর শর্ত পাল্টে দেওয়া হয়েছে:
+  শুধু `dist/assets/` পাথের ভেতরের ফাইল (Vite-এর content-hash করা চাঙ্ক)
+  immutable cache পায়, বাকি সব (root-level `public/`-এর ফাইল, `sw.js`
+  সহ) `no-cache`।
+- [x] `server/src/lib/guardianPush.js`-এর সাময়িক `[debug]` ডায়াগনস্টিক
+  লগিং সরিয়ে ফেলা হয়েছে (কাজ শেষ, আসল কারণ পাওয়া গেছে)।
+
+### বাকি (ব্যবহারকারীর ম্যানুয়াল ধাপ, কোনো কোড না)
+- [ ] ডিপ্লয়ের পরও যেসব গার্ডিয়ান আগে থেকেই সাইট ভিজিট করে ফেলেছেন,
+  তাদের ব্রাউজারে পুরনো `sw.js` এখনো cached থাকতে পারে (নতুন no-cache
+  header শুধু *পরবর্তী* ফেচ থেকে কার্যকর হয়)। তাদের একবার সাইটের ডেটা
+  ক্লিয়ার করে/অ্যাপ uninstall-reinstall করে সতেজ `sw.js` আনতে হবে —
+  নতুন কোনো গার্ডিয়ান (এই ফিক্সের পরে প্রথমবার ভিজিট করছেন) এই সমস্যায়
+  পড়বেন না, তাদের জন্য এমনিতেই ঠিক থাকবে।
+
+---
+
+
 করলে ভুল পেজে (staff root "/") ওপেন হওয়ার বাগ (ad-hoc, 2026-08-08 সম্পন্ন)
 
 ### সমস্যা (ব্যবহারকারীর স্ক্রিনশট থেকে ধরা পড়েছে)
