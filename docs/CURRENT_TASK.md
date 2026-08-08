@@ -65,22 +65,56 @@ Started: 2026-08-08
   tenants" ফিচার), নতুন টেবিলের জন্য এখানে কিছু এডিট করার দরকার হয় না,
   Phase 8A-র মতোই বিদ্যমান tenant-দের জন্য শুধু ম্যানুয়াল অ্যাকশন লাগবে
   (নিচে "বাকি" দেখুন)।
+- [x] **Phase 2 + Phase 3 (একসাথে, ব্যবহারকারীর অনুরোধে ব্যাচ করা হয়েছে)** —
+  পুশ পাঠানোর সম্পূর্ণ ব্যাকএন্ড + সাবস্ক্রাইব ইনফ্রা:
+  - `server/package.json` — নতুন `web-push` ডিপেন্ডেন্সি (`^3.6.7`)।
+  - `server/src/lib/guardianPush.js` (নতুন) — `notifyGuardians(guardianIds,
+    { title, body, url })`, একমাত্র জায়গা যেখানে `web-push` ইম্পোর্ট হয়।
+    `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` অনুপস্থিত হলে
+    silent no-op (`smsSender.js`-এর প্যাটার্নে)। প্রতিটা সাবস্ক্রিপশনে
+    আলাদা `sendNotification()` কল, কখনো throw করে না — 404/410 (Gone)
+    পেলে সেই সাবস্ক্রিপশন রো নিজে থেকেই DB থেকে ডিলিট করে দেয় (dead
+    সাবস্ক্রিপশনে বারবার চেষ্টা এড়াতে)। `saveSubscription()`/
+    `deleteSubscription()`/`getVapidPublicKey()`ও এই ফাইলেই।
+  - `server/src/routes/guardianAuth.js` — তিনটা নতুন রুট (বিদ্যমান
+    `/messages/:id/read`-এর ঠিক পরে): `GET /push/vapid-public-key`
+    (ownership-চেক ছাড়াই — public key secret না), `POST /push/subscribe`
+    (`requireActiveGuardianId` + `verifyCsrfToken`, endpoint upsert),
+    `DELETE /push/subscribe`।
+  - `client/public/sw.js` — নতুন `push` ইভেন্ট লিসেনার
+    (`showNotification()`, আইকন `/icon.svg` — বিদ্যমান manifest-এর একমাত্র
+    আইকন, নতুন png বানানো হয়নি) + `notificationclick` লিসেনার (আগে থেকে
+    খোলা ট্যাব থাকলে সেটাই focus+navigate করে, নাহলে নতুন উইন্ডো খোলে)।
+    বিদ্যমান cache/fetch লজিক অক্ষত।
+  - `client/src/components/GuardianPushSetup.tsx` (নতুন, headless — কিছু
+    render করে না) — লগইন সেশনে একবার VAPID public key আনে, browser
+    permission চায় (শুধু প্রথমবার — `localStorage`-এ ফ্ল্যাগ রেখে বারবার
+    prompt এড়ানো হয়েছে), `PushManager.subscribe()` কল করে সাবস্ক্রিপশন
+    backend-এ সেভ করে। যেকোনো ধাপে সমস্যা হলে (browser সাপোর্ট নেই, VAPID
+    কনফিগার করা নেই, permission denied) চুপচাপ থেমে যায় — বিদ্যমান
+    পোলিং বাবল (`GuardianMessengerBubble.tsx`, অক্ষত) স্বাভাবিক কাজ করতে
+    থাকে fallback হিসেবে।
+  - `client/src/components/GuardianShell.tsx` — `<GuardianPushSetup />`
+    বসানো হয়েছে `<GuardianMessengerBubble />`-এর ঠিক পাশে, শেলের রুট
+    লেভেলে (ওই কম্পোনেন্টের কোনো কোড ছোঁয়া হয়নি)।
+  - `client/src/lib/api.ts` — `api.guardian`-এ তিনটা নতুন ফাংশন
+    (`getVapidPublicKey`/`subscribePush`/`unsubscribePush`,
+    `createBkashPayment`/`executeBkashPayment`-এর ঠিক পাশে বসানো)।
+  - সব নতুন/পরিবর্তিত `.js` ফাইল `node --check` পাস করেছে
+    (`guardianPush.js`, `guardianAuth.js`)। সব `.ts`/`.tsx` ফাইলে
+    bracket-balance ম্যানুয়ালি যাচাই করা হয়েছে (`guardianAuth.js`-এ
+    parens কাউন্টে একটা mismatch এসেছিল কিন্তু সেটা Bengali কমেন্টের
+    ভেতরের বন্ধনী চিহ্নের কারণে false-positive — `node --check` পাস
+    করেছে বলে নিশ্চিত করা গেছে সেটা আসল সিনট্যাক্স এরর না)।
+    **এই sandbox-এ network বন্ধ থাকায় `npm install`/`npm run check`
+    চালানো যায়নি — packaged CMD-এই এটার প্রথম রিয়েল যাচাই, বিশেষ করে
+    নতুন `web-push` ডিপেন্ডেন্সি আসলেই ইনস্টল হচ্ছে ও TypeScript নতুন
+    `.tsx` ফাইলে কোনো টাইপ এরর দিচ্ছে না তা নিশ্চিত করতে।**
 
 ### বাকি (পরের এজেন্ট/সেশন এখান থেকে শুরু করবে)
-- [ ] **Phase 2 — পরের কাজ, এখনো শুরু হয়নি।** নতুন
-  `server/src/lib/guardianPush.js`
-  (`notifyGuardians()`), `web-push` npm ডিপেন্ডেন্সি যোগ (AGENTS.md
-  Rule 5 অনুযায়ী আগেই ব্যবহারকারীকে জানানো ও কনফার্ম হয়ে গেছে — এখন শুধু
-  বাস্তবায়ন বাকি)। VAPID env var তিনটা (`VAPID_PUBLIC_KEY`/
-  `VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`) Phase 0-তেই ব্যবহারকারীর real
-  `.env`-এ বসানো হয়ে গেছে — শুধু কোড থেকে পড়তে হবে, নতুন কিছু জেনারেট
-  করার দরকার নেই।
-- [ ] **Phase 3** — সাবস্ক্রাইব/আনসাবস্ক্রাইব API
-  (`routes/guardianAuth.js`), `client/public/sw.js`-এ push/notificationclick
-  handler, গার্ডিয়ান পোর্টালে permission-প্রম্পট কম্পোনেন্ট
-  (`GuardianShell.tsx`-এ মাউন্ট, `GuardianMessengerBubble.tsx` অক্ষত রেখে
-  পাশে বসবে)।
-- [ ] **Phase 4** — `guardianReminders.js`-এর `dispatchReminder()`-এ
+- [ ] **Phase 4 — পরের কাজ, এখনো শুরু হয়নি (ব্যবহারকারীর অনুরোধে এখন থেকে
+  একাধিক ফেজ একসাথে ২-৩টা ব্যাচে ডেলিভার করা হচ্ছে, প্রতিটা আলাদা না)।**
+  `guardianReminders.js`-এর `dispatchReminder()`-এ
   `notifyGuardians()` কল যোগ।
 - [ ] **Phase 5** — `classPosts.js`-এ `resolveGuardiansForClass()` হেল্পার +
   `routes/assignments.js`-এর POST হ্যান্ডলারে `notifyGuardians()` কল।

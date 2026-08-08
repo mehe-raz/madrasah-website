@@ -963,5 +963,23 @@ export const api = {
         "/guardian-auth/bkash/execute",
         { method: "POST", body: JSON.stringify({ paymentID }) }
       ),
+
+    // Push Notifications (docs/PUSH_NOTIFICATION_PLAN.md — Phase 3).
+    // getVapidPublicKey() has no auth requirement server-side (see its
+    // route comment) — called before we even know whether the guardian
+    // wants to subscribe.
+    getVapidPublicKey: () => request<{ publicKey: string | null }>("/guardian-auth/push/vapid-public-key"),
+
+    subscribePush: (subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+      request<{ ok: boolean }>("/guardian-auth/push/subscribe", {
+        method: "POST",
+        body: JSON.stringify(subscription),
+      }),
+
+    unsubscribePush: (endpoint: string) =>
+      request<{ ok: boolean }>("/guardian-auth/push/subscribe", {
+        method: "DELETE",
+        body: JSON.stringify({ endpoint }),
+      }),
   },
 };

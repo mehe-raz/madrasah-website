@@ -73,3 +73,48 @@ self.addEventListener("fetch", (e) => {
     fetch(e.request).catch(() => caches.match(e.request).then((r) => r || caches.match("/index.html")))
   );
 });
+
+// ---------------------------------------------------------------------------
+// Guardian Push Notifications (docs/PUSH_NOTIFICATION_PLAN.md — Phase 3).
+// The payload is whatever JSON lib/guardianPush.js's notifyGuardians()
+// sent — { title, body, url }. This listener never talks to the app's own
+// fetch/cache logic above; a push can arrive even with the app fully
+// closed, which is the entire point.
+// ---------------------------------------------------------------------------
+
+self.addEventListener("push", (e) => {
+  let data = {};
+  try {
+    data = e.data ? e.data.json() : {};
+  } catch {
+    // Not valid JSON — fall back to an empty payload rather than crash the
+    // event, so at minimum no notification silently disappears.
+  }
+  const title = data.title || "নোটিফিকেশন";
+  const options = {
+    body: data.body || "",
+    icon: "/icon.svg",
+    data: { url: data.url || "/" },
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const targetUrl = e.notification.data?.url || "/";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsList) => {
+      // Reuse an already-open tab if one exists (same-origin), instead of
+      // always opening a new one — same-origin `focus()` + `navigate()` is
+      // allowed from a service worker without extra permissions.
+      for (const client of clientsList) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+

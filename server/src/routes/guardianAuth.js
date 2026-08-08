@@ -31,6 +31,7 @@ const {
   unreadMessageCountForGuardian,
   markMessageRead,
 } = require("../lib/guardianReminders");
+const { getVapidPublicKey, saveSubscription, deleteSubscription } = require("../lib/guardianPush");
 const {
   activeChildrenForGuardian,
   assertGuardianOwnsStudent,
@@ -430,6 +431,44 @@ router.post("/messages/:id/read", verifyCsrfToken, async (req, res) => {
   try {
     const guardianId = await requireActiveGuardianId(req);
     await markMessageRead(guardianId, Number(req.params.id));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Guardian Push Notifications (docs/PUSH_NOTIFICATION_PLAN.md — Phase 3).
+// Same requireActiveGuardianId gate as every other guardian-side route
+// above. `getVapidPublicKey()` deliberately skips that gate (see its own
+// comment in lib/guardianPush.js) — the client needs the public key before
+// it can even attempt PushManager.subscribe(), and it isn't a secret.
+// ---------------------------------------------------------------------------
+
+router.get("/push/vapid-public-key", (req, res) => {
+  res.json({ publicKey: getVapidPublicKey() });
+});
+
+router.post("/push/subscribe", verifyCsrfToken, async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    const { endpoint, keys } = req.body || {};
+    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+      return res.status(400).json({ error: "অসম্পূর্ণ push subscription" });
+    }
+    await saveSubscription(guardianId, { endpoint, keys, userAgent: req.get("user-agent") });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
+  }
+});
+
+router.delete("/push/subscribe", verifyCsrfToken, async (req, res) => {
+  try {
+    const guardianId = await requireActiveGuardianId(req);
+    const { endpoint } = req.body || {};
+    if (!endpoint) return res.status(400).json({ error: "endpoint প্রয়োজন" });
+    await deleteSubscription(guardianId, endpoint);
     res.json({ ok: true });
   } catch (err) {
     res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });

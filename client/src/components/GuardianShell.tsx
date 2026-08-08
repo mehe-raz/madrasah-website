@@ -4,6 +4,7 @@ import { useGuardianAuth } from "../context/GuardianAuthContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { api } from "../lib/api";
 import { GuardianMessengerBubble } from "./GuardianMessengerBubble";
+import { GuardianPushSetup } from "./GuardianPushSetup";
 import { HudSpinner } from "./HudSpinner";
 import type { GuardianDashboardChild } from "../types";
 
@@ -162,6 +163,11 @@ export function GuardianShell() {
           once at the shell root (not inside <main>) so it stays visible
           across every guardian route, same reasoning as the nav above. */}
       <GuardianMessengerBubble />
+      {/* Push Notifications setup — headless, renders nothing. Runs once
+          per login session to (re)subscribe this browser for Web Push;
+          see the component's own comment for why it never blocks/breaks
+          anything if unsupported/declined. */}
+      <GuardianPushSetup />
     </div>
   );
 }
