@@ -93,7 +93,22 @@ self.addEventListener("push", (e) => {
   const title = data.title || "নোটিফিকেশন";
   const options = {
     body: data.body || "",
-    icon: "/icon.svg",
+    // data.icon is the institution's own logo (set by guardianPush.js from
+    // Settings), so each madrasah's guardians see their own branding — the
+    // static /icon.svg here is only a fallback for institutions that
+    // haven't uploaded a logo yet.
+    icon: data.icon || "/icon.svg",
+    // badge is the small monochrome status-bar glyph Android draws while
+    // the full icon above only appears once the notification is expanded.
+    badge: "/icon.svg",
+    // A short two-beat buzz (buzz-pause-buzz) reads as "a message arrived"
+    // rather than a single flat vibration, without being obnoxious.
+    vibrate: [200, 80, 200],
+    // Explicit so a future change elsewhere can't accidentally force
+    // notifications to stay pinned until the guardian dismisses them —
+    // they should behave like a normal notification.
+    requireInteraction: false,
+    timestamp: Date.now(),
     data: { url: data.url || "/" },
   };
   e.waitUntil(self.registration.showNotification(title, options));

@@ -21,6 +21,7 @@
 // ============================================================================
 
 const db = require("./../db");
+const { getPublicSettings } = require("./publicSettings");
 
 let webpush = null;
 let configured = false;
@@ -51,6 +52,21 @@ async function subscriptionsForGuardians(guardianIds) {
   );
 }
 
+// Best-effort: the institution's own logo (Cloudinary URL, set in
+// Settings) becomes the notification's icon, so every guardian sees their
+// own madrasah's branding in the OS notification tray instead of a
+// generic app icon. Never throws — a settings lookup failure must not
+// block the push itself; falls back to the static /icon.svg the service
+// worker already uses when there's no logo yet or the lookup fails.
+async function institutionIcon() {
+  try {
+    const settings = await getPublicSettings();
+    return settings.logo || null;
+  } catch {
+    return null;
+  }
+}
+
 // Sends one push per subscribed browser/device for the given guardians.
 // `title`/`body` shown in the OS notification, `url` is where
 // sw.js's notificationclick handler navigates on tap (e.g.
@@ -64,7 +80,13 @@ async function notifyGuardians(guardianIds, { title, body, url } = {}) {
   const subscriptions = await subscriptionsForGuardians(guardianIds);
   if (subscriptions.length === 0) return { sent: 0, reason: "no_subscriptions" };
 
-  const payload = JSON.stringify({ title: title || "", body: body || "", url: url || "/" });
+  const icon = await institutionIcon();
+  const payload = JSON.stringify({
+    title: title || "",
+    body: body || "",
+    url: url || "/",
+    icon: icon || undefined,
+  });
   let sent = 0;
 
   for (const sub of subscriptions) {
@@ -73,7 +95,16 @@ async function notifyGuardians(guardianIds, { title, body, url } = {}) {
       keys: { p256dh: sub.p256dh, auth: sub.auth },
     };
     try {
-      await webpush.sendNotification(pushSubscription, payload);
+      // urgency: "high" is the signal Android/Chrome uses to decide
+      // whether to show this as a heads-up banner (pops up over whatever
+      // app is on screen — YouTube, another app, the lock screen) instead
+      // of silently landing in the notification tray. TTL keeps it queued
+      // for 24h if the guardian's phone is offline when it's sent, so a
+      // reminder/notice isn't lost, only delayed until the phone reconnects.
+      await webpush.sendNotification(pushSubscription, payload, {
+        urgency: "high",
+        TTL: 60 * 60 * 24,
+      });
       sent += 1;
     } catch (err) {
       const statusCode = err && err.statusCode;
