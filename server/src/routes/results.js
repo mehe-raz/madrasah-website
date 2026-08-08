@@ -7,6 +7,7 @@ const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
 const { resultSaveSchema } = require("../lib/financeSchemas");
 const { sendGuardianSms } = require("../lib/guardianSms");
+const { notifyGuardians } = require("../lib/guardianPush");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -108,6 +109,24 @@ router.patch("/:id/publish", async (req, res) => {
         notificationType: "resultPublished",
       });
     }
+    // Push, alongside the SMS above — Phase 6 (optional) of docs/
+    // PUSH_NOTIFICATION_PLAN.md. One-off lookup (not a shared helper like
+    // classPosts.resolveGuardiansForClass, since this is the only call
+    // site) — same ACTIVE-linked-only rule as everywhere else.
+    // notifyGuardians() never throws, so this can't turn a successful
+    // publish into a failed response.
+    const guardianRows = await db.all(
+      `SELECT DISTINCT "guardianId" FROM guardian_students WHERE "studentId" = $1 AND status = 'active'`,
+      [row.studentId]
+    );
+    await notifyGuardians(
+      guardianRows.map((r) => r.guardianId),
+      {
+        title: "ফলাফল প্রকাশিত হয়েছে",
+        body: `${row.studentName} (রোল ${row.roll}) — ${row.examName} ${row.year}`,
+        url: "/guardian/results",
+      }
+    );
   }
 
   res.json(row);

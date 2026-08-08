@@ -13,10 +13,11 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
-## Status: IN_PROGRESS
+## Status: DONE (mostly — one manual step listed below)
 
 ## Task: Guardian Push Notification — গার্ডিয়ান-মুখী সব বার্তা (রিমাইন্ডার +
-ক্লাস পোস্ট/এসাইনমেন্ট-নোটিশ) ব্রাউজার/ফোন push notification হিসেবে যাওয়া
+ক্লাস পোস্ট/এসাইনমেন্ট-নোটিশ + রেজাল্ট প্রকাশ) ব্রাউজার/ফোন push
+notification হিসেবে যাওয়া (2026-08-08 সম্পন্ন)
 Started: 2026-08-08
 
 **পূর্ণাঙ্গ পরিকল্পনা `docs/PUSH_NOTIFICATION_PLAN.md`-এ লেখা আছে —
@@ -111,17 +112,67 @@ Started: 2026-08-08
     নতুন `web-push` ডিপেন্ডেন্সি আসলেই ইনস্টল হচ্ছে ও TypeScript নতুন
     `.tsx` ফাইলে কোনো টাইপ এরর দিচ্ছে না তা নিশ্চিত করতে।**
 
-### বাকি (পরের এজেন্ট/সেশন এখান থেকে শুরু করবে)
-- [ ] **Phase 4 — পরের কাজ, এখনো শুরু হয়নি (ব্যবহারকারীর অনুরোধে এখন থেকে
-  একাধিক ফেজ একসাথে ২-৩টা ব্যাচে ডেলিভার করা হচ্ছে, প্রতিটা আলাদা না)।**
-  `guardianReminders.js`-এর `dispatchReminder()`-এ
-  `notifyGuardians()` কল যোগ।
-- [ ] **Phase 5** — `classPosts.js`-এ `resolveGuardiansForClass()` হেল্পার +
-  `routes/assignments.js`-এর POST হ্যান্ডলারে `notifyGuardians()` কল।
-- [ ] **Phase 6 (ঐচ্ছিক)** — `lib/results.js`-এ রেজাল্ট-প্রকাশেও একই hook,
-  শুধু ব্যবহারকারী চাইলে।
-- [ ] **Phase 7** — ম্যানুয়াল টেস্ট চেকলিস্ট (ফোনে permission → app বন্ধ →
-  push আসছে কিনা), `docs/PROJECT_MAP.md` আপডেট, এই এন্ট্রি DONE-এ রিসেট।
+- [x] **Phase 4** — `server/src/lib/guardianReminders.js`-এ শীর্ষে
+  `const { notifyGuardians } = require("./guardianPush");` যোগ করা
+  হয়েছে, এবং `dispatchReminder()`-এ `guardian_messages` রো ইনসার্ট +
+  `lastSentAt` আপডেটের ঠিক পরে (per-guardian লুপের বাইরে, একবার সব
+  টার্গেট `guardianId`-এর জন্য একসাথে) `notifyGuardians(guardianIds,
+  { title: reminder.title, body: reminder.body, url: "/guardian" })`
+  কল যোগ করা হয়েছে। `url: "/guardian"` বেছে নেওয়া হয়েছে কারণ মেসেজ
+  থ্রেড কোনো আলাদা রুট না — `GuardianMessengerBubble.tsx` একটা
+  slide-over প্যানেল যেটা প্রতিটা `/guardian/*` রুটেই (শেলের রুট
+  লেভেলে) বসানো থাকে, তাই ড্যাশবোর্ড ইনডেক্স রুটই সবচেয়ে যুক্তিসঙ্গত
+  ল্যান্ডিং স্পট। `notifyGuardians()` কখনো throw করে না
+  (`guardianPush.js`-এর নিজস্ব গ্যারান্টি), তাই push ব্যর্থ হলে বা
+  VAPID কনফিগার না থাকলেও reminder dispatch/record করা কখনো ভাঙবে
+  না — বিদ্যমান পোলিং বাবল স্বাভাবিক কাজ করতে থাকে। `dispatchDueReminders()`
+  বা রুট ফাইলে (`routes/guardianReminders.js`) কোনো পরিবর্তন লাগেনি —
+  ম্যানুয়াল "এখনই পাঠান" বাটন ও পিরিয়ডিক sweep দুটোই একই
+  `dispatchReminder()` কল করে, তাই দুটোই স্বয়ংক্রিয়ভাবে push পায়।
+  `node --check` পাস করেছে। **`npm run check` এই sandbox-এ চালানো
+  যায়নি (network বন্ধ) — packaged CMD-এই প্রথম রিয়েল যাচাই।**
+
+- [x] **Phase 5** — `server/src/lib/classPosts.js`-এ নতুন
+  `resolveGuardiansForClass(className)` হেল্পার (একই ACTIVE-linked-only
+  নিয়ম `feedForGuardian()`-এর মতো, `guardianReminders.js`-এর
+  `resolveTargetGuardianIds()`-এর 'class' branch-এর ঠিক একই শেপ), এবং
+  `module.exports`-এ যোগ। `server/src/routes/assignments.js`-এ
+  `notifyGuardians` + `resolveGuardiansForClass` ইম্পোর্ট, POST
+  হ্যান্ডলারে পোস্ট তৈরি + audit-লগের ঠিক পরে (রেসপন্সের আগে)
+  `resolveGuardiansForClass(className)` কল করে `notifyGuardians(guardianIds,
+  { title, body, url: "/guardian/feed" })` — `notifyGuardians()` কখনো
+  throw করে না, তাই পুশ ব্যর্থ হলে পোস্ট তৈরি/রেসপন্স কখনো ভাঙবে না।
+- [x] **Phase 6 (ঐচ্ছিক — ব্যবহারকারীর "সবগুলো ফেজ একসাথে করো" নির্দেশে
+  এখন করা হয়েছে)** — `server/src/routes/results.js`-এ `notifyGuardians`
+  ইম্পোর্ট, `PATCH /:id/publish`-এ existing SMS ব্লকের ঠিক পাশে (শুধু
+  `published === true` হলে) একটা one-off `guardian_students` লুকআপ
+  (`studentId` + `status = 'active'`) দিয়ে সেই ছাত্রের guardian-দের
+  `notifyGuardians()` কল — `url: "/guardian/results"`। এটা একটা
+  reusable helper বানানো হয়নি (`classPosts.resolveGuardiansForClass`-এর
+  মতো) কারণ এই একটাই call site, AGENTS.md-এর "one-off feature logic"
+  ব্যতিক্রম অনুযায়ী।
+- [x] **Phase 7** — ম্যানুয়াল টেস্ট চেকলিস্ট নিচে যোগ করা হয়েছে (কোড না,
+  ব্যবহারকারীকে ফোনে হাতে-কলমে যাচাই করতে হবে), `docs/PROJECT_MAP.md`
+  আপডেট (Guardian Portal সেকশনে push-এর উল্লেখ + "Other docs"-এ
+  `PUSH_NOTIFICATION_PLAN.md`-এর এন্ট্রি, ৭ ফেজই done হিসেবে চিহ্নিত)।
+  এই এন্ট্রি DONE-এ রিসেট করা হয়েছে (নিচের একমাত্র বাকি আইটেম বাদে, যেটা
+  কোনো এজেন্টের কাজ না — শুধু ব্যবহারকারীর একবারের ম্যানুয়াল DB অ্যাকশন)।
+
+### ম্যানুয়াল টেস্ট চেকলিস্ট (Phase 7, ব্যবহারকারী নিজে ফোনে করবেন)
+- [ ] গার্ডিয়ান পোর্টালে লগইন করে ব্রাউজার permission prompt আসছে কিনা
+  দেখুন (প্রথমবার লগইনে)।
+- [ ] permission "Allow" দেওয়ার পর অ্যাপ/ট্যাব সম্পূর্ণ বন্ধ করে দিন।
+- [ ] অন্য কোনো ডিভাইস/অ্যাডমিন প্যানেল থেকে একটা রিমাইন্ডার পাঠান বা
+  ক্লাস পোস্ট/নোটিশ তৈরি করুন — ফোনে push notification আসছে কিনা যাচাই
+  করুন (অ্যাপ বন্ধ থাকা অবস্থায়ও)।
+- [ ] notification-এ ট্যাপ করলে সঠিক পেজে (`/guardian` বা
+  `/guardian/feed`) নিয়ে যাচ্ছে কিনা যাচাই করুন।
+- [ ] একটা রেজাল্ট publish করে push + SMS দুটোই আসছে কিনা যাচাই করুন
+  (Phase 6)।
+- [ ] permission "Block"/dismiss করার পরেও পোলিং মেসেঞ্জার বাবল স্বাভাবিক
+  কাজ করছে কিনা যাচাই করুন (fallback অক্ষত থাকার নিশ্চয়তা)।
+
+### বাকি (কোনো কোড বাকি নেই, শুধু ম্যানুয়াল DB ধাপ)
 - [ ] **ব্যবহারকারীর ম্যানুয়াল অ্যাকশন (কোনো কোড না, Phase 8A-র মতো)** —
   যদি ইতিমধ্যে বিদ্যমান (already-provisioned) multi-tenant প্রতিষ্ঠান
   থাকে, তাদের schema-তে নতুন `guardian_push_subscriptions` টেবিলটা
@@ -142,9 +193,6 @@ Started: 2026-08-08
   );
   create index if not exists guardian_push_subscriptions_guardian_idx on guardian_push_subscriptions ("guardianId");
   ```
-
-প্রতিটা ফেজ আলাদা ডেলিভারি (AGENTS.md Rule 1, minimal diff) — একসাথে সব
-ফেজ করা হবে না, প্রতিটার পরে `npm run check`।
 
 ### নোট
 এই টাস্কটা বিদ্যমান "Guardian Reminder Messenger" এন্ট্রির (নিচে) উপরে

@@ -20,7 +20,8 @@ const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
 const { idempotent } = require("../middleware/idempotency");
 const { classPostCreateSchema } = require("../lib/classPostSchemas");
-const { createPost, listPosts, getPost, deletePost } = require("../lib/classPosts");
+const { createPost, listPosts, getPost, deletePost, resolveGuardiansForClass } = require("../lib/classPosts");
+const { notifyGuardians } = require("../lib/guardianPush");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -86,6 +87,13 @@ router.post("/", validate(classPostCreateSchema), idempotent(async (req, res) =>
     label: `Posted ${type} to ${className}: ${title}`,
     details: { type, class: className, attachmentCount: (attachments || []).length },
   });
+  // Push is purely additive on top of the class_posts row above —
+  // notifyGuardians() never throws (lib/guardianPush.js), so a push
+  // failure or missing VAPID config can never stop the post itself from
+  // being created/returned. Same placement pattern as Phase 4's
+  // guardianReminders.js dispatchReminder().
+  const guardianIds = await resolveGuardiansForClass(className);
+  await notifyGuardians(guardianIds, { title, body, url: "/guardian/feed" });
   res.status(201).json(post);
 }));
 

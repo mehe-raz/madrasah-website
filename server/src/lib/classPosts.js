@@ -57,6 +57,23 @@ async function deletePost(id) {
   await db.run("DELETE FROM class_posts WHERE id = $1", [id]);
 }
 
+// Every ACTIVE-linked guardian with a child in this class — same
+// "status = 'active' + join students" rule feedForGuardian's WHERE
+// already applies (a pending child-link never surfaces content), and the
+// same shape as guardianReminders.js's resolveTargetGuardianIds() 'class'
+// branch. Used by routes/assignments.js's POST handler to know who to
+// push-notify right after a post is created.
+async function resolveGuardiansForClass(className) {
+  const rows = await db.all(
+    `SELECT DISTINCT gs."guardianId"
+     FROM guardian_students gs
+     JOIN students s ON s.id = gs."studentId"
+     WHERE gs.status = 'active' AND s.class = $1`,
+    [className]
+  );
+  return rows.map((r) => r.guardianId);
+}
+
 // Every post whose class matches one of this guardian's ACTIVE-linked
 // children's classes — a pending child-link (see routes/guardianAuth.js
 // POST /add-child) is excluded on purpose, same reasoning as a pending
@@ -115,4 +132,13 @@ async function unreadCountForGuardian(guardianId) {
   return row?.count || 0;
 }
 
-module.exports = { createPost, listPosts, getPost, deletePost, feedForGuardian, markPostRead, unreadCountForGuardian };
+module.exports = {
+  createPost,
+  listPosts,
+  getPost,
+  deletePost,
+  feedForGuardian,
+  markPostRead,
+  unreadCountForGuardian,
+  resolveGuardiansForClass,
+};

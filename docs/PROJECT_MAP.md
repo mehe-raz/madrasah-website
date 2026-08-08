@@ -18,7 +18,11 @@ madrasahs (tenants). Each tenant gets:
 - an admin ERP (students, attendance, fees/income, expenses, Hifz tracking,
   results, reports, audit logs, website content editor)
 - a Guardian Portal (parents log in separately, see their child's
-  attendance/results/notices)
+  attendance/results/notices), with browser/phone push notifications
+  (Web Push + VAPID, opt-in per guardian) layered on top of the existing
+  polling messenger bubble — see `docs/PUSH_NOTIFICATION_PLAN.md` (all 7
+  phases done: reminders, class posts/notices, and result-publish all
+  call `server/src/lib/guardianPush.js`'s `notifyGuardians()`)
 - a platform/super-admin layer above all tenants (see §5)
 
 Stack: **React + Vite + TypeScript** (client), **Express + PostgreSQL**
@@ -194,6 +198,15 @@ Testing procedure: `docs/OFFLINE_FIRST_TESTING.md`.
   and sandbox testing (8G) are still explicitly blocked until the user
   says their provider accounts are ready — don't start those on your own
   initiative.
+- `docs/PUSH_NOTIFICATION_PLAN.md` — 7-phase Guardian Push Notification
+  architecture (Web Push + VAPID). All 7 phases complete as of 2026-08-08:
+  schema (Phase 1), `notifyGuardians()` in `server/src/lib/guardianPush.js`
+  + subscribe infra (Phase 2-3), reminder dispatch hook (Phase 4), class
+  post/notice hook (Phase 5), result-publish hook (Phase 6, optional —
+  done), manual test checklist (Phase 7). Any already-provisioned tenant
+  still needs the one-time manual `guardian_push_subscriptions` table SQL
+  via the Super-Admin "run SQL on all tenants" tool — see
+  `docs/CURRENT_TASK.md`'s (now archived) entry for the exact statement.
 - `docs/CURRENT_TASK.md` — **multi-part task handoff queue**. Always check
   this one regardless of task (see AGENTS.md pointer at the top of that file).
 

@@ -11,6 +11,7 @@
 // ============================================================================
 
 const db = require("./../db");
+const { notifyGuardians } = require("./guardianPush");
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -103,6 +104,15 @@ async function dispatchReminder(reminder) {
     );
   }
   await db.run(`UPDATE guardian_reminders SET "lastSentAt" = $1 WHERE id = $2`, [createdAt, reminder.id]);
+  // Push is purely additive on top of the guardian_messages row above —
+  // notifyGuardians() never throws (see lib/guardianPush.js), so a push
+  // failure or missing VAPID config can never stop a reminder from being
+  // recorded/delivered via the existing polling messenger bubble.
+  await notifyGuardians(guardianIds, {
+    title: reminder.title,
+    body: reminder.body,
+    url: "/guardian",
+  });
   return guardianIds.length;
 }
 
