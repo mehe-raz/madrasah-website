@@ -557,6 +557,8 @@ export const en = {
     bulkPublishing: "Publishing...",
     bulkPublishSuccess: "✓ Selected results published",
     bulkUnpublishSuccess: "✓ Selected results unpublished",
+    studentsCount: "{count} students",
+    backToExamList: "← Back to exam list",
   },
   classPosts: {
     title: "Notices & Assignments",

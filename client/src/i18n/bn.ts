@@ -555,6 +555,8 @@ export const bn = {
     bulkPublishing: "প্রকাশ হচ্ছে...",
     bulkPublishSuccess: "✓ নির্বাচিত ফলাফলগুলো প্রকাশিত হয়েছে",
     bulkUnpublishSuccess: "✓ নির্বাচিত ফলাফলগুলো অপ্রকাশিত করা হয়েছে",
+    studentsCount: "{count} জন ছাত্র",
+    backToExamList: "← পরীক্ষার তালিকায় ফিরুন",
   },
   classPosts: {
     title: "নোটিশ ও অ্যাসাইনমেন্ট",

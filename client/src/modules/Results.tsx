@@ -30,6 +30,7 @@ export function Results() {
   const [printingId, setPrintingId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkPublishing, setBulkPublishing] = useState(false);
+  const [openExamKey, setOpenExamKey] = useState<string | null>(null);
 
   useEffect(() => {
     api.getResultClasses().then(setClasses).catch(() => setClasses([]));
@@ -57,8 +58,33 @@ export function Results() {
     setMarksById({});
     // eslint-disable-next-line react-hooks/set-state-in-effect -- a checkbox selection made against the previous class's saved-results list has no meaning once the class changes
     setSelectedIds(new Set());
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- an exam drilled into for the previous class doesn't exist in the new class's list
+    setOpenExamKey(null);
     refreshList(selectedClass);
   }, [selectedClass]);
+
+  // Groups the flat savedResults list (all exams for this class, all mixed
+  // together) into one card per (examName, year) — সাজানো ক্লাস → পরীক্ষা →
+  // ছাত্র navigation the results screen needs, instead of every student
+  // from every exam in one long list. Sorted newest year first, then by
+  // exam name, so the most recent exam is the first card.
+  const examGroups = Object.values(
+    savedResults.reduce<Record<string, { key: string; examName: string; year: string; rows: StudentResult[] }>>((acc, row) => {
+      const key = `${row.examName}__${row.year}`;
+      if (!acc[key]) acc[key] = { key, examName: row.examName, year: row.year, rows: [] };
+      acc[key].rows.push(row);
+      return acc;
+    }, {}),
+  ).sort((a, b) => (b.year !== a.year ? b.year.localeCompare(a.year) : a.examName.localeCompare(b.examName)));
+
+  const openGroup = examGroups.find((g) => g.key === openExamKey) || null;
+  const visibleRows = openGroup ? openGroup.rows : [];
+
+  const examTypeLabel = (value: string) => {
+    const found = EXAM_TYPES.find((et) => et.value === value);
+    if (!found) return value;
+    return lang === "en" ? found.labelEn : found.labelBn;
+  };
 
   // Clamps to [0, subjectFullMarks] as the teacher types, so a mark above
   // the পূর্ণমান (full marks) can never even be entered — matches the
@@ -134,7 +160,7 @@ export function Results() {
   };
 
   const toggleSelectAll = () => {
-    setSelectedIds((prev) => (prev.size === savedResults.length ? new Set() : new Set(savedResults.map((r) => r.id))));
+    setSelectedIds((prev) => (prev.size === visibleRows.length ? new Set() : new Set(visibleRows.map((r) => r.id))));
   };
 
   const bulkPublish = async (published: boolean) => {
@@ -282,114 +308,174 @@ export function Results() {
 
       {selectedClass && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>{t.results.savedResults}</h3>
-            {!!savedResults.length && (
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.text, cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={savedResults.length > 0 && selectedIds.size === savedResults.length}
-                    onChange={toggleSelectAll}
-                  />
-                  {t.results.selectAll}
-                </label>
-                {!!selectedIds.size && (
-                  <span style={{ fontSize: 12, color: C.muted }}>
-                    {t.results.selectedCount.replace("{count}", String(selectedIds.size))}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => bulkPublish(true)}
-                  disabled={!selectedIds.size || bulkPublishing}
-                  style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: selectedIds.size ? "pointer" : "not-allowed" }}
-                >
-                  {bulkPublishing ? t.results.bulkPublishing : t.results.bulkPublish}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => bulkPublish(false)}
-                  disabled={!selectedIds.size || bulkPublishing}
-                  style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: selectedIds.size ? "pointer" : "not-allowed" }}
-                >
-                  {t.results.bulkUnpublish}
-                </button>
+          {!openGroup && (
+            <>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 14px" }}>{t.results.savedResults}</h3>
+              {loadingList && <SkeletonCardList count={3} lines={1} />}
+              {!loadingList && !examGroups.length && <p style={{ color: C.muted, fontSize: 13 }}>{t.results.noResults}</p>}
+              <div style={{ display: "grid", gap: 8 }}>
+                {examGroups.map((g) => {
+                  const publishedCount = g.rows.filter((r) => r.published).length;
+                  return (
+                    <button
+                      key={g.key}
+                      type="button"
+                      onClick={() => {
+                        setOpenExamKey(g.key);
+                        setSelectedIds(new Set());
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        border: `1px solid ${C.border}`,
+                        borderRadius: 10,
+                        padding: "12px 14px",
+                        background: "transparent",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        width: "100%",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>
+                          {examTypeLabel(g.examName)} · {g.year}
+                        </div>
+                        <div style={{ fontSize: 12, color: C.muted }}>
+                          {t.results.studentsCount.replace("{count}", String(g.rows.length))} · {publishedCount}/{g.rows.length} {t.results.published}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 18, color: C.muted }}>›</span>
+                    </button>
+                  );
+                })}
               </div>
-            )}
-          </div>
-          {loadingList && <SkeletonCardList count={3} lines={1} />}
-          {!loadingList && !savedResults.length && <p style={{ color: C.muted, fontSize: 13 }}>{t.results.noResults}</p>}
-          <div style={{ display: "grid", gap: 8 }}>
-            {savedResults.map((row) => (
-              <div
-                key={row.id}
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                }}
-              >
+            </>
+          )}
+
+          {openGroup && (
+            <>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(row.id)}
-                    onChange={() => toggleSelected(row.id)}
-                    aria-label={row.studentName}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>
-                      {row.roll} — {row.studentName}
-                    </div>
-                    <div style={{ fontSize: 12, color: C.muted }}>
-                      {row.examName} · {row.year} · {row.obtainedMarks}/{row.totalMarks}
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenExamKey(null);
+                      setSelectedIds(new Set());
+                    }}
+                    style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    {t.results.backToExamList}
+                  </button>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>
+                    {examTypeLabel(openGroup.examName)} · {openGroup.year} · {selectedClass}
+                  </h3>
                 </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.text, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={visibleRows.length > 0 && selectedIds.size === visibleRows.length}
+                      onChange={toggleSelectAll}
+                    />
+                    {t.results.selectAll}
+                  </label>
+                  {!!selectedIds.size && (
+                    <span style={{ fontSize: 12, color: C.muted }}>
+                      {t.results.selectedCount.replace("{count}", String(selectedIds.size))}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => bulkPublish(true)}
+                    disabled={!selectedIds.size || bulkPublishing}
+                    style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: selectedIds.size ? "pointer" : "not-allowed" }}
+                  >
+                    {bulkPublishing ? t.results.bulkPublishing : t.results.bulkPublish}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => bulkPublish(false)}
+                    disabled={!selectedIds.size || bulkPublishing}
+                    style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: selectedIds.size ? "pointer" : "not-allowed" }}
+                  >
+                    {t.results.bulkUnpublish}
+                  </button>
+                </div>
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {visibleRows.map((row) => (
+                  <div
+                    key={row.id}
                     style={{
-                      fontSize: 11,
-                      fontWeight: 800,
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      background: row.published ? C.emeraldL : C.amberL,
-                      color: row.published ? C.emeraldD : C.amberD,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 10,
+                      padding: "10px 14px",
                     }}
                   >
-                    {row.published ? t.results.published : t.results.unpublished}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => togglePublish(row)}
-                    style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                  >
-                    {row.published ? t.results.unpublish : t.results.publish}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => printSheet(row)}
-                    disabled={printingId === row.id}
-                    style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                  >
-                    {printingId === row.id ? t.results.printing : t.results.printSheet}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => remove(row)}
-                    style={{ border: "none", background: C.roseL, color: C.roseD, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                  >
-                    {t.results.delete}
-                  </button>
-                </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(row.id)}
+                        onChange={() => toggleSelected(row.id)}
+                        aria-label={row.studentName}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>
+                          {row.roll} — {row.studentName}
+                        </div>
+                        <div style={{ fontSize: 12, color: C.muted }}>
+                          {row.obtainedMarks}/{row.totalMarks}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 800,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          background: row.published ? C.emeraldL : C.amberL,
+                          color: row.published ? C.emeraldD : C.amberD,
+                        }}
+                      >
+                        {row.published ? t.results.published : t.results.unpublished}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => togglePublish(row)}
+                        style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        {row.published ? t.results.unpublish : t.results.publish}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => printSheet(row)}
+                        disabled={printingId === row.id}
+                        style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        {printingId === row.id ? t.results.printing : t.results.printSheet}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(row)}
+                        style={{ border: "none", background: C.roseL, color: C.roseD, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        {t.results.delete}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
       )}
     </div>
