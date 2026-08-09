@@ -2,10 +2,10 @@ const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { attachTeacherClasses } = require("../lib/teacherScope");
-const { listResults, upsertResult, setPublished, deleteResult } = require("../lib/results");
+const { listResults, upsertResult, saveSubjectForClass, setPublished, deleteResult } = require("../lib/results");
 const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
-const { resultSaveSchema } = require("../lib/financeSchemas");
+const { resultSaveSchema, resultSubjectBatchSchema } = require("../lib/financeSchemas");
 const { sendGuardianSms } = require("../lib/guardianSms");
 const { notifyGuardians } = require("../lib/guardianPush");
 
@@ -72,6 +72,34 @@ router.post("/", validate(resultSaveSchema), async (req, res) => {
       details: { studentId: row.studentId, examName: row.examName, year: row.year, obtainedMarks: row.obtainedMarks, totalMarks: row.totalMarks },
     });
     res.status(201).json(row);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || "Save failed" });
+  }
+});
+
+router.post("/subject-batch", validate(resultSubjectBatchSchema), async (req, res) => {
+  try {
+    if (req.teacherClasses && !req.teacherClasses.includes(req.body.class)) {
+      return res.status(403).json({ error: OUT_OF_SCOPE_ERROR });
+    }
+    const { updated, skipped } = await saveSubjectForClass(req.body);
+    await recordAudit({
+      action: "result.subjectBatchSaved",
+      actor: req.user,
+      entityType: "result",
+      entityId: null,
+      label: `Batch-saved "${req.body.subjectName}" marks — ${req.body.class}, ${req.body.examName} ${req.body.year} (${updated.length} students${skipped.length ? `, ${skipped.length} skipped` : ""})`,
+      details: {
+        class: req.body.class,
+        examName: req.body.examName,
+        year: req.body.year,
+        subjectName: req.body.subjectName,
+        fullMarks: req.body.fullMarks,
+        studentCount: updated.length,
+        skipped,
+      },
+    });
+    res.status(200).json({ updated, skipped });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || "Save failed" });
   }

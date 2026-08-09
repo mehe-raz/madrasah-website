@@ -13,14 +13,77 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
-## Status: NOT_STARTED
+## Status: IN_PROGRESS (Part 1, Part 2 সম্পন্ন — Part 3 থেকে চালিয়ে যেতে হবে)
 
-**শুরু করার নিয়ম:** এই এন্ট্রি IN_PROGRESS না, তাই AGENTS.md-এর "যদি
-IN_PROGRESS থাকে তাহলে আগেই চালিয়ে যাও" নিয়মটা এখানে প্রযোজ্য না। ব্যবহারকারী
-চ্যাটে স্পষ্টভাবে "শুরু কর" (বা সমতুল্য) না বলা পর্যন্ত Part 1 থেকে কোনো কোড
-স্পর্শ করা যাবে না। শুরু করার পর, প্রতি Part শেষে এই ফাইলে অগ্রগতি (কোন Part
-শেষ হলো, কী টেস্ট করা হলো) আপডেট করে যেতে হবে যাতে সেশন মাঝপথে থামলেও পরের
-এজেন্ট/সেশন এখান থেকে চালিয়ে যেতে পারে (Status তখন IN_PROGRESS-এ বদলাতে হবে)।
+Started: 2026-08-09
+
+### Part 1 — সম্পন্ন (2026-08-09)
+- [x] নতুন `server/src/lib/examTypes.js` — `EXAM_TYPES` (value+labelBn)
+  ও `EXAM_TYPE_VALUES` এক্সপোর্ট, নিচের ১০টা এন্ট্রি।
+- [x] `server/src/lib/financeSchemas.js` — `EXAM_TYPE_VALUES` ইমপোর্ট করে
+  নতুন `resultSubjectBatchSchema` যোগ (`class`/`examName` (enum)/`year`/
+  `subjectName`/`fullMarks`/`entries[]`), এক্সপোর্টে যোগ করা হয়েছে।
+  বিদ্যমান `resultSaveSchema` অপরিবর্তিত রাখা হয়েছে।
+- [x] নতুন `client/src/lib/examTypes.ts` — একই ১০টা এন্ট্রি (value+labelBn+
+  labelEn), `ExamType` টাইপ এক্সপোর্ট।
+- [x] `AGENTS.md` → "Single source of truth"-এ exam-type ডুপ্লিকেশনের নোট
+  যোগ করা হয়েছে।
+- [x] `node -c` দিয়ে দুটো নতুন/পরিবর্তিত server ফাইল সিনট্যাক্স-চেক করা হয়েছে
+  (sandbox-এ network না থাকায় পুরো `npm run check` চালানো যায়নি — সেটা
+  ব্যবহারকারীর প্যাকেজড CMD-এই প্রথম চলবে)।
+- **এখনো বাকি (এই sandbox-এ করা যায়নি, ব্যবহারকারীর মেশিনে CMD চালানোর পর
+  চেক করতে হবে):** `resultSaveSchema` (single-student, free-text examName)
+  সত্যিই এখনো কোথাও ব্যবহার হচ্ছে কিনা তা `grep -rn "saveResult\b"
+  client/src` দিয়ে যাচাই — Part 3-এ পুরনো single-student ফর্ম সরানোর আগে এই
+  উত্তর লাগবে।
+
+### Part 2 — সম্পন্ন (2026-08-09)
+- [x] `server/src/lib/results.js` —
+  - নতুন pure `mergeSubjectIntoList(existingSubjects, newSubject)`:
+    subject-নাম case-insensitive/trim মিলিয়ে replace, না মিললে append,
+    MAX_SUBJECTS(20) cap বজায় রাখে (cap-এ থাকলেও বিদ্যমান সাবজেক্ট আপডেট
+    হয়, নতুন যোগ শুধু বন্ধ হয়)।
+  - নতুন internal `upsertResultRow({student, examName, year, subjects})` —
+    আগের `upsertResult`-এর ভেতরের পুরো INSERT...ON CONFLICT ব্লক এখানে
+    এক্সট্র্যাক্ট করা হয়েছে, `upsertResult` ও নতুন `saveSubjectForClass`
+    দুটোতেই reuse হচ্ছে (কোড ডুপ্লিকেট হয়নি)।
+  - নতুন `saveSubjectForClass({class, examName, year, subjectName,
+    fullMarks, entries})` — প্রতি entry-তে ছাত্র লুকআপ (id + `student.class
+    === cls` — ক্লাস স্কোপ মিসম্যাচ হলে স্কিপ, tamper-প্রুফ), বিদ্যমান
+    result row থাকলে তার subjects বের করে `mergeSubjectIntoList()` দিয়ে
+    নতুন বিষয় মার্জ, `upsertResultRow()` দিয়ে সেভ। রিটার্ন `{updated,
+    skipped}` (bad/mismatched studentId পুরো ব্যাচ ফেইল করায় না, শুধু সেই
+    এন্ট্রি স্কিপ হয়)।
+  - Sequential await loop ব্যবহার করা হয়েছে, ম্যানুয়াল pg transaction না —
+    কারণ ফাইলের ভেতরের কমেন্টে ব্যাখ্যা করা হয়েছে (AsyncLocalStorage
+    tenant-schema বাইন্ডিং, migrateTenants.js-এর প্যাটার্ন cross-schema
+    কাজের জন্য, এখানে দরকার নেই)।
+  - `module.exports`-এ `saveSubjectForClass`, `mergeSubjectIntoList` যোগ।
+- [x] `server/src/routes/results.js` — নতুন
+  `POST /results/subject-batch` (validate: `resultSubjectBatchSchema`) —
+  `req.teacherClasses` স্কোপ-চেক (বিদ্যমান `OUT_OF_SCOPE_ERROR` প্যাটার্ন),
+  `saveSubjectForClass()` কল, একটাই `recordAudit()`
+  (`action: "result.subjectBatchSaved"`, label-এ ক্লাস/বিষয়/পরীক্ষা/বছর/
+  কতজন আপডেট+স্কিপ), রেসপন্স `{updated, skipped}`।
+- [x] `server/src/lib/__tests__/results.test.js` — নতুন
+  `describe("mergeSubjectIntoList", ...)` ব্লক: খালি লিস্টে append, বিদ্যমান
+  সাবজেক্টের পাশে নতুন append (original mutate হয় না তাও চেক), একই নামে
+  replace (duplicate না হওয়া), case/whitespace-insensitive ম্যাচ, 20-cap-এ
+  নতুন যোগ না হওয়া, cap-এ থাকা অবস্থায়ও বিদ্যমান সাবজেক্ট আপডেট হওয়া —
+  বিদ্যমান `sanitizeSubjects`/`computeGrade` টেস্টের ঠিক পাশে, একই স্টাইলে।
+- [x] `node -c` দিয়ে চারটা পরিবর্তিত/নতুন server ফাইল সিনট্যাক্স-চেক করা
+  হয়েছে। `mergeSubjectIntoList`/`computeGrade` ম্যানুয়ালি `node -e`-তে
+  রান করে আউটপুট চেক করার চেষ্টা হয়েছিল, কিন্তু এই sandbox-এ
+  `server/node_modules` ইনস্টল করা নেই (`bcryptjs` মডিউল পাওয়া যায়নি —
+  network বন্ধ থাকায় dependency install করা যায়নি) — তাই
+  `results.js`-কে require করে রান করাটা যাচাই করা যায়নি এখানে। vitest
+  টেস্টগুলো (এবং পুরো `npm run check`) ব্যবহারকারীর প্যাকেজড CMD-এই প্রথম
+  চলবে ও যাচাই হবে।
+
+### Part 3, 4 — এখনো শুরু হয়নি।
+
+**শুরু করার নিয়ম (Part 2/3/4-এর জন্য):** ব্যবহারকারী চ্যাটে স্পষ্টভাবে পরের
+ভাগ শুরু করতে না বলা পর্যন্ত এগোনো যাবে না।
 
 ## Task: ফলাফল সেকশন — পরীক্ষার ধরন ফিক্সড-লিস্ট (বাংলা/ইংরেজি) + প্রতি-বিষয়ে
 পুরো ক্লাসের bulk মার্কস-এন্ট্রি ওয়ার্কফ্লো — ৪ ভাগে বিভক্ত (ad-hoc, কোনো

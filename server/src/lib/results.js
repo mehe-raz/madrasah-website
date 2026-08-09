@@ -54,6 +54,70 @@ function parseSubjects(row) {
   return { ...row, subjects: typeof row.subjects === "string" ? JSON.parse(row.subjects) : row.subjects };
 }
 
+// Merges one subject into an existing subjects list: replaces the entry if
+// a subject with the same name already exists (case-insensitive, trimmed —
+// so "Math" and " math " are the same subject), otherwise appends it. Used
+// by saveSubjectForClass() so entering marks for one subject never wipes
+// out marks already saved for other subjects in the same exam. Pure
+// function (no DB access) so it can be unit-tested directly — see
+// __tests__/results.test.js.
+function mergeSubjectIntoList(existingSubjects, newSubject) {
+  const list = Array.isArray(existingSubjects) ? existingSubjects.slice(0, MAX_SUBJECTS) : [];
+  const key = (name) => cleanText(name, 60).toLowerCase();
+  const newKey = key(newSubject.name);
+  const idx = list.findIndex((s) => key(s && s.name) === newKey);
+  if (idx >= 0) {
+    const next = list.slice();
+    next[idx] = newSubject;
+    return next;
+  }
+  if (list.length >= MAX_SUBJECTS) return list; // already full, silently drop — same cap sanitizeSubjects enforces
+  return [...list, newSubject];
+}
+
+// Shared by upsertResult() and saveSubjectForClass() — both end up writing
+// a full (already-merged) subjects list for one (studentId, examName, year)
+// row, they just arrive at that list differently. Recomputes
+// totalMarks/obtainedMarks/gpa/grade from the subjects list every time, so
+// those columns can never drift from what's actually in `subjects`.
+async function upsertResultRow({ student, examName, year, subjects }) {
+  const cleanSubjects = sanitizeSubjects(subjects);
+  const obtainedMarks = cleanSubjects.reduce((sum, s) => sum + s.marks, 0);
+  const totalMarks = cleanSubjects.reduce((sum, s) => sum + s.fullMarks, 0);
+  const { gpa, grade } = computeGrade(obtainedMarks, totalMarks, cleanSubjects);
+
+  const row = await db.get(
+    `INSERT INTO results
+       ("studentId", "examName", year, class, roll, "studentName", subjects, "totalMarks", "obtainedMarks", gpa, grade, published, "updatedAt")
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,now())
+     ON CONFLICT ("studentId", "examName", year) DO UPDATE SET
+       subjects = EXCLUDED.subjects,
+       "totalMarks" = EXCLUDED."totalMarks",
+       "obtainedMarks" = EXCLUDED."obtainedMarks",
+       gpa = EXCLUDED.gpa,
+       grade = EXCLUDED.grade,
+       class = EXCLUDED.class,
+       roll = EXCLUDED.roll,
+       "studentName" = EXCLUDED."studentName",
+       "updatedAt" = now()
+     RETURNING *`,
+    [
+      student.id,
+      examName,
+      year,
+      student.class,
+      student.roll,
+      student.name,
+      JSON.stringify(cleanSubjects),
+      totalMarks,
+      obtainedMarks,
+      gpa,
+      grade,
+    ]
+  );
+  return parseSubjects(row);
+}
+
 // `classes` (array) is used by routes/results.js when a scoped Teacher asks
 // for results without picking one specific class from their assigned list —
 // `class` (single value) takes priority when both are present, same as a
@@ -103,44 +167,73 @@ async function upsertResult(input) {
     throw err;
   }
 
-  const subjects = sanitizeSubjects(input.subjects);
-  const obtainedMarks = subjects.reduce((sum, s) => sum + s.marks, 0);
-  const totalMarks = subjects.reduce((sum, s) => sum + s.fullMarks, 0);
-  // gpa/grade are always derived from the marks above, never taken from
-  // input — see computeGrade(). Any gpa/grade sent in the request body is
-  // ignored so the two can't drift apart.
-  const { gpa, grade } = computeGrade(obtainedMarks, totalMarks, subjects);
+  // gpa/grade are always derived from the marks in `subjects` — see
+  // computeGrade() inside upsertResultRow(). Any gpa/grade sent in the
+  // request body is ignored so the two can't drift apart.
+  return upsertResultRow({ student, examName, year, subjects: input.subjects });
+}
 
-  const row = await db.get(
-    `INSERT INTO results
-       ("studentId", "examName", year, class, roll, "studentName", subjects, "totalMarks", "obtainedMarks", gpa, grade, published, "updatedAt")
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,now())
-     ON CONFLICT ("studentId", "examName", year) DO UPDATE SET
-       subjects = EXCLUDED.subjects,
-       "totalMarks" = EXCLUDED."totalMarks",
-       "obtainedMarks" = EXCLUDED."obtainedMarks",
-       gpa = EXCLUDED.gpa,
-       grade = EXCLUDED.grade,
-       class = EXCLUDED.class,
-       roll = EXCLUDED.roll,
-       "studentName" = EXCLUDED."studentName",
-       "updatedAt" = now()
-     RETURNING *`,
-    [
-      studentId,
-      examName,
-      year,
-      student.class,
-      student.roll,
-      student.name,
-      JSON.stringify(subjects),
-      totalMarks,
-      obtainedMarks,
-      gpa,
-      grade,
-    ]
-  );
-  return parseSubjects(row);
+// Enters marks for ONE subject, for MANY students in the same class, in one
+// call — the batch marks-entry screen (docs/CURRENT_TASK.md Part 2/3). For
+// each entry: looks up the student, merges { name: subjectName, marks,
+// fullMarks } into whatever subjects that student already has saved for
+// this (examName, year) — via mergeSubjectIntoList(), so previously-entered
+// subjects for other subjects are preserved, not overwritten — then
+// recomputes totals/gpa/grade and upserts the row (same as upsertResult).
+//
+// Sequential awaits, not a manual pg transaction: this codebase binds each
+// request to the right tenant schema via AsyncLocalStorage (see
+// server/src/pg.js), so db.get/db.run already go to the right place without
+// passing a client around. A raw pool.connect()+BEGIN transaction (the
+// pattern used in migrateTenants.js/registryDb.js) is for cross-schema work,
+// which this isn't — so it's not needed here.
+//
+// A studentId that doesn't resolve to a real student is skipped (not a hard
+// failure) — one bad id in a 40-student class shouldn't block saving the
+// other 39, but the caller does need to know it happened, hence `skipped`.
+async function saveSubjectForClass({ class: classroom, examName, year, subjectName, fullMarks, entries }) {
+  const cls = cleanText(classroom, 60);
+  const exam = cleanText(examName, 80);
+  const yr = cleanText(year, 4);
+  const subject = cleanText(subjectName, 60);
+  const full = Math.max(1, Number(fullMarks) || 0);
+  if (!cls || !exam || !yr || !subject) {
+    const err = new Error("ক্লাস, পরীক্ষার নাম, শিক্ষাবর্ষ ও বিষয়ের নাম আবশ্যক");
+    err.status = 400;
+    throw err;
+  }
+
+  const updated = [];
+  const skipped = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const studentId = Number(entry && entry.studentId);
+    if (!studentId) {
+      skipped.push(entry && entry.studentId);
+      continue;
+    }
+    const student = await db.get("SELECT * FROM students WHERE id = $1", [studentId]);
+    if (!student || student.class !== cls) {
+      // Either the id doesn't exist, or it exists but belongs to a
+      // different class than the one this batch says it's for (e.g. a
+      // stale class list, or a tampered request) — skip rather than
+      // silently saving a mark under the wrong class.
+      skipped.push(studentId);
+      continue;
+    }
+
+    const existing = await db.get(
+      `SELECT subjects FROM results WHERE "studentId" = $1 AND "examName" = $2 AND year = $3`,
+      [studentId, exam, yr]
+    );
+    const existingSubjects = existing ? parseSubjects(existing).subjects : [];
+    const marks = Math.max(0, Number(entry.marks) || 0);
+    const mergedSubjects = mergeSubjectIntoList(existingSubjects, { name: subject, marks, fullMarks: full });
+
+    const row = await upsertResultRow({ student, examName: exam, year: yr, subjects: mergedSubjects });
+    updated.push(row);
+  }
+
+  return { updated, skipped };
 }
 
 async function setPublished(id, published) {
@@ -179,4 +272,14 @@ async function searchPublicResult({ class: className, roll, examName }) {
   return rows.map(parseSubjects);
 }
 
-module.exports = { listResults, upsertResult, setPublished, deleteResult, searchPublicResult, sanitizeSubjects, computeGrade };
+module.exports = {
+  listResults,
+  upsertResult,
+  saveSubjectForClass,
+  mergeSubjectIntoList,
+  setPublished,
+  deleteResult,
+  searchPublicResult,
+  sanitizeSubjects,
+  computeGrade,
+};

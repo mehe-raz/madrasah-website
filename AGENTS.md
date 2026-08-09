@@ -228,6 +228,13 @@ part of an unrelated task.
 
 - Roles & permissions: `server/src/config/roles.js` (client copy is generated
   — see rule 3 above).
+- Results exam-type list: **intentionally duplicated**, not generated —
+  `server/src/lib/examTypes.js` (validation, via `EXAM_TYPE_VALUES` in a Zod
+  `enum`) and `client/src/lib/examTypes.ts` (dropdown labels, bn/en). Unlike
+  roles.js/roles.generated.ts this isn't security-critical and is a short,
+  low-churn list (10 entries), so it wasn't worth a third sync script — but
+  if you add/rename/remove an entry, update both files in the same change.
+  Don't "fix" this duplication by deleting one side.
 - Everything else currently has no single-source enforcement; if you notice
   another value duplicated between client and server, flag it instead of
   silently fixing it in only one place.

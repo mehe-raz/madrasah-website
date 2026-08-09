@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeSubjects, computeGrade } from "../results.js";
+import { sanitizeSubjects, computeGrade, mergeSubjectIntoList } from "../results.js";
 
 describe("sanitizeSubjects", () => {
   it("returns an empty array for non-array input", () => {
@@ -70,5 +70,55 @@ describe("computeGrade", () => {
   it("ignores subjects with a non-positive fullMarks when checking the fail rule", () => {
     const subjects = [{ name: "Extra", marks: 0, fullMarks: 0 }, { name: "Math", marks: 80, fullMarks: 100 }];
     expect(computeGrade(80, 100, subjects)).toEqual({ gpa: "5.00", grade: "A+" });
+  });
+});
+
+describe("mergeSubjectIntoList", () => {
+  it("appends a new subject to an empty list", () => {
+    const result = mergeSubjectIntoList([], { name: "Math", marks: 80, fullMarks: 100 });
+    expect(result).toEqual([{ name: "Math", marks: 80, fullMarks: 100 }]);
+  });
+
+  it("appends a new subject alongside existing ones without touching them", () => {
+    const existing = [{ name: "Math", marks: 80, fullMarks: 100 }];
+    const result = mergeSubjectIntoList(existing, { name: "Arabic", marks: 70, fullMarks: 100 });
+    expect(result).toEqual([
+      { name: "Math", marks: 80, fullMarks: 100 },
+      { name: "Arabic", marks: 70, fullMarks: 100 },
+    ]);
+    // original array is not mutated
+    expect(existing).toHaveLength(1);
+  });
+
+  it("replaces an existing subject with the same name instead of duplicating it", () => {
+    const existing = [
+      { name: "Math", marks: 40, fullMarks: 100 },
+      { name: "Arabic", marks: 70, fullMarks: 100 },
+    ];
+    const result = mergeSubjectIntoList(existing, { name: "Math", marks: 90, fullMarks: 100 });
+    expect(result).toEqual([
+      { name: "Math", marks: 90, fullMarks: 100 },
+      { name: "Arabic", marks: 70, fullMarks: 100 },
+    ]);
+  });
+
+  it("matches subject names case-insensitively and ignoring surrounding whitespace", () => {
+    const existing = [{ name: "Math", marks: 40, fullMarks: 100 }];
+    const result = mergeSubjectIntoList(existing, { name: "  math  ", marks: 95, fullMarks: 100 });
+    expect(result).toHaveLength(1);
+    expect(result[0].marks).toBe(95);
+  });
+
+  it("does not add a subject past the 20-subject cap", () => {
+    const existing = Array.from({ length: 20 }, (_, i) => ({ name: `Subject ${i}`, marks: 50, fullMarks: 100 }));
+    const result = mergeSubjectIntoList(existing, { name: "One Too Many", marks: 60, fullMarks: 100 });
+    expect(result).toHaveLength(20);
+  });
+
+  it("still updates an already-present subject even when the list is at the cap", () => {
+    const existing = Array.from({ length: 20 }, (_, i) => ({ name: `Subject ${i}`, marks: 50, fullMarks: 100 }));
+    const result = mergeSubjectIntoList(existing, { name: "Subject 5", marks: 99, fullMarks: 100 });
+    expect(result).toHaveLength(20);
+    expect(result[5].marks).toBe(99);
   });
 });
