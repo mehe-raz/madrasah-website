@@ -398,6 +398,18 @@ tr:last-child td { border-bottom: none; }
 .modal p.sub { color: var(--muted); font-size: 13px; margin: 0 0 8px; line-height: 1.5; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
+/* Ad-hoc (docs/CURRENT_TASK.md) — platform billing gateway modal's
+   connection-status readout, reused shape from .error-box but neutral. */
+.status-box {
+  background: var(--bg-soft, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
 .link-btn {
   background: none; border: none; color: var(--sky); padding: 0;
   font-size: 13px; cursor: pointer; box-shadow: none; font-weight: 600;

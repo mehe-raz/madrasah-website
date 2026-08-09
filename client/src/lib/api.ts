@@ -22,6 +22,7 @@ import type {
   GuardianUser,
   IncomeEntry,
   IncomeSummary,
+  InstitutionBillingStatus,
   Notification,
   PaginatedResult,
   Payment,
@@ -524,8 +525,11 @@ export const api = {
     targetStudentId?: number;
     scheduleType: GuardianReminder["scheduleType"];
     scheduleDate?: string;
+    /** feeDue/lateArrival/attendanceMissing only — 'HH:MM', 24hr. */
     scheduleTime?: string;
+    /** Only meaningful when scheduleType='daily'. */
     intervalDays?: number;
+    /** targetType='selectedStudents' only. */
     selectedStudentIds?: number[];
   }) => request<GuardianReminder>("/guardian-reminders", { method: "POST", body: JSON.stringify(body) }),
 
@@ -872,6 +876,25 @@ export const api = {
 
   disconnectPaymentGateway: () =>
     request<{ connected: boolean }>("/payment-gateway/disconnect", { method: "POST" }),
+
+  // Institution self-service platform-subscription billing (ad-hoc,
+  // docs/CURRENT_TASK.md) — the institution pays ITS OWN monthly bill to
+  // the platform operator's bKash account (routes/institutionBilling.js),
+  // the reverse direction from getPaymentGatewayStatus above (which is
+  // this institution's own gateway for collecting fees from guardians).
+  getInstitutionBillingStatus: () => request<InstitutionBillingStatus>("/institution-billing/status"),
+
+  createInstitutionBillingPayment: (amount: number, periodDays: number) =>
+    request<BkashCheckoutStart>("/institution-billing/bkash/create", {
+      method: "POST",
+      body: JSON.stringify({ amount, periodDays }),
+    }),
+
+  executeInstitutionBillingPayment: (paymentID: string) =>
+    request<{ ok: boolean; subscriptionEndsAt?: string; alreadyCompleted?: boolean; error?: string }>(
+      "/institution-billing/bkash/execute",
+      { method: "POST", body: JSON.stringify({ paymentID }) }
+    ),
 
   // Phase 8F — SMS wallet top-up via the connected bKash gateway (see
   // routes/sms.js). Admin-initiated, same create→execute shape as the

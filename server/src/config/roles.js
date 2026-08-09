@@ -49,6 +49,12 @@ const ROUTE_PERMISSION = {
   // agent/merchant credentials. Same tier as /api/sms above; the route
   // itself additionally gates on the "bkash" plan feature.
   "/api/payment-gateway": "settings",
+  // Institution self-service platform-subscription billing (ad-hoc,
+  // docs/CURRENT_TASK.md) — same "settings" tier as /api/payment-gateway
+  // just above, but the reverse money direction (institution -> platform,
+  // via routes/institutionBilling.js). Only meaningful in multi-tenant
+  // mode; the route itself 404s cleanly on single-tenant deployments.
+  "/api/institution-billing": "settings",
   // Array = "any one of these is enough to reach the route" — site-content
   // bundles hero/about/admission/gallery/notices into one JSON blob (see
   // lib/siteContent.js), so someone with only "websiteGallery" or

@@ -206,6 +206,34 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             )}
           </NavLink>
         )}
+        {/* Institution self-service platform-subscription billing (ad-hoc,
+            docs/CURRENT_TASK.md) — reuses "settings" permission like
+            payment-gateway above, but no plan-lock: paying your own bill
+            isn't itself a paid plan feature. */}
+        {canAccess(role, "settings") && (
+          <NavLink
+            to="/settings/billing"
+            onClick={onNavigate}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.institutionBilling : undefined}
+          >
+            <span style={{ fontSize: 18, flexShrink: 0 }}>🧾</span>
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.institutionBilling}</span>}
+          </NavLink>
+        )}
         {canViewAuditLogs(role) && (
           <NavLink
             to="/audit-logs"

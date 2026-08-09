@@ -434,6 +434,10 @@ app.use("/api/admissions", require("./routes/admissions"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/sms", require("./routes/sms"));
 app.use("/api/payment-gateway", require("./routes/paymentGateway"));
+// Institution self-service platform-subscription billing (ad-hoc,
+// docs/CURRENT_TASK.md) — reverse money direction from the line above
+// (institution -> platform, not guardian -> institution).
+app.use("/api/institution-billing", require("./routes/institutionBilling"));
 app.use("/api/guardian-reminders", require("./routes/guardianReminders"));
 
 // Reports any error thrown/passed to next() by the routes above to Sentry

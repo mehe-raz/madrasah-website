@@ -35,6 +35,9 @@ const Reports = lazy(() => import("./modules/Reports").then((m) => ({ default: m
 const Results = lazy(() => import("./modules/Results").then((m) => ({ default: m.Results })));
 const Settings = lazy(() => import("./modules/Settings").then((m) => ({ default: m.Settings })));
 const SmsSettings = lazy(() => import("./modules/SmsSettings").then((m) => ({ default: m.SmsSettings })));
+const InstitutionBilling = lazy(() =>
+  import("./modules/InstitutionBilling").then((m) => ({ default: m.InstitutionBilling }))
+);
 const Students = lazy(() => import("./modules/Students").then((m) => ({ default: m.Students })));
 const Website = lazy(() => import("./modules/Website").then((m) => ({ default: m.Website })));
 const WebsitePreview = lazy(() => import("./pages/WebsitePreview").then((m) => ({ default: m.WebsitePreview })));
@@ -160,6 +163,13 @@ export default function App() {
                 <Route path="website/:sectionId" element={<WebsiteSectionEditor />} />
                 <Route path="admissions" element={<AdmissionsReview />} />
                 <Route path="settings" element={<Settings />} />
+                {/* Institution self-service platform-subscription billing
+                    (ad-hoc, docs/CURRENT_TASK.md) — no PlanFeatureGate: every
+                    institution regardless of plan needs to be able to pay
+                    ITS OWN bill, this isn't a plan feature to gate behind
+                    itself. Path matches routes/institutionBilling.js's
+                    billingCallbackUrl()'s assumed shape (`${base}/settings/billing`). */}
+                <Route path="settings/billing" element={<InstitutionBilling />} />
                 {/* Guardian Reminder Messenger admin module — reuses the
                     "settings" permission (see server/src/config/roles.js's
                     ROUTE_PERMISSION entry for /api/guardian-reminders). No

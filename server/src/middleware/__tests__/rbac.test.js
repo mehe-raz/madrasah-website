@@ -35,6 +35,7 @@ const EXPECTED_ALLOWED = {
   "/api/sms": ["Admin", "Super Admin"], //
   "/api/payment-gateway": ["Admin", "Super Admin"], // Phase 8E — bKash self-connect, same tier as /api/sms
   "/api/guardian-reminders": ["Admin", "Super Admin"], // Guardian Reminder Messenger (ad-hoc) — same "settings" tier as /api/sms above
+  "/api/institution-billing": ["Admin", "Super Admin"], // Institution self-service platform-subscription billing (ad-hoc) — same "settings" tier as /api/payment-gateway above
 };
 
 describe("ROUTE_PERMISSION table sanity", () => {

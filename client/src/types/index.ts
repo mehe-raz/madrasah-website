@@ -518,7 +518,10 @@ export interface ClassPost {
 
 // Guardian Reminder Messenger (ad-hoc, docs/CURRENT_TASK.md) —
 // server/src/routes/guardianReminders.js (admin side) +
-// server/src/routes/guardianAuth.js (guardian read side).
+// server/src/routes/guardianAuth.js (guardian read side). targetType/
+// scheduleTime/intervalDays/selectedStudentIds cover the conditional
+// (feeDue/lateArrival/attendanceMissing/selectedStudents) reminders —
+// see docs/CONDITIONAL_REMINDERS_PLAN.md.
 export interface GuardianReminder {
   id: number;
   title: string;
@@ -528,8 +531,11 @@ export interface GuardianReminder {
   targetStudentId: number | null;
   scheduleType: "once" | "daily" | "specificDate";
   scheduleDate: string | null;
+  /** 'HH:MM', 24hr — only consulted for feeDue/lateArrival/attendanceMissing. */
   scheduleTime: string | null;
+  /** Only consulted when scheduleType='daily'; defaults to 1 ("every day"). */
   intervalDays: number;
+  /** targetType='selectedStudents' only — array of students.id. */
   selectedStudentIds: number[] | null;
   active: boolean;
   createdAt: string;
@@ -593,4 +599,19 @@ export interface PaymentGatewayStatus {
 export interface BkashCheckoutStart {
   bkashURL: string;
   paymentID: string;
+}
+
+// Institution self-service platform-subscription billing (ad-hoc,
+// docs/CURRENT_TASK.md) — reverse money direction from PaymentGatewayStatus
+// above (institution -> platform, via routes/institutionBilling.js), not
+// guardian -> institution. Only meaningful in multi-tenant deployments.
+export interface InstitutionBillingStatus {
+  plan: string | null;
+  billingModel: string | null;
+  priceAmount: number | null;
+  status: string | null;
+  subscriptionEndsAt: string | null;
+  trialEndsAt: string | null;
+  /** true only if the PLATFORM operator's own bKash account is connected — not this institution's own gateway. */
+  platformGatewayConnected: boolean;
 }

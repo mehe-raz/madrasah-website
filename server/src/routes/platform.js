@@ -24,6 +24,9 @@ const registryDb = require("../registryDb");
 const tenantProvision = require("../tenantProvision");
 const migrateTenants = require("../migrateTenants");
 const billing = require("../billing");
+const bkashGateway = require("../lib/bkashGateway");
+const gatewayCrypto = require("../lib/gatewayCredentialCrypto");
+const platformGatewayCredentials = require("../lib/platformGatewayCredentials");
 const { signPlatformToken, requirePlatformAuth, requirePlatformRole, cookieOptions } = require("../middleware/platformAuth");
 
 const router = express.Router();
@@ -446,6 +449,68 @@ router.post("/billing/expiry-scan", async (req, res, next) => {
       suspended: suspended.map((i) => i.code),
     });
     res.json({ suspended });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// প্ল্যাটফর্মের নিজস্ব bKash গেটওয়ে (ad-hoc, docs/CURRENT_TASK.md — Phase
+// 8E-এর ঠিক same connect/validate/encrypt প্যাটার্ন, কিন্তু institution_
+// payment_gateways-এর বদলে registry.platform_gateway-তে, কারণ এটা কোনো
+// নির্দিষ্ট প্রতিষ্ঠানের অ্যাকাউন্ট না — এটাই সেই গেটওয়ে যেটা দিয়ে প্রতিটা
+// প্রতিষ্ঠান তাদের নিজের মাসিক সাবস্ক্রিপশন বিল পরিশোধ করে
+// (routes/institutionBilling.js)। কানেক্ট/ডিসকানেক্ট শুধু super_admin —
+// এটা টাকা কোথায় জমা হবে সেটার নিয়ন্ত্রণ, যেকোনো platform admin-এর হাতে
+// থাকা উচিত না। status GET-এ requirePlatformRole নেই — read-only "manager"
+// রোলও দেখতে পারবে, ঠিক /settings-এর মতো।
+// ---------------------------------------------------------------------------
+router.get("/billing/gateway/status", async (_req, res, next) => {
+  try {
+    const status = await platformGatewayCredentials.getPlatformGatewayStatus();
+    res.json(status);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/billing/gateway/connect", requirePlatformRole("super_admin"), async (req, res, next) => {
+  try {
+    if (!gatewayCrypto.isConfigured()) {
+      return res.status(503).json({ error: "GATEWAY_CREDENTIAL_KEY সার্ভারে সেট করা নেই" });
+    }
+
+    const appKey = String(req.body?.appKey || "").trim();
+    const appSecret = String(req.body?.appSecret || "").trim();
+    const username = String(req.body?.username || "").trim();
+    const password = String(req.body?.password || "").trim();
+
+    let result;
+    try {
+      result = await bkashGateway.grantToken({ appKey, appSecret, username, password });
+    } catch (err) {
+      result = { ok: false, error: err instanceof Error ? err.message : "যাচাই করতে ব্যর্থ হয়েছে" };
+    }
+
+    if (!result.ok) {
+      await platformGatewayCredentials.markPlatformGatewayFailed(result.error);
+      await registryDb.logAction(null, req.platformAdmin.email, "platform_gateway.connect_failed", { error: result.error });
+      return res.status(400).json({ connected: false, error: result.error });
+    }
+
+    await platformGatewayCredentials.saveConnectedPlatformGateway({ appKey, appSecret, username, password });
+    await registryDb.logAction(null, req.platformAdmin.email, "platform_gateway.connected", {});
+    res.json({ connected: true, provider: "bkash" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/billing/gateway/disconnect", requirePlatformRole("super_admin"), async (req, res, next) => {
+  try {
+    await platformGatewayCredentials.disconnectPlatformGateway();
+    await registryDb.logAction(null, req.platformAdmin.email, "platform_gateway.disconnected", {});
+    res.json({ connected: false });
   } catch (err) {
     next(err);
   }

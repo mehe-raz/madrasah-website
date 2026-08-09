@@ -120,6 +120,14 @@ async function loadInstitutions() {
   } catch {
     // leave state.settings as-is
   }
+  // Ad-hoc (docs/CURRENT_TASK.md) — best-effort, same reasoning as
+  // state.settings just above: a gateway-status failure shouldn't block
+  // the whole dashboard from loading.
+  try {
+    state.platformGateway = await api("/billing/gateway/status");
+  } catch {
+    // leave state.platformGateway as-is
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -269,6 +277,7 @@ function renderDashboard() {
           ${canManageInstitutions ? `<button id="open-sms-topups" class="secondary">📱 SMS টপ-আপ</button>` : ""}
           ${isSuperAdmin ? `<button id="open-admins" class="secondary">👤 এডমিন ম্যানেজমেন্ট</button>` : ""}
           ${canManageInstitutions ? `<button id="open-settings" class="secondary">⚙️ প্ল্যাটফর্ম সেটিংস</button>` : ""}
+          ${isSuperAdmin ? `<button id="open-billing-gateway" class="secondary">💳 বিলিং গেটওয়ে</button>` : ""}
         </div>
         ${canManageInstitutions ? `<button id="new-institution">+ নতুন প্রতিষ্ঠান</button>` : ""}
       </div>
@@ -308,7 +317,53 @@ function renderModal() {
   if (state.modal.type === "admins") return renderAdminsModal();
   if (state.modal.type === "settings") return renderSettingsModal();
   if (state.modal.type === "sms-topups") return renderSmsTopupsModal();
+  if (state.modal.type === "billing-gateway") return renderBillingGatewayModal();
   return "";
+}
+
+// ---------------------------------------------------------------------------
+// প্ল্যাটফর্মের নিজস্ব bKash গেটওয়ে (ad-hoc, docs/CURRENT_TASK.md) — এটাই
+// সেই গেটওয়ে যেটা দিয়ে প্রতিটা প্রতিষ্ঠান নিজের মাসিক সাবস্ক্রিপশন বিল
+// পরিশোধ করে (client/src/modules/InstitutionBilling.tsx)। renderSettingsModal-
+// এর ঠিক same connect-form প্যাটার্ন, শুধু ৪টা ক্রেডেনশিয়াল ফিল্ড।
+// ---------------------------------------------------------------------------
+function renderBillingGatewayModal() {
+  const g = state.platformGateway;
+  return `
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal">
+        <h2>💳 প্ল্যাটফর্ম বিকাশ বিলিং গেটওয়ে</h2>
+        <p class="sub">
+          এটা আপনার (প্ল্যাটফর্ম অপারেটরের) নিজের bKash মার্চেন্ট/এজেন্ট অ্যাকাউন্ট — কোনো
+          প্রতিষ্ঠানের না। কানেক্ট থাকলে প্রতিষ্ঠানগুলো তাদের মাসিক সাবস্ক্রিপশন বিল সরাসরি
+          বিকাশে এই অ্যাকাউন্টে পরিশোধ করতে পারবে (নিজের প্রতিষ্ঠান-অ্যাডমিন প্যানেল থেকে)।
+        </p>
+        ${state.modal.error ? `<div class="error-box">${escapeHtml(state.modal.error)}</div>` : ""}
+        <div class="status-box">
+          স্ট্যাটাস:
+          ${g && g.connected ? `<b style="color:#059669">কানেক্টেড</b>` : `<b style="color:#dc2626">কানেক্টেড না</b>`}
+          ${g && g.lastCheckedAt ? ` — সর্বশেষ চেক: ${fmtDate(g.lastCheckedAt)}` : ""}
+          ${g && !g.connected && g.lastError ? `<div class="error-box">${escapeHtml(g.lastError)}</div>` : ""}
+          ${g && !g.configured ? `<div class="error-box">সার্ভারে GATEWAY_CREDENTIAL_KEY সেট করা নেই — কানেক্ট করার আগে এটা env var-এ বসাতে হবে।</div>` : ""}
+        </div>
+        <form id="billing-gateway-form">
+          <label>App Key</label>
+          <input name="appKey" required />
+          <label>App Secret</label>
+          <input name="appSecret" type="password" required />
+          <label>Username</label>
+          <input name="username" required />
+          <label>Password</label>
+          <input name="password" type="password" required />
+          <div class="modal-actions">
+            <button type="button" class="secondary" id="modal-cancel">বন্ধ করুন</button>
+            ${g && g.connected ? `<button type="button" class="secondary" id="billing-gateway-disconnect">ডিসকানেক্ট করুন</button>` : ""}
+            <button type="submit">যাচাই করে কানেক্ট করুন</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
 }
 
 function renderCreateModal() {
@@ -866,6 +921,14 @@ function wireDashboardEvents() {
     });
   }
 
+  const openBillingGatewayBtn = document.getElementById("open-billing-gateway");
+  if (openBillingGatewayBtn) {
+    openBillingGatewayBtn.addEventListener("click", () => {
+      state.modal = { type: "billing-gateway", error: "" };
+      render();
+    });
+  }
+
   root.querySelectorAll(".apply-status").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = Number(btn.dataset.id);
@@ -978,6 +1041,46 @@ function wireDashboardEvents() {
         closeModal();
       } catch (err) {
         state.modal.error = err.message;
+        render();
+      }
+    });
+  }
+
+  const billingGatewayForm = document.getElementById("billing-gateway-form");
+  if (billingGatewayForm) {
+    billingGatewayForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(billingGatewayForm);
+      try {
+        await api("/billing/gateway/connect", {
+          method: "POST",
+          body: {
+            appKey: fd.get("appKey"),
+            appSecret: fd.get("appSecret"),
+            username: fd.get("username"),
+            password: fd.get("password"),
+          },
+        });
+        state.platformGateway = await api("/billing/gateway/status");
+        closeModal();
+      } catch (err) {
+        state.modal.error = err.message;
+        render();
+      }
+    });
+  }
+
+  const billingGatewayDisconnectBtn = document.getElementById("billing-gateway-disconnect");
+  if (billingGatewayDisconnectBtn) {
+    billingGatewayDisconnectBtn.addEventListener("click", async () => {
+      billingGatewayDisconnectBtn.disabled = true;
+      try {
+        await api("/billing/gateway/disconnect", { method: "POST" });
+        state.platformGateway = await api("/billing/gateway/status");
+        closeModal();
+      } catch (err) {
+        state.modal.error = err.message;
+        billingGatewayDisconnectBtn.disabled = false;
         render();
       }
     });
