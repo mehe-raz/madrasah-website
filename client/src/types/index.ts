@@ -435,6 +435,16 @@ export interface ResultStudentOption {
   class: string;
 }
 
+// Response of POST /results/subject-batch (bulk per-subject marks entry for
+// a whole class) — docs/CURRENT_TASK.md Part 3. `updated` mirrors the
+// per-student rows that were upserted; `skipped` lists studentIds that had
+// no matching student record and were left out (batch still succeeds for
+// the rest).
+export interface ResultSubjectBatchResponse {
+  updated: StudentResult[];
+  skipped: number[];
+}
+
 // What the public Result Lookup page receives — same shape minus
 // studentId/id/published, since those are internal-only.
 export interface PublicResult {

@@ -13,7 +13,7 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
-## Status: IN_PROGRESS (Part 1, Part 2 সম্পন্ন — Part 3 থেকে চালিয়ে যেতে হবে)
+## Status: IN_PROGRESS (Part 1, Part 2, Part 3 সম্পন্ন — Part 4 বাকি)
 
 Started: 2026-08-09
 
@@ -80,9 +80,49 @@ Started: 2026-08-09
   টেস্টগুলো (এবং পুরো `npm run check`) ব্যবহারকারীর প্যাকেজড CMD-এই প্রথম
   চলবে ও যাচাই হবে।
 
-### Part 3, 4 — এখনো শুরু হয়নি।
+### Part 3 — সম্পন্ন (2026-08-10)
+- [x] `client/src/lib/api.ts` — নতুন `saveResultSubjectBatch()` যোগ, `POST
+  /results/subject-batch` কল করে। বিদ্যমান `saveResult`/`getResults`/
+  `getResultClasses`/`getResultStudents`/`setResultPublished`/`deleteResult`
+  অপরিবর্তিত রাখা হয়েছে।
+- [x] `client/src/types/index.ts` — নতুন `ResultSubjectBatchResponse { updated;
+  skipped }` টাইপ যোগ।
+- [x] `client/src/modules/Results.tsx` — এন্ট্রি-ফর্ম সেকশন পুরোপুরি
+  rework: single-student পুরনো ফর্ম (ছাত্র-বাছাই + subjects[] ইনলাইন লিস্ট +
+  computeGrade প্রিভিউ) সরিয়ে নতুন bulk ফ্লো বসানো হয়েছে — exam-type ফিক্সড
+  `<Select>` (`EXAM_TYPES` থেকে, ভাষা অনুযায়ী লেবেল), class/year/subjectName/
+  subjectFullMarks ফিল্ড, ক্লাস সিলেক্ট হলে প্রতি ছাত্রের রো + নম্বর ইনপুট,
+  "বিষয় যোগ করুন" বাটনে `saveResultSubjectBatch()` কল (খালি মার্কস বাদ,
+  skipped কাউন্ট দেখানো হয়) → সফল হলে subjectName/subjectFullMarks/marksById
+  রিসেট (class/exam/year রাখা হয়), `refreshList()`। "সংরক্ষিত ফলাফল" লিস্ট
+  অংশ অপরিবর্তিত রাখা হয়েছে (স্পেক অনুযায়ী স্কোপের বাইরে)।
+  - Design System: entry-form অংশ `Card`/`Field`/`Input`/`Select`/`Button`
+    (components/ui/) ও নতুন `.marks-entry-list`/`.marks-entry-row`/
+    `.marks-entry-header` ক্লাসে (index.css-এ যোগ, ডেস্কটপে row/মোবাইলে
+    stacked card @max-width:640px) migrate করা হয়েছে — এই ফাইলের ৩৬টা
+    inline-style এর ২৫টা সরানো হয়েছে (৩৬ → ১১, বাকি ১১টা untouched
+    saved-results-list অংশে)। `docs/DESIGN_SYSTEM_MIGRATION.md` আপডেট করা
+    হয়েছে। যেহেতু পুরোপুরি ক্লিন না, `client/eslint.config.js`-এর ignore
+    লিস্টে `Results.tsx` রয়ে গেছে।
+  - নতুন `.alert--emerald` (success message) ও `.text-muted` ক্লাস যোগ করা
+    হয়েছে (index.css)।
+- [x] `client/src/i18n/bn.ts` ও `en.ts` — `results` namespace-এ নতুন কী
+  (`selectExamType`, `subjectFullMarks`, `marksFor`, `noStudentsInClass`,
+  `addSubjectBatch`/`addSubjectBatchSaving`/`addSubjectBatchSaved`/
+  `addSubjectBatchSkipped`) যোগ; `selectStudent`/`addSubject` রিমুভ করা
+  হয়েছে (`grep -rn` দিয়ে যাচাই করে নিশ্চিত হওয়া গেছে এই দুইটা কী
+  `Results.tsx` ছাড়া আর কোথাও ব্যবহার হতো না)। `save`/`saving`/`saved`/
+  `fullMarks`/`subjects`/`total` কী-গুলো এখন আর ব্যবহৃত হয় না কিন্তু স্পেকে
+  এগুলো রিমুভ করতে বলা হয়নি বলে ইচ্ছাকৃতভাবে রাখা হয়েছে (scope-এর বাইরে না
+  গিয়ে)।
+- **যাচাই করা যায়নি (sandbox-এ `node_modules`/নেটওয়ার্ক না থাকায়):** পুরো
+  `npm run check` (lint/typecheck/build) — ম্যানুয়ালি কোড রিভিউ করে
+  import/type সামঞ্জস্য নিশ্চিত করা হয়েছে, কিন্তু আসল যাচাই ব্যবহারকারীর
+  মেশিনে প্যাকেজড CMD চালানোর সময় প্রথম হবে।
 
-**শুরু করার নিয়ম (Part 2/3/4-এর জন্য):** ব্যবহারকারী চ্যাটে স্পষ্টভাবে পরের
+### Part 4 — এখনো শুরু হয়নি।
+
+**শুরু করার নিয়ম (Part 4-এর জন্য):** ব্যবহারকারী চ্যাটে স্পষ্টভাবে পরের
 ভাগ শুরু করতে না বলা পর্যন্ত এগোনো যাবে না।
 
 ## Task: ফলাফল সেকশন — পরীক্ষার ধরন ফিক্সড-লিস্ট (বাংলা/ইংরেজি) + প্রতি-বিষয়ে

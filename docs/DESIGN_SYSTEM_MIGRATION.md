@@ -54,7 +54,7 @@ cleans up what it touched, per the "Migration status" note in AGENTS.md).
 | `modules/Expenses.tsx` | 39 |
 | `components/PublicHeader.tsx` | 39 |
 | `pages/AdmissionApply.tsx` | 37 |
-| `modules/Results.tsx` | 36 |
+| `modules/Results.tsx` | 11 (was 36 — Part 3 of the exam-type/bulk-marks task migrated the entry-form section; the "সংরক্ষিত ফলাফল" saved-results list below was explicitly out of scope and still has its old inline styles) |
 | `modules/HifzTracking.tsx` | 36 |
 | `modules/AuditLogs.tsx` | 34 |
 | `pages/About.tsx` | 32 |

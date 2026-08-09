@@ -29,6 +29,7 @@ import type {
   PublicResult,
   PublicSettings,
   ResultStudentOption,
+  ResultSubjectBatchResponse,
   ResultSubjectMark,
   Settings,
   SiteContent,
@@ -487,6 +488,18 @@ export const api = {
     gpa?: string;
     grade?: string;
   }) => request<StudentResult>("/results", { method: "POST", body: JSON.stringify(body) }),
+
+  // Bulk per-subject marks entry for a whole class in one call — see
+  // docs/CURRENT_TASK.md Part 3. Merges into each student's existing
+  // subjects (does not replace), unlike saveResult above.
+  saveResultSubjectBatch: (body: {
+    class: string;
+    examName: string;
+    year: string;
+    subjectName: string;
+    fullMarks: number;
+    entries: { studentId: number; marks: number }[];
+  }) => request<ResultSubjectBatchResponse>("/results/subject-batch", { method: "POST", body: JSON.stringify(body) }),
 
   setResultPublished: (id: number, published: boolean) =>
     request<StudentResult>(`/results/${id}/publish`, { method: "PATCH", body: JSON.stringify({ published }) }),
