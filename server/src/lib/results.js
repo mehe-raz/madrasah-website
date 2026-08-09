@@ -54,6 +54,104 @@ function parseSubjects(row) {
   return { ...row, subjects: typeof row.subjects === "string" ? JSON.parse(row.subjects) : row.subjects };
 }
 
+// Standard "competition ranking" (1, 2, 2, 4 — a tie shares the higher
+// rank and the next distinct value skips ahead by the tie count), the same
+// convention Bangladeshi board results use for মেধাস্থান. `items` is any
+// array; `valueFn` extracts the number to rank by (higher = better rank).
+// Returns a Map from item.key -> rank. Pure/sync so it's unit-testable
+// without a DB (see __tests__/results.test.js).
+function competitionRank(items, keyFn, valueFn) {
+  const sorted = [...items].sort((a, b) => valueFn(b) - valueFn(a));
+  const ranks = new Map();
+  let rank = 0;
+  let seen = 0;
+  let lastValue = null;
+  for (const item of sorted) {
+    seen += 1;
+    const value = valueFn(item);
+    if (lastValue === null || value !== lastValue) {
+      rank = seen;
+      lastValue = value;
+    }
+    ranks.set(keyFn(item), rank);
+  }
+  return ranks;
+}
+
+// মেধাস্থান (merit position), computed within one exam group — same class,
+// exam name, and year — decided to be class-wide (not split by section);
+// see project notes. Only counts published results, matching the rule
+// everywhere else a guardian/public reader can see results (a draft mark
+// entry shouldn't affect another student's rank). Returns:
+//   - overallRanks: Map<studentId, rank>            (by total obtainedMarks)
+//   - subjectRanksByStudent: Map<studentId, {[subjectNameLower]: rank}>
+async function computeRanksForGroup({ class: className, examName, year }) {
+  const cls = cleanText(className, 60);
+  const exam = cleanText(examName, 80);
+  const yr = cleanText(year, 4);
+  const rows = await db.all(
+    `SELECT "studentId", subjects, "obtainedMarks" FROM results
+     WHERE class = $1 AND "examName" = $2 AND year = $3 AND published = 1`,
+    [cls, exam, yr]
+  );
+  const parsed = rows.map(parseSubjects);
+
+  const overallRanks = competitionRank(parsed, (r) => r.studentId, (r) => r.obtainedMarks);
+
+  const bySubject = new Map(); // subjectNameLower -> [{ studentId, marks }]
+  for (const r of parsed) {
+    for (const s of Array.isArray(r.subjects) ? r.subjects : []) {
+      const key = cleanText(s.name, 60).toLowerCase();
+      if (!key) continue;
+      if (!bySubject.has(key)) bySubject.set(key, []);
+      bySubject.get(key).push({ studentId: r.studentId, marks: Number(s.marks) || 0 });
+    }
+  }
+  const subjectRankMaps = new Map(); // subjectNameLower -> Map<studentId, rank>
+  for (const [key, list] of bySubject.entries()) {
+    subjectRankMaps.set(key, competitionRank(list, (i) => i.studentId, (i) => i.marks));
+  }
+
+  const subjectRanksByStudent = new Map();
+  for (const r of parsed) {
+    const map = {};
+    for (const s of Array.isArray(r.subjects) ? r.subjects : []) {
+      const key = cleanText(s.name, 60).toLowerCase();
+      if (!key) continue;
+      map[key] = subjectRankMaps.get(key)?.get(r.studentId) ?? null;
+    }
+    subjectRanksByStudent.set(r.studentId, map);
+  }
+
+  return { overallRanks, subjectRanksByStudent };
+}
+
+// Attaches everything the printable রেজাল্ট শীট (result sheet) needs on top
+// of a single result row: per-subject GPA/grade (same board grade scale as
+// the overall one, applied to that subject's own percentage) and merit
+// positions (subject-wise + overall) from computeRanksForGroup(). Kept
+// separate from listResults()/publishedResultsForStudent() so list views
+// stay cheap — this is only called when a result sheet is actually being
+// printed/downloaded.
+async function attachRanksAndSubjectGpa(row) {
+  const { overallRanks, subjectRanksByStudent } = await computeRanksForGroup({
+    class: row.class,
+    examName: row.examName,
+    year: row.year,
+  });
+  const rankMap = subjectRanksByStudent.get(row.studentId) || {};
+  const subjects = (Array.isArray(row.subjects) ? row.subjects : []).map((s) => {
+    const { gpa, grade } = computeGrade(Number(s.marks) || 0, Number(s.fullMarks) || 0, []);
+    const key = cleanText(s.name, 60).toLowerCase();
+    return { ...s, gpa, grade, meritPosition: rankMap[key] ?? null };
+  });
+  return {
+    ...row,
+    subjects,
+    meritPosition: overallRanks.get(row.studentId) ?? null,
+  };
+}
+
 // Merges one subject into an existing subjects list: replaces the entry if
 // a subject with the same name already exists (case-insensitive, trimmed —
 // so "Math" and " math " are the same subject), otherwise appends it. Used
@@ -236,6 +334,11 @@ async function saveSubjectForClass({ class: classroom, examName, year, subjectNa
   return { updated, skipped };
 }
 
+async function getResultById(id) {
+  const row = await db.get("SELECT * FROM results WHERE id = $1", [id]);
+  return parseSubjects(row);
+}
+
 async function setPublished(id, published) {
   const row = await db.get('UPDATE results SET published = $1 WHERE id = $2 RETURNING *', [published ? 1 : 0, id]);
   return parseSubjects(row);
@@ -274,6 +377,7 @@ async function searchPublicResult({ class: className, roll, examName }) {
 
 module.exports = {
   listResults,
+  getResultById,
   upsertResult,
   saveSubjectForClass,
   mergeSubjectIntoList,
@@ -282,4 +386,7 @@ module.exports = {
   searchPublicResult,
   sanitizeSubjects,
   computeGrade,
+  competitionRank,
+  computeRanksForGroup,
+  attachRanksAndSubjectGpa,
 };

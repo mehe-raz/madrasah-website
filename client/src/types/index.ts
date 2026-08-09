@@ -407,6 +407,13 @@ export interface ResultSubjectMark {
   name: string;
   marks: number;
   fullMarks: number;
+  // Only present on a "result sheet" response (GET /results/:id/sheet, or
+  // the guardian results endpoint) — not on the plain list endpoints, since
+  // computing these requires ranking against the whole class/exam/year
+  // group. See attachRanksAndSubjectGpa in server/src/lib/results.js.
+  gpa?: string;
+  grade?: string;
+  meritPosition?: number | null;
 }
 
 // A management-side result record (one exam, one student). Returned by
@@ -426,6 +433,10 @@ export interface StudentResult {
   gpa: string;
   grade: string;
   published: number;
+  // Overall মেধাস্থান (merit position) within the same class/exam/year
+  // group — only present on a "result sheet" response, see
+  // ResultSubjectMark.meritPosition above.
+  meritPosition?: number | null;
 }
 
 export interface ResultStudentOption {

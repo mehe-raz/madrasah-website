@@ -546,6 +546,8 @@ export const bn = {
     savedResults: "সংরক্ষিত ফলাফল",
     noResults: "এখনো কোনো ফলাফল সংরক্ষণ করা হয়নি",
     total: "মোট নম্বর",
+    printSheet: "রেজাল্ট শীট প্রিন্ট",
+    printing: "তৈরি হচ্ছে...",
   },
   classPosts: {
     title: "নোটিশ ও অ্যাসাইনমেন্ট",

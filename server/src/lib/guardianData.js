@@ -13,6 +13,7 @@
 // ============================================================================
 
 const db = require("./../db");
+const { attachRanksAndSubjectGpa } = require("./results");
 
 const ATTENDANCE_STATUSES = { PRESENT: "উপস্থিত", ABSENT: "অনুপস্থিত", LATE: "দেরিতে" };
 
@@ -77,7 +78,14 @@ async function publishedResultsForStudent(guardianId, studentId) {
      FROM results WHERE "studentId" = $1 AND published = 1 ORDER BY year DESC, "examName"`,
     [studentId]
   );
-  return rows.map((r) => ({ ...r, subjects: typeof r.subjects === "string" ? JSON.parse(r.subjects) : r.subjects }));
+  const parsed = rows.map((r) => ({ ...r, subjects: typeof r.subjects === "string" ? JSON.parse(r.subjects) : r.subjects }));
+  // Attaches subject-wise GPA + মেধাস্থান (merit position) so the guardian's
+  // result-sheet download/print matches the official layout — see
+  // attachRanksAndSubjectGpa in lib/results.js. A guardian typically has at
+  // most a handful of published results, so computing ranks per row here is
+  // cheap; list-heavy admin views intentionally skip this (see routes/
+  // results.js GET /:id/sheet) and only compute it on demand.
+  return Promise.all(parsed.map((r) => attachRanksAndSubjectGpa(r)));
 }
 
 // Today's mark (if attendance has already been taken) for the dashboard's

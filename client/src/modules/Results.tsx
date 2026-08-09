@@ -5,6 +5,7 @@ import { useLanguage } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
 import { Button, Card, Field, Input, Select } from "../components/ui";
 import { EXAM_TYPES } from "../lib/examTypes";
+import { printResultSheet } from "../lib/printReport";
 import type { ResultStudentOption, StudentResult } from "../types";
 
 export function Results() {
@@ -26,6 +27,7 @@ export function Results() {
 
   const [savedResults, setSavedResults] = useState<StudentResult[]>([]);
   const [loadingList, setLoadingList] = useState(false);
+  const [printingId, setPrintingId] = useState<number | null>(null);
 
   useEffect(() => {
     api.getResultClasses().then(setClasses).catch(() => setClasses([]));
@@ -112,6 +114,41 @@ export function Results() {
       if (selectedClass) refreshList(selectedClass);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.results.saveFailed);
+    }
+  };
+
+  // Institution's own filing copy of the রেজাল্ট শীট (result sheet) — same
+  // printable layout the guardian downloads (see GuardianResults.tsx),
+  // but fetched via the admin sheet endpoint so it works for any result
+  // row here, published or not.
+  const printSheet = async (row: StudentResult) => {
+    setPrintingId(row.id);
+    setError("");
+    try {
+      const sheet = await api.getResultSheet(row.id);
+      printResultSheet({
+        examName: sheet.examName,
+        year: sheet.year,
+        studentName: sheet.studentName,
+        class: sheet.class,
+        roll: sheet.roll,
+        subjects: sheet.subjects.map((s) => ({
+          name: s.name,
+          marks: s.marks,
+          fullMarks: s.fullMarks,
+          gpa: s.gpa,
+          meritPosition: s.meritPosition,
+        })),
+        obtainedMarks: sheet.obtainedMarks,
+        totalMarks: sheet.totalMarks,
+        gpa: sheet.gpa,
+        grade: sheet.grade,
+        meritPosition: sheet.meritPosition,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.results.saveFailed);
+    } finally {
+      setPrintingId(null);
     }
   };
 
@@ -241,6 +278,14 @@ export function Results() {
                     style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                   >
                     {row.published ? t.results.unpublish : t.results.publish}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => printSheet(row)}
+                    disabled={printingId === row.id}
+                    style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    {printingId === row.id ? t.results.printing : t.results.printSheet}
                   </button>
                   <button
                     type="button"

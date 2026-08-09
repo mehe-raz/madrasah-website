@@ -548,6 +548,8 @@ export const en = {
     savedResults: "Saved results",
     noResults: "No results saved yet",
     total: "Total marks",
+    printSheet: "Print result sheet",
+    printing: "Preparing...",
   },
   classPosts: {
     title: "Notices & Assignments",

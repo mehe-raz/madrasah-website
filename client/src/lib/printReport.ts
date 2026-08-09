@@ -129,6 +129,28 @@ function openPrintWindow(title: string, bodyHtml: string, targetWindow?: Window 
   writePrintWindow(w, title, bodyHtml);
 }
 
+// Lower-level opener for print layouts that don't want the shared
+// left-aligned admin-report <header> (logo+name+title row) — e.g. the
+// result sheet below, which uses its own centered, certificate-style
+// header. Shares the same popup-blocked handling and CSP-safe print
+// trigger as writePrintWindow/openPrintWindow above.
+function openRawPrintWindow(title: string, styles: string, bodyHtml: string, targetWindow?: Window | null) {
+  const w = targetWindow ?? window.open("", "_blank", "width=980,height=760");
+  if (!w) throw new PopupBlockedError();
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
+    <style>${styles}</style></head><body>${bodyHtml}</body></html>`;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  // See the matching comment in writePrintWindow() — must stay an
+  // onload handler set from the opener's JS context, not an inline
+  // <script>, because of this app's CSP.
+  w.onload = () => {
+    w.focus();
+    w.print();
+  };
+}
+
 export interface PrintTableOptions {
   title: string;
   subtitle?: string;
@@ -297,4 +319,103 @@ export function printAdmissionSummary(student: Student) {
     title: `সংক্ষিপ্ত তথ্য - ${student.name || "ছাত্র"}`,
     rows,
   });
+}
+
+// ----------------------------------------------------------------------
+// Result sheet (রেজাল্ট শীট) — the printable page a guardian downloads and
+// the institution keeps on file for a student's result. Matches the
+// design provided for this feature: centered logo/institution name,
+// [শিক্ষাবর্ষ ও পরীক্ষার নাম], [শিক্ষার্থীর নাম] রেজাল্ট শীট, then a
+// ক্রঃ/বিষয়/প্রাপ্ত নম্বর/পূর্ণমান/জিপিএ/মেধাস্থান table, and a summary of
+// total marks, total GPA, and the overall মেধাস্থান. Deliberately its own
+// layout (not the shared admin-report header/table styles above) since
+// this is meant to look like an official result document, not an
+// internal list report.
+// ----------------------------------------------------------------------
+
+const RESULT_SHEET_STYLES = `
+  @page { margin: 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
+    margin: 0; padding: 22px; color: #1e293b;
+  }
+  .rs-header { text-align: center; margin-bottom: 18px; }
+  .rs-header img { height: 64px; width: 64px; object-fit: contain; margin: 0 auto 8px; display: block; }
+  .rs-header h1 { font-size: 19px; margin: 0; font-weight: 800; }
+  .rs-header h2 { font-size: 13px; margin: 6px 0 0; font-weight: 600; color: #0d9488; }
+  .rs-header h3 { font-size: 13px; margin: 4px 0 0; font-weight: 700; color: #0f172a; }
+  table.rs-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 18px; }
+  .rs-table th, .rs-table td { border: 1px solid #cbd5e1; padding: 7px 8px; text-align: center; }
+  .rs-table th { background: #f1f5f9; font-weight: 800; }
+  .rs-table td.rs-subject { text-align: left; }
+  .rs-summary {
+    margin-top: 16px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px;
+    font-size: 12.5px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 16px;
+  }
+  .rs-summary .label { color: #64748b; }
+  .rs-summary .value { font-weight: 800; color: #0f172a; }
+`;
+
+export interface ResultSheetSubjectRow {
+  name: string;
+  marks: number | string;
+  fullMarks: number | string;
+  gpa?: string;
+  meritPosition?: number | null;
+}
+
+export interface ResultSheetOptions {
+  examName: string;
+  year: string;
+  studentName: string;
+  class: string;
+  roll: string;
+  subjects: ResultSheetSubjectRow[];
+  obtainedMarks: number | string;
+  totalMarks: number | string;
+  gpa: string;
+  grade: string;
+  meritPosition?: number | null;
+}
+
+/** Print the official রেজাল্ট শীট (result sheet) for one student's exam. */
+export function printResultSheet(sheet: ResultSheetOptions, targetWindow?: Window | null) {
+  const settings = madrasaSettings();
+
+  const rows = sheet.subjects
+    .map(
+      (s, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td class="rs-subject">${escapeHtml(s.name)}</td>
+        <td>${escapeHtml(s.marks)}</td>
+        <td>${escapeHtml(s.fullMarks)}</td>
+        <td>${escapeHtml(s.gpa ?? "")}</td>
+        <td>${s.meritPosition ?? "-"}</td>
+      </tr>`
+    )
+    .join("");
+
+  const body = `
+    <div class="rs-header">
+      ${settings.logo ? `<img src="${escapeHtml(settings.logo)}" alt="">` : ""}
+      <h1>${escapeHtml(settings.name)}</h1>
+      <h2>${escapeHtml(sheet.year)} — ${escapeHtml(sheet.examName)}</h2>
+      <h3>${escapeHtml(sheet.studentName)} রেজাল্ট শীট — ${escapeHtml(sheet.class)} · রোল ${escapeHtml(sheet.roll)}</h3>
+    </div>
+    <table class="rs-table">
+      <thead>
+        <tr><th>ক্রঃ</th><th>বিষয়</th><th>প্রাপ্ত নম্বর</th><th>পূর্ণমান</th><th>জিপিএ</th><th>মেধাস্থান</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="rs-summary">
+      <div><span class="label">সর্বমোট প্রাপ্ত নম্বর: </span><span class="value">${escapeHtml(sheet.obtainedMarks)} / ${escapeHtml(sheet.totalMarks)}</span></div>
+      <div><span class="label">মোট জিপিএ: </span><span class="value">${escapeHtml(sheet.gpa)} (${escapeHtml(sheet.grade)})</span></div>
+      <div><span class="label">সামগ্রিক মেধাস্থান: </span><span class="value">${sheet.meritPosition ?? "-"}</span></div>
+    </div>
+  `;
+
+  openRawPrintWindow(`রেজাল্ট শীট - ${sheet.studentName}`, RESULT_SHEET_STYLES, body, targetWindow);
 }

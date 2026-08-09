@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeSubjects, computeGrade, mergeSubjectIntoList } from "../results.js";
+import { sanitizeSubjects, computeGrade, mergeSubjectIntoList, competitionRank } from "../results.js";
 
 describe("sanitizeSubjects", () => {
   it("returns an empty array for non-array input", () => {
@@ -120,5 +120,44 @@ describe("mergeSubjectIntoList", () => {
     const result = mergeSubjectIntoList(existing, { name: "Subject 5", marks: 99, fullMarks: 100 });
     expect(result).toHaveLength(20);
     expect(result[5].marks).toBe(99);
+  });
+});
+
+// মেধাস্থান (merit position) — used for both subject-wise and overall
+// ranking in attachRanksAndSubjectGpa/computeRanksForGroup.
+describe("competitionRank", () => {
+  it("assigns rank 1 to the highest value", () => {
+    const items = [{ id: "a", v: 70 }, { id: "b", v: 90 }, { id: "c", v: 80 }];
+    const ranks = competitionRank(items, (i) => i.id, (i) => i.v);
+    expect(ranks.get("b")).toBe(1);
+    expect(ranks.get("c")).toBe(2);
+    expect(ranks.get("a")).toBe(3);
+  });
+
+  it("gives tied values the same rank and skips the next rank by the tie count (1,1,3)", () => {
+    const items = [{ id: "a", v: 90 }, { id: "b", v: 90 }, { id: "c", v: 80 }];
+    const ranks = competitionRank(items, (i) => i.id, (i) => i.v);
+    expect(ranks.get("a")).toBe(1);
+    expect(ranks.get("b")).toBe(1);
+    expect(ranks.get("c")).toBe(3);
+  });
+
+  it("handles a single item", () => {
+    const ranks = competitionRank([{ id: "solo", v: 55 }], (i) => i.id, (i) => i.v);
+    expect(ranks.get("solo")).toBe(1);
+  });
+
+  it("handles an empty list without throwing", () => {
+    const ranks = competitionRank([], (i) => i.id, (i) => i.v);
+    expect(ranks.size).toBe(0);
+  });
+
+  it("handles a three-way tie for first (1,1,1,4)", () => {
+    const items = [{ id: "a", v: 100 }, { id: "b", v: 100 }, { id: "c", v: 100 }, { id: "d", v: 40 }];
+    const ranks = competitionRank(items, (i) => i.id, (i) => i.v);
+    expect(ranks.get("a")).toBe(1);
+    expect(ranks.get("b")).toBe(1);
+    expect(ranks.get("c")).toBe(1);
+    expect(ranks.get("d")).toBe(4);
   });
 });

@@ -2,7 +2,15 @@ const express = require("express");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { attachTeacherClasses } = require("../lib/teacherScope");
-const { listResults, upsertResult, saveSubjectForClass, setPublished, deleteResult } = require("../lib/results");
+const {
+  listResults,
+  getResultById,
+  upsertResult,
+  saveSubjectForClass,
+  setPublished,
+  deleteResult,
+  attachRanksAndSubjectGpa,
+} = require("../lib/results");
 const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
 const { resultSaveSchema, resultSubjectBatchSchema } = require("../lib/financeSchemas");
@@ -103,6 +111,19 @@ router.post("/subject-batch", validate(resultSubjectBatchSchema), async (req, re
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || "Save failed" });
   }
+});
+
+// Printable রেজাল্ট শীট (result sheet) data for one result row: subject-wise
+// GPA + মেধাস্থান (merit position) and the overall merit position, computed
+// on demand (see attachRanksAndSubjectGpa) so the plain list endpoint above
+// stays cheap. Same scope check as the other :id routes below.
+router.get("/:id/sheet", async (req, res) => {
+  const existing = await getResultById(req.params.id);
+  if (!existing) return res.status(404).json({ error: "Result not found" });
+  if (req.teacherClasses && !req.teacherClasses.includes(existing.class)) {
+    return res.status(403).json({ error: OUT_OF_SCOPE_ERROR });
+  }
+  res.json(await attachRanksAndSubjectGpa(existing));
 });
 
 router.patch("/:id/publish", async (req, res) => {

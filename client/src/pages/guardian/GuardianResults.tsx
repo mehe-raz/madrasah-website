@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { api } from "../../lib/api";
-import { printReportTable } from "../../lib/printReport";
+import { printResultSheet } from "../../lib/printReport";
 import { Button } from "../../components/ui";
 import type { GuardianShellContext } from "../../components/GuardianShell";
 import type { StudentResult } from "../../types";
@@ -25,11 +25,24 @@ export function GuardianResults() {
   }, [selected]);
 
   const download = (r: StudentResult) => {
-    printReportTable({
-      title: `ফলাফল — ${r.examName} ${r.year}`,
-      subtitle: `${r.studentName} · ${r.class} · রোল ${r.roll} — মোট: ${r.obtainedMarks}/${r.totalMarks} · GPA ${r.gpa} · গ্রেড ${r.grade}`,
-      headers: ["বিষয়", "প্রাপ্ত নম্বর", "পূর্ণমান"],
-      rows: r.subjects.map((s) => [s.name, s.marks, s.fullMarks]),
+    printResultSheet({
+      examName: r.examName,
+      year: r.year,
+      studentName: r.studentName,
+      class: r.class,
+      roll: r.roll,
+      subjects: r.subjects.map((s) => ({
+        name: s.name,
+        marks: s.marks,
+        fullMarks: s.fullMarks,
+        gpa: s.gpa,
+        meritPosition: s.meritPosition,
+      })),
+      obtainedMarks: r.obtainedMarks,
+      totalMarks: r.totalMarks,
+      gpa: r.gpa,
+      grade: r.grade,
+      meritPosition: r.meritPosition,
     });
   };
 
@@ -77,7 +90,10 @@ export function GuardianResults() {
               </div>
               <div className="guardian-result-score">
                 <div className="guardian-result-gpa">GPA {r.gpa}</div>
-                <div className="guardian-meta-text">গ্রেড: {r.grade}</div>
+                <div className="guardian-meta-text">
+                  গ্রেড: {r.grade}
+                  {r.meritPosition != null && ` · মেধাস্থান ${r.meritPosition}`}
+                </div>
               </div>
             </div>
 
@@ -85,7 +101,11 @@ export function GuardianResults() {
               {r.subjects.map((s, i) => (
                 <div key={i} className="guardian-subject-row">
                   <span>{s.name}</span>
-                  <span className="guardian-subject-marks">{s.marks} / {s.fullMarks}</span>
+                  <span className="guardian-subject-marks">
+                    {s.marks} / {s.fullMarks}
+                    {s.gpa != null && ` · GPA ${s.gpa}`}
+                    {s.meritPosition != null && ` · মেধাস্থান ${s.meritPosition}`}
+                  </span>
                 </div>
               ))}
             </div>

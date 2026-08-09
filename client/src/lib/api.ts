@@ -504,6 +504,12 @@ export const api = {
   setResultPublished: (id: number, published: boolean) =>
     request<StudentResult>(`/results/${id}/publish`, { method: "PATCH", body: JSON.stringify({ published }) }),
 
+  // Result sheet for printing (institution copy) — subject-wise GPA +
+  // মেধাস্থান (merit position), computed on demand server-side. Only call
+  // this when actually printing, not for the list view (see routes/
+  // results.js GET /:id/sheet).
+  getResultSheet: (id: number) => request<StudentResult>(`/results/${id}/sheet`),
+
   deleteResult: (id: number) => request<void>(`/results/${id}`, { method: "DELETE" }),
 
   // Class-broadcast (Phase 3): Teacher/Admin/Super Admin composing
