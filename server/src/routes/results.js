@@ -8,12 +8,13 @@ const {
   upsertResult,
   saveSubjectForClass,
   setPublished,
+  setPublishedBatch,
   deleteResult,
   attachRanksAndSubjectGpa,
 } = require("../lib/results");
 const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
-const { resultSaveSchema, resultSubjectBatchSchema } = require("../lib/financeSchemas");
+const { resultSaveSchema, resultSubjectBatchSchema, resultPublishBatchSchema } = require("../lib/financeSchemas");
 const { sendGuardianSms } = require("../lib/guardianSms");
 const { notifyGuardians } = require("../lib/guardianPush");
 
@@ -24,6 +25,52 @@ router.use(requirePermission("results"));
 router.use(attachTeacherClasses);
 
 const OUT_OF_SCOPE_ERROR = "আপনার নির্ধারিত ক্লাসের বাইরের তথ্যে অ্যাক্সেস নেই";
+
+// Shared by the single-result publish route and the checkbox-select
+// batch-publish route below: records the audit entry and, on publish only,
+// best-effort notifies the guardian (SMS + push). Never throws — every
+// notify/audit call inside is itself best-effort — so it can't turn a
+// successful publish into a failed response for the caller.
+async function afterPublish(row, published, actor) {
+  await recordAudit({
+    action: published ? "result.published" : "result.unpublished",
+    actor,
+    entityType: "result",
+    entityId: row.id,
+    label: `${published ? "Published" : "Unpublished"} result: ${row.studentName} (Roll ${row.roll}) — ${row.examName} ${row.year}`,
+  });
+
+  // BUSINESS_READINESS_ROADMAP.md Phase 8C — SMS the guardian when a
+  // result is published (not on unpublish). Best-effort: sendGuardianSms
+  // never throws (no phone on file, plan doesn't include SMS, empty
+  // wallet, provider error — all just skip silently).
+  if (!published) return;
+  const student = await db.get("SELECT phone FROM students WHERE id = $1", [row.studentId]);
+  if (student?.phone) {
+    await sendGuardianSms({
+      to: student.phone,
+      message: `${row.studentName} (রোল ${row.roll}) এর ${row.examName} ${row.year} পরীক্ষার ফলাফল প্রকাশিত হয়েছে।`,
+      reference: `result-published:${row.id}`,
+      notificationType: "resultPublished",
+    });
+  }
+  // Push, alongside the SMS above — Phase 6 (optional) of docs/
+  // PUSH_NOTIFICATION_PLAN.md. One-off lookup (not a shared helper like
+  // classPosts.resolveGuardiansForClass, since this is the only call
+  // site) — same ACTIVE-linked-only rule as everywhere else.
+  const guardianRows = await db.all(
+    `SELECT DISTINCT "guardianId" FROM guardian_students WHERE "studentId" = $1 AND status = 'active'`,
+    [row.studentId]
+  );
+  await notifyGuardians(
+    guardianRows.map((r) => r.guardianId),
+    {
+      title: "ফলাফল প্রকাশিত হয়েছে",
+      body: `${row.studentName} (রোল ${row.roll}) — ${row.examName} ${row.year}`,
+      url: "/guardian/results",
+    }
+  );
+}
 
 // Minimal student lookup for the marks-entry screen. Deliberately narrow
 // columns (id/name/roll/class only — no phone/address/documents) so
@@ -135,50 +182,32 @@ router.patch("/:id/publish", async (req, res) => {
   const published = !!req.body.published;
   const row = await setPublished(req.params.id, published);
   if (!row) return res.status(404).json({ error: "Result not found" });
-  await recordAudit({
-    action: published ? "result.published" : "result.unpublished",
-    actor: req.user,
-    entityType: "result",
-    entityId: row.id,
-    label: `${published ? "Published" : "Unpublished"} result: ${row.studentName} (Roll ${row.roll}) — ${row.examName} ${row.year}`,
-  });
-
-  // BUSINESS_READINESS_ROADMAP.md Phase 8C — SMS the guardian when a
-  // result is published (not on unpublish). Best-effort: sendGuardianSms
-  // never throws (no phone on file, plan doesn't include SMS, empty
-  // wallet, provider error — all just skip silently), so this can't turn
-  // a successful publish into a failed response.
-  if (published) {
-    const student = await db.get("SELECT phone FROM students WHERE id = $1", [row.studentId]);
-    if (student?.phone) {
-      await sendGuardianSms({
-        to: student.phone,
-        message: `${row.studentName} (রোল ${row.roll}) এর ${row.examName} ${row.year} পরীক্ষার ফলাফল প্রকাশিত হয়েছে।`,
-        reference: `result-published:${row.id}`,
-        notificationType: "resultPublished",
-      });
-    }
-    // Push, alongside the SMS above — Phase 6 (optional) of docs/
-    // PUSH_NOTIFICATION_PLAN.md. One-off lookup (not a shared helper like
-    // classPosts.resolveGuardiansForClass, since this is the only call
-    // site) — same ACTIVE-linked-only rule as everywhere else.
-    // notifyGuardians() never throws, so this can't turn a successful
-    // publish into a failed response.
-    const guardianRows = await db.all(
-      `SELECT DISTINCT "guardianId" FROM guardian_students WHERE "studentId" = $1 AND status = 'active'`,
-      [row.studentId]
-    );
-    await notifyGuardians(
-      guardianRows.map((r) => r.guardianId),
-      {
-        title: "ফলাফল প্রকাশিত হয়েছে",
-        body: `${row.studentName} (রোল ${row.roll}) — ${row.examName} ${row.year}`,
-        url: "/guardian/results",
-      }
-    );
-  }
-
+  await afterPublish(row, published, req.user);
   res.json(row);
+});
+
+// Checkbox-select bulk publish/unpublish — the "নির্বাচিতগুলো প্রকাশ করুন"
+// button on the results screen, so a teacher can publish a whole class's
+// results in one click instead of toggling each student individually.
+// A selected id outside the teacher's scope, or one that doesn't resolve to
+// a real result, is silently dropped from the batch rather than failing
+// the whole request.
+router.patch("/publish-batch", validate(resultPublishBatchSchema), async (req, res) => {
+  try {
+    const { ids, published } = req.body;
+    let targetIds = ids;
+    if (req.teacherClasses) {
+      const rows = await db.all(`SELECT id, class FROM results WHERE id = ANY($1)`, [ids]);
+      targetIds = rows.filter((r) => req.teacherClasses.includes(r.class)).map((r) => r.id);
+    }
+    const updatedRows = await setPublishedBatch(targetIds, published);
+    for (const row of updatedRows) {
+      await afterPublish(row, published, req.user);
+    }
+    res.json(updatedRows);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || "Publish failed" });
+  }
 });
 
 router.delete("/:id", async (req, res) => {

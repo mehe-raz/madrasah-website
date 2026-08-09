@@ -550,6 +550,13 @@ export const en = {
     total: "Total marks",
     printSheet: "Print result sheet",
     printing: "Preparing...",
+    selectAll: "Select all",
+    selectedCount: "{count} selected",
+    bulkPublish: "Publish selected",
+    bulkUnpublish: "Unpublish selected",
+    bulkPublishing: "Publishing...",
+    bulkPublishSuccess: "✓ Selected results published",
+    bulkUnpublishSuccess: "✓ Selected results unpublished",
   },
   classPosts: {
     title: "Notices & Assignments",

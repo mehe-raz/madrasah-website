@@ -28,6 +28,8 @@ export function Results() {
   const [savedResults, setSavedResults] = useState<StudentResult[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [printingId, setPrintingId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkPublishing, setBulkPublishing] = useState(false);
 
   useEffect(() => {
     api.getResultClasses().then(setClasses).catch(() => setClasses([]));
@@ -53,11 +55,25 @@ export function Results() {
     api.getResultStudents(selectedClass).then(setStudents).catch(() => setStudents([]));
     // eslint-disable-next-line react-hooks/set-state-in-effect -- switching class means the previous roster's marks-in-progress no longer apply, so the input map must reset alongside the fetch below
     setMarksById({});
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a checkbox selection made against the previous class's saved-results list has no meaning once the class changes
+    setSelectedIds(new Set());
     refreshList(selectedClass);
   }, [selectedClass]);
 
+  // Clamps to [0, subjectFullMarks] as the teacher types, so a mark above
+  // the পূর্ণমান (full marks) can never even be entered — matches the
+  // server-side clamp in results.js, this is just the immediate feedback.
   const updateMark = (studentId: number, value: string) => {
-    setMarksById((prev) => ({ ...prev, [studentId]: value }));
+    if (value.trim() === "") {
+      setMarksById((prev) => ({ ...prev, [studentId]: value }));
+      return;
+    }
+    const full = Number(subjectFullMarks);
+    let n = Number(value);
+    if (Number.isNaN(n)) return;
+    if (n < 0) n = 0;
+    if (full > 0 && n > full) n = full;
+    setMarksById((prev) => ({ ...prev, [studentId]: String(n) }));
   };
 
   const addSubjectBatch = async () => {
@@ -105,6 +121,37 @@ export function Results() {
       if (selectedClass) refreshList(selectedClass);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.results.saveFailed);
+    }
+  };
+
+  const toggleSelected = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => (prev.size === savedResults.length ? new Set() : new Set(savedResults.map((r) => r.id))));
+  };
+
+  const bulkPublish = async (published: boolean) => {
+    if (!selectedIds.size) return;
+    setBulkPublishing(true);
+    setError("");
+    setSavedMsg("");
+    try {
+      await api.setResultPublishedBatch([...selectedIds], published);
+      setSavedMsg(published ? t.results.bulkPublishSuccess : t.results.bulkUnpublishSuccess);
+      window.setTimeout(() => setSavedMsg(""), 3000);
+      setSelectedIds(new Set());
+      if (selectedClass) refreshList(selectedClass);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.results.saveFailed);
+    } finally {
+      setBulkPublishing(false);
     }
   };
 
@@ -215,6 +262,8 @@ export function Results() {
                     <span className="marks-entry-row__name">{s.name}</span>
                     <Input
                       type="number"
+                      min={0}
+                      max={Number(subjectFullMarks) || undefined}
                       value={marksById[s.id] ?? ""}
                       onChange={(e) => updateMark(s.id, e.target.value)}
                       placeholder={t.results.marksObtained}
@@ -233,7 +282,42 @@ export function Results() {
 
       {selectedClass && (
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14 }}>{t.results.savedResults}</h3>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>{t.results.savedResults}</h3>
+            {!!savedResults.length && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.text, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={savedResults.length > 0 && selectedIds.size === savedResults.length}
+                    onChange={toggleSelectAll}
+                  />
+                  {t.results.selectAll}
+                </label>
+                {!!selectedIds.size && (
+                  <span style={{ fontSize: 12, color: C.muted }}>
+                    {t.results.selectedCount.replace("{count}", String(selectedIds.size))}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => bulkPublish(true)}
+                  disabled={!selectedIds.size || bulkPublishing}
+                  style={{ border: "none", background: C.emeraldL, color: C.emeraldD, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: selectedIds.size ? "pointer" : "not-allowed" }}
+                >
+                  {bulkPublishing ? t.results.bulkPublishing : t.results.bulkPublish}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => bulkPublish(false)}
+                  disabled={!selectedIds.size || bulkPublishing}
+                  style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.text, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: selectedIds.size ? "pointer" : "not-allowed" }}
+                >
+                  {t.results.bulkUnpublish}
+                </button>
+              </div>
+            )}
+          </div>
           {loadingList && <SkeletonCardList count={3} lines={1} />}
           {!loadingList && !savedResults.length && <p style={{ color: C.muted, fontSize: 13 }}>{t.results.noResults}</p>}
           <div style={{ display: "grid", gap: 8 }}>
@@ -251,12 +335,20 @@ export function Results() {
                   padding: "10px 14px",
                 }}
               >
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>
-                    {row.roll} — {row.studentName}
-                  </div>
-                  <div style={{ fontSize: 12, color: C.muted }}>
-                    {row.examName} · {row.year} · {row.obtainedMarks}/{row.totalMarks}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(row.id)}
+                    onChange={() => toggleSelected(row.id)}
+                    aria-label={row.studentName}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>
+                      {row.roll} — {row.studentName}
+                    </div>
+                    <div style={{ fontSize: 12, color: C.muted }}>
+                      {row.examName} · {row.year} · {row.obtainedMarks}/{row.totalMarks}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

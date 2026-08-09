@@ -66,9 +66,18 @@ const resultSubjectBatchSchema = z.object({
     .max(200),
 });
 
+// Bulk publish/unpublish from the checkbox-select UI on the results screen —
+// a list of result row ids plus the target published state, applied to all
+// of them in one call.
+const resultPublishBatchSchema = z.object({
+  ids: z.array(z.coerce.number().int().positive()).min(1, "অন্তত একটি ফলাফল নির্বাচন করুন").max(200),
+  published: z.boolean(),
+});
+
 module.exports = {
   incomeCreateSchema,
   incomeUpdateSchema,
   resultSaveSchema,
   resultSubjectBatchSchema,
+  resultPublishBatchSchema,
 };

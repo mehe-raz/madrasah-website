@@ -548,6 +548,13 @@ export const bn = {
     total: "মোট নম্বর",
     printSheet: "রেজাল্ট শীট প্রিন্ট",
     printing: "তৈরি হচ্ছে...",
+    selectAll: "সব নির্বাচন করুন",
+    selectedCount: "{count} জন নির্বাচিত",
+    bulkPublish: "নির্বাচিতগুলো প্রকাশ করুন",
+    bulkUnpublish: "নির্বাচিতগুলো অপ্রকাশিত করুন",
+    bulkPublishing: "প্রকাশ হচ্ছে...",
+    bulkPublishSuccess: "✓ নির্বাচিত ফলাফলগুলো প্রকাশিত হয়েছে",
+    bulkUnpublishSuccess: "✓ নির্বাচিত ফলাফলগুলো অপ্রকাশিত করা হয়েছে",
   },
   classPosts: {
     title: "নোটিশ ও অ্যাসাইনমেন্ট",

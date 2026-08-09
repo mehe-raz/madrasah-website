@@ -504,6 +504,11 @@ export const api = {
   setResultPublished: (id: number, published: boolean) =>
     request<StudentResult>(`/results/${id}/publish`, { method: "PATCH", body: JSON.stringify({ published }) }),
 
+  // Checkbox-select bulk publish/unpublish — publishes/unpublishes every
+  // id in one call instead of one request per student.
+  setResultPublishedBatch: (ids: number[], published: boolean) =>
+    request<StudentResult[]>("/results/publish-batch", { method: "PATCH", body: JSON.stringify({ ids, published }) }),
+
   // Result sheet for printing (institution copy) — subject-wise GPA +
   // মেধাস্থান (merit position), computed on demand server-side. Only call
   // this when actually printing, not for the list view (see routes/

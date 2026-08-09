@@ -33,6 +33,16 @@ describe("sanitizeSubjects", () => {
     expect(result[0].fullMarks).toBe(100);
   });
 
+  it("clamps marks above fullMarks down to fullMarks", () => {
+    const result = sanitizeSubjects([{ name: "Math", marks: 1000, fullMarks: 100 }]);
+    expect(result[0].marks).toBe(100);
+  });
+
+  it("clamps marks against a non-default fullMarks", () => {
+    const result = sanitizeSubjects([{ name: "Math", marks: 60, fullMarks: 50 }]);
+    expect(result[0].marks).toBe(50);
+  });
+
   it("trims subject names and truncates to 60 characters", () => {
     const longName = "A".repeat(80);
     const result = sanitizeSubjects([{ name: `  ${longName}  `, marks: 10, fullMarks: 100 }]);

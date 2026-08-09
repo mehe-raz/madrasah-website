@@ -9,11 +9,18 @@ function cleanText(value, maxLen) {
 
 function sanitizeSubjects(list) {
   if (!Array.isArray(list)) return [];
-  return list.slice(0, MAX_SUBJECTS).map((s) => ({
-    name: cleanText(s && s.name, 60),
-    marks: Math.max(0, Number(s && s.marks) || 0),
-    fullMarks: Math.max(1, Number(s && s.fullMarks) || 100),
-  }));
+  return list.slice(0, MAX_SUBJECTS).map((s) => {
+    const fullMarks = Math.max(1, Number(s && s.fullMarks) || 100);
+    // Clamp to [0, fullMarks] — without this, a typo like "1000" for a
+    // 100-mark subject was silently accepted and saved, throwing off gpa/
+    // grade and every rank computed against this exam group.
+    const rawMarks = Math.max(0, Number(s && s.marks) || 0);
+    return {
+      name: cleanText(s && s.name, 60),
+      marks: Math.min(rawMarks, fullMarks),
+      fullMarks,
+    };
+  });
 }
 
 // Standard Bangladesh SSC/HSC-style grading scale (percentage -> letter
@@ -324,7 +331,10 @@ async function saveSubjectForClass({ class: classroom, examName, year, subjectNa
       [studentId, exam, yr]
     );
     const existingSubjects = existing ? parseSubjects(existing).subjects : [];
-    const marks = Math.max(0, Number(entry.marks) || 0);
+    // Clamp to the subject's own fullMarks (`full`) — same rule as
+    // sanitizeSubjects() below, applied here too so a mark typed above the
+    // পূর্ণমান (full marks) never gets merged into the student's subject list.
+    const marks = Math.min(Math.max(0, Number(entry.marks) || 0), full);
     const mergedSubjects = mergeSubjectIntoList(existingSubjects, { name: subject, marks, fullMarks: full });
 
     const row = await upsertResultRow({ student, examName: exam, year: yr, subjects: mergedSubjects });
@@ -342,6 +352,21 @@ async function getResultById(id) {
 async function setPublished(id, published) {
   const row = await db.get('UPDATE results SET published = $1 WHERE id = $2 RETURNING *', [published ? 1 : 0, id]);
   return parseSubjects(row);
+}
+
+// Publishes/unpublishes many result rows at once — the "select all" /
+// per-checkbox বাল্ক প্রকাশ (bulk publish) flow on the marks-entry screen,
+// so a teacher doesn't have to click প্রকাশ করুন once per student. Returns
+// only the rows that actually existed and got updated (a stale id in the
+// selection is skipped, not a hard failure).
+async function setPublishedBatch(ids, published) {
+  const cleanIds = (Array.isArray(ids) ? ids : []).map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0);
+  if (!cleanIds.length) return [];
+  const rows = await db.all(
+    'UPDATE results SET published = $1 WHERE id = ANY($2) RETURNING *',
+    [published ? 1 : 0, cleanIds]
+  );
+  return rows.map(parseSubjects);
 }
 
 async function deleteResult(id) {
@@ -382,6 +407,7 @@ module.exports = {
   saveSubjectForClass,
   mergeSubjectIntoList,
   setPublished,
+  setPublishedBatch,
   deleteResult,
   searchPublicResult,
   sanitizeSubjects,
