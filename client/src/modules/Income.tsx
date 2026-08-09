@@ -269,9 +269,9 @@ export function Income() {
       </div>
       {msg && <p style={{ color: msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("invalid") ? C.rose : C.teal, fontSize: 13, marginTop: -8, marginBottom: 12 }}>{msg}</p>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
-        <StatCard label={t.income.total} value={fmt(totalIncome)} icon="💰" color={C.emerald} />
+        <StatCard label={t.income.total} value={fmt(totalIncome)} icon="income" color={C.emerald} />
         {byCategory.filter((b) => b.total > 0).slice(0, 3).map((b) => (
-          <StatCard key={b.cat} label={b.cat} value={fmt(b.total)} icon="📋" color={C.teal} />
+          <StatCard key={b.cat} label={b.cat} value={fmt(b.total)} icon="clipboard" color={C.teal} />
         ))}
       </div>
 

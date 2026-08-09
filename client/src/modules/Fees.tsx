@@ -5,6 +5,7 @@ import { ReceiptModal } from "../components/ReceiptModal";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { StatCard } from "../components/StatCard";
 import { StudentPicker } from "../components/StudentPicker";
+import { Icons } from "../lib/icons";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -223,10 +224,10 @@ export function Fees() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 24 }}>
-        <StatCard label="এই তালিকার মোট আদায়" value={fmt(totalCollected)} icon="💰" color={C.emerald} />
-        <StatCard label="মোট বকেয়া" value={fmt(dueTotal)} icon="⚠️" color={C.rose} />
-        <StatCard label="এই মাসে পেমেন্ট" value={`${payments.length} টি`} icon="✅" color={C.teal} />
-        <StatCard label="বকেয়া ছাত্র" value={`${dueCount} জন`} icon="📋" color={C.amber} />
+        <StatCard label="এই তালিকার মোট আদায়" value={fmt(totalCollected)} icon="income" color={C.emerald} />
+        <StatCard label="মোট বকেয়া" value={fmt(dueTotal)} icon="alertTriangle" color={C.rose} />
+        <StatCard label="এই মাসে পেমেন্ট" value={`${payments.length} টি`} icon="checkCircle" color={C.teal} />
+        <StatCard label="বকেয়া ছাত্র" value={`${dueCount} জন`} icon="clipboard" color={C.amber} />
       </div>
 
 
@@ -302,7 +303,7 @@ export function Fees() {
                   { label: "স্ট্যাটাস", value: <Badge label={p.status} color={paymentStatusColor(p.status)} /> },
                 ]}
                 actions={
-                  <button type="button" onClick={() => setShowReceipt(p)} style={{ flex: 1, background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🧾 রসিদ</button>
+                  <button type="button" onClick={() => setShowReceipt(p)} style={{ flex: 1, background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5 }}><Icons.institutionBilling size={14} aria-hidden="true" /> রসিদ</button>
                 }
               />
             ))}
@@ -333,7 +334,7 @@ export function Fees() {
                   <td style={{ padding: "10px 14px" }}><Badge label={p.method} color={C.sky} /></td>
                   <td style={{ padding: "10px 14px" }}><Badge label={p.status} color={paymentStatusColor(p.status)} /></td>
                   <td style={{ padding: "10px 14px" }}>
-                    <button type="button" onClick={() => setShowReceipt(p)} style={{ background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🧾 রসিদ</button>
+                    <button type="button" onClick={() => setShowReceipt(p)} style={{ background: C.tealL, color: C.tealD, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}><Icons.institutionBilling size={14} aria-hidden="true" /> রসিদ</button>
                   </td>
                 </tr>
               ))}
@@ -435,7 +436,7 @@ export function Fees() {
               </div>
             </div>
             <button type="button" disabled={paySaving} onClick={handlePayment} style={{ width: "100%", background: C.teal, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, cursor: paySaving ? "default" : "pointer", fontSize: 15, opacity: paySaving ? 0.7 : 1 }}>
-              {paySaving ? "⏳ সংরক্ষণ হচ্ছে..." : "✅ বেতন গ্রহণ করুন ও রসিদ তৈরি করুন"}
+              {paySaving ? "সংরক্ষণ হচ্ছে..." : (<><Icons.checkCircle size={16} aria-hidden="true" style={{ verticalAlign: "-3px", marginRight: 5 }} />বেতন গ্রহণ করুন ও রসিদ তৈরি করুন</>)}
             </button>
           </div>
         </div>

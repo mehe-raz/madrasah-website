@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
+import { Icons, type IconKey } from "../lib/icons";
 
 type WebsiteSectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery" | "admissions" | "admissionContent";
 
@@ -11,7 +12,7 @@ interface WebsiteSectionCard {
   subtitle: string;
   summary: string;
   route: string;
-  icon: string;
+  icon: IconKey;
 }
 
 interface SectionGroup {
@@ -37,7 +38,7 @@ const GROUPS: SectionGroup[] = [
         subtitle: "হোমপেজের শুরু অংশ",
         summary: "ব্যাজ, মূল বর্ণনা এবং প্রথম ইমপ্রেশন তৈরি করা কন্টেন্ট।",
         route: "/website/hero",
-        icon: "🏠",
+        icon: "dashboard",
       },
       {
         id: "highlights",
@@ -45,7 +46,7 @@ const GROUPS: SectionGroup[] = [
         subtitle: "হোমপেজের ছোট বৈশিষ্ট্য",
         summary: "শিশু-বন্ধু, শিক্ষক, নিরাপত্তা, পরিবেশ—এই ধরনের ছোট হাইলাইট।",
         route: "/website/highlights",
-        icon: "✨",
+        icon: "sparkles",
       },
     ],
   },
@@ -62,7 +63,7 @@ const GROUPS: SectionGroup[] = [
         subtitle: "আমাদের পরিচিতি ও লক্ষ্য",
         summary: "পাবলিক About পেজে দেখানো পরিচিতি ও মিশন টেক্সট।",
         route: "/website/about",
-        icon: "📖",
+        icon: "hifz",
       },
       {
         id: "departments",
@@ -70,7 +71,7 @@ const GROUPS: SectionGroup[] = [
         subtitle: "পাবলিক প্রোগ্রাম লিস্ট",
         summary: "হিফজ, নাজেরা, কিতাব, জেনারেলসহ প্রতিষ্ঠানের বিভাগসমূহ।",
         route: "/website/departments",
-        icon: "🏛️",
+        icon: "brand",
       },
       {
         id: "classes",
@@ -78,7 +79,7 @@ const GROUPS: SectionGroup[] = [
         subtitle: "ভর্তি ও ক্লাস পেজ",
         summary: "ভর্তির পেজ এবং ক্লাস/কোর্স তালিকায় দেখানো আইটেমগুলো।",
         route: "/website/classes",
-        icon: "🎓",
+        icon: "students",
       },
       {
         id: "admissionContent",
@@ -86,7 +87,7 @@ const GROUPS: SectionGroup[] = [
         subtitle: "পাবলিক ভর্তি পেজের হিরো ও ধাপসমূহ",
         summary: "ব্যাজ, শিরোনাম, বর্ণনা এবং \"কীভাবে কাজ করে\" ধাপগুলো এখান থেকে সম্পাদনা করুন।",
         route: "/website/admission",
-        icon: "📝",
+        icon: "results",
       },
     ],
   },
@@ -103,7 +104,7 @@ const GROUPS: SectionGroup[] = [
         subtitle: "পাবলিক নোটিশ লিস্ট",
         summary: "সর্বশেষ ঘোষণা ও নোটিশগুলো যা ভিজিটররা দেখবে।",
         route: "/website/notices",
-        icon: "📢",
+        icon: "assignments",
       },
       {
         id: "gallery",
@@ -111,7 +112,7 @@ const GROUPS: SectionGroup[] = [
         subtitle: "পাবলিক গ্যালারি পেজ",
         summary: "ক্যাম্পাসের ছবি আপলোড করুন যা পাবলিক গ্যালারি পেজে দেখা যাবে।",
         route: "/website/gallery",
-        icon: "🖼️",
+        icon: "gallery",
       },
       {
         id: "admissions",
@@ -119,7 +120,7 @@ const GROUPS: SectionGroup[] = [
         subtitle: "পাবলিক ফর্ম থেকে আসা আবেদন",
         summary: "ভর্তি ফর্ম থেকে জমা হওয়া আবেদন দেখুন ও স্ট্যাটাস আপডেট করুন।",
         route: "/admissions",
-        icon: "📥",
+        icon: "inbox",
       },
     ],
   },
@@ -183,7 +184,7 @@ function SectionCard({
             flexShrink: 0,
           }}
         >
-          {section.icon}
+          {(() => { const SectionIcon = Icons[section.icon]; return <SectionIcon size={22} aria-hidden="true" />; })()}
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <h3 style={{ margin: 0, fontSize: 16, lineHeight: 1.25, fontWeight: 900, color: C.text }}>{section.title}</h3>
@@ -283,7 +284,7 @@ export function Website() {
               marginBottom: 10,
             }}
           >
-            🌐 পাবলিক ওয়েবসাইট নিয়ন্ত্রণ
+            <Icons.website size={13} aria-hidden="true" /> পাবলিক ওয়েবসাইট নিয়ন্ত্রণ
           </div>
           <h2 style={{ fontSize: 23, fontWeight: 900, color: C.text, margin: 0 }}>ওয়েবসাইট ম্যানেজমেন্ট</h2>
           <p style={{ fontSize: 13, color: C.muted, margin: "6px 0 0", lineHeight: 1.7, maxWidth: 620 }}>
@@ -395,7 +396,7 @@ export function Website() {
           lineHeight: 1.7,
         }}
       >
-        💡 {t.common.edit} করার সময় সংশ্লিষ্ট পেজে গিয়ে সেভ দিলে সেটি সাথে সাথে পাবলিক সাইটে আপডেট হয়ে যাবে।
+        <Icons.sparkles size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{t.common.edit} করার সময় সংশ্লিষ্ট পেজে গিয়ে সেভ দিলে সেটি সাথে সাথে পাবলিক সাইটে আপডেট হয়ে যাবে।
       </div>
     </div>
   );

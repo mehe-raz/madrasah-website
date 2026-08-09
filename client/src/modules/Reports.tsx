@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { canAccess, type Permission } from "../lib/permissions";
 import { C } from "../theme/colors";
 import { Card } from "../components/ui";
+import { Icons, type IconKey } from "../lib/icons";
 
 // Each report's underlying data comes from a different API resource, and
 // that resource enforces its own permission — it isn't covered just because
@@ -25,13 +26,13 @@ const REPORT_PERMISSION: Record<ReportKind, Permission> = {
   hifz: "hifz",
 };
 
-const reports: { title: string; kind: ReportKind; icon: string; desc: string; color: string }[] = [
-  { title: "ছাত্র তালিকা", kind: "students", icon: "👨‍🎓", desc: "সকল ছাত্রের বিস্তারিত তালিকা", color: C.teal },
-  { title: "বকেয়া তালিকা", kind: "due", icon: "⚠️", desc: "যেসব ছাত্রের বেতন বাকি আছে", color: C.rose },
-  { title: "হাজিরা রিপোর্ট", kind: "attendance", icon: "📅", desc: "নির্বাচিত তারিখের হাজিরা", color: C.amber },
-  { title: "আয় রিপোর্ট", kind: "income", icon: "💰", desc: "নির্বাচিত সময়ের আয়", color: C.emerald },
-  { title: "ব্যয় রিপোর্ট", kind: "expenses", icon: "💸", desc: "নির্বাচিত সময়ের ব্যয়", color: C.violet },
-  { title: "হিফজ রিপোর্ট", kind: "hifz", icon: "📖", desc: "ছাত্রদের হিফজ অগ্রগতি", color: C.sky },
+const reports: { title: string; kind: ReportKind; icon: IconKey; desc: string; color: string }[] = [
+  { title: "ছাত্র তালিকা", kind: "students", icon: "students", desc: "সকল ছাত্রের বিস্তারিত তালিকা", color: C.teal },
+  { title: "বকেয়া তালিকা", kind: "due", icon: "alertTriangle", desc: "যেসব ছাত্রের বেতন বাকি আছে", color: C.rose },
+  { title: "হাজিরা রিপোর্ট", kind: "attendance", icon: "attendance", desc: "নির্বাচিত তারিখের হাজিরা", color: C.amber },
+  { title: "আয় রিপোর্ট", kind: "income", icon: "income", desc: "নির্বাচিত সময়ের আয়", color: C.emerald },
+  { title: "ব্যয় রিপোর্ট", kind: "expenses", icon: "expenses", desc: "নির্বাচিত সময়ের ব্যয়", color: C.violet },
+  { title: "হিফজ রিপোর্ট", kind: "hifz", icon: "hifz", desc: "ছাত্রদের হিফজ অগ্রগতি", color: C.sky },
 ];
 
 export function Reports() {
@@ -78,7 +79,7 @@ export function Reports() {
           const disabled = loading !== null || !allowed;
           return (
             <Card key={r.title} className="report-card" style={{ opacity: allowed ? 1 : 0.55 }}>
-              <div className="report-card__icon">{r.icon}</div>
+              <div className="report-card__icon">{(() => { const RIcon = Icons[r.icon]; return <RIcon size={32} aria-hidden="true" />; })()}</div>
               <h3 className="report-card__title">{r.title}</h3>
               <p className="report-card__desc">{allowed ? r.desc : "এই রিপোর্ট দেখার অনুমতি আপনার নেই"}</p>
               <div className="report-card__actions">
@@ -94,7 +95,7 @@ export function Reports() {
                   // eslint-disable-next-line no-restricted-syntax -- dynamic per-report accent color, see comment above
                   style={{ background: r.color + "18", color: r.color, border: `1px solid ${r.color}40` }}
                 >
-                  {loading === `${r.kind}-print` ? "…" : "🖨️ প্রিন্ট"}
+                  {loading === `${r.kind}-print` ? "…" : (<><Icons.printer size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />প্রিন্ট</>)}
                 </button>
                 <button
                   type="button"

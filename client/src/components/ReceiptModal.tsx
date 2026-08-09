@@ -1,5 +1,6 @@
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { fmt } from "../lib/fmt";
+import { Icons } from "../lib/icons";
 import { C } from "../theme/colors";
 import type { Payment } from "../types";
 
@@ -95,7 +96,7 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
             {settings.logo ? (
               <img src={settings.logo} alt="Logo" style={{ maxHeight: 56, marginBottom: 8 }} />
             ) : (
-              <span style={{ fontSize: 24 }}>🕌</span>
+              <span style={{ fontSize: 24, display: "inline-flex" }}><Icons.brand size={24} aria-hidden="true" /></span>
             )}
             <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{settings.name}</h3>
             <p style={{ fontSize: 12, color: C.muted }}>{settings.address}</p>
@@ -137,7 +138,7 @@ export function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
               fontSize: 13,
             }}
           >
-            🖨️ {t.common.print}
+            <Icons.printer size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{t.common.print}
           </button>
           <button
             type="button"

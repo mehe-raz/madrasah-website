@@ -5,6 +5,7 @@ import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { compressImageToLimit, dataUrlBytes } from "../lib/imageCompress";
 import { C } from "../theme/colors";
+import { Icons, type IconKey } from "../lib/icons";
 import type { SiteAdmissionStep, SiteClassItem, SiteContent, SiteDepartment, SiteGalleryItem, SiteHighlight, SiteNotice } from "../types";
 
 const EMPTY_CONTENT: SiteContent = {
@@ -76,54 +77,54 @@ const iconInputStyle = { ...inputStyle, width: 72, textAlign: "center" as const,
 
 type SectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery" | "admission";
 
-const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: string; icon: string }> = {
+const SECTION_META: Record<SectionId, { title: string; subtitle: string; note: string; icon: IconKey }> = {
   hero: {
     title: "হিরো সেকশন",
     subtitle: "পাবলিক হোমপেজের প্রথম ভিজিটর অভিজ্ঞতা",
     note: "ব্যাজ এবং মূল বর্ণনা এখান থেকে সম্পাদনা করুন।",
-    icon: "🏠",
+    icon: "dashboard",
   },
   about: {
     title: "এবাউট পেজ",
     subtitle: "শুধু About পেজে দেখা যাবে",
     note: "পরিচিতি ও লক্ষ্য/মিশন অংশ আলাদা করে নিয়ন্ত্রণ করুন।",
-    icon: "📖",
+    icon: "hifz",
   },
   highlights: {
     title: "হাইলাইটস",
     subtitle: "হোমপেজে ছোট বৈশিষ্ট্য",
     note: "সংক্ষিপ্ত icon + text আইটেমগুলো এখানে আপডেট হবে।",
-    icon: "✨",
+    icon: "sparkles",
   },
   departments: {
     title: "বিভাগসমূহ",
     subtitle: "পাবলিক প্রোগ্রাম লিস্ট",
     note: "প্রতিটি বিভাগের নাম, আইকন এবং সংক্ষিপ্ত বিবরণ দিন। চাইলে প্রতিটি বিভাগে একটি ছবিও যোগ করতে পারেন — ছবি না দিলে আগের মতোই আইকন কার্ড দেখাবে।",
-    icon: "🏛️",
+    icon: "brand",
   },
   classes: {
     title: "ক্লাস ও কোর্স",
     subtitle: "ভর্তি ও ক্লাস পেজ",
     note: "ক্লাস/কোর্স লিস্ট আলাদাভাবে এডিট করা যাবে। চাইলে প্রতিটি ক্লাসে একটি ছবিও যোগ করা যাবে (ঐচ্ছিক)।",
-    icon: "🎓",
+    icon: "students",
   },
   notices: {
     title: "নোটিশ",
     subtitle: "পাবলিক নোটিশ বোর্ড",
     note: "শিরোনাম, তারিখ, এবং বিস্তারিত নোটিশ এখানে আপডেট হবে।",
-    icon: "📢",
+    icon: "assignments",
   },
   gallery: {
     title: "গ্যালারি",
     subtitle: "পাবলিক গ্যালারি পেজ",
     note: "হিরো/ইন্ট্রো টেক্সট এবং ছবি — দুটোই এখান থেকে আপডেট হবে।",
-    icon: "🖼️",
+    icon: "gallery",
   },
   admission: {
     title: "ভর্তি পেজের কন্টেন্ট",
     subtitle: "পাবলিক ভর্তি পেজের হিরো ও ধাপসমূহ",
     note: "ব্যাজ, শিরোনাম, বর্ণনা এবং \"কীভাবে কাজ করে\" ধাপগুলো এখান থেকে আপডেট হবে। প্রতিটি ধাপে চাইলে একটি ছবিও যোগ করা যাবে (ঐচ্ছিক)।",
-    icon: "📝",
+    icon: "results",
   },
 };
 
@@ -637,7 +638,7 @@ export function WebsiteSectionEditor() {
             position: "relative",
           }}
         >
-          {meta.icon}
+          {(() => { const MetaIcon = Icons[meta.icon]; return <MetaIcon size={26} aria-hidden="true" />; })()}
         </div>
         <div style={{ minWidth: 0, flex: 1, position: "relative" }}>
           <Link to="/website" style={{ color: C.teal, textDecoration: "none", fontSize: 12.5, fontWeight: 800 }}>
@@ -655,7 +656,7 @@ export function WebsiteSectionEditor() {
       )}
 
       <div style={{ marginBottom: 16, padding: 14, borderRadius: 12, border: `1px solid ${C.border}`, background: C.slateL, color: C.muted, fontSize: 13, lineHeight: 1.7 }}>
-        💡 {meta.note}
+        <Icons.sparkles size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{meta.note}
       </div>
 
       {sectionContent === "hero" && (
@@ -1009,7 +1010,7 @@ export function WebsiteSectionEditor() {
                       aria-label={`"${cat}" ক্যাটাগরি মুছুন`}
                       style={{ border: "none", background: "rgba(0,0,0,0.08)", color: "inherit", borderRadius: "50%", width: 18, height: 18, fontSize: 11, lineHeight: 1, cursor: "pointer", display: "grid", placeItems: "center" }}
                     >
-                      ✕
+                      <Icons.close size={11} aria-hidden="true" />
                     </button>
                   </span>
                 ))}
@@ -1324,7 +1325,7 @@ export function WebsiteSectionEditor() {
             cursor: saving ? "wait" : "pointer",
           }}
         >
-          {saving ? t.students.saving : saved ? "✓ সংরক্ষিত হয়েছে" : "সংরক্ষণ করুন"}
+          {saving ? t.students.saving : saved ? (<><Icons.checkCircle size={15} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />সংরক্ষিত হয়েছে</>) : "সংরক্ষণ করুন"}
         </button>
         <span style={{ fontSize: 12, color: C.muted }}>
           এটি শুধু ড্রাফট হিসেবে সংরক্ষণ হবে — পাবলিক সাইটে দেখাতে "ওয়েবসাইট ম্যানেজমেন্ট" পেজ থেকে প্রিভিউ করে প্রকাশ করুন।

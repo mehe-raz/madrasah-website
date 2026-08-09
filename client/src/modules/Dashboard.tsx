@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { StatCard } from "../components/StatCard";
+import { Icons, type IconKey } from "../lib/icons";
 import { PIE_COLORS } from "../theme/colors";
 import { C } from "../theme/colors";
 import { api } from "../lib/api";
@@ -41,8 +42,8 @@ const EMPTY_DASHBOARD: DashboardData = {
   logs: [],
 };
 
-const logIcon = (icon: string) =>
-  icon === "add" ? "➕" : icon === "payment" ? "💳" : icon === "attendance" ? "📋" : "📉";
+const logIcon = (icon: string): IconKey =>
+  icon === "add" ? "add" : icon === "payment" ? "paymentGateway" : icon === "attendance" ? "clipboard" : "expenses";
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -116,12 +117,12 @@ export function Dashboard() {
       )}
 
       <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 }}>
-        <StatCard label={t.dashboard.totalStudents} value={String(stats.total)} icon="👨‍🎓" color={C.teal} sub={tr("dashboard.residentialSub", { count: stats.residential })} />
-        <StatCard label={t.dashboard.residential} value={String(stats.residential)} icon="🏠" color={C.emerald} sub={tr("dashboard.totalPercent", { percent: stats.total ? Math.round((stats.residential / stats.total) * 100) : 0 })} />
-        <StatCard label={t.dashboard.monthlyIncome} value={fmt(stats.monthlyIncome)} icon="💰" color={C.sky} sub={t.dashboard.monthLabel} />
-        <StatCard label={t.dashboard.totalDue} value={fmt(stats.totalDue)} icon="⚠️" color={C.rose} sub={tr("dashboard.dueStudents", { count: stats.dueCount })} />
-        <StatCard label={t.dashboard.monthlyExpense} value={fmt(stats.monthlyExpense)} icon="💸" color={C.amber} sub={t.dashboard.monthLabel} />
-        <StatCard label={t.dashboard.todayAttendance} value={stats.attendance} icon="📅" color={C.violet} sub={`${stats.attendancePct}%`} />
+        <StatCard label={t.dashboard.totalStudents} value={String(stats.total)} icon="students" color={C.teal} sub={tr("dashboard.residentialSub", { count: stats.residential })} />
+        <StatCard label={t.dashboard.residential} value={String(stats.residential)} icon="dashboard" color={C.emerald} sub={tr("dashboard.totalPercent", { percent: stats.total ? Math.round((stats.residential / stats.total) * 100) : 0 })} />
+        <StatCard label={t.dashboard.monthlyIncome} value={fmt(stats.monthlyIncome)} icon="income" color={C.sky} sub={t.dashboard.monthLabel} />
+        <StatCard label={t.dashboard.totalDue} value={fmt(stats.totalDue)} icon="alertTriangle" color={C.rose} sub={tr("dashboard.dueStudents", { count: stats.dueCount })} />
+        <StatCard label={t.dashboard.monthlyExpense} value={fmt(stats.monthlyExpense)} icon="expenses" color={C.amber} sub={t.dashboard.monthLabel} />
+        <StatCard label={t.dashboard.todayAttendance} value={stats.attendance} icon="attendance" color={C.violet} sub={`${stats.attendancePct}%`} />
       </div>
 
       <div
@@ -191,7 +192,7 @@ export function Dashboard() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {data.logs.map((l) => (
             <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 20 }}>{logIcon(l.icon)}</span>
+              <span style={{ fontSize: 20, display: "inline-flex" }}>{(() => { const LogIcon = Icons[logIcon(l.icon)]; return <LogIcon size={20} aria-hidden="true" />; })()}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, color: C.text }}>{l.action}</div>
                 <div style={{ fontSize: 12, color: C.muted }}>{l.user} · {l.time}</div>

@@ -584,7 +584,8 @@ img {
 }
 
 .report-card__icon {
-  font-size: 32px;
+  display: inline-flex;
+  align-items: center;
   margin-bottom: 10px;
 }
 
@@ -3043,7 +3044,9 @@ img {
 }
 
 .plan-lock__icon {
-  font-size: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 8px;
 }
 

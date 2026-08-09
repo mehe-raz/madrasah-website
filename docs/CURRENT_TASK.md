@@ -86,20 +86,54 @@ string হিসেবে ৩৬টা `client/src` ফাইলে ছড়া
 
 ### বাকি (পরের এজেন্ট/সেশন এখান থেকে চালিয়ে যাবে)
 
-**Part 2 — অ্যাডমিন প্যানেলের মডিউল ও পেজ**
-- [ ] ফাইল: `client/src/modules/Dashboard.tsx`, `Fees.tsx`, `Income.tsx`,
-  `Expenses.tsx`, `Reports.tsx`, `Settings.tsx`, `Website.tsx`,
-  `WebsiteSectionEditor.tsx`, `InstitutionBilling.tsx`,
-  `components/PlanFeatureGate.tsx`, `components/GuardianMessengerBubble.tsx`,
-  `components/ReceiptModal.tsx`, `components/ReportDateFilter.tsx`,
-  `data/mockData.ts`।
-- [ ] প্রতিটাতে emoji খুঁজে বের করে (`grep -rlP` ইমোজি রেঞ্জ দিয়ে, আগের
-  সেশনে যেভাবে করা হয়েছিল) `../lib/icons.ts`-এর `Icons` থেকে উপযুক্ত key
-  বসানো — নতুন semantic দরকার হলে (যেমন কোনো নতুন ধরনের আইকন) সেটা
-  `icons.ts`-এই যোগ করতে হবে, অন্য কোথাও না।
-- [ ] `mockData.ts`-এ ডেমো/প্লেসহোল্ডার ডেটার আইকন থাকলে সেটাও একই
-  `IconKey` প্যাটার্নে আনা উচিত (এটা UI ক্রোম, ইউজার-কনফিগারযোগ্য কন্টেন্ট
-  না)।
+**Part 2 — অ্যাডমিন প্যানেলের মডিউল ও পেজ (সম্পন্ন, 2026-08-09)**
+- [x] `client/src/lib/icons.ts`-এ ১৬টা নতুন semantic key যোগ: `add`,
+  `alertTriangle`, `checkCircle`, `clipboard`, `printer`, `pencil`,
+  `teacherSalary`, `food`, `electricity`, `maintenance`, `stationery`,
+  `otherExpense`, `sparkles`, `gallery`, `inbox`, `chat`।
+- [x] `client/src/components/StatCard.tsx` — `icon: string` (emoji) থেকে
+  `icon: IconKey`-তে বদলানো, ভেতরে `<Icon size={20} />` রেন্ডার করে।
+- [x] `modules/Dashboard.tsx` — সব `<StatCard icon="...">` prop + `logIcon()`
+  হেল্পার ফাংশন (এখন `IconKey` রিটার্ন করে, রেন্ডার সাইটে `Icons[key]` দিয়ে
+  কম্পোনেন্ট রেজলভ করা হয়)।
+- [x] `modules/Fees.tsx` — `<StatCard>` props, রসিদ বাটনের 🧾, "সংরক্ষণ
+  হচ্ছে/বেতন গ্রহণ" বাটনের ⏳/✅।
+- [x] `modules/Income.tsx` — `<StatCard>` props।
+- [x] `modules/Expenses.tsx` — `<StatCard>` props + `QUICK_ICONS` ম্যাপ
+  (এখন `Record<string, IconKey>`, ইনলাইন রেজলভ করে রেন্ডার করে)।
+- [x] `modules/Reports.tsx` — `reports` অ্যারের `icon: string` →
+  `icon: IconKey`, কার্ড রেন্ডার + প্রিন্ট বাটনের 🖨️। `index.css`-এর
+  `.report-card__icon`ও font-size থেকে inline-flex-এ বদলানো হয়েছে (SVG
+  চাইল্ডের জন্য)।
+- [x] `modules/Settings.tsx` — Drive এনক্রিপশন স্ট্যাটাস (🔒/⚠️), protected
+  user badge (🔒), ইউজার-এডিট বাটনের ✏️।
+- [x] `modules/Website.tsx` — `GROUPS`-এর `WebsiteSectionCard.icon: string`
+  → `IconKey`, কার্ড রেন্ডার + শীর্ষের 🌐 পিল + নিচের 💡 টিপ।
+- [x] `modules/WebsiteSectionEditor.tsx` — `SECTION_META`-এর
+  `icon: string` → `IconKey` (হেডার আইকন + 💡 নোট), লিস্ট থেকে ক্যাটাগরি
+  মোছার ✕ বাটন, "সংরক্ষিত হয়েছে" ✓ লেবেল — **ইচ্ছাকৃতভাবে ছোঁয়া হয়নি**:
+  `highlights`/`departments`/`classes`/`admissionSteps`-এর ডিফল্ট
+  `icon: "✨"/"📖"/"🎓"/"✓"` কনটেন্ট-ভ্যালু এবং সংশ্লিষ্ট `<input
+  placeholder="...">`গুলো — এগুলো অ্যাডমিন-এডিটেবল কন্টেন্ট (`c.icon`
+  প্যাটার্নেরই অংশ), হার্ডকোডেড UI ক্রোম না, Part 3-এর `publicSiteDefaults.ts`
+  সিদ্ধান্তের সাথেই একসাথে বিবেচনা করতে হবে।
+- [x] `InstitutionBilling.tsx` — স্ক্যান করে কোনো emoji পাওয়া যায়নি, কোনো
+  পরিবর্তন লাগেনি।
+- [x] `components/PlanFeatureGate.tsx` — লক আইকন 🔒 (`.plan-lock__icon`
+  CSS-ও font-size থেকে inline-flex-এ বদলানো হয়েছে)।
+- [x] `components/GuardianMessengerBubble.tsx` — ভাসমান বাবল আইকন 💬।
+- [x] `components/ReceiptModal.tsx` — লোগো fallback 🕌 (`Icons.brand`,
+  Sidebar/GuardianShell-এর একই fallback প্যাটার্নে), প্রিন্ট বাটনের 🖨️।
+- [x] `components/ReportDateFilter.tsx` — হেডিং-এর 📅।
+- [x] `data/mockData.ts` — `NAV` অ্যারের `icon: string` → `IconKey`
+  (এই `NAV` const আসলে অ্যাপে কোথাও ইমপোর্ট হয় না — dead demo data — কিন্তু
+  স্কোপ-লিস্টে থাকায় প্যাটার্ন মিলিয়ে আপডেট করা হয়েছে)।
+- **যাচাই এই সেশনে:** সবগুলো এডিটেড ফাইলে bracket-balance script (`(`/`)`,
+  `{`/`}`, `[`/`]` প্রতিটা ফাইলে মিলেছে) + প্রতিটা ব্যবহৃত `Icons.<key>`/
+  `icon: "<key>"` স্ট্রিং `icons.ts`-এর `Icons` ম্যাপের বিপরীতে ক্রস-চেক
+  করা হয়েছে (সব key বিদ্যমান, কোনো typo পাওয়া যায়নি)। **এই sandbox-এ
+  network বন্ধ থাকায় `npm install`/`npm run check` (আসল tsc/eslint) চালানো
+  যায়নি — packaged CMD-এই এই ডেলিভারির প্রথম রিয়েল যাচাই।**
 
 **Part 3 — পাবলিক-ফেসিং পেজ, সার্ভার-সাইড সাইট, ও ক্লিনআপ**
 - [ ] ফাইল: `client/src/pages/*` (Home, About, Gallery, Admission,
@@ -119,7 +153,9 @@ string হিসেবে ৩৬টা `client/src` ফাইলে ছড়া
   ক্রোম না। **এই সিদ্ধান্তটা ব্যবহারকারীকে জিজ্ঞেস করে নিতে হবে** — (ক) এগুলো
   content হিসেবেই থাকুক (তাহলে touch করার দরকার নেই), নাকি (খ) এখানেও
   fixed icon picker (lucide থেকে) বসানো হোক, যা একটা আলাদা ছোট ফিচার-কাজ
-  হবে, শুধু naming/cleanup না।
+  হবে, শুধু naming/cleanup না। (WebsiteSectionEditor.tsx-এর
+  highlights/departments/classes/admissionSteps ডিফল্ট আইকনও এই একই
+  সিদ্ধান্তের অংশ — Part 2-এ ইচ্ছাকৃতভাবে বাদ রাখা হয়েছে, উপরে দেখুন।)
 - [ ] root-এর এতিম ডুপ্লিকেট `/src` ফোল্ডার (`src/pages/Home.tsx`,
   `src/components/Reveal.tsx`, `src/hooks/useReveal.ts`, `src/index.css`)
   মুছে ফেলা — এটা `client/src`-এর পুরনো/অসম্পূর্ণ কপি, কোনো বিল্ড কনফিগ
@@ -127,16 +163,19 @@ string হিসেবে ৩৬টা `client/src` ফাইলে ছড়া
   স্ক্যানে ব্যবহৃত হচ্ছে না বলেই মনে হয়েছে)।
 
 ### নোট
+- Part 2-এর zip+CMD ডেলিভার হওয়ার পর, `npm run check` পাস করলে এই এন্ট্রি
+  পরবর্তী সেশনে সরাসরি Part 3 দিয়ে শুরু করবে। Fail করলে এই সেশনের চ্যাটে
+  এরর মেসেজ ফেরত দিতে হবে যাতে পরের এজেন্ট ফিক্স করতে পারে।
 - `docs/PROJECT_MAP.md` আপডেট করা হয়নি এখনো — Part 3 শেষে (পুরো কাজ DONE
   হলে) সেখানে `client/src/lib/icons.ts`-এর একটা এন্ট্রি যোগ করা উচিত
   ("Reusable building blocks"-এর প্যাটার্নে), যাতে ভবিষ্যতে কোনো নতুন
   ফিচারে আইকন লাগলে এজেন্ট সরাসরি raw emoji-তে ফিরে না যায়।
 - প্রতিটা ভাগ শেষে `npm run check` পাস করার পরই zip+CMD ডেলিভার হচ্ছে
   (ব্যবহারকারীর ডেলিভারি-নিয়ম অনুযায়ী) — fail করলে থেমে যাবে, commit/push
-  হবে না। Part 1-এর zip ইতিমধ্যে ব্যবহারকারীকে দেওয়া হয়েছে, ফলাফল
-  (`npm run check` পাস/ফেল) এখনো এই সেশনে জানানো হয়নি — Part 2 শুরুর আগে
-  সেটা কনফার্ম হওয়া ভালো, কিন্তু user যদি সরাসরি "Part 2 করো" বলেন, ধরে
-  নেওয়া যাবে Part 1 সফল হয়েছে।
+  হবে না। Part 1-এর zip ইতিমধ্যে ব্যবহারকারীকে দেওয়া হয়েছে। Part 2-এর
+  zip+CMD এই সেশনে ডেলিভার হচ্ছে — ফলাফল (`npm run check` পাস/ফেল) এখনো
+  এই সেশনে জানানো হয়নি, Part 3 শুরুর আগে সেটা কনফার্ম হওয়া ভালো, কিন্তু
+  user যদি সরাসরি "Part 3 করো" বলেন, ধরে নেওয়া যাবে Part 2 সফল হয়েছে।
 
 ---
 

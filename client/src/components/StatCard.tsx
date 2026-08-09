@@ -1,14 +1,16 @@
 import { Card } from "./ui";
+import { Icons, type IconKey } from "../lib/icons";
 
 interface StatCardProps {
   label: string;
   value: string;
   color: string;
-  icon: string;
+  icon: IconKey;
   sub?: string;
 }
 
 export function StatCard({ label, value, color, icon, sub }: StatCardProps) {
+  const Icon = Icons[icon];
   return (
     <Card className="stat-card">
       <div className="stat-card__head">
@@ -19,7 +21,7 @@ export function StatCard({ label, value, color, icon, sub }: StatCardProps) {
             described in AGENTS.md's Design System section. */}
         {/* eslint-disable-next-line no-restricted-syntax -- dynamic per-instance color, see comment above */}
         <span className="stat-card__icon" style={{ background: color + "18" }}>
-          {icon}
+          <Icon size={20} aria-hidden="true" />
         </span>
       </div>
       <div className="stat-card__value">{value}</div>

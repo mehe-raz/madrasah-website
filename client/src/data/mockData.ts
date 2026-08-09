@@ -1,4 +1,5 @@
 import { C } from "../theme/colors";
+import type { IconKey } from "../lib/icons";
 import type { DashboardData, Expense, Payment, Settings, Student } from "../types";
 
 export const STUDENTS: Student[] = [
@@ -90,15 +91,15 @@ export const PARA_NAMES = [
   "তাবারাকাল্লাযী", "আম্মা ইয়াতাসাআলূন",
 ];
 
-export const NAV = [
-  { id: "dashboard", path: "/", label: "ড্যাশবোর্ড", icon: "🏠" },
-  { id: "students", path: "/students", label: "ছাত্র ব্যবস্থাপনা", icon: "👨‍🎓" },
-  { id: "attendance", path: "/attendance", label: "হাজিরা", icon: "📅" },
-  { id: "fees", path: "/fees", label: "বেতন ও হিসাব", icon: "💰" },
-  { id: "expenses", path: "/expenses", label: "ব্যয় ব্যবস্থাপনা", icon: "💸" },
-  { id: "hifz", path: "/hifz", label: "হিফজ ট্র্যাকিং", icon: "📖" },
-  { id: "reports", path: "/reports", label: "রিপোর্ট", icon: "📊" },
-  { id: "settings", path: "/settings", label: "সেটিংস", icon: "⚙️" },
+export const NAV: { id: string; path: string; label: string; icon: IconKey }[] = [
+  { id: "dashboard", path: "/", label: "ড্যাশবোর্ড", icon: "dashboard" },
+  { id: "students", path: "/students", label: "ছাত্র ব্যবস্থাপনা", icon: "students" },
+  { id: "attendance", path: "/attendance", label: "হাজিরা", icon: "attendance" },
+  { id: "fees", path: "/fees", label: "বেতন ও হিসাব", icon: "income" },
+  { id: "expenses", path: "/expenses", label: "ব্যয় ব্যবস্থাপনা", icon: "expenses" },
+  { id: "hifz", path: "/hifz", label: "হিফজ ট্র্যাকিং", icon: "hifz" },
+  { id: "reports", path: "/reports", label: "রিপোর্ট", icon: "reports" },
+  { id: "settings", path: "/settings", label: "সেটিংস", icon: "settings" },
 ];
 
 export const deptColor = (dept: string) =>

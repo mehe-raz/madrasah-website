@@ -3,6 +3,7 @@
  */
 import { C } from "../theme/colors";
 import { currentMonth, monthRange, type ReportRange } from "../lib/reportRange";
+import { Icons } from "../lib/icons";
 
 interface ReportDateFilterProps {
   value: ReportRange;
@@ -14,7 +15,7 @@ export function ReportDateFilter({ value, onChange }: ReportDateFilterProps) {
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 12 }}>📅 Report period / রিপোর্ট সময়কাল</h3>
+      <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 12 }}><Icons.attendance size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />Report period / রিপোর্ট সময়কাল</h3>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
         <div>
           <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 4 }}>Month / মাস</label>

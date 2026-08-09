@@ -7,6 +7,7 @@ import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { addClassTreeNode, removeClassTreeNode, flattenClassTree } from "../lib/classTree";
 import { canBackup, canManageDomain, canManageUsers } from "../lib/permissions";
+import { Icons } from "../lib/icons";
 import { USER_ROLES, type BackupConfig, type ClassTreeNode, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
 type GuardianApprovalData = Awaited<ReturnType<typeof api.getPendingGuardianApprovals>>;
@@ -919,8 +920,8 @@ export function Settings() {
                           </p>
                           <p className={`drive-encryption-status ${backupConfig?.driveEncryptionEnabled ? "drive-encryption-status--on" : "drive-encryption-status--off"}`}>
                             {backupConfig?.driveEncryptionEnabled
-                              ? "🔒 Drive backups are encrypted (BACKUP_ENCRYPTION_KEY is set)"
-                              : "⚠️ Drive backups are NOT encrypted — set BACKUP_ENCRYPTION_KEY on the server to protect them"}
+                              ? (<><Icons.lock size={13} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />Drive backups are encrypted (BACKUP_ENCRYPTION_KEY is set)</>)
+                              : (<><Icons.alertTriangle size={13} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />Drive backups are NOT encrypted — set BACKUP_ENCRYPTION_KEY on the server to protect them</>)}
                           </p>
                           {driveStatus.lastUploadAt && (
                             <p className="drive-meta">
@@ -1188,7 +1189,7 @@ export function Settings() {
                         ) : (
                           <>
                             <div className="user-info">
-                              <div className="user-name">{u.name}{u.isProtected ? " 🔒" : ""}</div>
+                              <div className="user-name">{u.name}{u.isProtected ? <Icons.lock size={12} aria-hidden="true" style={{ verticalAlign: "-1px", marginLeft: 4 }} /> : ""}</div>
                               <div className="user-meta">
                                 {u.role} · {u.email || "—"}
                                 {u.role === "Teacher" && (
@@ -1200,7 +1201,7 @@ export function Settings() {
                               <button type="button" onClick={() => toggleClassEditor(u)} className="btn-xs btn-xs--edit">{t.settings.teacherClasses}</button>
                             )}
                             {canEditUser() && (
-                              <button type="button" onClick={() => setEditDraft({ ...u })} className="btn-xs btn-xs--edit">✏️</button>
+                              <button type="button" onClick={() => setEditDraft({ ...u })} className="btn-xs btn-xs--edit"><Icons.pencil size={13} aria-hidden="true" /></button>
                             )}
                             {canDeleteUser(u) && (
                               <button type="button" onClick={() => handleDeleteUser(u)} className="btn-xs btn-xs--delete">{t.common.delete}</button>

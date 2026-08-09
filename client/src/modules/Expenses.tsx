@@ -4,6 +4,7 @@ import { StatCard } from "../components/StatCard";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { fmt } from "../lib/fmt";
+import { Icons, type IconKey } from "../lib/icons";
 import { C } from "../theme/colors";
 import type { Expense } from "../types";
 
@@ -16,13 +17,13 @@ const EXPENSE_CATEGORIES = [
   "অন্যান্য",
 ] as const;
 
-const QUICK_ICONS: Record<string, string> = {
-  "শিক্ষক বেতন": "👨‍🏫",
-  "খাবার খরচ": "🍽️",
-  "বিদ্যুৎ বিল": "⚡",
-  "রক্ষণাবেক্ষণ": "🔧",
-  "স্টেশনারি": "📎",
-  "অন্যান্য": "📦",
+const QUICK_ICONS: Record<string, IconKey> = {
+  "শিক্ষক বেতন": "teacherSalary",
+  "খাবার খরচ": "food",
+  "বিদ্যুৎ বিল": "electricity",
+  "রক্ষণাবেক্ষণ": "maintenance",
+  "স্টেশনারি": "stationery",
+  "অন্যান্য": "otherExpense",
 };
 
 export function Expenses() {
@@ -166,17 +167,17 @@ export function Expenses() {
               gap: 6,
             }}
           >
-            <span>{QUICK_ICONS[cat]}</span>
+            {(() => { const QuickIcon = Icons[QUICK_ICONS[cat]]; return <QuickIcon size={14} aria-hidden="true" />; })()}
             <span>{cat}</span>
           </button>
         ))}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 24 }}>
-        <StatCard label={t.expenses.total} value={fmt(total)} icon="💸" color={C.amber} />
-        <StatCard label="শিক্ষক বেতন" value={fmt(byCategory["শিক্ষক বেতন"])} icon="👨‍🏫" color={C.teal} />
-        <StatCard label="খাবার খরচ" value={fmt(byCategory["খাবার খরচ"])} icon="🍽️" color={C.emerald} />
-        <StatCard label="অন্যান্য" value={fmt(byCategory["অন্যান্য"] + byCategory["স্টেশনারি"] + byCategory["রক্ষণাবেক্ষণ"] + byCategory["বিদ্যুৎ বিল"])} icon="📦" color={C.violet} />
+        <StatCard label={t.expenses.total} value={fmt(total)} icon="expenses" color={C.amber} />
+        <StatCard label="শিক্ষক বেতন" value={fmt(byCategory["শিক্ষক বেতন"])} icon="teacherSalary" color={C.teal} />
+        <StatCard label="খাবার খরচ" value={fmt(byCategory["খাবার খরচ"])} icon="food" color={C.emerald} />
+        <StatCard label="অন্যান্য" value={fmt(byCategory["অন্যান্য"] + byCategory["স্টেশনারি"] + byCategory["রক্ষণাবেক্ষণ"] + byCategory["বিদ্যুৎ বিল"])} icon="otherExpense" color={C.violet} />
       </div>
 
       {showAdd && (

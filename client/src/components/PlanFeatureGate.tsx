@@ -4,6 +4,7 @@ import { useLanguage } from "../context/AppSettingsContext";
 import { usePlanFeatures } from "../context/PlanContext";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
+import { Icons } from "../lib/icons";
 
 const TIER_LABEL_KEY: Record<string, "tierBasic" | "tierStandard" | "tierPro" | "tierPremium"> = {
   basic: "tierBasic",
@@ -44,7 +45,7 @@ export function PlanFeatureGate({ feature, children }: PlanFeatureGateProps) {
   return (
     <Card className="plan-lock">
       <div className="plan-lock__icon" aria-hidden="true">
-        🔒
+        <Icons.lock size={36} />
       </div>
       <h2 className="plan-lock__title">{lang.planLock.title}</h2>
       <p className="plan-lock__message">

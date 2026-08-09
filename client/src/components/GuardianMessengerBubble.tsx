@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useLanguage } from "../context/AppSettingsContext";
+import { Icons } from "../lib/icons";
 import type { GuardianMessage } from "../types";
 
 // Same 45-second polling interval used by NotificationBell.tsx — this app
@@ -90,7 +91,7 @@ export function GuardianMessengerBubble() {
   return (
     <div ref={boxRef} className="guardian-messenger">
       <button type="button" onClick={toggleOpen} aria-label={t.guardianMessenger.bubbleLabel} className="guardian-messenger-bubble">
-        💬
+        <Icons.chat size={24} aria-hidden="true" />
         {unreadCount > 0 && (
           <span className="guardian-nav-badge guardian-messenger-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
         )}
