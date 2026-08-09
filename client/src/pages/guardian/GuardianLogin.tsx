@@ -5,6 +5,7 @@ import { useMadrasaBranding } from "../../hooks/useMadrasaBranding";
 import { api } from "../../lib/api";
 import { Button, Field, Input, Select, ClassCascadeSelect } from "../../components/ui";
 import type { ClassOption, ClassTreeNode } from "../../types";
+import { Icons } from "../../lib/icons";
 
 type Mode = "login" | "signup";
 
@@ -109,7 +110,7 @@ export function GuardianLogin() {
           {logo ? (
             <img src={logo} alt="" className="guardian-auth-logo" />
           ) : (
-            <span className="guardian-auth-emoji">🕌</span>
+            <span className="guardian-auth-emoji"><Icons.brand size={40} /></span>
           )}
           <h1 className="guardian-auth-title">{madrasaName}</h1>
           <p className="guardian-auth-subtitle">

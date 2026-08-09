@@ -41,6 +41,17 @@ import {
   Image,
   Inbox,
   MessageCircle,
+  KeyRound,
+  Eye,
+  Rocket,
+  Clock,
+  Camera,
+  Handshake,
+  Trophy,
+  ChevronLeft,
+  ChevronRight,
+  UserRound,
+  Palette,
   type LucideIcon,
 } from "lucide-react";
 
@@ -85,6 +96,18 @@ export const Icons = {
   gallery: Image,
   inbox: Inbox,
   chat: MessageCircle,
+  key: KeyRound,
+  eye: Eye,
+  rocket: Rocket,
+  clock: Clock,
+  camera: Camera,
+  handshake: Handshake,
+  trophy: Trophy,
+  chevronLeft: ChevronLeft,
+  chevronRight: ChevronRight,
+  attachment: Paperclip,
+  childAvatar: UserRound,
+  palette: Palette,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof Icons;

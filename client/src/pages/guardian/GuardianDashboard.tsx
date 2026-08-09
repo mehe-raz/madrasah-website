@@ -4,6 +4,7 @@ import { api } from "../../lib/api";
 import { Button, Field, Input, Select, ClassCascadeSelect } from "../../components/ui";
 import type { GuardianShellContext } from "../../components/GuardianShell";
 import type { ClassOption, ClassTreeNode } from "../../types";
+import { Icons } from "../../lib/icons";
 
 const statusBadgeClass = (status: string | null) => {
   if (status === "উপস্থিত") return "guardian-status-badge--present";
@@ -94,7 +95,9 @@ export function GuardianDashboard() {
               {c.studentPhoto ? (
                 <img src={c.studentPhoto} alt="" className="guardian-child-avatar" />
               ) : (
-                <div className="guardian-child-avatar guardian-child-avatar--placeholder">🧒</div>
+                <div className="guardian-child-avatar guardian-child-avatar--placeholder">
+                  <Icons.childAvatar size={22} />
+                </div>
               )}
               <div className="guardian-child-info">
                 <div className="guardian-child-name">{c.name}</div>

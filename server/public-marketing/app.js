@@ -6,6 +6,25 @@
 const API = "/api/public";
 const root = document.getElementById("app");
 
+// ---------------------------------------------------------------------------
+// Small inline-SVG icon set — same rationale as server/public-platform/app.js
+// (plain JS, no build step, so lucide-react from client/src/lib/icons.ts
+// can't be imported here). Outline style matches the rest of the app.
+// ---------------------------------------------------------------------------
+function svgIcon(paths, size) {
+  return `<svg width="${size || 22}" height="${size || 22}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths}</svg>`;
+}
+
+const ICONS = {
+  students: svgIcon('<path d="m22 10-10-5L2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/>'),
+  calendar: svgIcon('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'),
+  book: svgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>'),
+  taka: svgIcon('<path d="M7 2v13a4 4 0 0 0 4 4h1"/><path d="M7 8h10"/><path d="M4 12h8"/>'),
+  bell: svgIcon('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>'),
+  lock: svgIcon('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
+  celebrate: svgIcon('<path d="M4 22 8 6l10 10-16 6Z"/><path d="M13 3l1.5 3M18 6l3 1.5M20 11l3 1"/>', 18),
+};
+
 let state = {
   submitting: false,
   error: "",
@@ -52,12 +71,12 @@ function slugify(v) {
 }
 
 const FEATURES = [
-  { icon: "🎓", title: "শিক্ষার্থী ব্যবস্থাপনা", desc: "ভর্তি থেকে শুরু করে শিক্ষার্থীর সম্পূর্ণ তথ্য, একই জায়গা থেকে।" },
-  { icon: "🗓️", title: "হাজিরা ও রেজাল্ট", desc: "দৈনিক হাজিরা, পরীক্ষার ফলাফল ও রিপোর্ট — কয়েক ক্লিকেই।" },
-  { icon: "📖", title: "হিফজ ট্র্যাকিং", desc: "প্রতিটি শিক্ষার্থীর হিফজ অগ্রগতি নিয়মিত রেকর্ড করুন।" },
-  { icon: "৳", title: "আয়-ব্যয় ও পেমেন্ট", desc: "বেতন, খরচ ও প্রতিষ্ঠানের হিসাব — স্বচ্ছ ও সহজ।" },
-  { icon: "🔔", title: "নোটিফিকেশন", desc: "গুরুত্বপূর্ণ আপডেট অভিভাবক ও স্টাফদের কাছে সরাসরি পৌঁছে দিন।" },
-  { icon: "🔒", title: "নিরাপদ ও নির্ভরযোগ্য", desc: "প্রতিটি প্রতিষ্ঠানের তথ্য আলাদা ও সুরক্ষিত।" },
+  { icon: ICONS.students, title: "শিক্ষার্থী ব্যবস্থাপনা", desc: "ভর্তি থেকে শুরু করে শিক্ষার্থীর সম্পূর্ণ তথ্য, একই জায়গা থেকে।" },
+  { icon: ICONS.calendar, title: "হাজিরা ও রেজাল্ট", desc: "দৈনিক হাজিরা, পরীক্ষার ফলাফল ও রিপোর্ট — কয়েক ক্লিকেই।" },
+  { icon: ICONS.book, title: "হিফজ ট্র্যাকিং", desc: "প্রতিটি শিক্ষার্থীর হিফজ অগ্রগতি নিয়মিত রেকর্ড করুন।" },
+  { icon: ICONS.taka, title: "আয়-ব্যয় ও পেমেন্ট", desc: "বেতন, খরচ ও প্রতিষ্ঠানের হিসাব — স্বচ্ছ ও সহজ।" },
+  { icon: ICONS.bell, title: "নোটিফিকেশন", desc: "গুরুত্বপূর্ণ আপডেট অভিভাবক ও স্টাফদের কাছে সরাসরি পৌঁছে দিন।" },
+  { icon: ICONS.lock, title: "নিরাপদ ও নির্ভরযোগ্য", desc: "প্রতিটি প্রতিষ্ঠানের তথ্য আলাদা ও সুরক্ষিত।" },
 ];
 
 function heroHtml() {
@@ -92,7 +111,7 @@ function signupFormHtml() {
     return `
       <div class="signup-card" id="signup">
         <div class="form-success">
-          🎉 <strong>${escapeHtml(institution.name)}</strong> এর একাউন্ট সফলভাবে তৈরি হয়েছে!<br/>
+          ${ICONS.celebrate} <strong>${escapeHtml(institution.name)}</strong> এর একাউন্ট সফলভাবে তৈরি হয়েছে!<br/>
           এখন আপনার তৈরি করা ইমেইল ও পাসওয়ার্ড দিয়ে লগইন করুন।
           ${loginUrl ? `<div><a href="${escapeHtml(loginUrl)}">লগইন পেজে যান →</a></div>` : ""}
         </div>

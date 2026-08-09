@@ -6,6 +6,7 @@ import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { C } from "../theme/colors";
+import { Icons } from "../lib/icons";
 
 export function Admission() {
   const { site, content, loading } = usePublicSite();
@@ -46,9 +47,9 @@ export function Admission() {
                 <div className="soft-panel" style={{ width: "100%", padding: 18 }}>
                   <div style={{ fontSize: 12, color: C.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>সংক্ষিপ্ত তথ্য</div>
                   <div style={{ display: "grid", gap: 8 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800 }}>✅ সহজ আবেদন প্রক্রিয়া</div>
-                    <div style={{ fontSize: 14, fontWeight: 800 }}>✅ ঝামেলাবিহীন নেভিগেশন</div>
-                    <div style={{ fontSize: 14, fontWeight: 800 }}>✅ পরিচ্ছন্ন ও গোছানো ডিজাইন</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}><Icons.checkCircle size={15} color={C.emeraldD} /> সহজ আবেদন প্রক্রিয়া</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}><Icons.checkCircle size={15} color={C.emeraldD} /> ঝামেলাবিহীন নেভিগেশন</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}><Icons.checkCircle size={15} color={C.emeraldD} /> পরিচ্ছন্ন ও গোছানো ডিজাইন</div>
                   </div>
                 </div>
               </div>

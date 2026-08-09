@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useSeoMeta } from "../hooks/useSeoMeta";
 import { C } from "../theme/colors";
+import { Icons } from "../lib/icons";
 
 const inputStyle: CSSProperties = {
   width: "100%",
@@ -52,7 +53,7 @@ export function ResetPassword() {
     <div className="auth-page" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 16 }}>
       <div style={{ width: "100%", maxWidth: 400, background: C.card, borderRadius: 16, border: `1px solid ${C.border}`, padding: 28, boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <span style={{ fontSize: 40 }}>🔑</span>
+          <span style={{ display: "inline-flex", color: C.text }}><Icons.key size={40} /></span>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: "8px 0 4px" }}>Reset Password</h1>
           <p style={{ fontSize: 13, color: C.muted }}>Enter the 6-digit code we emailed you and your new password</p>
         </div>

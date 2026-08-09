@@ -13,11 +13,11 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
-## Status: IN_PROGRESS
+## Status: DONE
 
 ## Task: ইমোজি-আইকন → কেন্দ্রীয়ভাবে ব্যবস্থাপনাযোগ্য SVG আইকনে মাইগ্রেশন
 (lucide-react) — ৩ ভাগে বিভক্ত (ad-hoc, কোনো roadmap Phase-এর সাথে মেলে না)
-Started: 2026-08-09
+Started: 2026-08-09 — সম্পন্ন: 2026-08-09 (৩ ভাগেই)
 
 ### প্রেক্ষাপট
 ব্যবহারকারী পুরো প্রজেক্ট রিভিউ করিয়ে জানতে চেয়েছিলেন কোন জিনিস দেখলে মনে
@@ -135,47 +135,54 @@ string হিসেবে ৩৬টা `client/src` ফাইলে ছড়া
   network বন্ধ থাকায় `npm install`/`npm run check` (আসল tsc/eslint) চালানো
   যায়নি — packaged CMD-এই এই ডেলিভারির প্রথম রিয়েল যাচাই।**
 
-**Part 3 — পাবলিক-ফেসিং পেজ, সার্ভার-সাইড সাইট, ও ক্লিনআপ**
-- [ ] ফাইল: `client/src/pages/*` (Home, About, Gallery, Admission,
-  AdmissionApply, ClassesCourses, Login, ResetPassword, Pricing,
-  WebsitePreview, guardian/*), `client/src/lib/publicSiteDefaults.ts`,
-  `server/src/lib/siteContent.js`, `server/public-platform/app.js`,
-  `server/public-marketing/app.js`।
-- [ ] React অংশ (`pages/*`) — Part 1/2-এর মতোই `icons.ts` থেকে key নিয়ে
-  ব্যবহার।
-- [ ] `server/public-platform/app.js` + `server/public-marketing/app.js` —
-  এগুলো plain JS (React না), তাই `lucide-react` import করা যাবে না। এখানে
-  একটা ছোট inline-SVG helper বানাতে হবে (নতুন npm dependency লাগার কথা
-  না — শুধু raw `<svg>` স্ট্রিং/টেমপ্লেট)।
-- [ ] `publicSiteDefaults.ts` ও `server/src/lib/siteContent.js`-এর
-  ডিফল্ট class-icon emoji (🏛 🏠 👳 📞 📖 🕌 📚 🎓) নিয়ে সিদ্ধান্ত দরকার —
-  এগুলো অ্যাডমিন-এডিটেবল "ক্লাস আইকন" ফিচারের ডিফল্ট ভ্যালু, হার্ডকোডেড UI
-  ক্রোম না। **এই সিদ্ধান্তটা ব্যবহারকারীকে জিজ্ঞেস করে নিতে হবে** — (ক) এগুলো
-  content হিসেবেই থাকুক (তাহলে touch করার দরকার নেই), নাকি (খ) এখানেও
-  fixed icon picker (lucide থেকে) বসানো হোক, যা একটা আলাদা ছোট ফিচার-কাজ
-  হবে, শুধু naming/cleanup না। (WebsiteSectionEditor.tsx-এর
-  highlights/departments/classes/admissionSteps ডিফল্ট আইকনও এই একই
-  সিদ্ধান্তের অংশ — Part 2-এ ইচ্ছাকৃতভাবে বাদ রাখা হয়েছে, উপরে দেখুন।)
-- [ ] root-এর এতিম ডুপ্লিকেট `/src` ফোল্ডার (`src/pages/Home.tsx`,
-  `src/components/Reveal.tsx`, `src/hooks/useReveal.ts`, `src/index.css`)
-  মুছে ফেলা — এটা `client/src`-এর পুরনো/অসম্পূর্ণ কপি, কোনো বিল্ড কনফিগ
-  এটা রেফারেন্স করে না (কনফার্ম করে নেওয়া উচিত মোছার আগে, কিন্তু প্রাথমিক
-  স্ক্যানে ব্যবহৃত হচ্ছে না বলেই মনে হয়েছে)।
+**Part 3 — পাবলিক-ফেসিং পেজ, সার্ভার-সাইড সাইট, ও ক্লিনআপ (সম্পন্ন, 2026-08-09)**
+- [x] `client/src/lib/icons.ts`-এ ১২টা নতুন semantic key যোগ: `key`, `eye`,
+  `rocket`, `clock`, `camera`, `handshake`, `trophy`, `chevronLeft`,
+  `chevronRight`, `attachment`, `childAvatar`, `palette`।
+- [x] React পেজ মাইগ্রেট: `AdmissionApply.tsx` (✅), `Login.tsx`/
+  `ResetPassword.tsx` (লোগো/key fallback, Sidebar-এর প্যাটার্নে),
+  `Pricing.tsx` (✅/🕐), `WebsitePreview.tsx` (✅/👁️/🚀/✕),
+  `Gallery.tsx` (হিরো ডেকোরেশন ৬ আইকন + লাইটবক্স close/‹/›),
+  `About.tsx` (`principles` — সম্পূর্ণ হার্ডকোডেড মডিউল-লেভেল কনস্ট্যান্ট,
+  content না — ✨/🎨/👳/💬), `Admission.tsx` (✅ ৩টা + `c.icon` fallback
+  **ছোঁয়া হয়নি**, নিচে দেখুন), `guardian/GuardianLogin.tsx` (🕌),
+  `guardian/GuardianDashboard.tsx` (🧒), `guardian/GuardianFeed.tsx` (📎)।
+- [x] `client/src/index.css` — `.guardian-auth-emoji`,
+  `.guardian-child-avatar--placeholder` font-size সরিয়ে inline-flex
+  centering (Part 1-এর প্যাটার্নে)।
+- [x] `server/public-platform/app.js` — plain JS বলে একটা ছোট
+  `svgIcon()`/`ICONS` হেল্পার (24x24 viewBox, 2px stroke, lucide-এর মতোই
+  outline স্টাইল) যোগ করে সবক'টা emoji (🕌✉️🔒🏫✅⏳⛔📱👤⚙️💳) বদলানো
+  হয়েছে — কোনো নতুন npm dependency লাগেনি (raw `<svg>` টেমপ্লেট স্ট্রিং)।
+- [x] `server/public-marketing/app.js` — একই প্যাটার্নে নিজস্ব `ICONS`
+  হেল্পার (🎓🗓📖🔔🔒🎉ও বদলানো হয়েছে; `৳` (টাকা চিহ্ন) কনটেন্ট রয়ে গেছে,
+  ওটা currency symbol, UI icon না)।
+- [x] root-এর এতিম ডুপ্লিকেট `/src` ফোল্ডার মুছে ফেলা হয়েছে — কনফার্ম করা
+  হয়েছে কোনো `vite.config.ts`/`package.json`/import কোথাও এটা রেফারেন্স
+  করে না।
+- **ইচ্ছাকৃতভাবে ছোঁয়া হয়নি (ব্যবহারকারীর 2026-08-09 সিদ্ধান্ত: ক্লাস-আইকন
+  content হিসেবেই থাকবে, fixed icon-picker বানানো হবে না):**
+  `client/src/lib/publicSiteDefaults.ts`, `server/src/lib/siteContent.js`
+  (ডিফল্ট highlights/departments-এর 🏛🏠👳📞📖🕌📚🎓), `Home.tsx`-এর
+  `programs` ফলব্যাক অ্যারে (উপরের ডিফল্টের হুবহু ডুপ্লিকেট),
+  `ClassesCourses.tsx`/`Admission.tsx`-এর `c.icon || "🎓"` fallback,
+  `WebsiteSectionEditor.tsx`-এর highlights/departments/classes/
+  admissionSteps ডিফল্ট আইকন (Part 2-এ ইতিমধ্যে বাদ রাখা হয়েছিল)।
+- **যাচাই এই সেশনে:** সবগুলো এডিটেড ফাইলে bracket-balance script পাস +
+  সব `Icons.<key>` ব্যবহার `icons.ts`-এর ম্যাপের বিপরীতে ক্রস-চেক (কোনো
+  missing key নেই) + দুই server app.js ফাইলে `node --check` দিয়ে syntax
+  যাচাই (pass)। **`npm run check`/`npm install` এই sandbox-এ চালানো
+  যায়নি** (network বন্ধ, আগের সব Part-এর মতোই সীমাবদ্ধতা) — packaged
+  CMD-এই এই ডেলিভারির প্রথম রিয়েল যাচাই।
+- `docs/PROJECT_MAP.md`-এ `client/src/lib/icons.ts`-এর এন্ট্রি যোগ করা
+  হয়েছে (নিচে দেখুন)।
 
 ### নোট
-- Part 2-এর zip+CMD ডেলিভার হওয়ার পর, `npm run check` পাস করলে এই এন্ট্রি
-  পরবর্তী সেশনে সরাসরি Part 3 দিয়ে শুরু করবে। Fail করলে এই সেশনের চ্যাটে
-  এরর মেসেজ ফেরত দিতে হবে যাতে পরের এজেন্ট ফিক্স করতে পারে।
-- `docs/PROJECT_MAP.md` আপডেট করা হয়নি এখনো — Part 3 শেষে (পুরো কাজ DONE
-  হলে) সেখানে `client/src/lib/icons.ts`-এর একটা এন্ট্রি যোগ করা উচিত
-  ("Reusable building blocks"-এর প্যাটার্নে), যাতে ভবিষ্যতে কোনো নতুন
-  ফিচারে আইকন লাগলে এজেন্ট সরাসরি raw emoji-তে ফিরে না যায়।
-- প্রতিটা ভাগ শেষে `npm run check` পাস করার পরই zip+CMD ডেলিভার হচ্ছে
-  (ব্যবহারকারীর ডেলিভারি-নিয়ম অনুযায়ী) — fail করলে থেমে যাবে, commit/push
-  হবে না। Part 1-এর zip ইতিমধ্যে ব্যবহারকারীকে দেওয়া হয়েছে। Part 2-এর
-  zip+CMD এই সেশনে ডেলিভার হচ্ছে — ফলাফল (`npm run check` পাস/ফেল) এখনো
-  এই সেশনে জানানো হয়নি, Part 3 শুরুর আগে সেটা কনফার্ম হওয়া ভালো, কিন্তু
-  user যদি সরাসরি "Part 3 করো" বলেন, ধরে নেওয়া যাবে Part 2 সফল হয়েছে।
+সম্পূর্ণ ৩-ভাগের ইমোজি→SVG মাইগ্রেশন টাস্ক শেষ। পরের কোনো ফিচারে আইকন
+লাগলে সরাসরি `client/src/lib/icons.ts`-এর `Icons` ম্যাপ ব্যবহার করা উচিত
+(React অংশে), অথবা plain-JS server app.js ফাইলগুলোর জন্য একই ফাইলের
+`ICONS`/`svgIcon()` প্যাটার্ন অনুসরণ করা উচিত — নতুন করে raw emoji
+স্ট্রিং না লেখা।
 
 ---
 

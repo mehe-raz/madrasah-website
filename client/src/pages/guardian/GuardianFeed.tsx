@@ -3,6 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import { api } from "../../lib/api";
 import type { GuardianShellContext } from "../../components/GuardianShell";
 import type { ClassPost } from "../../types";
+import { Icons } from "../../lib/icons";
 
 const TYPE_LABEL: Record<ClassPost["type"], string> = { notice: "নোটিশ", assignment: "অ্যাসাইনমেন্ট", message: "বার্তা" };
 const TYPE_BADGE_CLASS: Record<ClassPost["type"], string> = {
@@ -113,7 +114,7 @@ export function GuardianFeed() {
                     onClick={(e) => e.stopPropagation()}
                     className="pill guardian-attachment-link"
                   >
-                    📎 {a.name || `ফাইল ${i + 1}`}
+                    <Icons.attachment size={13} /> {a.name || `ফাইল ${i + 1}`}
                   </a>
                 ))}
               </div>

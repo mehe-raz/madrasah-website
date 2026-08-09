@@ -5,6 +5,7 @@ import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { api } from "../lib/api";
+import { Icons } from "../lib/icons";
 
 const TIER_LABELS: Record<string, string> = {
   basic: "বেসিক",
@@ -92,7 +93,7 @@ export function Pricing() {
                       return (
                         <li key={key} className="pricing-card__feature">
                           <span className="pricing-card__feature-icon" aria-hidden="true">
-                            {included ? "✅" : "—"}
+                            {included ? <Icons.checkCircle size={16} /> : "—"}
                           </span>
                           <span>{meta.label}</span>
                         </li>
@@ -105,7 +106,7 @@ export function Pricing() {
                         return (
                           <li key={key} className="pricing-card__feature pricing-card__feature--comingsoon">
                             <span className="pricing-card__feature-icon" aria-hidden="true">
-                              🕐
+                              <Icons.clock size={16} />
                             </span>
                             <span>
                               {meta.label} <span className="pill">শীঘ্রই আসছে</span>

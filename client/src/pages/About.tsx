@@ -5,12 +5,13 @@ import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { C } from "../theme/colors";
+import { Icons, type IconKey } from "../lib/icons";
 
-const principles = [
-  { icon: "✨", title: "যত্নশীল পরিবেশ", desc: "শান্ত, শিক্ষার্থী-বান্ধব পরিবেশ ও যত্নের প্রতিটি খুঁটিনাটি।" },
-  { icon: "🎨", title: "কার্যকর শিক্ষাপদ্ধতি", desc: "সহজবোধ্য, হাতে-কলমে অনুশীলন যা কৌতূহল ও আত্মবিশ্বাস গড়ে তোলে।" },
-  { icon: "👳", title: "যত্নশীল শিক্ষকমণ্ডলী", desc: "আধুনিক শিক্ষণ পদ্ধতির পাশাপাশি সহায়ক তত্ত্বাবধান।" },
-  { icon: "💬", title: "অভিভাবক সংযোগ", desc: "স্পষ্ট যোগাযোগ ও প্রতিষ্ঠানের হালনাগাদ তথ্যে সহজ প্রবেশাধিকার।" },
+const principles: { icon: IconKey; title: string; desc: string }[] = [
+  { icon: "sparkles", title: "যত্নশীল পরিবেশ", desc: "শান্ত, শিক্ষার্থী-বান্ধব পরিবেশ ও যত্নের প্রতিটি খুঁটিনাটি।" },
+  { icon: "palette", title: "কার্যকর শিক্ষাপদ্ধতি", desc: "সহজবোধ্য, হাতে-কলমে অনুশীলন যা কৌতূহল ও আত্মবিশ্বাস গড়ে তোলে।" },
+  { icon: "teacherSalary", title: "যত্নশীল শিক্ষকমণ্ডলী", desc: "আধুনিক শিক্ষণ পদ্ধতির পাশাপাশি সহায়ক তত্ত্বাবধান।" },
+  { icon: "chat", title: "অভিভাবক সংযোগ", desc: "স্পষ্ট যোগাযোগ ও প্রতিষ্ঠানের হালনাগাদ তথ্যে সহজ প্রবেশাধিকার।" },
 ];
 
 export function About() {
@@ -83,15 +84,18 @@ export function About() {
         </div>
 
         <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          {principles.map((p) => (
-            <div key={p.title} className="soft-panel hover-lift" style={{ padding: 20 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 18, background: C.emeraldL, display: "grid", placeItems: "center", fontSize: 24, marginBottom: 14 }}>
-                {p.icon}
+          {principles.map((p) => {
+            const Icon = Icons[p.icon];
+            return (
+              <div key={p.title} className="soft-panel hover-lift" style={{ padding: 20 }}>
+                <div style={{ width: 52, height: 52, borderRadius: 18, background: C.emeraldL, display: "grid", placeItems: "center", color: C.emeraldD, marginBottom: 14 }}>
+                  <Icon size={24} />
+                </div>
+                <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{p.title}</h3>
+                <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{p.desc}</p>
               </div>
-              <h3 style={{ fontSize: 16, fontWeight: 900, margin: "0 0 8px" }}>{p.title}</h3>
-              <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.75, margin: 0 }}>{p.desc}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

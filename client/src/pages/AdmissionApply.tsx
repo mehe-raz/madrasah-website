@@ -9,6 +9,7 @@ import { api } from "../lib/api";
 import { C } from "../theme/colors";
 import type { AdmissionApplicationInput, ClassOption, ClassTreeNode } from "../types";
 import { ClassCascadeSelect } from "../components/ui";
+import { Icons } from "../lib/icons";
 
 const inputStyle = {
   width: "100%",
@@ -166,7 +167,9 @@ export function AdmissionApply() {
         <div className="soft-panel-strong" style={{ padding: 22, maxWidth: 760, margin: "0 auto" }}>
           {result ? (
             <div style={{ textAlign: "center", padding: 8 }}>
-              <div style={{ fontSize: 34, marginBottom: 10 }}>✅</div>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 10, color: C.emeraldD }}>
+                <Icons.checkCircle size={34} />
+              </div>
               <h2 style={{ fontSize: 18, fontWeight: 900, color: C.emeraldD, margin: "0 0 8px" }}>আবেদন সফলভাবে জমা হয়েছে</h2>
               <p style={{ fontSize: 13, color: C.emeraldD, margin: "0 0 4px" }}>রেফারেন্স নম্বর: #{result.id}</p>
               <p style={{ fontSize: 13, color: C.emeraldD, margin: 0 }}>আমরা শীঘ্রই যোগাযোগ করব ইনশাআল্লাহ।</p>

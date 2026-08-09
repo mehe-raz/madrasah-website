@@ -76,7 +76,19 @@ client/src/
 │                     (DO NOT hand-edit — see AGENTS.md rule 3), offline*
 │                     (offlineDb/offlineCache/offlineSync — PWA offline
 │                     support), imageCompress.ts, cloudinaryImage.ts,
-│                     exportReports.ts, printReport.ts
+│                     exportReports.ts, printReport.ts, icons.ts (central
+│                     `Icons` map — lucide-react component per semantic
+│                     key, e.g. `Icons.dashboard`, `Icons.lock`; ALL UI
+│                     icons in the React app go through this file, never
+│                     a raw emoji string. Admin-editable content icons,
+│                     e.g. a class's own `c.icon` from the Website
+│                     module, are content and intentionally NOT part of
+│                     this map. The two plain-JS server panels
+│                     (`server/public-platform/app.js`,
+│                     `server/public-marketing/app.js`) can't import this
+│                     — they keep their own small inline-SVG `ICONS`
+│                     helper at the top of each file instead, same
+│                     outline visual style)
 ├── i18n/           ← bn.ts / en.ts — full Bengali + English translation
 │                     tables (this app is bilingual, Bengali-first)
 ├── theme/          ← colors.ts

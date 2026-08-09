@@ -6,6 +6,7 @@ import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { cloudinaryResize } from "../lib/cloudinaryImage";
 import { C } from "../theme/colors";
+import { Icons } from "../lib/icons";
 
 const UNCATEGORIZED = "সাধারণ";
 const PAGE_SIZE = 12;
@@ -98,9 +99,9 @@ export function Gallery() {
             <div className="soft-panel hero-visual" style={{ padding: 18 }}>
               <div style={{ borderRadius: 24, minHeight: 260, display: "grid", placeItems: "center", background: "linear-gradient(180deg, rgba(245,243,255,0.95), rgba(255,255,255,0.68))" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, width: "100%" }}>
-                  {["📸", "🕌", "📖", "🎓", "🤝", "🏆"].map((icon) => (
-                    <div key={icon} className="soft-panel" style={{ minHeight: 74, display: "grid", placeItems: "center", fontSize: 24 }}>
-                      {icon}
+                  {[Icons.camera, Icons.brand, Icons.hifz, Icons.students, Icons.handshake, Icons.trophy].map((Icon, i) => (
+                    <div key={i} className="soft-panel" style={{ minHeight: 74, display: "grid", placeItems: "center", color: C.violetD }}>
+                      <Icon size={24} />
                     </div>
                   ))}
                 </div>
@@ -277,9 +278,9 @@ export function Gallery() {
             type="button"
             onClick={() => setOpenIndex(null)}
             aria-label="বন্ধ করুন"
-            style={{ position: "absolute", top: 18, right: 18, width: 40, height: 40, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 20, cursor: "pointer" }}
+            style={{ position: "absolute", top: 18, right: 18, width: 40, height: 40, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
           >
-            ✕
+            <Icons.close size={20} />
           </button>
 
           {visiblePhotos.length > 1 && (
@@ -290,9 +291,9 @@ export function Gallery() {
                 setOpenIndex((i) => (i === null ? i : (i - 1 + visiblePhotos.length) % visiblePhotos.length));
               }}
               aria-label="আগের ছবি"
-              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 22, cursor: "pointer" }}
+              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
             >
-              ‹
+              <Icons.chevronLeft size={24} />
             </button>
           )}
 
@@ -318,9 +319,9 @@ export function Gallery() {
                 setOpenIndex((i) => (i === null ? i : (i + 1) % visiblePhotos.length));
               }}
               aria-label="পরের ছবি"
-              style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 22, cursor: "pointer" }}
+              style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
             >
-              ›
+              <Icons.chevronRight size={24} />
             </button>
           )}
         </div>

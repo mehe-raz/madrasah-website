@@ -7,6 +7,31 @@
 const API = "/api/platform";
 const root = document.getElementById("app");
 
+// ---------------------------------------------------------------------------
+// Small inline-SVG icon set. This file is plain JS (no React/build step —
+// see the header comment), so client/src/lib/icons.ts's lucide-react map
+// can't be imported here. These are hand-written outline paths in the same
+// visual language (24x24 viewBox, 2px stroke, currentColor) so the panel
+// still looks consistent with the rest of the app. No new dependency.
+// ---------------------------------------------------------------------------
+function svgIcon(paths, size) {
+  return `<svg width="${size || 18}" height="${size || 18}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths}</svg>`;
+}
+
+const ICONS = {
+  brand: svgIcon('<path d="M3 21h18"/><path d="M5 21V10.5L12 5l7 5.5V21"/><path d="M9 21v-6h6v6"/>', 26),
+  mail: svgIcon('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>'),
+  lock: svgIcon('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
+  school: svgIcon('<path d="m4 6 8-4 8 4-8 4-8-4Z"/><path d="M4 6v10l8 4 8-4V6"/><path d="M12 10v10"/>', 20),
+  checkCircle: svgIcon('<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>', 20),
+  hourglass: svgIcon('<path d="M5 2h14"/><path d="M5 22h14"/><path d="M6 2v2a6 6 0 0 0 6 6 6 6 0 0 0 6-6V2"/><path d="M6 22v-2a6 6 0 0 1 6-6 6 6 0 0 1 6 6v2"/>', 20),
+  ban: svgIcon('<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>', 20),
+  smartphone: svgIcon('<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>', 15),
+  user: svgIcon('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', 15),
+  settings: svgIcon('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>', 15),
+  billing: svgIcon('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>', 15),
+};
+
 const STATUS_LABELS = {
   trial: "ট্রায়াল",
   active: "সক্রিয়",
@@ -139,7 +164,7 @@ function renderLogin() {
     <div class="login-shell">
       <div class="login-card">
         <div class="brand-wrap">
-          <div class="brand-mark">🕌</div>
+          <div class="brand-mark">${ICONS.brand}</div>
           <h1>Super-Admin প্যানেল</h1>
           <p class="sub">প্ল্যাটফর্ম অ্যাডমিন লগইন — শুধু আপনার/আপনার টিমের জন্য</p>
         </div>
@@ -147,12 +172,12 @@ function renderLogin() {
         <form id="login-form">
           <label>ইমেইল</label>
           <div class="field-icon-wrap">
-            <span class="icon">✉️</span>
+            <span class="icon">${ICONS.mail}</span>
             <input type="email" name="email" required autocomplete="username" placeholder="you@example.com" />
           </div>
           <label>পাসওয়ার্ড</label>
           <div class="field-icon-wrap">
-            <span class="icon">🔒</span>
+            <span class="icon">${ICONS.lock}</span>
             <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••" />
           </div>
           <div class="modal-actions" style="justify-content:stretch; margin-top:22px;">
@@ -234,7 +259,7 @@ function renderDashboard() {
   root.innerHTML = `
     <header class="topbar">
       <div class="brand-group">
-        <div class="brand-mark">🕌</div>
+        <div class="brand-mark">${ICONS.brand}</div>
         <h1>Super-Admin প্যানেল</h1>
       </div>
       <div class="who">
@@ -247,19 +272,19 @@ function renderDashboard() {
     <main>
       <div class="stat-grid">
         <div class="stat-card total">
-          <div class="stat-icon">🏫</div>
+          <div class="stat-icon">${ICONS.school}</div>
           <div><div class="stat-num">${counts.total}</div><div class="stat-label">মোট প্রতিষ্ঠান</div></div>
         </div>
         <div class="stat-card active">
-          <div class="stat-icon">✅</div>
+          <div class="stat-icon">${ICONS.checkCircle}</div>
           <div><div class="stat-num">${counts.active}</div><div class="stat-label">সক্রিয়</div></div>
         </div>
         <div class="stat-card trial">
-          <div class="stat-icon">⏳</div>
+          <div class="stat-icon">${ICONS.hourglass}</div>
           <div><div class="stat-num">${counts.trial}</div><div class="stat-label">ট্রায়াল</div></div>
         </div>
         <div class="stat-card suspended">
-          <div class="stat-icon">⛔</div>
+          <div class="stat-icon">${ICONS.ban}</div>
           <div><div class="stat-num">${counts.suspended}</div><div class="stat-label">সাসপেন্ড/বাতিল</div></div>
         </div>
       </div>
@@ -274,10 +299,10 @@ function renderDashboard() {
           <button id="view-audit" class="secondary">সব অডিট লগ</button>
           <button id="run-expiry-scan" class="secondary">মেয়াদ স্ক্যান চালান</button>
           ${isSuperAdmin ? `<button id="open-migration" class="secondary">মাইগ্রেশন টুল</button>` : ""}
-          ${canManageInstitutions ? `<button id="open-sms-topups" class="secondary">📱 SMS টপ-আপ</button>` : ""}
-          ${isSuperAdmin ? `<button id="open-admins" class="secondary">👤 এডমিন ম্যানেজমেন্ট</button>` : ""}
-          ${canManageInstitutions ? `<button id="open-settings" class="secondary">⚙️ প্ল্যাটফর্ম সেটিংস</button>` : ""}
-          ${isSuperAdmin ? `<button id="open-billing-gateway" class="secondary">💳 বিলিং গেটওয়ে</button>` : ""}
+          ${canManageInstitutions ? `<button id="open-sms-topups" class="secondary">${ICONS.smartphone} SMS টপ-আপ</button>` : ""}
+          ${isSuperAdmin ? `<button id="open-admins" class="secondary">${ICONS.user} এডমিন ম্যানেজমেন্ট</button>` : ""}
+          ${canManageInstitutions ? `<button id="open-settings" class="secondary">${ICONS.settings} প্ল্যাটফর্ম সেটিংস</button>` : ""}
+          ${isSuperAdmin ? `<button id="open-billing-gateway" class="secondary">${ICONS.billing} বিলিং গেটওয়ে</button>` : ""}
         </div>
         ${canManageInstitutions ? `<button id="new-institution">+ নতুন প্রতিষ্ঠান</button>` : ""}
       </div>
@@ -288,7 +313,7 @@ function renderDashboard() {
           state.loading
             ? spinnerHtml()
             : state.institutions.length === 0
-            ? `<div class="empty-state"><span class="empty-icon">🏫</span>কোনো প্রতিষ্ঠান পাওয়া যায়নি। "+ নতুন প্রতিষ্ঠান" দিয়ে যোগ করুন।</div>`
+            ? `<div class="empty-state"><span class="empty-icon">${ICONS.school}</span>কোনো প্রতিষ্ঠান পাওয়া যায়নি। "+ নতুন প্রতিষ্ঠান" দিয়ে যোগ করুন।</div>`
             : `<table>
                 <thead>
                   <tr>
@@ -332,7 +357,7 @@ function renderBillingGatewayModal() {
   return `
     <div class="modal-backdrop" id="modal-backdrop">
       <div class="modal">
-        <h2>💳 প্ল্যাটফর্ম বিকাশ বিলিং গেটওয়ে</h2>
+        <h2>${ICONS.billing} প্ল্যাটফর্ম বিকাশ বিলিং গেটওয়ে</h2>
         <p class="sub">
           এটা আপনার (প্ল্যাটফর্ম অপারেটরের) নিজের bKash মার্চেন্ট/এজেন্ট অ্যাকাউন্ট — কোনো
           প্রতিষ্ঠানের না। কানেক্ট থাকলে প্রতিষ্ঠানগুলো তাদের মাসিক সাবস্ক্রিপশন বিল সরাসরি

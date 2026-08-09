@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { PublicSiteContext, normalizeContent, type PublicSiteContextValue } from "../context/publicSiteContextCore";
 import { FALLBACK_SETTINGS } from "../lib/publicSiteDefaults";
 import type { PublicSettings } from "../types";
+import { Icons } from "../lib/icons";
 
 // Standalone preview of the public homepage, opened from the "লাইভ পেজ
 // দেখুন" button on the Website management page. Two things it fixes
@@ -98,9 +99,13 @@ export function WebsitePreview() {
         }}
       >
         {published ? (
-          <span>✅ প্রকাশ হয়ে গেছে — ভিজিটররা এখন এই ভার্সনটিই দেখছেন</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Icons.checkCircle size={15} /> প্রকাশ হয়ে গেছে — ভিজিটররা এখন এই ভার্সনটিই দেখছেন
+          </span>
         ) : (
-          <span>👁️ প্রিভিউ মোড — এখনো অপ্রকাশিত, শুধু আপনি এটি দেখছেন</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Icons.eye size={15} /> প্রিভিউ মোড — এখনো অপ্রকাশিত, শুধু আপনি এটি দেখছেন
+          </span>
         )}
         {error && <span style={{ color: "#fecaca" }}>{error}</span>}
         {!published && (
@@ -120,7 +125,13 @@ export function WebsitePreview() {
               flexShrink: 0,
             }}
           >
-            {publishing ? "প্রকাশ হচ্ছে..." : "🚀 প্রকাশ করুন"}
+            {publishing ? (
+              "প্রকাশ হচ্ছে..."
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Icons.rocket size={14} /> প্রকাশ করুন
+              </span>
+            )}
           </button>
         )}
         <button
@@ -138,7 +149,9 @@ export function WebsitePreview() {
             flexShrink: 0,
           }}
         >
-          প্রিভিউ থেকে বের হন ✕
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            প্রিভিউ থেকে বের হন <Icons.close size={14} />
+          </span>
         </button>
       </div>
       <PublicSiteContext.Provider value={contextValue}>

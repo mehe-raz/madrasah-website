@@ -2676,7 +2676,6 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
 }
 
 .guardian-child-info {
@@ -2949,6 +2948,9 @@ img {
 }
 
 .guardian-attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--card);
   border: 1px solid var(--border);
   color: var(--link);
@@ -2992,7 +2994,9 @@ img {
 }
 
 .guardian-auth-emoji {
-  font-size: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .guardian-auth-title {

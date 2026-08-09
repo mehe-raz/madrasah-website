@@ -5,6 +5,7 @@ import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
+import { Icons } from "../lib/icons";
 
 type Mode = "login" | "register" | "forgot" | "reset";
 
@@ -80,7 +81,7 @@ export function Login() {
           {settings.logo ? (
             <img src={settings.logo} alt="" loading="eager" decoding="async" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", marginBottom: 4 }} />
           ) : (
-            <span style={{ fontSize: 40 }}>🕌</span>
+            <span style={{ display: "inline-flex", color: C.text }}><Icons.brand size={40} /></span>
           )}
           <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: "8px 0 4px" }}>{madrasaName}</h1>
           <p style={{ fontSize: 13, color: C.muted }}>
