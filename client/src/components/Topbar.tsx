@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
 import { NotificationBell } from "./NotificationBell";
+import { Icons } from "../lib/icons";
 
 const PATH_KEYS: Record<string, "dashboard" | "students" | "attendance" | "income" | "expenses" | "hifz" | "reports" | "settings"> = {
   "/": "dashboard",
@@ -48,9 +49,9 @@ export function Topbar({ onToggleSidebar, onLogout }: TopbarProps) {
         onClick={onToggleSidebar}
         aria-label="Toggle sidebar"
         className="sidebar-toggle pill"
-        style={{ background: "var(--card)", border: `1px solid ${C.border}`, cursor: "pointer", fontSize: 18, color: C.muted, padding: "7px 11px" }}
+        style={{ background: "var(--card)", border: `1px solid ${C.border}`, cursor: "pointer", display: "flex", alignItems: "center", color: C.muted, padding: "7px 11px" }}
       >
-        ☰
+        <Icons.menu size={18} />
       </button>
 
       <div style={{ flex: 1, minWidth: 0 }}>

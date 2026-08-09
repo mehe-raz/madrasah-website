@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { C } from "../theme/colors";
+import { Icons } from "../lib/icons";
 import type { PublicSettings } from "../types";
 
 export function PublicFooter({ site }: { site: PublicSettings }) {
@@ -19,7 +20,9 @@ export function PublicFooter({ site }: { site: PublicSettings }) {
         >
           <div>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <span style={{ width: 42, height: 42, borderRadius: 14, background: C.emeraldL, display: "grid", placeItems: "center", fontSize: 20, color: C.emeraldD }}>🏫</span>
+              <span style={{ width: 42, height: 42, borderRadius: 14, background: C.emeraldL, display: "grid", placeItems: "center", color: C.emeraldD }}>
+                <Icons.school size={20} />
+              </span>
               <div>
                 <h3 style={{ fontSize: 17, fontWeight: 900, color: C.text, margin: 0 }}>{site.name}</h3>
                 <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0", fontWeight: 700 }}>দ্বীনি ও আধুনিক শিক্ষার একটি নির্ভরযোগ্য প্রতিষ্ঠান</p>

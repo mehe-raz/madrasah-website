@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { C } from "../theme/colors";
 import { ConfirmModal } from "./ConfirmModal";
+import { Icons } from "../lib/icons";
 import type { PublicSettings, SiteClassItem } from "../types";
 
 const NAV_LINKS = [
@@ -94,7 +95,9 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
             {site.logo ? (
               <img src={site.logo} alt="" loading="eager" decoding="async" style={{ width: 46, height: 46, borderRadius: 16, objectFit: "cover", flexShrink: 0, boxShadow: "0 14px 28px rgba(15, 23, 42, 0.12)" }} />
             ) : (
-              <span style={{ width: 46, height: 46, borderRadius: 16, display: "grid", placeItems: "center", background: C.emeraldL, color: C.emeraldD, fontSize: 22, flexShrink: 0, boxShadow: "0 14px 28px rgba(15, 23, 42, 0.08)" }}>🏫</span>
+              <span style={{ width: 46, height: 46, borderRadius: 16, display: "grid", placeItems: "center", background: C.emeraldL, color: C.emeraldD, flexShrink: 0, boxShadow: "0 14px 28px rgba(15, 23, 42, 0.08)" }}>
+                <Icons.school size={22} />
+              </span>
             )}
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 900, fontSize: 17, letterSpacing: "-0.02em", color: C.text, lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -215,9 +218,12 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
                 padding: "10px 14px",
                 fontWeight: 800,
                 fontSize: 14,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              ☰ মেনু
+              <Icons.menu size={16} /> মেনু
             </button>
           )}
         </div>
@@ -232,8 +238,8 @@ export function PublicHeader({ site, classes }: { site: PublicSettings; classes:
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
               <div style={{ fontWeight: 900, fontSize: 16, color: C.text }}>{site.name}</div>
-              <button type="button" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text, padding: "8px 10px" }}>
-                ✕
+              <button type="button" onClick={() => setMobileOpen(false)} className="pill nav-chip" style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text, padding: "8px 10px", display: "flex" }}>
+                <Icons.close size={16} />
               </button>
             </div>
 

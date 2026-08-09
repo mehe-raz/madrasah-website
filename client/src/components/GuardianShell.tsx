@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { GuardianMessengerBubble } from "./GuardianMessengerBubble";
 import { GuardianPushSetup } from "./GuardianPushSetup";
 import { HudSpinner } from "./HudSpinner";
+import { Icons, type IconKey } from "../lib/icons";
 import type { GuardianDashboardChild } from "../types";
 
 export interface GuardianShellContext {
@@ -16,11 +17,11 @@ export interface GuardianShellContext {
   refresh: () => void;
 }
 
-const NAV_ITEMS = [
-  { to: "/guardian", label: "ড্যাশবোর্ড", icon: "🏠", end: true },
-  { to: "/guardian/attendance", label: "উপস্থিতি", icon: "📅" },
-  { to: "/guardian/results", label: "ফলাফল", icon: "📄" },
-  { to: "/guardian/feed", label: "নোটিশ", icon: "📣" },
+const NAV_ITEMS: { to: string; label: string; icon: IconKey; end?: boolean }[] = [
+  { to: "/guardian", label: "ড্যাশবোর্ড", icon: "dashboard", end: true },
+  { to: "/guardian/attendance", label: "উপস্থিতি", icon: "guardianAttendance" },
+  { to: "/guardian/results", label: "ফলাফল", icon: "guardianResults" },
+  { to: "/guardian/feed", label: "নোটিশ", icon: "guardianFeed" },
 ];
 
 export function GuardianShell() {
@@ -100,7 +101,9 @@ export function GuardianShell() {
             {logo ? (
               <img src={logo} alt="" className="guardian-header__logo" />
             ) : (
-              <span className="guardian-header__logo-emoji">🕌</span>
+              <span className="guardian-header__logo-emoji">
+                <Icons.brand size={22} />
+              </span>
             )}
             <div className="guardian-header__brand-text">
               <div className="guardian-header__name">{madrasaName}</div>
@@ -128,22 +131,25 @@ export function GuardianShell() {
         )}
 
         <nav className="guardian-nav">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `guardian-navlink${isActive ? " guardian-navlink--active" : ""}`}
-            >
-              <span className="guardian-nav-icon">
-                {item.icon}
-                {item.to === "/guardian/feed" && unreadCount > 0 && (
-                  <span className="guardian-nav-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
-                )}
-              </span>
-              {item.label}
-            </NavLink>
-          ))}
+          {NAV_ITEMS.map((item) => {
+            const Icon = Icons[item.icon];
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => `guardian-navlink${isActive ? " guardian-navlink--active" : ""}`}
+              >
+                <span className="guardian-nav-icon">
+                  <Icon size={18} aria-hidden="true" />
+                  {item.to === "/guardian/feed" && unreadCount > 0 && (
+                    <span className="guardian-nav-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                  )}
+                </span>
+                {item.label}
+              </NavLink>
+            );
+          })}
         </nav>
       </header>
 

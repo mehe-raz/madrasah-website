@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { Icons } from "../lib/icons";
 import type { Notification } from "../types";
 
 const POLL_INTERVAL_MS = 45_000;
@@ -82,12 +83,12 @@ export function NotificationBell() {
           background: "var(--card)",
           border: `1px solid ${C.border}`,
           cursor: "pointer",
-          fontSize: 17,
+          display: "flex",
           color: C.muted,
           padding: "7px 11px",
         }}
       >
-        🔔
+        <Icons.bell size={17} />
         {unreadCount > 0 && (
           <span
             style={{

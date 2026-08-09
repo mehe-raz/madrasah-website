@@ -4,22 +4,23 @@ import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { usePlanFeatures } from "../context/PlanContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { canAccess, canViewAuditLogs, type Permission } from "../lib/permissions";
+import { Icons, type IconKey } from "../lib/icons";
 
 // `feature` is omitted for nav items that are never plan-gated (dashboard,
 // students, attendance, results, website, settings) — see the 6-route list
 // in server/src/config/planFeatures.js / App.tsx's PlanFeatureGate wiring.
-const NAV_IDS: { id: string; path: string; icon: string; key: Permission; feature?: string }[] = [
-  { id: "dashboard", path: "/", icon: "🏠", key: "dashboard" },
-  { id: "students", path: "/students", icon: "👨‍🎓", key: "students" },
-  { id: "attendance", path: "/attendance", icon: "📅", key: "attendance" },
-  { id: "income", path: "/income", icon: "💰", key: "income", feature: "feesCollection" },
-  { id: "expenses", path: "/expenses", icon: "💸", key: "expenses", feature: "expenses" },
-  { id: "hifz", path: "/hifz", icon: "📖", key: "hifz", feature: "hifzTracking" },
-  { id: "results", path: "/results", icon: "📝", key: "results" },
-  { id: "assignments", path: "/assignments", icon: "📢", key: "assignments", feature: "assignmentsBroadcast" },
-  { id: "reports", path: "/reports", icon: "📊", key: "reports", feature: "reportsExport" },
-  { id: "website", path: "/website", icon: "🌐", key: "website" },
-  { id: "settings", path: "/settings", icon: "⚙️", key: "settings" },
+const NAV_IDS: { id: string; path: string; icon: IconKey; key: Permission; feature?: string }[] = [
+  { id: "dashboard", path: "/", icon: "dashboard", key: "dashboard" },
+  { id: "students", path: "/students", icon: "students", key: "students" },
+  { id: "attendance", path: "/attendance", icon: "attendance", key: "attendance" },
+  { id: "income", path: "/income", icon: "income", key: "income", feature: "feesCollection" },
+  { id: "expenses", path: "/expenses", icon: "expenses", key: "expenses", feature: "expenses" },
+  { id: "hifz", path: "/hifz", icon: "hifz", key: "hifz", feature: "hifzTracking" },
+  { id: "results", path: "/results", icon: "results", key: "results" },
+  { id: "assignments", path: "/assignments", icon: "assignments", key: "assignments", feature: "assignmentsBroadcast" },
+  { id: "reports", path: "/reports", icon: "reports", key: "reports", feature: "reportsExport" },
+  { id: "website", path: "/website", icon: "website", key: "website" },
+  { id: "settings", path: "/settings", icon: "settings", key: "settings" },
 ];
 
 interface SidebarProps {
@@ -62,7 +63,7 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
           {settings.logo ? (
             <img src={settings.logo} alt="" loading="lazy" decoding="async" style={{ width: 34, height: 34, borderRadius: 10, objectFit: "cover" }} />
           ) : (
-            <span style={{ fontSize: 26, flexShrink: 0 }}>🕌</span>
+            <Icons.brand size={22} color="#fff" style={{ flexShrink: 0 }} />
           )}
           {open && (
             <div>
@@ -76,6 +77,7 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
       <div style={{ padding: open ? 12 : 8, display: "grid", gap: 6 }}>
         {navItems.map((item) => {
           const locked = item.feature ? isLocked(item.feature) : false;
+          const Icon = Icons[item.icon];
           return (
             <NavLink
               key={item.id}
@@ -97,11 +99,11 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
               })}
               title={!open ? t.nav[item.key] : undefined}
             >
-              <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
+              <Icon size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
               {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav[item.key]}</span>}
               {open && locked && (
                 <span className="nav-item__lock-badge" aria-hidden="true">
-                  🔒
+                  <Icons.lock size={12} />
                 </span>
               )}
             </NavLink>
@@ -134,7 +136,7 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             })}
             title={!open ? t.nav.guardianReminders : undefined}
           >
-            <span style={{ fontSize: 18, flexShrink: 0 }}>🔔</span>
+            <Icons.bell size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
             {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.guardianReminders}</span>}
           </NavLink>
         )}
@@ -163,11 +165,11 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             })}
             title={!open ? t.nav.sms : undefined}
           >
-            <span style={{ fontSize: 18, flexShrink: 0 }}>📱</span>
+            <Icons.sms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
             {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.sms}</span>}
             {open && isLocked("sms") && (
               <span className="nav-item__lock-badge" aria-hidden="true">
-                🔒
+                <Icons.lock size={12} />
               </span>
             )}
           </NavLink>
@@ -197,11 +199,11 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             })}
             title={!open ? t.nav.paymentGateway : undefined}
           >
-            <span style={{ fontSize: 18, flexShrink: 0 }}>💳</span>
+            <Icons.paymentGateway size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
             {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.paymentGateway}</span>}
             {open && isLocked("bkash") && (
               <span className="nav-item__lock-badge" aria-hidden="true">
-                🔒
+                <Icons.lock size={12} />
               </span>
             )}
           </NavLink>
@@ -230,7 +232,7 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             })}
             title={!open ? t.nav.institutionBilling : undefined}
           >
-            <span style={{ fontSize: 18, flexShrink: 0 }}>🧾</span>
+            <Icons.institutionBilling size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
             {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.institutionBilling}</span>}
           </NavLink>
         )}
@@ -254,11 +256,11 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             })}
             title={!open ? t.nav.auditLogs : undefined}
           >
-            <span style={{ fontSize: 18, flexShrink: 0 }}>🛡️</span>
+            <Icons.auditLogs size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
             {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.auditLogs}</span>}
             {open && isLocked("auditLogs") && (
               <span className="nav-item__lock-badge" aria-hidden="true">
-                🔒
+                <Icons.lock size={12} />
               </span>
             )}
           </NavLink>

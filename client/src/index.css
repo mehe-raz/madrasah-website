@@ -2496,7 +2496,9 @@ img {
 }
 
 .guardian-header__logo-emoji {
-  font-size: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .guardian-header__brand-text {
@@ -2588,7 +2590,8 @@ img {
 }
 
 .guardian-nav-icon {
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
   position: relative;
 }
 
@@ -3074,7 +3077,8 @@ img {
 }
 
 .nav-item__lock-badge {
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
   margin-left: auto;
 }
 

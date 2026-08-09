@@ -1,0 +1,58 @@
+// কেন্দ্রীয় আইকন ম্যাপ — পুরো অ্যাপে ব্যবহৃত সব UI আইকন এখান থেকে আসে।
+// আগে প্রতিটা কম্পোনেন্ট নিজে নিজে emoji ("🏠", "📅" ইত্যাদি) ব্যবহার করত,
+// যা OS/browser ভেদে ভিন্ন দেখায় এবং সাইজ/রং থিমের সাথে মেলানো যায় না।
+// এখন থেকে কোনো আইকন বদলাতে/যোগ করতে শুধু এই একটা ফাইল সম্পাদনা করলেই হবে।
+import {
+  Home,
+  GraduationCap,
+  Calendar,
+  Wallet,
+  TrendingDown,
+  BookOpen,
+  FileEdit,
+  Megaphone,
+  BarChart3,
+  Globe,
+  Settings,
+  Lock,
+  Bell,
+  Smartphone,
+  CreditCard,
+  Receipt,
+  ShieldCheck,
+  Landmark,
+  Menu,
+  X,
+  School,
+  FileText,
+  type LucideIcon,
+} from "lucide-react";
+
+export const Icons = {
+  dashboard: Home,
+  students: GraduationCap,
+  attendance: Calendar,
+  income: Wallet,
+  expenses: TrendingDown,
+  hifz: BookOpen,
+  results: FileEdit,
+  assignments: Megaphone,
+  reports: BarChart3,
+  website: Globe,
+  settings: Settings,
+  lock: Lock,
+  bell: Bell,
+  sms: Smartphone,
+  paymentGateway: CreditCard,
+  institutionBilling: Receipt,
+  auditLogs: ShieldCheck,
+  brand: Landmark,
+  menu: Menu,
+  close: X,
+  school: School,
+  guardianAttendance: Calendar,
+  guardianResults: FileText,
+  guardianFeed: Megaphone,
+} satisfies Record<string, LucideIcon>;
+
+export type IconKey = keyof typeof Icons;
