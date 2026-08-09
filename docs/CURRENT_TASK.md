@@ -13,7 +13,211 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
-## Status: DONE
+## Status: NOT_STARTED
+
+**শুরু করার নিয়ম:** এই এন্ট্রি IN_PROGRESS না, তাই AGENTS.md-এর "যদি
+IN_PROGRESS থাকে তাহলে আগেই চালিয়ে যাও" নিয়মটা এখানে প্রযোজ্য না। ব্যবহারকারী
+চ্যাটে স্পষ্টভাবে "শুরু কর" (বা সমতুল্য) না বলা পর্যন্ত Part 1 থেকে কোনো কোড
+স্পর্শ করা যাবে না। শুরু করার পর, প্রতি Part শেষে এই ফাইলে অগ্রগতি (কোন Part
+শেষ হলো, কী টেস্ট করা হলো) আপডেট করে যেতে হবে যাতে সেশন মাঝপথে থামলেও পরের
+এজেন্ট/সেশন এখান থেকে চালিয়ে যেতে পারে (Status তখন IN_PROGRESS-এ বদলাতে হবে)।
+
+## Task: ফলাফল সেকশন — পরীক্ষার ধরন ফিক্সড-লিস্ট (বাংলা/ইংরেজি) + প্রতি-বিষয়ে
+পুরো ক্লাসের bulk মার্কস-এন্ট্রি ওয়ার্কফ্লো — ৪ ভাগে বিভক্ত (ad-hoc, কোনো
+roadmap Phase-এর সাথে মেলে না)
+
+### প্রেক্ষাপট ও লক্ষ্য
+বর্তমানে `Results` মডিউলে এন্ট্রি ফ্লো হলো: ক্লাস বেছে → **একজন নির্দিষ্ট
+ছাত্র** বেছে → পরীক্ষার নাম ফ্রি-টেক্সটে টাইপ → বছর টাইপ → একে একে বিষয়
+(নাম/প্রাপ্ত নম্বর/পূর্ণমান) যোগ করে → Save। অর্থাৎ প্রতিবার এক ছাত্রের পুরো
+রেজাল্ট (সব বিষয়) একসাথে সেভ হয়, এবং `subjects` অ্যারে পুরোটা রিপ্লেস হয়ে যায়
+(`server/src/lib/results.js`-এর `upsertResult`)।
+
+ব্যবহারকারীর চাওয়া ফ্লো ভিন্ন — **প্রতি-বিষয়ে, পুরো ক্লাস একসাথে:**
+1. পরীক্ষার ধরন একটা ফিক্সড লিস্ট থেকে সিলেক্ট (ফ্রি-টেক্সট না) — লিস্ট নিচে
+   দেওয়া ১০টা। UI-তে বাংলা/ইংরেজি ভাষা অনুযায়ী লেবেল বদলাবে, কিন্তু ডাটাবেজে
+   সবসময় ইংরেজি ক্যানোনিকাল নামটাই সেভ হবে (ভাষা যাই থাকুক, ডাটা অপরিবর্তিত)।
+2. শিক্ষাবর্ষ লিখবে, ক্লাস সিলেক্ট করবে, বিষয়ের নাম + সেই বিষয়ের পূর্ণমান
+   লিখবে।
+3. এরপর ওই ক্লাসের **সব ছাত্রের লিস্ট অটোমেটিক চলে আসবে** (রোল অনুযায়ী
+   সিরিয়ালে), প্রত্যেকের পাশে একটা করে নম্বর-ইনপুট বক্স — শুধু প্রাপ্ত নম্বর
+   টাইপ করা লাগবে, বাকি সব (ক্লাস/পরীক্ষা/বছর/বিষয়/পূর্ণমান) আগেই সিলেক্ট করা।
+   ডেস্কটপ ও মোবাইল দুটোতেই রেসপন্সিভ হতে হবে।
+4. "বিষয় যোগ করুন" বাটনে ক্লিকে — একটা API কলে পুরো ক্লাসের সেই এক বিষয়ের
+   নম্বর সেভ হবে। প্রতি ছাত্রের আগে-থেকে-সেভ-করা অন্য বিষয়গুলো (যদি থাকে)
+   **মুছে যাবে না** — নতুন বিষয়টা মার্জ হবে (নাম মিললে আপডেট, না মিললে যোগ)।
+   পাস/ফেল, GPA, গ্রেড — সব `computeGrade()`-এর মাধ্যমে অটোমেটিক রিক্যালকুলেট
+   হবে (এই লজিক আগে থেকেই আছে, শুধু single-student না, batch-এ apply করতে হবে)।
+5. এরপর একই ক্লাস/পরীক্ষা/বছরে আরেকটা বিষয় (যেমন Arabic, Fiqh...) একইভাবে
+   যোগ করা যাবে — ধাপ ২-৪ রিপিট। যতক্ষণ পাবলিশ না করা হয়, ততক্ষণ এগুলো খসড়া
+   (unpublished) থাকবে — পাবলিশ/আনপাবলিশ/ডিলিট ফিচার আগে থেকেই আছে
+   (`PATCH /:id/publish`, নিচের "সংরক্ষিত ফলাফল" লিস্ট), সেটা অপরিবর্তিত থাকবে।
+
+**যা আগে থেকেই আছে (ছোঁয়া লাগবে না):** ক্লাস/ছাত্র লিস্ট আনা
+(`GET /results/classes`, `/results/students`), GPA/গ্রেড ক্যালকুলেশন
+(`computeGrade`, Bangladesh SSC/HSC-স্টাইল স্কেল + single-subject-fail rule),
+পাবলিশ টগল + guardian SMS/push (`routes/results.js`-এর `/:id/publish`),
+public Result Lookup (`searchPublicResult`), Teacher-scope RBAC
+(`attachTeacherClasses`) — এগুলো নতুন bulk এন্ডপয়েন্টেও reuse হবে, নতুন করে
+লেখা হবে না।
+
+**ফিক্সড পরীক্ষার-ধরন লিস্ট (মান = ডাটাবেজে সেভ হওয়া ইংরেজি ক্যানোনিকাল নাম):**
+| বাংলা লেবেল | value / English label |
+|---|---|
+| সাপ্তাহিক পরীক্ষা | Weekly Test |
+| মাসিক পরীক্ষা | Monthly Test |
+| সাময়িক পরীক্ষা | Periodic Test |
+| অর্ধবার্ষিক পরীক্ষা | Half-Yearly Examination |
+| বার্ষিক পরীক্ষা | Annual Examination |
+| প্রাক-নির্বাচনী পরীক্ষা | Pre-Selection Test |
+| নির্বাচনী পরীক্ষা | Selection Test |
+| প্রাক-পরীক্ষা | Pre-Test |
+| মডেল টেস্ট | Model Test |
+| টেস্ট পরীক্ষা | Test Examination |
+
+### Part 1 — ফিক্সড exam-type লিস্ট (server validation + client লেবেল)
+- **নতুন `server/src/lib/examTypes.js`** — উপরের ১০টা এন্ট্রি
+  `{ value, labelBn }` আকারে একটা অ্যারে + `EXAM_TYPE_VALUES` (শুধু value-গুলোর
+  অ্যারে, zod enum-এ ব্যবহারের জন্য) এক্সপোর্ট। ফাইলের শীর্ষে কমেন্ট: এই লিস্ট
+  `client/src/lib/examTypes.ts`-এর সাথে ম্যানুয়ালি সিঙ্ক রাখতে হবে (roles.js-এর
+  মতো auto-generate করা হয়নি, কারণ এটা RBAC-এর মতো security-critical না এবং
+  ১০ আইটেমের ছোট, কম-পরিবর্তনশীল লিস্ট — নতুন sync script যোগ করা এই টাস্কের
+  স্কোপে নেই)।
+- **`server/src/lib/financeSchemas.js`** — নতুন
+  `resultSubjectBatchSchema` যোগ: `class` (string, min 1), `examName`
+  (`z.enum(EXAM_TYPE_VALUES)`), `year` (string, max 4), `subjectName` (string,
+  max 60, min 1), `fullMarks` (`z.coerce.number().positive()`), `entries`
+  (`z.array(z.object({ studentId: z.coerce.number().int().positive(), marks:
+  z.coerce.number() })).min(1).max(200)`)। বিদ্যমান `resultSaveSchema`
+  (single-student ফ্রম) **অপরিবর্তিত** থাকবে — সেটা এখনো ফ্রি-টেক্সট
+  examName নেয়, backward-compat-এর জন্য (guardian/অন্য কোথাও এখনো ব্যবহার
+  হতে পারে, `grep -rn "saveResult\b"` দিয়ে যাচাই করে নিশ্চিত হতে হবে ব্যবহার
+  আছে কিনা, না থাকলে রিমুভ করার সিদ্ধান্ত ব্যবহারকারীকে জানিয়ে নেওয়া, নিজে
+  নিজে না মোছা)।
+- **নতুন `client/src/lib/examTypes.ts`** — একই ১০টা এন্ট্রি
+  `{ value, labelBn, labelEn }` আকারে (labelEn === value)। ফাইলের শীর্ষে
+  কমেন্ট: server-এর `examTypes.js`-এর সাথে ম্যানুয়ালি সিঙ্ক রাখতে হবে।
+- **`AGENTS.md`** — "Single source of truth" সেকশনে এক লাইন যোগ: exam-type
+  লিস্ট client+server দুই জায়গায় ইচ্ছাকৃতভাবে ডুপ্লিকেট করা আছে (কারণ ও
+  ফাইল-লোকেশন সহ), যাতে ভবিষ্যতের কোনো এজেন্ট এটাকে "বাগ" ভেবে এক জায়গায়
+  fix না করে ফেলে।
+
+### Part 2 — Backend: এক-বিষয়ে পুরো ক্লাসের bulk upsert (merge, replace না)
+- **`server/src/lib/results.js`** —
+  - নতুন pure/exported helper `mergeSubjectIntoList(existingSubjects,
+    newSubject)`: subject name case-insensitive trim করে মেলায় — মিললে ওই
+    এন্ট্রি replace, না মিললে array-তে push করে রিটার্ন করে (max 20 subjects
+    cap বজায় রেখে, `sanitizeSubjects`-এর MAX_SUBJECTS reuse করে)। এটাকে আলাদা
+    pure function হিসেবে রাখা হচ্ছে যাতে DB ছাড়াই ইউনিট-টেস্ট করা যায়
+    (`sanitizeSubjects`/`computeGrade`-এর মতো একই প্যাটার্ন)।
+  - নতুন exported `async function saveSubjectForClass({ classroom, examName,
+    year, subjectName, fullMarks, entries })`: `entries`-এর প্রতিটা
+    `{studentId, marks}`-এর জন্য —
+    1. `students` টেবিল থেকে ছাত্র লুকআপ (id/name/roll/class), না পেলে সেই
+       এন্ট্রি স্কিপ (পুরো ব্যাচ ফেইল করানো হবে না একটা bad id-তে; স্কিপ হওয়া
+       আইডিগুলো রিটার্ন ভ্যালুতে `skipped: [...]` আকারে জানানো হবে)।
+    2. `(studentId, examName, year)`-এর বিদ্যমান result row খুঁজে বের করা (থাকলে
+       তার `subjects` parse করে নেওয়া, না থাকলে খালি অ্যারে থেকে শুরু)।
+    3. `mergeSubjectIntoList()` দিয়ে নতুন `{name: subjectName, marks,
+       fullMarks}` মার্জ করা।
+    4. মার্জ করা সম্পূর্ণ subjects লিস্ট থেকে `obtainedMarks`/`totalMarks`
+       রিক্যালকুলেট, `computeGrade()` দিয়ে gpa/grade রিক্যালকুলেট।
+    5. বিদ্যমান `INSERT ... ON CONFLICT ("studentId","examName",year) DO
+       UPDATE`-এর মতোই upsert (এই SQL ব্লকটা `upsertResult`-এর সাথে প্রায়
+       হুবহু — একটা ছোট শেয়ার্ড ইনটার্নাল হেল্পারে (`upsertResultRow(row)`)
+       রিফ্যাক্টর করে `upsertResult` ও `saveSubjectForClass` দুটোতেই reuse
+       করা, কোড ডুপ্লিকেট না করে)।
+    - sequential await loop-ই যথেষ্ট (এই কোডবেসে tenant-schema per-request
+      `AsyncLocalStorage`-এর মাধ্যমে বাইন্ড হয় — `db.all/get/run` স্বয়ংক্রিয়ভাবে
+      সঠিক tenant schema-তে যায়, তাই ম্যানুয়াল `pg.pool.connect()` +
+      `BEGIN`/`COMMIT` ট্রানজ্যাকশন এখানে দরকার নেই, `migrateTenants.js`/
+      `registryDb.js`-এর প্যাটার্নটা cross-schema কাজের জন্য, এটা তা না)।
+    - রিটার্ন: `{ updated: StudentResult[], skipped: number[] }`।
+- **`server/src/routes/results.js`** — নতুন
+  `router.post("/subject-batch", validate(resultSubjectBatchSchema), ...)`:
+  - `req.teacherClasses` থাকলে `req.body.class` স্কোপ-চেক (বিদ্যমান
+    `OUT_OF_SCOPE_ERROR` প্যাটার্ন)।
+  - `saveSubjectForClass(req.body)` কল।
+  - একটাই `recordAudit()` (প্রতি-ছাত্র না) — `action: "result.subjectBatchSaved"`,
+    `label`-এ ক্লাস/বিষয়/পরীক্ষা/বছর/কতজন ছাত্র আপডেট হলো।
+  - রেসপন্স: `{ updated, skipped }`।
+- **`server/src/lib/__tests__/results.test.js`** — `mergeSubjectIntoList`-এর
+  জন্য নতুন `describe` ব্লক (নতুন সাবজেক্ট যোগ, বিদ্যমান নাম-মিলে replace,
+  case-insensitive ম্যাচ, MAX_SUBJECTS cap) — বিদ্যমান
+  `sanitizeSubjects`/`computeGrade` টেস্টের ঠিক পাশে, একই স্টাইলে।
+
+### Part 3 — Frontend: bulk মার্কস-এন্ট্রি UI (`modules/Results.tsx` rework)
+- **`client/src/lib/api.ts`** — নতুন `saveResultSubjectBatch(body: {
+  class: string; examName: string; year: string; subjectName: string;
+  fullMarks: number; entries: { studentId: number; marks: number }[]; })`
+  → `POST /results/subject-batch`। বিদ্যমান `saveResult`/`getResults`/
+  `getResultClasses`/`getResultStudents`/`setResultPublished`/`deleteResult`
+  অপরিবর্তিত।
+- **`client/src/types/index.ts`** — নতুন `ResultSubjectBatchResponse { updated:
+  StudentResult[]; skipped: number[] }` টাইপ যোগ।
+- **`client/src/modules/Results.tsx`** — এন্ট্রি-ফর্ম সেকশন rework (নিচের
+  "সংরক্ষিত ফলাফল" লিস্ট অংশ অপরিবর্তিত থাকবে):
+  - state: `examType`(canonical value)/`year`/`selectedClass` আগের মতো,
+    কিন্তু single-student `subjects[]` লিস্টের বদলে single `subjectName` +
+    `subjectFullMarks` state, এবং ক্লাস সিলেক্ট হলে student লিস্ট লোড হওয়ার
+    সাথে সাথে প্রতি ছাত্রের জন্য `marksById: Record<number, string>` state।
+  - পরীক্ষার ধরন `<select>` — `EXAM_TYPES` থেকে অপশন, বর্তমান ভাষা
+    (`useLanguage()`) অনুযায়ী `labelBn`/`labelEn` দেখাবে, `value` সবসময়
+    canonical English।
+  - ছাত্র-লিস্ট: ক্লাস + বিষয়ের নাম + পূর্ণমান পূরণ হলে বিদ্যমান
+    `api.getResultStudents(selectedClass)` দিয়ে লিস্ট আনা (এটা আগে থেকেই
+    ক্লাস সিলেক্টের `useEffect`-এ আছে, রাখা হবে) — প্রতি ছাত্রের রো-তে
+    রোল/নাম + একটা marks `<Input>`।
+  - রেসপন্সিভনেস: `AGENTS.md`-এর Design System নিয়ম মেনে raw `style={{}}`
+    native element-এ না — নতুন `.ds-*`/component-ভিত্তিক ক্লাস ব্যবহার (যেমন
+    grid-based ছাত্র-লিস্ট যেটা ডেস্কটপে টেবিল-সদৃশ সারি, মোবাইলে স্ট্যাকড
+    কার্ড — CSS grid/flex + breakpoint দিয়ে `index.css`-এ নতুন ক্লাস, পুরনো
+    `.data-table`/`.form-grid` ক্লাস আগে থেকে থাকলে সেগুলো reuse করার চেষ্টা
+    আগে)। যেহেতু এই টাস্ক পুরো এন্ট্রি-ফর্মটাই ছুঁচ্ছে, AGENTS.md-এর নিয়ম
+    অনুযায়ী (touch করা অংশ migrate করা) পুরনো ৩৬টা inline-style-এর একটা বড়
+    অংশ এই ফাইলে এই কাজেই পরিষ্কার হয়ে যাবে — `docs/DESIGN_SYSTEM_MIGRATION.md`-এর
+    `modules/Results.tsx` এন্ট্রি আপডেট করতে হবে (নতুন count-সহ, বা "Done"-এ
+    সরাতে হবে যদি পুরোপুরি ক্লিন হয়)।
+  - "বিষয় যোগ করুন" বাটন → `saveResultSubjectBatch()` কল (marks খালি/blank
+    রাখা ছাত্রদের entries-এ পাঠানো হবে না — শুধু যাদের নম্বর দেওয়া হয়েছে)।
+    সফল হলে: সফলতা বার্তা, `subjectName`/`subjectFullMarks`/`marksById` রিসেট
+    (class/exam/year রেখে দেওয়া, যাতে পরের বিষয় দ্রুত যোগ করা যায়), নিচের
+    "সংরক্ষিত ফলাফল" লিস্ট রিফ্রেশ (বিদ্যমান `refreshList()`)।
+  - single-student পুরনো ফর্ম (ছাত্র-বাছাই + একাধিক বিষয়ের ইনলাইন লিস্ট +
+    add/remove বাটন) — সরিয়ে ফেলা হবে, bulk ফ্লো-ই একমাত্র এন্ট্রি-পথ হবে।
+- **`client/src/i18n/bn.ts` ও `en.ts`** — `results` namespace আপডেট: নতুন কী
+  (`selectExamType`, `subjectFullMarks`, `marksFor` বা প্রতি-রো প্লেসহোল্ডার,
+  `addSubjectBatch`/সাফল্য বার্তা ইত্যাদি), অপ্রয়োজনীয় পুরনো কী (`selectStudent`,
+  `addSubject` — যদি আর কোথাও ব্যবহার না হয়) রিমুভ করার আগে
+  `grep -rn "t.results.selectStudent"` (ও প্রতিটা রিমুভ-প্রার্থী কী)-দিয়ে
+  পুরো `client/src` জুড়ে ব্যবহার আছে কিনা যাচাই — শুধু `Results.tsx`-এই থাকলে
+  নিরাপদে রিমুভ করা যাবে।
+
+### Part 4 — যাচাই ও ডকুমেন্টেশন
+- `npm run check` পাস করা (lint/typecheck/build/sync:roles/test:server) —
+  এই sandbox-এ network বন্ধ থাকায় চালানো যায়নি, প্যাকেজড CMD-এই প্রথম আসল
+  যাচাই হবে (আগের icon-migration টাস্কের মতোই)।
+- `docs/PROJECT_MAP.md`-এ Results/ফলাফল-সংক্রান্ত লাইনগুলোতে (১৬, ১২৯ নং লাইনের
+  আশেপাশে) এক লাইন যোগ করে নতুন per-subject batch-entry ওয়ার্কফ্লো উল্লেখ করা,
+  যাতে পরের কোনো এজেন্ট PROJECT_MAP পড়ে পুরনো single-student ফ্লো ধরে না নেয়।
+- এই এন্ট্রির শেষে অগ্রগতির সারাংশ লিখে **Status: DONE**-এ পরিবর্তন করা
+  (icon-migration টাস্কের এন্ট্রির ফরম্যাট অনুসরণ করে)।
+
+### কোন Part কেন এভাবে ভাগ করা হলো
+- Part 1 আগে, কারণ 2 ও 3 দুটোই exam-type লিস্টের উপর নির্ভরশীল (server-এ
+  validation, client-এ dropdown) — একবারই লিখে দুই জায়গায় বসানো ভালো, পরে
+  বদলাতে হবে না।
+- Part 2 (backend) আগে Part 3 (frontend)-এর — কারণ নতুন এন্ডপয়েন্ট
+  (`POST /results/subject-batch`) প্রস্তুত ও টেস্ট করা না থাকলে frontend-এর
+  bulk-সাবমিট বাটন টেস্ট করার কিছু থাকবে না।
+- Part 4 সবশেষে — পুরো ফ্লো (exam-type সিলেক্ট → বিষয় → bulk এন্ট্রি →
+  publish) এন্ড-টু-এন্ড রেডি হওয়ার পরই `npm run check` অর্থবহ পুরো-স্ট্যাক
+  যাচাই দেয়।
+- প্রতিটা Part আলাদাভাবে `npm run check`-যোগ্য একটা স্থিতিশীল অবস্থায় শেষ
+  হবে (Part 1 শেষে শুধু নতুন কনস্ট্যান্ট ফাইল, কিছু ভাঙে না; Part 2 শেষে নতুন
+  এন্ডপয়েন্ট থাকলেও পুরনো ফর্ম কাজ করে; Part 3 শেষে নতুন ফর্মই একমাত্র পথ) —
+  তাই মাঝপথে সেশন থেমে গেলেও প্রতিটা Part-এর পরে repo একটা কাজ-করা অবস্থায়
+  থাকবে।
 
 ## Task: ইমোজি-আইকন → কেন্দ্রীয়ভাবে ব্যবস্থাপনাযোগ্য SVG আইকনে মাইগ্রেশন
 (lucide-react) — ৩ ভাগে বিভক্ত (ad-hoc, কোনো roadmap Phase-এর সাথে মেলে না)
