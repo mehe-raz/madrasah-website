@@ -15,6 +15,133 @@ the next sequential number.
 
 ## Status: IN_PROGRESS
 
+## Task: ইমোজি-আইকন → কেন্দ্রীয়ভাবে ব্যবস্থাপনাযোগ্য SVG আইকনে মাইগ্রেশন
+(lucide-react) — ৩ ভাগে বিভক্ত (ad-hoc, কোনো roadmap Phase-এর সাথে মেলে না)
+Started: 2026-08-09
+
+### প্রেক্ষাপট
+ব্যবহারকারী পুরো প্রজেক্ট রিভিউ করিয়ে জানতে চেয়েছিলেন কোন জিনিস দেখলে মনে
+হয় এটা AI দিয়ে তৈরি। সবচেয়ে বড় সিগনেচার হিসেবে ধরা পড়েছিল: কোনো icon
+library ইনস্টল করা ছিল না — পুরো UI-তে raw emoji (🏠 📅 💰 ইত্যাদি) সরাসরি
+string হিসেবে ৩৬টা `client/src` ফাইলে ছড়ানো ছিল, প্রতিটা component নিজের
+মতো করে `icon: "🏠"` লিখে। এছাড়া root-এ একটা এতিম ডুপ্লিকেট `/src` ফোল্ডার
+পাওয়া গেছে (`client/src`-এর পুরনো কপি, বিল্ডে ব্যবহৃত হয় না) — সেটাও এই
+কাজের Part 3-এ মুছে ফেলা হবে।
+
+সমাধান: `lucide-react` ইনস্টল করে একটা কেন্দ্রীয় ম্যাপ ফাইল
+(`client/src/lib/icons.ts`) বানানো হয়েছে, যেখানে প্রতিটা semantic key
+(যেমন `dashboard`, `students`, `lock`) একটা lucide আইকনে ম্যাপ করা।
+ভবিষ্যতে কোনো আইকন বদলাতে শুধু এই এক ফাইল সম্পাদনা করলেই পুরো অ্যাপে
+পরিবর্তন হয়ে যাবে।
+
+**গুরুত্বপূর্ণ ব্যতিক্রম (স্কোপের বাইরে রাখা হয়েছে ইচ্ছাকৃতভাবে):**
+- `→` (arrow) — এগুলো UI আইকন না, টেক্সটের অংশ (যেমন "বিস্তারিত →"),
+  এই কাজে ছোঁয়া হয়নি।
+- `PublicHeader.tsx`-এ `classes` prop থেকে আসা `c.icon` (ক্লাসের emoji,
+  Website module থেকে অ্যাডমিন-এডিটেবল ডেটা) — এটা ইউজার-কনফিগারযোগ্য
+  কন্টেন্ট, হার্ডকোডেড UI আইকন না, তাই এই মাইগ্রেশনের বাইরে। `mockData.ts`/
+  `publicSiteDefaults.ts`-এর ডিফল্ট class-icon emoji নিয়ে Part 3-এ আলাদাভাবে
+  সিদ্ধান্ত নিতে হবে (নিচে Part 3-এর নোট দেখুন) — সেটা content, চাইলে
+  সেভাবেই থাকতে দেওয়া যায়।
+- `server/public-platform/app.js` ও `server/public-marketing/app.js`
+  React না, প্লেইন JS — এখানে lucide-react ব্যবহার করা যাবে না। Part 3-এ
+  এই দুটোর জন্য আলাদা ছোট inline-SVG map লাগবে (নতুন npm dependency এখানে
+  টানা যাবে না, `AGENTS.md` Rule 5 অনুযায়ী আগেই ব্যবহারকারীকে জানাতে হবে
+  যদি কোনো নতুন প্যাকেজ লাগে — তবে inline SVG-তে কোনো dependency লাগার কথা
+  না)।
+
+### সম্পন্ন (Part 1 — কোর ইনফ্রাস্ট্রাকচার + শেল, 2026-08-09)
+- [x] `client/package.json` — নতুন `lucide-react` dependency যোগ।
+- [x] নতুন `client/src/lib/icons.ts` — কেন্দ্রীয় `Icons` map (24টা key:
+  `dashboard`/`students`/`attendance`/`income`/`expenses`/`hifz`/`results`/
+  `assignments`/`reports`/`website`/`settings`/`lock`/`bell`/`sms`/
+  `paymentGateway`/`institutionBilling`/`auditLogs`/`brand`/`menu`/`close`/
+  `school`/`guardianAttendance`/`guardianResults`/`guardianFeed`) +
+  `IconKey` টাইপ এক্সপোর্ট।
+- [x] `client/src/components/Sidebar.tsx` — `NAV_IDS`-এর `icon: string`
+  (emoji) থেকে `icon: IconKey` টাইপে বদলানো, মূল লিস্ট + ৪টা NAV_IDS-বহির্ভূত
+  ব্লক (guardian-reminders/sms/payment-gateway/institution-billing) + audit-logs
+  — সবক'টা raw emoji স্প্যানকে `<Icon size={18} />` / `Icons.lock`-এ বদলানো।
+  লোগো fallback (🕌) → `Icons.brand`।
+- [x] `client/src/components/Topbar.tsx` — sidebar-toggle বাটনের ☰ →
+  `Icons.menu`।
+- [x] `client/src/components/GuardianShell.tsx` — `NAV_ITEMS` (৪টা আইটেম)
+  emoji থেকে `IconKey`-তে, লোগো fallback (🕌) → `Icons.brand`।
+- [x] `client/src/components/PublicHeader.tsx` — লোগো fallback (🏫) →
+  `Icons.school`, মোবাইল মেনু বাটন (☰) → `Icons.menu`, ড্রয়ার ক্লোজ বাটন
+  (✕) → `Icons.close`। (এই ফাইলের `c.icon` — ক্লাস ড্রপডাউনের এন্ট্রি — খুব
+  ইচ্ছাকৃতভাবে ছোঁয়া হয়নি, উপরের নোট দেখুন।)
+- [x] `client/src/components/PublicFooter.tsx` — লোগো fallback (🏫) →
+  `Icons.school`।
+- [x] `client/src/components/NotificationBell.tsx` — বেল বাটন (🔔) →
+  `Icons.bell`।
+- [x] `client/src/index.css` — `.guardian-header__logo-emoji`,
+  `.guardian-nav-icon`, `.nav-item__lock-badge` — এই ৩টা ক্লাসের
+  `font-size`-নির্ভর স্টাইল সরিয়ে `display: inline-flex; align-items: center`
+  বসানো হয়েছে (emoji টেক্সটের বদলে এখন SVG চাইল্ড থাকে বলে)।
+- **`npm run check` এই sandbox-এ চালানো যায়নি** (network বন্ধ) — packaged
+  CMD-এই প্রথম রিয়েল যাচাই, বিশেষ করে `lucide-react`-এর named export
+  গুলো (`Home`/`GraduationCap`/... ইত্যাদি) আসলে ইনস্টল হওয়া ভার্সনে
+  বিদ্যমান কিনা তা নিশ্চিত করতে।
+
+### বাকি (পরের এজেন্ট/সেশন এখান থেকে চালিয়ে যাবে)
+
+**Part 2 — অ্যাডমিন প্যানেলের মডিউল ও পেজ**
+- [ ] ফাইল: `client/src/modules/Dashboard.tsx`, `Fees.tsx`, `Income.tsx`,
+  `Expenses.tsx`, `Reports.tsx`, `Settings.tsx`, `Website.tsx`,
+  `WebsiteSectionEditor.tsx`, `InstitutionBilling.tsx`,
+  `components/PlanFeatureGate.tsx`, `components/GuardianMessengerBubble.tsx`,
+  `components/ReceiptModal.tsx`, `components/ReportDateFilter.tsx`,
+  `data/mockData.ts`।
+- [ ] প্রতিটাতে emoji খুঁজে বের করে (`grep -rlP` ইমোজি রেঞ্জ দিয়ে, আগের
+  সেশনে যেভাবে করা হয়েছিল) `../lib/icons.ts`-এর `Icons` থেকে উপযুক্ত key
+  বসানো — নতুন semantic দরকার হলে (যেমন কোনো নতুন ধরনের আইকন) সেটা
+  `icons.ts`-এই যোগ করতে হবে, অন্য কোথাও না।
+- [ ] `mockData.ts`-এ ডেমো/প্লেসহোল্ডার ডেটার আইকন থাকলে সেটাও একই
+  `IconKey` প্যাটার্নে আনা উচিত (এটা UI ক্রোম, ইউজার-কনফিগারযোগ্য কন্টেন্ট
+  না)।
+
+**Part 3 — পাবলিক-ফেসিং পেজ, সার্ভার-সাইড সাইট, ও ক্লিনআপ**
+- [ ] ফাইল: `client/src/pages/*` (Home, About, Gallery, Admission,
+  AdmissionApply, ClassesCourses, Login, ResetPassword, Pricing,
+  WebsitePreview, guardian/*), `client/src/lib/publicSiteDefaults.ts`,
+  `server/src/lib/siteContent.js`, `server/public-platform/app.js`,
+  `server/public-marketing/app.js`।
+- [ ] React অংশ (`pages/*`) — Part 1/2-এর মতোই `icons.ts` থেকে key নিয়ে
+  ব্যবহার।
+- [ ] `server/public-platform/app.js` + `server/public-marketing/app.js` —
+  এগুলো plain JS (React না), তাই `lucide-react` import করা যাবে না। এখানে
+  একটা ছোট inline-SVG helper বানাতে হবে (নতুন npm dependency লাগার কথা
+  না — শুধু raw `<svg>` স্ট্রিং/টেমপ্লেট)।
+- [ ] `publicSiteDefaults.ts` ও `server/src/lib/siteContent.js`-এর
+  ডিফল্ট class-icon emoji (🏛 🏠 👳 📞 📖 🕌 📚 🎓) নিয়ে সিদ্ধান্ত দরকার —
+  এগুলো অ্যাডমিন-এডিটেবল "ক্লাস আইকন" ফিচারের ডিফল্ট ভ্যালু, হার্ডকোডেড UI
+  ক্রোম না। **এই সিদ্ধান্তটা ব্যবহারকারীকে জিজ্ঞেস করে নিতে হবে** — (ক) এগুলো
+  content হিসেবেই থাকুক (তাহলে touch করার দরকার নেই), নাকি (খ) এখানেও
+  fixed icon picker (lucide থেকে) বসানো হোক, যা একটা আলাদা ছোট ফিচার-কাজ
+  হবে, শুধু naming/cleanup না।
+- [ ] root-এর এতিম ডুপ্লিকেট `/src` ফোল্ডার (`src/pages/Home.tsx`,
+  `src/components/Reveal.tsx`, `src/hooks/useReveal.ts`, `src/index.css`)
+  মুছে ফেলা — এটা `client/src`-এর পুরনো/অসম্পূর্ণ কপি, কোনো বিল্ড কনফিগ
+  এটা রেফারেন্স করে না (কনফার্ম করে নেওয়া উচিত মোছার আগে, কিন্তু প্রাথমিক
+  স্ক্যানে ব্যবহৃত হচ্ছে না বলেই মনে হয়েছে)।
+
+### নোট
+- `docs/PROJECT_MAP.md` আপডেট করা হয়নি এখনো — Part 3 শেষে (পুরো কাজ DONE
+  হলে) সেখানে `client/src/lib/icons.ts`-এর একটা এন্ট্রি যোগ করা উচিত
+  ("Reusable building blocks"-এর প্যাটার্নে), যাতে ভবিষ্যতে কোনো নতুন
+  ফিচারে আইকন লাগলে এজেন্ট সরাসরি raw emoji-তে ফিরে না যায়।
+- প্রতিটা ভাগ শেষে `npm run check` পাস করার পরই zip+CMD ডেলিভার হচ্ছে
+  (ব্যবহারকারীর ডেলিভারি-নিয়ম অনুযায়ী) — fail করলে থেমে যাবে, commit/push
+  হবে না। Part 1-এর zip ইতিমধ্যে ব্যবহারকারীকে দেওয়া হয়েছে, ফলাফল
+  (`npm run check` পাস/ফেল) এখনো এই সেশনে জানানো হয়নি — Part 2 শুরুর আগে
+  সেটা কনফার্ম হওয়া ভালো, কিন্তু user যদি সরাসরি "Part 2 করো" বলেন, ধরে
+  নেওয়া যাবে Part 1 সফল হয়েছে।
+
+---
+
+## Status: IN_PROGRESS
+
 ## Task: প্ল্যাটফর্ম সেলফ-সার্ভিস বিলিং — প্রতিষ্ঠান নিজে মাসিক সাবস্ক্রিপশন
 বিল বিকাশে পরিশোধ করবে (ad-hoc, BUSINESS_READINESS_ROADMAP.md-এর কোনো
 Phase-এর সাথে মেলে না — দিকটা Phase 8E/8F-এর উল্টো: institution -> platform,
