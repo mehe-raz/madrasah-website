@@ -289,6 +289,26 @@ export const api = {
   deleteStudent: (id: number) =>
     request<{ ok: boolean }>(`/students/${id}`, { method: "DELETE" }),
 
+  // Reports > কল-লিস্ট ফিচার (docs/CALL_LIST_PLAN.md, Phase 1 backend
+  // already done — this is the client wiring for Phase 2). `month` is
+  // always 'YYYY-MM'.
+  getCallLog: (month: string) =>
+    request<{ studentId: number; calledBy: number | null; calledAt: string }[]>(
+      `/students/call-log?month=${encodeURIComponent(month)}`
+    ),
+
+  markStudentCalled: (id: number, month: string) =>
+    request<{ studentId: number; callMonth: string; called: boolean }>(`/students/${id}/call-log`, {
+      method: "POST",
+      body: JSON.stringify({ month }),
+    }),
+
+  unmarkStudentCalled: (id: number, month: string) =>
+    request<{ studentId: number; callMonth: string; called: boolean }>(
+      `/students/${id}/call-log?month=${encodeURIComponent(month)}`,
+      { method: "DELETE" }
+    ),
+
   createGuardianAccountForStudent: (id: number) =>
     request<{ ok: boolean; mobile: string; password: string | null; message: string }>(
       `/students/${id}/guardian-account`,

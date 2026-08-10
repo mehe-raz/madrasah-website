@@ -32,6 +32,7 @@ const PaymentGatewaySettings = lazy(() =>
   import("./modules/PaymentGatewaySettings").then((m) => ({ default: m.PaymentGatewaySettings }))
 );
 const Reports = lazy(() => import("./modules/Reports").then((m) => ({ default: m.Reports })));
+const CallListView = lazy(() => import("./modules/reports/CallListView").then((m) => ({ default: m.CallListView })));
 const Results = lazy(() => import("./modules/Results").then((m) => ({ default: m.Results })));
 const Settings = lazy(() => import("./modules/Settings").then((m) => ({ default: m.Settings })));
 const SmsSettings = lazy(() => import("./modules/SmsSettings").then((m) => ({ default: m.SmsSettings })));
@@ -156,6 +157,18 @@ export default function App() {
                   element={
                     <PlanFeatureGate feature="reportsExport">
                       <Reports />
+                    </PlanFeatureGate>
+                  }
+                />
+                {/* Reports > "কল লিস্ট" full-page view (docs/CALL_LIST_PLAN.md,
+                    Phase 2) — reuses the same reportsExport plan gate as
+                    /reports above; the underlying student data itself is
+                    already gated server-side by the "students" permission. */}
+                <Route
+                  path="reports/call-list/:kind"
+                  element={
+                    <PlanFeatureGate feature="reportsExport">
+                      <CallListView />
                     </PlanFeatureGate>
                   }
                 />

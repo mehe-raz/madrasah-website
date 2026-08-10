@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ReportDateFilter } from "../components/ReportDateFilter";
 import { defaultReportRange, type ReportRange } from "../lib/reportRange";
 import type { ReportKind } from "../lib/exportReports";
@@ -35,8 +36,16 @@ const reports: { title: string; kind: ReportKind; icon: IconKey; desc: string; c
   { title: "হিফজ রিপোর্ট", kind: "hifz", icon: "hifz", desc: "ছাত্রদের হিফজ অগ্রগতি", color: C.sky },
 ];
 
+// Reports > "কল লিস্ট" ফিচার (docs/CALL_LIST_PLAN.md): these two report
+// kinds no longer export directly from the card click — they open the new
+// full-page CallListView first (Back/Exit, call button, called/not-called
+// mark), which is where print/CSV now live for them. The other four kinds
+// (attendance/income/expenses/hifz) are unchanged.
+const CALL_LIST_KINDS: ReportKind[] = ["students", "due"];
+
 export function Reports() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const role = user?.role || "";
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +86,7 @@ export function Reports() {
         {reports.map((r) => {
           const allowed = canAccess(role, REPORT_PERMISSION[r.kind]);
           const disabled = loading !== null || !allowed;
+          const isCallList = CALL_LIST_KINDS.includes(r.kind);
           return (
             <Card key={r.title} className="report-card" style={{ opacity: allowed ? 1 : 0.55 }}>
               <div className="report-card__icon">{(() => { const RIcon = Icons[r.icon]; return <RIcon size={32} aria-hidden="true" />; })()}</div>
@@ -86,26 +96,42 @@ export function Reports() {
                 {/* Each report kind has its own accent color (r.color) —
                     per-instance data, so it can't be a static CSS class.
                     Documented exception, see AGENTS.md Design System section. */}
-                <button
-                  type="button"
-                  disabled={disabled}
-                  title={allowed ? undefined : "অনুমতি নেই"}
-                  onClick={() => handleExport(r.kind, "print")}
-                  className="report-card__btn"
-                  // eslint-disable-next-line no-restricted-syntax -- dynamic per-report accent color, see comment above
-                  style={{ background: r.color + "18", color: r.color, border: `1px solid ${r.color}40` }}
-                >
-                  {loading === `${r.kind}-print` ? "…" : (<><Icons.printer size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />প্রিন্ট</>)}
-                </button>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  title={allowed ? undefined : "অনুমতি নেই"}
-                  onClick={() => handleExport(r.kind, "excel")}
-                  className="report-card__btn report-card__btn--csv"
-                >
-                  {loading === `${r.kind}-excel` ? "…" : "CSV"}
-                </button>
+                {isCallList ? (
+                  <button
+                    type="button"
+                    disabled={!allowed}
+                    title={allowed ? undefined : "অনুমতি নেই"}
+                    onClick={() => navigate(`/reports/call-list/${r.kind}`)}
+                    className="report-card__btn"
+                    // eslint-disable-next-line no-restricted-syntax -- dynamic per-report accent color, see comment above
+                    style={{ background: r.color + "18", color: r.color, border: `1px solid ${r.color}40` }}
+                  >
+                    কল লিস্ট দেখুন
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      title={allowed ? undefined : "অনুমতি নেই"}
+                      onClick={() => handleExport(r.kind, "print")}
+                      className="report-card__btn"
+                      // eslint-disable-next-line no-restricted-syntax -- dynamic per-report accent color, see comment above
+                      style={{ background: r.color + "18", color: r.color, border: `1px solid ${r.color}40` }}
+                    >
+                      {loading === `${r.kind}-print` ? "…" : (<><Icons.printer size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />প্রিন্ট</>)}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      title={allowed ? undefined : "অনুমতি নেই"}
+                      onClick={() => handleExport(r.kind, "excel")}
+                      className="report-card__btn report-card__btn--csv"
+                    >
+                      {loading === `${r.kind}-excel` ? "…" : "CSV"}
+                    </button>
+                  </>
+                )}
               </div>
             </Card>
           );

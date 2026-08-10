@@ -52,6 +52,7 @@ import {
   ChevronRight,
   UserRound,
   Palette,
+  Phone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -108,6 +109,9 @@ export const Icons = {
   attachment: Paperclip,
   childAvatar: UserRound,
   palette: Palette,
+  // Reports > কল-লিস্ট ফিচার (docs/CALL_LIST_PLAN.md, Phase 2) — green
+  // call button per row.
+  phone: Phone,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof Icons;

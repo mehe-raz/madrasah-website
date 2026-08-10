@@ -631,6 +631,149 @@ img {
   border: 1px solid var(--border);
 }
 
+/* Reports > "কল লিস্ট" full-page view (docs/CALL_LIST_PLAN.md, Phase 2) —
+   same table-row-on-desktop/stacked-card-on-mobile pattern as
+   .marks-entry-list (Results module). */
+.call-list-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.call-list-topbar__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.call-list-summary {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.call-list-card {
+  padding: 12px;
+}
+
+.call-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.call-list-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.call-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  flex-wrap: wrap;
+}
+
+.call-list-row__roll {
+  width: 44px;
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.call-list-row__name {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.call-list-row__meta {
+  width: 90px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.call-list-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.call-list-row__call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #dcfce7; /* C.emeraldL */
+  color: #047857; /* C.emeraldD */
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.call-list-row__call-btn[aria-disabled="true"] {
+  background: var(--slate-l);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.call-list-row__status-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.call-list-row__status-btn--called {
+  background: #dcfce7; /* C.emeraldL */
+  color: #047857; /* C.emeraldD */
+}
+
+.call-list-row__status-btn--not-called {
+  background: #ffe4e6; /* C.roseL */
+  color: #be123c; /* C.roseD */
+}
+
+@media (max-width: 640px) {
+  .call-list-header {
+    display: none;
+  }
+
+  .call-list-row__roll {
+    display: none;
+  }
+
+  .call-list-row__name {
+    flex-basis: 100%;
+  }
+
+  .call-list-row__meta {
+    width: auto;
+  }
+}
+
 /* Class posts module (notices/assignments broadcast) */
 .class-post-form {
   margin-bottom: 24px;

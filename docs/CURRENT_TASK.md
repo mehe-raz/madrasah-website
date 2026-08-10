@@ -131,7 +131,7 @@ Started: 2026-08-09
 পুরো পরিকল্পনা `docs/CALL_LIST_PLAN.md`-এ (ad-hoc, কোনো roadmap Phase-এর
 সাথে মেলে না — উপরের exam-type কাজের সাথেও অসম্পর্কিত, তাই আলাদা এন্ট্রি)
 
-## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2 বাকি)
+## Status: IN_PROGRESS (Phase 1, Phase 2 সম্পন্ন — Phase 3 বাকি)
 
 Started: 2026-08-10
 
@@ -176,10 +176,67 @@ Started: 2026-08-10
   `create table if not exists student_call_log (...)` স্টেটমেন্টটা
   সব tenant-এ ম্যানুয়ালি রান করা লাগবে।
 
-### Phase 2 (ফ্রন্টএন্ড: CallListView পেজ + Reports.tsx ওয়্যারিং) — বাকি
+### Phase 2 (ফ্রন্টএন্ড: CallListView পেজ + Reports.tsx ওয়্যারিং) — সম্পন্ন (2026-08-10)
+- [x] নতুন `client/src/modules/reports/CallListView.tsx` — নতুন ফোল্ডার/ফাইল।
+  - `useParams<{kind}>()` দিয়ে `/reports/call-list/:kind` (`kind` =
+    `students`|`due`, অন্য কিছু হলে `/reports`-এ redirect) রুট হ্যান্ডল করে।
+  - লোড হওয়ার সময় সমান্তরালে `api.getStudents()` (due হলে `due>0` ফিল্টার,
+    exportReports.ts-এর dueListRows-এর মতোই লজিক) ও
+    `api.getCallLog(currentMonth)` কল করে — `currentMonth()` হেল্পার
+    `YYYY-MM` জেনারেট করে।
+  - Back/Exit বাটন (`navigate("/reports")`), টাইটেল, সামারি ("মোট X জন ·
+    কল হয়েছে Y জন · বাকি Z জন"), প্রিন্ট/CSV বাটন — এই দুটো বাটন
+    **এক্সিস্টিং `exportReport(kind, format)` (lib/exportReports.ts) সরাসরি
+    reuse করে**, নতুন এক্সপোর্ট লজিক লেখা হয়নি।
+  - প্রতি ছাত্রের রো: রোল/নাম/ক্লাস (+ due হলে বকেয়া কলাম), সবুজ কল বাটন
+    (`<a href="tel:...">`, ফোন না থাকলে ডিসেবল + "নম্বর নেই" টুলটিপ,
+    `icons.ts`-এ নতুন `phone: Phone` আইকন যোগ করে), স্ট্যাটাস বাটন (সবুজ
+    check/লাল alert — ক্লিকে `api.markStudentCalled`/`unmarkStudentCalled`
+    কল করে অপটিমিস্টিক-না-হয়ে await করে state আপডেট করে)।
+  - `client/src/lib/api.ts`-এ নতুন `getCallLog`, `markStudentCalled`,
+    `unmarkStudentCalled` তিনটা মেথড যোগ (Phase 1-এর এন্ডপয়েন্ট তিনটার
+    client wiring)।
+- [x] `client/src/modules/Reports.tsx` — "ছাত্র তালিকা"/"বকেয়া তালিকা"
+  কার্ডের অ্যাকশন বাটন বদলে একটাই "কল লিস্ট দেখুন" বাটন করা হয়েছে যেটা
+  `navigate(/reports/call-list/${kind})` করে (নতুন `CALL_LIST_KINDS`
+  কনস্ট্যান্ট দিয়ে এই দুই kind চেক করা হয়)। বাকি ৪টা কার্ড
+  (attendance/income/expenses/hifz) আগের প্রিন্ট/CSV বাটন-সহ অপরিবর্তিত।
+- [x] `client/src/App.tsx` — `CallListView` lazy-imported, নতুন
+  `reports/call-list/:kind` route যোগ — `/reports`-এর মতোই একই
+  `PlanFeatureGate feature="reportsExport"`-এর ভেতরে (আন্ডারলাইং
+  ছাত্র-ডেটা আগে থেকেই সার্ভার-সাইড `students` permission দিয়ে গার্ডেড)।
+- [x] `client/src/index.css` — নতুন `.call-list-*` ক্লাস (topbar, summary,
+  card, header/row, call-btn, status-btn) — ডেস্কটপে ফ্লেক্স-রো, ≤640px-এ
+  স্ট্যাকড (marks-entry-list-এর মতোই প্যাটার্ন, কিন্তু flexbox দিয়ে —
+  কলাম-সংখ্যা kind অনুযায়ী ভ্যারিয়েবল বলে grid-template-columns এর বদলে)।
+  Design System: কোনো raw `style={{}}` নতুন native element-এ যোগ হয়নি
+  (Reports.tsx-এর বিদ্যমান per-report dynamic accent-color exception ছাড়া,
+  যেটা আগে থেকেই ছিল ও অপরিবর্তিত)।
+- **এই sandbox-এ যাচাই করা যায়নি (network/node_modules নেই):** পুরো
+  `npm run check`। ম্যানুয়ালি করা হয়েছে — সব এডিটেড/নতুন ফাইলে bracket
+  (`()`/`{}`/`[]`) ব্যালেন্স-কাউন্ট চেক (সমান পাওয়া গেছে), ইম্পোর্ট পাথ ও
+  এক্সপোর্ট করা নাম হাতে মিলিয়ে দেখা (`Icons.phone`, `Button` variant
+  `"teal"`, `Card`/`HudSpinner`/`exportReport`/`ReportRangeRequiredError`/
+  `PopupBlockedError` সব বিদ্যমান এক্সপোর্ট)। **আসল টাইপ-চেক/লিন্ট/বিল্ড
+  আপনার প্যাকেজড CMD চালানোর সময়ই প্রথম হবে** — ব্যর্থ হলে থেমে যাবে,
+  push হবে না (আপনার preference অনুযায়ী)।
+- **আপডেট (একই দিন, প্রথমবার CMD চালানোর পর):** `npm run check` চালিয়ে
+  আপনি একটা `react-hooks/set-state-in-effect` **error** পেয়েছিলেন
+  `CallListView.tsx`-এ (`setLoading(true)`/`setError(null)` সরাসরি effect
+  body-তে সিঙ্ক্রোনাসলি কল হচ্ছিল)। ফিক্স করা হয়েছে — এই দুইটা কল এখন
+  একটা আলাদা `load()` (`useCallback`) ফাংশনের ভেতরে, effect শুধু
+  `load()` কল করে একটা `eslint-disable-next-line
+  react-hooks/set-state-in-effect` কমেন্টসহ (এই কোডবেসেরই বিদ্যমান
+  প্যাটার্ন — `AuditLogs.tsx`/`InstitutionBilling.tsx`/`Fees.tsx`-এর
+  `loadDue()`-এর মতোই, "লোডিং স্টেট সাথে সাথে দেখানো ইচ্ছাকৃত" যুক্তি)।
+  একই রানে `GuardianReminders.tsx` ও `Results.tsx`-এ আরও কিছু pre-existing
+  **warning** (error না) দেখা গিয়েছিল — এগুলো এই টাস্কের কোনো ফাইল না,
+  তাই AGENTS.md Rule 1 (minimal diff) অনুযায়ী **ছোঁয়া হয়নি**, শুধু
+  উল্লেখ করে রাখা হলো যাতে পরের কেউ অবাক না হয়।
+
 ### Phase 3 (পলিশ/মোবাইল টেস্ট/ডক) — বাকি
 
-**শুরু করার নিয়ম:** ব্যবহারকারী স্পষ্টভাবে "Phase 2 শুরু কর" (বা
+**শুরু করার নিয়ম:** ব্যবহারকারী স্পষ্টভাবে "Phase 3 শুরু কর" (বা
 সমতুল্য) না বলা পর্যন্ত এগোনো যাবে না।
 
 ## Task: ফলাফল সেকশন — পরীক্ষার ধরন ফিক্সড-লিস্ট (বাংলা/ইংরেজি) + প্রতি-বিষয়ে
