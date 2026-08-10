@@ -438,6 +438,7 @@ export const en = {
     syncIssueHint: "This entry could not be saved to the server. Discard it and re-enter the admission with corrected details.",
     discardEntry: "Discard",
     printSummary: "Print summary",
+    printIdCard: "Print ID card",
     viewFullDetails: "View full details",
     hideFullDetails: "Collapse",
   },

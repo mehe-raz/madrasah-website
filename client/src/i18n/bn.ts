@@ -436,6 +436,7 @@ export const bn = {
     syncIssueHint: "এই এন্ট্রিটি সার্ভারে সংরক্ষণ করা যায়নি। বাতিল করে সঠিক তথ্য দিয়ে আবার ভর্তি করুন।",
     discardEntry: "বাতিল করুন",
     printSummary: "সংক্ষিপ্ত প্রিন্ট",
+    printIdCard: "আইডি কার্ড প্রিন্ট",
     viewFullDetails: "সম্পূর্ণ বিস্তারিত দেখুন",
     hideFullDetails: "সংক্ষিপ্ত করুন",
   },

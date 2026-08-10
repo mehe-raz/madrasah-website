@@ -21,12 +21,12 @@ function escapeHtml(value: string | number | null | undefined): string {
     .replace(/'/g, "&#39;");
 }
 
-function madrasaSettings(): { name: string; logo?: string } {
+function madrasaSettings(): { name: string; logo?: string; address?: string; phone?: string; brandColor?: string } {
   try {
     const raw = localStorage.getItem("madrasah-settings");
     if (raw) {
-      const s = JSON.parse(raw) as { name?: string; logo?: string };
-      return { name: s.name || "Madrasah ERP", logo: s.logo };
+      const s = JSON.parse(raw) as { name?: string; logo?: string; address?: string; phone?: string; brandColor?: string };
+      return { name: s.name || "Madrasah ERP", logo: s.logo, address: s.address, phone: s.phone, brandColor: s.brandColor };
     }
   } catch {
     /* ignore */
@@ -418,4 +418,155 @@ export function printResultSheet(sheet: ResultSheetOptions, targetWindow?: Windo
   `;
 
   openRawPrintWindow(`রেজাল্ট শীট - ${sheet.studentName}`, RESULT_SHEET_STYLES, body, targetWindow);
+}
+
+// ----------------------------------------------------------------------
+// Student ID card — CR80 size (85.6mm × 54mm, standard ID card size),
+// front + back, printed together on one page with a dashed cut guide so
+// it can be trimmed after printing. Own layout (not the shared admin-
+// report header) since this needs to look like an actual card, not a
+// document. Uses the institution's own brandColor (Settings > Website
+// Color) for the accent bands, falling back to a purple close to the
+// original card template this was modeled on.
+// ----------------------------------------------------------------------
+
+const ID_CARD_STYLES = `
+  @page { margin: 10mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
+    margin: 0; padding: 16px; color: #1e293b;
+    display: flex; flex-direction: column; align-items: center; gap: 8mm;
+  }
+  .id-card {
+    width: 85.6mm; height: 54mm; border-radius: 3.5mm; position: relative;
+    overflow: hidden; border: 0.3mm solid #d6d3f5; background: #fff;
+  }
+  .id-card__band {
+    position: absolute; top: 0; left: 0; right: 0; height: 17mm;
+    background: linear-gradient(120deg, var(--brand), var(--brand-soft));
+  }
+  .id-card__band--bottom { top: auto; bottom: 0; height: 6mm; }
+  .id-card__logo {
+    position: absolute; top: 2mm; left: 3mm; height: 8mm; width: 8mm;
+    object-fit: contain; border-radius: 2mm; background: #fff; padding: 1mm;
+  }
+  .id-card__org { position: absolute; top: 2.5mm; left: 12mm; right: 3mm; color: #fff; font-size: 7.5px; font-weight: 700; line-height: 1.25; }
+  .id-card__org--nologo { left: 3mm; }
+  .id-card__photo-wrap {
+    position: absolute; top: 8mm; left: 50%; transform: translateX(-50%);
+    width: 21mm; height: 21mm; border-radius: 50%; background: #fff;
+    padding: 1mm; box-shadow: 0 0 0 0.4mm var(--brand);
+  }
+  .id-card__photo { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; background: #f1f5f9; }
+  .id-card__initials {
+    width: 100%; height: 100%; border-radius: 50%; background: #f1f5f9; color: var(--brand);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800;
+  }
+  .id-card__name { position: absolute; top: 31mm; left: 3mm; right: 3mm; text-align: center; font-size: 11.5px; font-weight: 800; color: #0f172a; }
+  .id-card__facts {
+    position: absolute; top: 37mm; left: 5mm; right: 5mm; font-size: 8px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1mm 3mm;
+  }
+  .id-card__facts .k { color: #64748b; }
+  .id-card__facts .k b { color: #0f172a; }
+  .id-card__idno { position: absolute; bottom: 0; left: 0; right: 0; height: 6mm; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 7.5px; font-weight: 700; letter-spacing: 0.3px; }
+
+  .id-card--back { padding: 4mm 4mm 8mm; }
+  .id-card--back .id-card__org { position: static; color: #0f172a; text-align: center; font-size: 8.5px; }
+  .id-card--back .id-card__org div.sub { color: #64748b; font-weight: 500; font-size: 7px; margin-top: 0.5mm; }
+  .id-card__rules { list-style: none; margin: 3mm 0 0; padding: 0; font-size: 6.8px; color: #334155; line-height: 1.5; }
+  .id-card__rules li { padding-left: 3mm; position: relative; margin-bottom: 1mm; }
+  .id-card__rules li::before { content: "•"; position: absolute; left: 0; color: var(--brand); font-weight: 800; }
+  .id-card__guardian { margin-top: 2.5mm; font-size: 7.5px; color: #334155; }
+  .id-card__guardian b { color: #0f172a; }
+  .id-card__sign { position: absolute; bottom: 2mm; right: 5mm; text-align: center; font-size: 6.8px; color: #64748b; }
+  .id-card__sign .line { width: 26mm; border-top: 0.3mm solid #94a3b8; margin-bottom: 1mm; }
+
+  .id-card-cut { font-size: 9px; color: #94a3b8; border-top: 0.3mm dashed #cbd5e1; width: 85.6mm; text-align: center; padding-top: 2mm; }
+`;
+
+export interface IdCardOptions {
+  studentPhoto?: string;
+  name: string;
+  class: string;
+  section?: string;
+  roll: string;
+  session?: string;
+  blood?: string;
+  admissionNumber?: string;
+  guardianName?: string;
+  guardianMobile?: string;
+  village?: string;
+  upazila?: string;
+  district?: string;
+}
+
+/** Print a two-sided student ID card (CR80 size, front + back). */
+export function printStudentIdCard(student: IdCardOptions, targetWindow?: Window | null) {
+  const settings = madrasaSettings();
+  const brand = settings.brandColor || "#6d28d9";
+  const initials = (student.name || "").trim().slice(0, 1) || "?";
+  const classLine = [student.class, student.section].filter(Boolean).join(" - ");
+  const address = [student.village, student.upazila, student.district].filter(Boolean).join(", ");
+
+  const front = `
+    <div class="id-card">
+      <div class="id-card__band"></div>
+      ${settings.logo ? `<img class="id-card__logo" src="${escapeHtml(settings.logo)}" alt="">` : ""}
+      <div class="id-card__org ${settings.logo ? "" : "id-card__org--nologo"}">${escapeHtml(settings.name)}<br>ছাত্র পরিচয়পত্র</div>
+      <div class="id-card__photo-wrap">
+        ${
+          student.studentPhoto
+            ? `<img class="id-card__photo" src="${escapeHtml(student.studentPhoto)}" alt="">`
+            : `<div class="id-card__initials">${escapeHtml(initials)}</div>`
+        }
+      </div>
+      <div class="id-card__name">${escapeHtml(student.name || "")}</div>
+      <div class="id-card__facts">
+        <div class="k">ক্লাস: <b>${escapeHtml(classLine || "-")}</b></div>
+        <div class="k">রোল: <b>${escapeHtml(student.roll || "-")}</b></div>
+        <div class="k">সেশন: <b>${escapeHtml(student.session || "-")}</b></div>
+        <div class="k">রক্তের গ্রুপ: <b>${escapeHtml(student.blood || "-")}</b></div>
+      </div>
+      <div class="id-card__band id-card__band--bottom"></div>
+      <div class="id-card__idno">আইডি নং: ${escapeHtml(student.admissionNumber || "-")}</div>
+    </div>
+  `;
+
+  const back = `
+    <div class="id-card id-card--back">
+      <div class="id-card__org">
+        ${escapeHtml(settings.name)}
+        <div class="sub">${escapeHtml([settings.address, settings.phone].filter(Boolean).join(" · "))}</div>
+      </div>
+      <ul class="id-card__rules">
+        <li>এই পরিচয়পত্রটি প্রতিষ্ঠানের সম্পত্তি — মেয়াদ শেষে ফেরত দিতে হবে।</li>
+        <li>কার্ডটি সবসময় সাথে রাখুন এবং চাওয়ামাত্র দেখাতে হবে।</li>
+        <li>হারিয়ে গেলে অবিলম্বে প্রতিষ্ঠানের অফিসে জানান।</li>
+      </ul>
+      <div class="id-card__guardian">
+        অভিভাবক: <b>${escapeHtml(student.guardianName || "-")}</b> · মোবাইল: <b>${escapeHtml(student.guardianMobile || "-")}</b>
+        ${address ? `<br>ঠিকানা: ${escapeHtml(address)}` : ""}
+      </div>
+      <div class="id-card__sign"><div class="line"></div>অধ্যক্ষের স্বাক্ষর</div>
+    </div>
+  `;
+
+  const body = `${front}${back}<div class="id-card-cut">✂ কেটে নিন — Front / Back</div>`;
+
+  const w = targetWindow ?? window.open("", "_blank", "width=520,height=760");
+  if (!w) throw new PopupBlockedError();
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>আইডি কার্ড - ${escapeHtml(student.name || "")}</title>
+    <style>:root{--brand:${brand};--brand-soft:${brand}cc;}${ID_CARD_STYLES}</style></head><body>${body}</body></html>`;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  // See the matching comment in writePrintWindow() — must stay an onload
+  // handler set from the opener's JS context, not an inline <script>,
+  // because of this app's CSP.
+  w.onload = () => {
+    w.focus();
+    w.print();
+  };
 }

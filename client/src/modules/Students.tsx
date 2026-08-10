@@ -9,7 +9,7 @@ import { classTreeLabel, findClassTreePath } from "../lib/classTree";
 import { fmt } from "../lib/fmt";
 import { deptCodeFromTreeTopLevel, deptLabel, typeLabel } from "../lib/labels";
 import { getOutboxEntriesFor, removeOutboxEntry, type OutboxEntry } from "../lib/offlineDb";
-import { printAdmissionForm, printAdmissionSummary, printReportTable } from "../lib/printReport";
+import { printAdmissionForm, printAdmissionSummary, printReportTable, printStudentIdCard } from "../lib/printReport";
 import { C } from "../theme/colors";
 import type { Student, StudentDocuments } from "../types";
 import { useAppSettings } from "../context/AppSettingsContext";
@@ -410,7 +410,10 @@ export function Students() {
         setViewing(result.data);
         setShowForm(false);
         setStep(0);
-        if (printWindow) printAdmissionForm(result.data, printWindow);
+        // Auto-generate the student's ID card the moment the account is
+        // created — same popup opened synchronously above (before the
+        // await), so the browser doesn't treat it as a blocked popup.
+        if (printWindow) printStudentIdCard(result.data, printWindow);
       }
     } catch (err) {
       if (printWindow && !printWindow.closed) printWindow.close();
@@ -903,6 +906,7 @@ export function Students() {
               </div>
               <div className="row row--gap-8 row--wrap row--ml-auto">
                 <Button variant="sky" solid onClick={() => printAdmissionSummary(viewing)}>{t.students.printSummary}</Button>
+                <Button variant="violet" solid onClick={() => printStudentIdCard(viewing)}>{t.students.printIdCard}</Button>
                 <Button variant="sky" solid onClick={printHistory}>{t.common.print} হিস্ট্রি</Button>
                 <Button variant="teal" onClick={connectGuardian} disabled={guardianAccountLoading}>
                   {guardianAccountLoading ? "..." : "গার্ডিয়ান অ্যাকাউন্ট তৈরি করুন"}
