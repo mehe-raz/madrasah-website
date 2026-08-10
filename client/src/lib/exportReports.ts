@@ -5,6 +5,7 @@ import type { Expense, IncomeEntry, Student } from "../types";
 export type ReportKind =
   | "students"
   | "due"
+  | "risk"
   | "attendance"
   | "income"
   | "expenses"
@@ -13,6 +14,7 @@ export type ReportKind =
 const REPORT_TITLES: Record<ReportKind, string> = {
   students: "Student List",
   due: "Due List",
+  risk: "Risk Zone Report",
   attendance: "Attendance Report",
   income: "Income Report",
   expenses: "Expense Report",
@@ -47,6 +49,7 @@ export class ReportRangeRequiredError extends Error {
 const RANGE_FILTERED: Record<ReportKind, boolean> = {
   students: false,
   due: false,
+  risk: false,
   attendance: true,
   income: true,
   expenses: true,
@@ -85,6 +88,14 @@ function studentListRows(students: Student[]) {
 function dueListRows(students: Student[]) {
   const header = ["Roll", "Name", "Dept", "Monthly Fee", "Due", "Phone"];
   const body = students.map((s) => [s.roll, s.name, s.dept, s.fee, s.due, s.phone]);
+  return { header, body };
+}
+
+// Same shape as dueListRows plus the server-computed "Months Unpaid" column
+// (see server/src/routes/students.js's riskOnly branch, docs/RISK_ZONE_PLAN.md).
+function riskListRows(students: Student[]) {
+  const header = ["Roll", "Name", "Dept", "Monthly Fee", "Due", "Months Unpaid", "Phone"];
+  const body = students.map((s) => [s.roll, s.name, s.dept, s.fee, s.due, s.monthsUnpaid ?? "", s.phone]);
   return { header, body };
 }
 
@@ -134,6 +145,17 @@ export async function exportReport(kind: ReportKind, format: "print" | "excel", 
   if (kind === "due") {
     const students = (await api.getStudents()).filter((s) => s.due > 0);
     const { header, body } = dueListRows(students);
+    if (format === "excel") exportExcelSheet([header, ...body], csvName(kind, range));
+    else printReportTable({ title: title + period, headers: header, rows: body });
+    return;
+  }
+
+  if (kind === "risk") {
+    // Server-side filter (riskOnly=1) — see api.getStudents — rather than a
+    // client-side due>0 style filter like "due", since the threshold here
+    // (FLOOR(due/fee) >= 2) needs `fee` too and is already computed in SQL.
+    const students = await api.getStudents({ riskOnly: true });
+    const { header, body } = riskListRows(students);
     if (format === "excel") exportExcelSheet([header, ...body], csvName(kind, range));
     else printReportTable({ title: title + period, headers: header, rows: body });
     return;

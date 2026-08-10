@@ -106,6 +106,7 @@ export const en = {
     totalDue: "Total Due",
     monthlyExpense: "Monthly Expense",
     todayAttendance: "Today's Attendance",
+    riskZone: "Risk Zone",
     residentialSub: "{count} residential",
     totalPercent: "{percent}% of total",
     monthLabel: "Current month",

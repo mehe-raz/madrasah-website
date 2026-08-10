@@ -21,6 +21,7 @@ import { Icons, type IconKey } from "../lib/icons";
 const REPORT_PERMISSION: Record<ReportKind, Permission> = {
   students: "students",
   due: "students",
+  risk: "students",
   attendance: "reports",
   income: "income",
   expenses: "expenses",
@@ -30,18 +31,20 @@ const REPORT_PERMISSION: Record<ReportKind, Permission> = {
 const reports: { title: string; kind: ReportKind; icon: IconKey; desc: string; color: string }[] = [
   { title: "ছাত্র তালিকা", kind: "students", icon: "students", desc: "সকল ছাত্রের বিস্তারিত তালিকা", color: C.teal },
   { title: "বকেয়া তালিকা", kind: "due", icon: "alertTriangle", desc: "যেসব ছাত্রের বেতন বাকি আছে", color: C.rose },
+  { title: "রিস্ক জোন", kind: "risk", icon: "alertTriangle", desc: "২+ মাস বেতন বকেয়া ছাত্র", color: C.rose },
   { title: "হাজিরা রিপোর্ট", kind: "attendance", icon: "attendance", desc: "নির্বাচিত তারিখের হাজিরা", color: C.amber },
   { title: "আয় রিপোর্ট", kind: "income", icon: "income", desc: "নির্বাচিত সময়ের আয়", color: C.emerald },
   { title: "ব্যয় রিপোর্ট", kind: "expenses", icon: "expenses", desc: "নির্বাচিত সময়ের ব্যয়", color: C.violet },
   { title: "হিফজ রিপোর্ট", kind: "hifz", icon: "hifz", desc: "ছাত্রদের হিফজ অগ্রগতি", color: C.sky },
 ];
 
-// Reports > "কল লিস্ট" ফিচার (docs/CALL_LIST_PLAN.md): these two report
-// kinds no longer export directly from the card click — they open the new
-// full-page CallListView first (Back/Exit, call button, called/not-called
-// mark), which is where print/CSV now live for them. The other four kinds
+// Reports > "কল লিস্ট" ফিচার (docs/CALL_LIST_PLAN.md) + "রিস্ক জোন"
+// (docs/RISK_ZONE_PLAN.md Phase 2): these report kinds no longer export
+// directly from the card click — they open the full-page CallListView first
+// (Back/Exit, call button, called/not-called mark), which is where
+// print/CSV now live for them. The other four kinds
 // (attendance/income/expenses/hifz) are unchanged.
-const CALL_LIST_KINDS: ReportKind[] = ["students", "due"];
+const CALL_LIST_KINDS: ReportKind[] = ["students", "due", "risk"];
 
 export function Reports() {
   const { user } = useAuth();

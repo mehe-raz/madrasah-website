@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -34,6 +35,8 @@ const EMPTY_DASHBOARD: DashboardData = {
     monthlyExpense: 0,
     attendance: "0/0",
     attendancePct: "0",
+    riskCount: 0,
+    riskTotalDue: 0,
   },
   incomeData: [],
   incomeByCategory: [],
@@ -47,6 +50,7 @@ const logIcon = (icon: string): IconKey =>
 
 export function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { t, tr } = useLanguage();
   const [data, setData] = useState<DashboardData>(EMPTY_DASHBOARD);
   const [loadError, setLoadError] = useState(false);
@@ -121,6 +125,14 @@ export function Dashboard() {
         <StatCard label={t.dashboard.residential} value={String(stats.residential)} icon="dashboard" color={C.emerald} sub={tr("dashboard.totalPercent", { percent: stats.total ? Math.round((stats.residential / stats.total) * 100) : 0 })} />
         <StatCard label={t.dashboard.monthlyIncome} value={fmt(stats.monthlyIncome)} icon="income" color={C.sky} sub={t.dashboard.monthLabel} />
         <StatCard label={t.dashboard.totalDue} value={fmt(stats.totalDue)} icon="alertTriangle" color={C.rose} sub={tr("dashboard.dueStudents", { count: stats.dueCount })} />
+        <StatCard
+          label={t.dashboard.riskZone}
+          value={String(stats.riskCount)}
+          icon="alertTriangle"
+          color={C.rose}
+          sub={fmt(stats.riskTotalDue)}
+          onClick={() => navigate("/reports/call-list/risk")}
+        />
         <StatCard label={t.dashboard.monthlyExpense} value={fmt(stats.monthlyExpense)} icon="expenses" color={C.amber} sub={t.dashboard.monthLabel} />
         <StatCard label={t.dashboard.todayAttendance} value={stats.attendance} icon="attendance" color={C.violet} sub={`${stats.attendancePct}%`} />
       </div>

@@ -219,12 +219,16 @@ export const api = {
 
   getDashboard: () => request<DashboardData>("/dashboard"),
 
-  getStudents: (params?: { dept?: string; search?: string; status?: string; class?: string }) => {
+  getStudents: (params?: { dept?: string; search?: string; status?: string; class?: string; riskOnly?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.dept) qs.set("dept", params.dept);
     if (params?.search) qs.set("search", params.search);
     if (params?.status) qs.set("status", params.status);
     if (params?.class) qs.set("class", params.class);
+    // riskOnly: "রিস্ক জোন" — server-side FLOOR(due/fee) >= 2 filter (see
+    // server/src/routes/students.js), reused by CallListView's "risk" kind
+    // and exportReports.ts instead of re-deriving the threshold in JS.
+    if (params?.riskOnly) qs.set("riskOnly", "1");
     const q = qs.toString();
     return request<Student[]>(`/students${q ? `?${q}` : ""}`);
   },

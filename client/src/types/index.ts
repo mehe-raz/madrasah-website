@@ -18,6 +18,9 @@ export interface Student {
   type: string;
   fee: number;
   due: number;
+  // Computed by the server (FLOOR(due/fee), NULL-safe for fee=0) on every
+  // GET /api/students response — see server/src/routes/students.js.
+  monthsUnpaid?: number;
   admissionFee?: number;
   discount?: number;
   phone: string;
@@ -389,6 +392,10 @@ export interface DashboardData {
     monthlyExpense: number;
     attendance: string;
     attendancePct: string;
+    // "রিস্ক জোন" — active students with an estimated 2+ months unpaid
+    // (see server/src/routes/dashboard.js, docs/RISK_ZONE_PLAN.md Phase 1).
+    riskCount: number;
+    riskTotalDue: number;
   };
   incomeData: { month: string; income: number; expense: number }[];
   incomeByCategory?: { category: string; total: number }[];

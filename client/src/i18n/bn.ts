@@ -104,6 +104,7 @@ export const bn = {
     totalDue: "মোট বকেয়া",
     monthlyExpense: "মাসিক ব্যয়",
     todayAttendance: "আজকের হাজিরা",
+    riskZone: "রিস্ক জোন",
     residentialSub: "{count} জন আবাসিক",
     totalPercent: "মোটের {percent}%",
     monthLabel: "চলতি মাস",

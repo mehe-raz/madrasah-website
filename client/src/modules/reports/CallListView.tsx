@@ -15,7 +15,7 @@ import type { Student } from "../../types";
 // handleExport below, which reuses exportReport() as-is — no new export
 // logic written here).
 
-type CallListKind = "students" | "due";
+type CallListKind = "students" | "due" | "risk";
 
 function currentMonth(): string {
   const now = new Date();
@@ -34,12 +34,13 @@ function cleanPhone(phone: string): string {
 const TITLES: Record<CallListKind, string> = {
   students: "কল লিস্ট — ছাত্র তালিকা",
   due: "কল লিস্ট — বকেয়া তালিকা",
+  risk: "কল লিস্ট — রিস্ক জোন (২+ মাস বকেয়া)",
 };
 
 export function CallListView() {
   const { kind: kindParam } = useParams<{ kind: string }>();
   const navigate = useNavigate();
-  const kind: CallListKind = kindParam === "due" ? "due" : "students";
+  const kind: CallListKind = kindParam === "due" ? "due" : kindParam === "risk" ? "risk" : "students";
   const month = useMemo(() => currentMonth(), []);
 
   const [students, setStudents] = useState<Student[]>([]);
@@ -58,7 +59,11 @@ export function CallListView() {
     setLoading(true);
     setError(null);
     let cancelled = false;
-    Promise.all([api.getStudents(), api.getCallLog(month)])
+    // "risk" uses the server-side riskOnly filter (FLOOR(due/fee) >= 2,
+    // see server/src/routes/students.js) rather than a client-side filter
+    // like "due" — the threshold needs `fee` alongside `due`, and the
+    // server already computes it once via `monthsUnpaid`.
+    Promise.all([api.getStudents(kind === "risk" ? { riskOnly: true } : undefined), api.getCallLog(month)])
       .then(([allStudents, callLog]) => {
         if (cancelled) return;
         setStudents(kind === "due" ? allStudents.filter((s) => s.due > 0) : allStudents);
@@ -78,7 +83,7 @@ export function CallListView() {
   useEffect(() => {
     // Invalid/missing :kind (anything other than "students"/"due") — send
     // back to the Reports grid rather than rendering a broken page.
-    if (kindParam !== "students" && kindParam !== "due") {
+    if (kindParam !== "students" && kindParam !== "due" && kindParam !== "risk") {
       navigate("/reports", { replace: true });
       return;
     }
@@ -170,7 +175,8 @@ export function CallListView() {
                 <span className="call-list-row__roll">রোল</span>
                 <span className="call-list-row__name">নাম</span>
                 <span className="call-list-row__meta">ক্লাস</span>
-                {kind === "due" && <span className="call-list-row__meta">বকেয়া</span>}
+                {(kind === "due" || kind === "risk") && <span className="call-list-row__meta">বকেয়া</span>}
+                {kind === "risk" && <span className="call-list-row__meta">কত মাস বকেয়া</span>}
                 <span className="call-list-row__actions">কল / স্ট্যাটাস</span>
               </div>
 
@@ -183,7 +189,8 @@ export function CallListView() {
                     <span className="call-list-row__roll">{s.roll}</span>
                     <span className="call-list-row__name">{s.name}</span>
                     <span className="call-list-row__meta call-list-row__meta--class">{s.class}</span>
-                    {kind === "due" && <span className="call-list-row__meta call-list-row__meta--due">{s.due}</span>}
+                    {(kind === "due" || kind === "risk") && <span className="call-list-row__meta call-list-row__meta--due">{s.due}</span>}
+                    {kind === "risk" && <span className="call-list-row__meta call-list-row__meta--due">{s.monthsUnpaid ?? "—"}</span>}
                     <span className="call-list-row__actions">
                       <a
                         className="call-list-row__call-btn"

@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from "react";
 import { Card } from "./ui";
 import { Icons, type IconKey } from "../lib/icons";
 
@@ -7,12 +8,32 @@ interface StatCardProps {
   color: string;
   icon: IconKey;
   sub?: string;
+  // Optional — most stat cards are display-only. When provided, the card
+  // becomes clickable (mouse + keyboard). Existing call sites that don't
+  // pass this prop are unaffected (no role/tabIndex/cursor change).
+  onClick?: () => void;
 }
 
-export function StatCard({ label, value, color, icon, sub }: StatCardProps) {
+export function StatCard({ label, value, color, icon, sub, onClick }: StatCardProps) {
   const Icon = Icons[icon];
+  const clickableProps = onClick
+    ? {
+        onClick,
+        role: "button" as const,
+        tabIndex: 0,
+        onKeyDown: (e: KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick();
+          }
+        },
+      }
+    : {};
   return (
-    <Card className="stat-card">
+    <Card
+      className={`stat-card${onClick ? " stat-card--clickable" : ""}`}
+      {...clickableProps}
+    >
       <div className="stat-card__head">
         <span className="stat-card__label">{label}</span>
         {/* Icon tint is per-instance data (a category color passed by the

@@ -18,7 +18,7 @@ the next sequential number.
 এন্ট্রির সাথে অসম্পর্কিত — আলাদা ফাইল/এলাকা, তাই আলাদা এন্ট্রি,
 AGENTS.md-এর নিয়ম অনুযায়ী পুরনো এন্ট্রি অপরিবর্তিত রাখা হয়েছে)
 
-## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2, Phase 3 বাকি)
+## Status: IN_PROGRESS (Phase 1, Phase 2 সম্পন্ন — Phase 3 বাকি)
 
 Started: 2026-08-10
 
@@ -49,8 +49,70 @@ Started: 2026-08-10
   `npm run check`, আসল DB-তে হিসাবটা সঠিক আসছে কিনা — ব্যবহারকারীর
   প্যাকেজড CMD চালানোর সময় প্রথম যাচাই হবে।
 
-### Phase 2 (ফ্রন্টএন্ড: ড্যাশবোর্ড কার্ড + রিস্ক-জোন লিস্ট ভিউ) — এখনো শুরু হয়নি
+### Phase 2 (ফ্রন্টএন্ড: ড্যাশবোর্ড কার্ড + রিস্ক-জোন লিস্ট ভিউ) — সম্পন্ন (2026-08-11)
+- [x] `client/src/types/index.ts` — `DashboardData.stats`-এ `riskCount`/
+  `riskTotalDue` (Phase 1-এর API রেসপন্সের সাথে মিলিয়ে), `Student`-এ
+  অপশনাল `monthsUnpaid` যোগ (সব `GET /api/students` রেসপন্সে সার্ভার এখন
+  এটা পাঠায়, `dueOnly`/`riskOnly` নির্বিশেষে)।
+- [x] `client/src/lib/api.ts` — `getStudents()`-এ নতুন `riskOnly?: boolean`
+  প্যারামিটার (কোয়েরি স্ট্রিং-এ `riskOnly=1`)।
+- [x] `client/src/components/StatCard.tsx` — অপশনাল `onClick` prop যোগ।
+  দেওয়া হলে কার্ড ক্লিকযোগ্য হয় (`role="button"`, `tabIndex=0`,
+  Enter/Space-এ কীবোর্ড ট্রিগার সহ) — প্ল্যানের ধারা ৩-এ রাখা a11y কাজের
+  একটা ছোট অংশ (keyboard-focusable) এখানেই যোগ করা হয়েছে, কারণ ক্লিকযোগ্য
+  বানানোর সাথেই এটা লাগে (নাহলে মাউস-ছাড়া ব্যবহারকারীর জন্য দিনের শুরুতেই
+  ভাঙা থাকত) — বাকি `aria-label` কাস্টমাইজেশন/এম্পটি-স্টেট পলিশ এখনো
+  Phase 3-এ। বিদ্যমান সব কল-সাইট (যেগুলো `onClick` পাস করে না) অপরিবর্তিত
+  আচরণ করে।
+- [x] `client/src/index.css` — নতুন `.stat-card--clickable` ক্লাস
+  (hover/focus-visible-এ সামান্য lift + shadow, `--ring` var না থাকলে
+  `currentColor` ফলব্যাক আউটলাইন)।
+- [x] `client/src/modules/Dashboard.tsx` — `useNavigate` যোগ, "মোট বকেয়া"
+  কার্ডের ঠিক পাশে নতুন "রিস্ক জোন" StatCard (`riskCount`/`riskTotalDue`,
+  rose রঙ, `alertTriangle` আইকন — due কার্ডের প্যাটার্নেই), ক্লিকে
+  `/reports/call-list/risk`-এ নেভিগেট করে।
+- [x] `client/src/i18n/bn.ts` + `en.ts` — `dashboard.riskZone` কী (দুই
+  ফাইলে key-parity বজায় রেখে)।
+- [x] `client/src/lib/exportReports.ts` — `ReportKind` ইউনিয়নে `"risk"`,
+  `REPORT_TITLES`/`RANGE_FILTERED`-এ এন্ট্রি (due-এর মতোই date-range-filtered
+  না), নতুন `riskListRows()` (due-এর কলামের পাশে `monthsUnpaid` অতিরিক্ত),
+  `exportReport()`-এ risk ব্র্যাঞ্চ — `api.getStudents({riskOnly:true})`
+  কল করে (due-এর মতো ক্লায়েন্ট-সাইড ফিল্টার না, কারণ থ্রেশহোল্ড `fee`ও
+  লাগে, সার্ভার ইতিমধ্যে হিসাব করে রাখে)।
+- [x] `client/src/modules/Reports.tsx` — নতুন "রিস্ক জোন" রিপোর্ট কার্ড
+  (rose, `alertTriangle`), `REPORT_PERMISSION`-এ `risk: "students"`,
+  `CALL_LIST_KINDS`-এ `"risk"` যোগ (কার্ড ক্লিকে সরাসরি এক্সপোর্ট না করে
+  কল-লিস্ট পেজে যায়, due/students-এর মতোই)।
+- [x] `client/src/modules/reports/CallListView.tsx` — `CallListKind`-এ
+  `"risk"`, `TITLES`-এ এন্ট্রি, `kindParam` ভ্যালিডেশনে যোগ। `load()`-এ
+  `kind === "risk"` হলে `api.getStudents({riskOnly: true})` (সার্ভার-সাইড
+  ফিল্টার, ইতিমধ্যে `monthsUnpaid` সহ), অন্য kind-এর লজিক অপরিবর্তিত।
+  টেবিলে `due`/`risk` দুটোতেই "বকেয়া" কলাম, শুধু `risk`-এ আলাদা "কত মাস
+  বকেয়া" কলাম (`monthsUnpaid`) অতিরিক্ত। কল-বাটন/কল-মার্কিং লজিক
+  অপরিবর্তিত (আগে থেকেই kind-নিরপেক্ষ)।
+- [x] `App.tsx`-এর রুট (`reports/call-list/:kind`) আগে থেকেই জেনেরিক —
+  কোনো পরিবর্তন লাগেনি। `icons.ts`-এ `alertTriangle` আগে থেকেই আছে।
+- [x] সব পরিবর্তিত/নতুন `.ts`/`.tsx` ফাইলে bracket balance (`()`/`{}`/`[]`)
+  স্ক্রিপ্ট দিয়ে চেক করা হয়েছে (সমান পাওয়া গেছে)। **`npm run check` এই
+  sandbox-এ চালানো যায়নি (network/node_modules নেই)** — packaged CMD-এই
+  প্রথম চলবে, আগের সব Phase-এর মতোই।
+- **`npm run check` ব্যবহারকারীর মেশিনে চালিয়ে একটা `typecheck` এরর
+  ধরা পড়েছিল (2026-08-11), এখানেই ফিক্স করা হলো:** `client/src/data/mockData.ts`-এর
+  ডেমো/মক `DashboardData.stats` অবজেক্টে নতুন `riskCount`/`riskTotalDue`
+  ফিল্ড ছিল না (Phase 1-এ টাইপ আপডেট হলেও এই মক ডেটা ফাইল মিস হয়ে
+  গিয়েছিল) — যোগ করা হলো (`riskCount: 3, riskTotalDue: 5200`, বিদ্যমান
+  `dueCount: 8`/`totalDue: 10500`-এর সাবসেট হিসেবে বাস্তবসম্মত ডামি মান)।
+  `grep -rln "dueCount:" client/src` দিয়ে যাচাই করা হয়েছে যে
+  `DashboardData.stats` অবজেক্ট লিটারেল আর কোথাও নেই (শুধু
+  `Dashboard.tsx`-এর `EMPTY_DASHBOARD`, `types/index.ts`-এর টাইপ
+  ডেফিনিশন, আর এই মক ফাইল) — তাই আর কোনো ফাইল ভাঙার শঙ্কা নেই।
+
 ### Phase 3 (যাচাই, পলিশ, এজ-কেস, ডক) — এখনো শুরু হয়নি
+বাকি: আসল ডেটায় থ্রেশহোল্ড ম্যানুয়ালি যাচাই (কয়েকজন পরিচিত ২+ মাস বকেয়া
+ছাত্র চেক করে), এজ-কেস (fee=0 বাদ পড়া, ইনঅ্যাক্টিভ বাদ পড়া, শূন্য-রেজাল্ট
+ফাঁকা-স্টেট মেসেজ), `docs/PROJECT_MAP.md`-এ এক লাইন নোট। Accessibility-এর
+বাকি অংশ (StatCard-এর জন্য কাস্টম `aria-label`, যেহেতু এখন `role="button"`
+দেওয়ার সময় বেসিক keyboard support Phase 2-তেই যোগ হয়ে গেছে)।
 
 ---
 

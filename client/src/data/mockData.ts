@@ -54,6 +54,9 @@ export const MOCK_DASHBOARD: DashboardData = {
     monthlyExpense: 45000,
     attendance: "49/53",
     attendancePct: "92.4",
+    // Subset of the due students above (mock — see docs/RISK_ZONE_PLAN.md).
+    riskCount: 3,
+    riskTotalDue: 5200,
   },
   incomeData: [
     { month: "জান", income: 48000, expense: 32000 },
