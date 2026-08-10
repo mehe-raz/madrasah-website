@@ -475,6 +475,15 @@ app.use((err, req, res, next) => {
   if (err?.code === "23503") {
     return res.status(400).json({ error: "সংশ্লিষ্ট তথ্য পাওয়া যায়নি।" });
   }
+  if (err?.code === "42P10") {
+    // "no unique or exclusion constraint matching the ON CONFLICT
+    // specification" — an upsert route (e.g. attendance) hit a database
+    // that's missing the unique index it needs. sql/supabase_schema.sql
+    // now creates that index defensively on every boot, so this should be
+    // self-healing after the next deploy/restart; surfaced as a clear
+    // message in the meantime instead of a bare 500.
+    return res.status(500).json({ error: "ডাটাবেজ কনফিগারেশন সমস্যা — সার্ভার পুনরায় চালু করার পর এটি ঠিক হয়ে যাবে। সমস্যা থাকলে অ্যাডমিনের সাথে যোগাযোগ করুন।" });
+  }
 
   res.status(err.status || err.statusCode || 500).json({
     error: err.expose ? err.message : "সার্ভারে একটি সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।",
