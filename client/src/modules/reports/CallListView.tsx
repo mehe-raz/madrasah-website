@@ -22,6 +22,15 @@ function currentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Phase 3 edge-case fix: stored phone numbers may contain spaces/dashes/
+// parens (however staff typed them at admission), or occasionally a
+// placeholder like "N/A" with no digits at all. Strip everything except
+// digits and a leading "+" so `tel:` always opens reliably, and treat a
+// value with no digits left as "no phone" rather than a broken tel: link.
+function cleanPhone(phone: string): string {
+  return phone.trim().replace(/[^\d+]/g, "");
+}
+
 const TITLES: Record<CallListKind, string> = {
   students: "কল লিস্ট — ছাত্র তালিকা",
   due: "কল লিস্ট — বকেয়া তালিকা",
@@ -167,17 +176,18 @@ export function CallListView() {
 
               {students.map((s) => {
                 const called = calledIds.has(s.id);
-                const hasPhone = Boolean(s.phone && s.phone.trim());
+                const cleanedPhone = s.phone ? cleanPhone(s.phone) : "";
+                const hasPhone = cleanedPhone.length > 0;
                 return (
                   <div className="call-list-row" key={s.id}>
                     <span className="call-list-row__roll">{s.roll}</span>
                     <span className="call-list-row__name">{s.name}</span>
-                    <span className="call-list-row__meta">{s.class}</span>
-                    {kind === "due" && <span className="call-list-row__meta">{s.due}</span>}
+                    <span className="call-list-row__meta call-list-row__meta--class">{s.class}</span>
+                    {kind === "due" && <span className="call-list-row__meta call-list-row__meta--due">{s.due}</span>}
                     <span className="call-list-row__actions">
                       <a
                         className="call-list-row__call-btn"
-                        href={hasPhone ? `tel:${s.phone}` : undefined}
+                        href={hasPhone ? `tel:${cleanedPhone}` : undefined}
                         aria-disabled={!hasPhone}
                         aria-label={hasPhone ? `${s.name}-কে কল করুন` : "নম্বর নেই"}
                         title={hasPhone ? s.phone : "নম্বর নেই"}

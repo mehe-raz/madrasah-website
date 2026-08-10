@@ -761,8 +761,15 @@ img {
     display: none;
   }
 
+  /* Phase 3 polish: keep roll visible inline (prefixed to the name) instead
+     of hiding it outright — same pattern as .marks-entry-row__roll. */
   .call-list-row__roll {
-    display: none;
+    display: inline;
+    width: auto;
+  }
+
+  .call-list-row__roll::after {
+    content: " — ";
   }
 
   .call-list-row__name {
@@ -771,6 +778,18 @@ img {
 
   .call-list-row__meta {
     width: auto;
+  }
+
+  /* Without the header row, a bare class name or due amount is ambiguous on
+     mobile — prefix each with its label. */
+  .call-list-row__meta--class::before {
+    content: "ক্লাস: ";
+    color: var(--muted);
+  }
+
+  .call-list-row__meta--due::before {
+    content: "বকেয়া: ";
+    color: var(--muted);
   }
 }
 

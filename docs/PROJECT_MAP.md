@@ -224,13 +224,21 @@ Testing procedure: `docs/OFFLINE_FIRST_TESTING.md`.
 - `docs/CALL_LIST_PLAN.md` — 3-phase plan for a new "call list" view under
   Reports (student list / due list): full-page in-app list with a green
   `tel:` call button per row and a per-month called/not-called mark, backed
-  by the new `student_call_log` table. **Phase 1 (backend: table + the
-  3 `/api/students/call-log` endpoints) and Phase 2 (frontend:
-  `client/src/modules/reports/CallListView.tsx` at
+  by the new `student_call_log` table. **All 3 phases done (2026-08-10):**
+  Phase 1 (backend: table + the 3 `/api/students/call-log` endpoints),
+  Phase 2 (frontend: `client/src/modules/reports/CallListView.tsx` at
   `/reports/call-list/:kind`, wired from the "ছাত্র তালিকা"/"বকেয়া তালিকা"
-  cards in `Reports.tsx`) are done — see `docs/CURRENT_TASK.md` for the
-  exact detail.** Phase 3 (polish/mobile test/docs) has not started — wait
-  for the user to explicitly say to start it before touching it.
+  cards in `Reports.tsx`), Phase 3 (polish: mobile-width row layout keeps
+  roll/class/due labeled instead of just hiding them, `tel:` href strips
+  non-digit characters so a messily-typed phone number still dials, empty/
+  letters-only phone values are treated as "no phone" rather than a dead
+  `tel:` link, double-mark race is already covered by the table's unique
+  `(studentId, callMonth)` constraint plus a per-row disable-while-toggling
+  guard, aria-labels on the call/status buttons). List rendering is a plain
+  unvirtualized map, same as `Students.tsx` elsewhere in this codebase — not
+  a new gap. See `docs/CURRENT_TASK.md` for the exact per-file detail.
+  **Still needs the user's own real-phone `tel:` test** (can't be verified
+  from a sandbox) before calling the feature fully signed off.
 
 ---
 
