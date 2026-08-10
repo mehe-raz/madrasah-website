@@ -221,6 +221,12 @@ Testing procedure: `docs/OFFLINE_FIRST_TESTING.md`.
   `docs/CURRENT_TASK.md`'s (now archived) entry for the exact statement.
 - `docs/CURRENT_TASK.md` — **multi-part task handoff queue**. Always check
   this one regardless of task (see AGENTS.md pointer at the top of that file).
+- `docs/CALL_LIST_PLAN.md` — 3-phase plan for a new "call list" view under
+  Reports (student list / due list): full-page in-app list with a green
+  `tel:` call button per row and a per-month called/not-called mark, backed
+  by a new `student_call_log` table. **Not started yet** — waiting for the
+  user to explicitly say "শুরু কর" before Phase 1 (backend) begins. Don't
+  start it on your own initiative just because this file mentions it.
 
 ---
 
