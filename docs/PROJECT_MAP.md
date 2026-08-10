@@ -224,9 +224,11 @@ Testing procedure: `docs/OFFLINE_FIRST_TESTING.md`.
 - `docs/CALL_LIST_PLAN.md` — 3-phase plan for a new "call list" view under
   Reports (student list / due list): full-page in-app list with a green
   `tel:` call button per row and a per-month called/not-called mark, backed
-  by a new `student_call_log` table. **Not started yet** — waiting for the
-  user to explicitly say "শুরু কর" before Phase 1 (backend) begins. Don't
-  start it on your own initiative just because this file mentions it.
+  by the new `student_call_log` table. **Phase 1 (backend: table + the
+  3 `/api/students/call-log` endpoints) is done — see
+  `docs/CURRENT_TASK.md` for the exact detail.** Phase 2 (frontend) and
+  Phase 3 (polish) have not started — wait for the user to explicitly say
+  to start the next phase before touching them.
 
 ---
 

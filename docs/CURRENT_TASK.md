@@ -125,6 +125,63 @@ Started: 2026-08-09
 **শুরু করার নিয়ম (Part 4-এর জন্য):** ব্যবহারকারী চ্যাটে স্পষ্টভাবে পরের
 ভাগ শুরু করতে না বলা পর্যন্ত এগোনো যাবে না।
 
+---
+
+## Task: রিপোর্ট সেকশনে "কল লিস্ট" ভিউ (ছাত্র/বকেয়া তালিকা) — ৩ ভাগে,
+পুরো পরিকল্পনা `docs/CALL_LIST_PLAN.md`-এ (ad-hoc, কোনো roadmap Phase-এর
+সাথে মেলে না — উপরের exam-type কাজের সাথেও অসম্পর্কিত, তাই আলাদা এন্ট্রি)
+
+## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2 বাকি)
+
+Started: 2026-08-10
+
+### Phase 1 (ব্যাকএন্ড: DB + API) — সম্পন্ন (2026-08-10)
+- [x] `server/sql/supabase_schema.sql` — নতুন `student_call_log` টেবিল
+  (`studentId`, `callMonth` 'YYYY-MM', `calledBy`, `calledAt`, unique on
+  `(studentId, callMonth)`) — ইচ্ছাকৃতভাবে `users` টেবিলের ঠিক পরে বসানো
+  হয়েছে (আগে বসালে `"calledBy" references users(id)` ফেইল করত, কারণ
+  `initSchema()` পুরো ফাইলটা ওপর থেকে নিচে একটাই ব্যাচে রান করে — উপরের
+  `users` টেবিল আগে তৈরি থাকা লাগে)।
+- [x] `server/src/routes/students.js` — তিনটা নতুন এন্ডপয়েন্ট, existing
+  `router.use(requirePermission("students"))`-এর ভেতরেই (নতুন permission
+  লাগেনি):
+  - `GET /api/students/call-log?month=YYYY-MM` — ঐ মাসে কোন কোন
+    `studentId` কল হয়েছে তার লিস্ট (`{studentId, calledBy, calledAt}[]`)।
+    **এই রুটটা `/classes/list`-এর ঠিক পরে, `/:id`-এর আগে বসানো হয়েছে** —
+    আগে থাকলে Express `/call-log`-কে `/:id` (id="call-log") হিসেবে ধরে
+    ফেলত।
+  - `POST /api/students/:id/call-log` (body `{month}`) — upsert
+    (`ON CONFLICT ... DO UPDATE`), `calledBy` = `req.user.id`।
+  - `DELETE /api/students/:id/call-log?month=YYYY-MM` — আনমার্ক (ভুল
+    মার্ক হয়ে গেলে ঠিক করার জন্য)।
+  - মাস ফরম্যাট (`/^\d{4}-\d{2}$/`) তিনটাতেই ভ্যালিডেট করা হয়েছে।
+- [x] Audit log (`recordAudit`) ইচ্ছাকৃতভাবে যোগ করা হয়নি — এটা
+  বার-বার টগল হওয়া UI অ্যাকশন (staff অনেকবার ক্লিক করবে), তাই প্রতিবার
+  audit_logs-এ row লেখা অতিরিক্ত এবং কম দরকারি মনে হয়েছে। প্রয়োজন মনে
+  হলে পরে যোগ করা যাবে — এখন স্কোপে রাখা হয়নি, ব্যবহারকারীকে জানানো
+  হয়েছে।
+- [x] `node -c server/src/routes/students.js` দিয়ে সিনট্যাক্স-চেক পাস।
+  SQL ফাইলে parenthesis-ব্যালেন্স ম্যানুয়ালি চেক করা হয়েছে (162/162)।
+- **যাচাই করা যায়নি (sandbox-এ network/node_modules নেই):** পুরো
+  `npm run check`, আসল DB-তে টেবিল তৈরি হওয়া, upsert/delete আসলে কাজ
+  করা কিনা — এগুলো ব্যবহারকারীর প্যাকেজড CMD চালানোর সময় প্রথম যাচাই
+  হবে।
+- **মাল্টি-টেন্যান্ট নোট:** `MULTI_TENANT_MODE=true` থাকলে ইতিমধ্যে
+  provision হওয়া পুরনো tenant schema-গুলোতে এই নতুন টেবিল স্বয়ংক্রিয়ভাবে
+  তৈরি হবে না (`initSchema()` শুধু `public` schema-তে রান হয় — দেখুন
+  `payments` cascade fix-এর পুরনো নোট, এই ফাইলের নিচে)। নতুন
+  provision হওয়া institution ঠিকই পাবে। বর্তমানে `MULTI_TENANT_MODE`
+  off আছে বলে এখন এটা ব্লকিং না, কিন্তু চালু করার আগে এই টেবিলের জন্যও
+  Platform panel-এর tenant-migration টুল দিয়ে
+  `create table if not exists student_call_log (...)` স্টেটমেন্টটা
+  সব tenant-এ ম্যানুয়ালি রান করা লাগবে।
+
+### Phase 2 (ফ্রন্টএন্ড: CallListView পেজ + Reports.tsx ওয়্যারিং) — বাকি
+### Phase 3 (পলিশ/মোবাইল টেস্ট/ডক) — বাকি
+
+**শুরু করার নিয়ম:** ব্যবহারকারী স্পষ্টভাবে "Phase 2 শুরু কর" (বা
+সমতুল্য) না বলা পর্যন্ত এগোনো যাবে না।
+
 ## Task: ফলাফল সেকশন — পরীক্ষার ধরন ফিক্সড-লিস্ট (বাংলা/ইংরেজি) + প্রতি-বিষয়ে
 পুরো ক্লাসের bulk মার্কস-এন্ট্রি ওয়ার্কফ্লো — ৪ ভাগে বিভক্ত (ad-hoc, কোনো
 roadmap Phase-এর সাথে মেলে না)

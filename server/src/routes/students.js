@@ -148,6 +148,23 @@ router.get("/classes/list", async (_req, res) => {
   res.json(rows.map((r) => r.class));
 });
 
+const CALL_MONTH_RE = /^\d{4}-\d{2}$/;
+
+// Reports > কল-লিস্ট ফিচার (docs/CALL_LIST_PLAN.md, Phase 1).
+// Literal "/call-log" route — must stay above "/:id" below, otherwise
+// Express would match a GET here as "/:id" with id="call-log" first.
+router.get("/call-log", async (req, res) => {
+  const month = String(req.query.month || "").trim();
+  if (!CALL_MONTH_RE.test(month)) {
+    return res.status(400).json({ error: "মাস 'YYYY-MM' ফরম্যাটে দিতে হবে" });
+  }
+  const rows = await db.all(
+    `SELECT "studentId", "calledBy", "calledAt" FROM student_call_log WHERE "callMonth" = $1`,
+    [month]
+  );
+  res.json(rows);
+});
+
 router.get("/:id/attendance", async (req, res) => {
   const { from, to, month, all } = req.query;
   const isAll = String(all || "").toLowerCase() === "true" || String(all || "") === "1";
@@ -347,6 +364,38 @@ router.patch("/:id", async (req, res) => {
     if (duplicateMessage) return res.status(409).json({ error: duplicateMessage });
     throw err;
   }
+});
+
+// Reports > কল-লিস্ট ফিচার (docs/CALL_LIST_PLAN.md, Phase 1): মার্ক করা
+// ("এই মাসে কল দেওয়া হয়েছে") এবং আনমার্ক করা (ভুল করে মার্ক হয়ে গেলে)।
+router.post("/:id/call-log", async (req, res) => {
+  const month = String(req.body?.month || "").trim();
+  if (!CALL_MONTH_RE.test(month)) {
+    return res.status(400).json({ error: "মাস 'YYYY-MM' ফরম্যাটে দিতে হবে" });
+  }
+  const student = await db.get("SELECT id FROM students WHERE id = $1", [req.params.id]);
+  if (!student) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
+
+  await db.run(
+    `INSERT INTO student_call_log ("studentId", "callMonth", "calledBy", "calledAt")
+     VALUES ($1, $2, $3, now())
+     ON CONFLICT ("studentId", "callMonth")
+     DO UPDATE SET "calledBy" = EXCLUDED."calledBy", "calledAt" = now()`,
+    [student.id, month, req.user?.id || null]
+  );
+  res.json({ studentId: student.id, callMonth: month, called: true });
+});
+
+router.delete("/:id/call-log", async (req, res) => {
+  const month = String(req.query.month || "").trim();
+  if (!CALL_MONTH_RE.test(month)) {
+    return res.status(400).json({ error: "মাস 'YYYY-MM' ফরম্যাটে দিতে হবে" });
+  }
+  await db.run(
+    `DELETE FROM student_call_log WHERE "studentId" = $1 AND "callMonth" = $2`,
+    [req.params.id, month]
+  );
+  res.json({ studentId: Number(req.params.id), callMonth: month, called: false });
 });
 
 router.patch("/:id/documents", async (req, res) => {
