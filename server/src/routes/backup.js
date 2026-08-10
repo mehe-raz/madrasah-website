@@ -237,6 +237,56 @@ function toRestoreRow(row, allowedColumns) {
   return cleaned;
 }
 
+// Inserts `rows` into `table` using multi-row INSERT statements instead of
+// one INSERT per row. A restore's real cost isn't Postgres's work — it's the
+// network round trip to it (this server talks to a remote managed DB), and
+// the old code paid that round trip ~2000+ times for a typical backup
+// (1500 attendance rows alone). Batching cuts that to roughly one round
+// trip per table.
+//
+// Rows are grouped by their exact set of present columns (same idea as
+// toRestoreRow) because a single INSERT statement needs one fixed column
+// list — in practice every row of a table shares the same keys (they all
+// came from one `SELECT * FROM table` when the backup was made), so this
+// almost always ends up as a single group per table, not a fallback to
+// per-row. CHUNK_ROWS is capped by column count so a single statement never
+// approaches Postgres's ~65535 bound-parameter limit.
+async function insertRowsBatched(tx, table, rows, allowedColumns) {
+  let inserted = 0;
+  let i = 0;
+  while (i < rows.length) {
+    const first = toRestoreRow(rows[i], allowedColumns);
+    const cols = Object.keys(first);
+    if (!cols.length) {
+      i += 1;
+      continue;
+    }
+    const colKey = cols.slice().sort().join(",");
+    const chunkRows = Math.max(1, Math.min(500, Math.floor(60000 / cols.length)));
+
+    const group = [first];
+    let j = i + 1;
+    while (j < rows.length && group.length < chunkRows) {
+      const cleaned = toRestoreRow(rows[j], allowedColumns);
+      if (Object.keys(cleaned).sort().join(",") !== colKey) break;
+      group.push(cols.reduce((acc, c) => ((acc[c] = cleaned[c]), acc), {}));
+      j += 1;
+    }
+
+    const quotedCols = cols.map((c) => `"${c}"`).join(", ");
+    const values = [];
+    const rowPlaceholders = group.map((row, rIdx) => {
+      const placeholders = cols.map((_, cIdx) => `$${rIdx * cols.length + cIdx + 1}`);
+      for (const c of cols) values.push(row[c]);
+      return `(${placeholders.join(", ")})`;
+    });
+    await tx.run(`INSERT INTO ${table} (${quotedCols}) VALUES ${rowPlaceholders.join(", ")}`, values);
+    inserted += group.length;
+    i = j;
+  }
+  return inserted;
+}
+
 async function getCounts(tx, tables) {
   const counts = {};
   for (const table of tables) {
@@ -404,17 +454,7 @@ async function restoreJsonBackup(data, options = {}) {
         }
       }
       const allowedColumns = await getTableColumns(tx, table);
-      inserted[table] = 0;
-      for (const row of rows) {
-        const cleaned = toRestoreRow(row, allowedColumns);
-        const cols = Object.keys(cleaned);
-        if (!cols.length) continue;
-        const values = cols.map((col) => cleaned[col]);
-        const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
-        const quotedCols = cols.map((c) => `"${c}"`).join(", ");
-        await tx.run(`INSERT INTO ${table} (${quotedCols}) VALUES (${placeholders})`, values);
-        inserted[table] += 1;
-      }
+      inserted[table] = await insertRowsBatched(tx, table, rows, allowedColumns);
 
       // Add the acting user's account back in if the backup didn't already
       // bring back one under the same email — if it did, that's the
