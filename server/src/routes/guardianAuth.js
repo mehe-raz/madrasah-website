@@ -558,7 +558,9 @@ router.post("/students/:id/bkash/create", requirePlanFeature("bkash"), async (re
     if (!student) return res.status(404).json({ error: "Student not found" });
 
     const amount = Number(req.body?.amount);
-    if (!amount || amount <= 0) return res.status(400).json({ error: "সঠিক পরিমাণ দিন" });
+    if (!amount || amount <= 0 || !Number.isInteger(amount)) {
+      return res.status(400).json({ error: "সঠিক পরিমাণ দিন (পূর্ণ সংখ্যা, দশমিক ছাড়া)" });
+    }
     if (amount > Number(student.due || 0)) {
       return res.status(400).json({ error: "বকেয়ার চেয়ে বেশি পরিমাণ দেওয়া যাবে না" });
     }

@@ -95,6 +95,10 @@ export function Expenses() {
 
   const handleAdd = async () => {
     if (!form.cat || !form.amount) return;
+    if (!Number.isInteger(Number(form.amount))) {
+      setError("পরিমাণ পূর্ণ সংখ্যা হতে হবে (দশমিক ছাড়া)");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -199,7 +203,7 @@ export function Expenses() {
             </div>
             <div>
               <label style={{ fontSize: 12, color: C.amberD, display: "block", marginBottom: 4 }}>{t.expenses.amount}</label>
-              <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} style={{ width: "100%", border: `1px solid ${C.amber}60`, borderRadius: 6, padding: "7px 10px", fontSize: 13, boxSizing: "border-box" }} />
+              <input type="number" step="1" min="1" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} style={{ width: "100%", border: `1px solid ${C.amber}60`, borderRadius: 6, padding: "7px 10px", fontSize: 13, boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={{ fontSize: 12, color: C.amberD, display: "block", marginBottom: 4 }}>{t.expenses.note}</label>

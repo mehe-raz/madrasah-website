@@ -12,7 +12,13 @@ const { z } = require("zod");
 
 const expenseCreateSchema = z.object({
   cat: z.string().trim().min(1, "ক্যাটাগরি আবশ্যক").max(60),
-  amount: z.coerce.number().positive("সঠিক পরিমাণ আবশ্যক"),
+  // The `expenses.amount` column is `integer` (see sql/supabase_schema.sql) —
+  // without .int() here, a decimal amount (e.g. "500.50") passed validation
+  // and was only rejected by Postgres at INSERT time, as an uncaught error
+  // that surfaced to the user as a bare, unexplained "HTTP 500" with the
+  // entry never saved. Enforcing it here turns that into a clean, in-form
+  // 400 message instead.
+  amount: z.coerce.number().int("পূর্ণ সংখ্যা লিখুন (টাকা, দশমিক ছাড়া)").positive("সঠিক পরিমাণ আবশ্যক"),
   note: z.string().trim().max(300).optional().default(""),
 });
 

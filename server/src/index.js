@@ -446,6 +446,41 @@ app.use("/api/guardian-reminders", require("./routes/guardianReminders"));
 // middleware so it sees the original error.
 Sentry.setupExpressErrorHandler(app);
 
+// Final JSON error handler for every /api/* route. Without this, any error
+// thrown/rejected inside a route handler (a bad DB type coercion, a unique-
+// constraint violation, anything not already caught and turned into a clean
+// res.status(...).json({error}) by the route itself) fell through to
+// Express's DEFAULT error handler, which renders an HTML error page, not
+// JSON. The client's api.ts does `await res.json().catch(() => ({}))` on a
+// non-ok response — parsing that HTML page as JSON always fails, so every
+// single one of these came back to the user as a bare "HTTP 500" with the
+// underlying reason invisible, on every data-entry screen (attendance,
+// hifz, income, expenses, etc.) alike. This restores an ordinary JSON body
+// so callers get *some* usable message, and logs the real error server-side
+// for diagnosis. Mounted after all routes/Sentry so it only ever sees
+// errors nothing else has already handled.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  console.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, err);
+
+  // Common Postgres error codes worth a clean, specific Bangla message
+  // instead of a generic 500 — these are caller mistakes (bad input shape),
+  // not server failures, so 400 is the honest status code.
+  if (err?.code === "22P02" || err?.code === "23502") {
+    return res.status(400).json({ error: "প্রদত্ত তথ্যের ফরম্যাট সঠিক নয়। আবার চেষ্টা করুন।" });
+  }
+  if (err?.code === "23505") {
+    return res.status(409).json({ error: "এই তথ্য ইতিমধ্যে বিদ্যমান।" });
+  }
+  if (err?.code === "23503") {
+    return res.status(400).json({ error: "সংশ্লিষ্ট তথ্য পাওয়া যায়নি।" });
+  }
+
+  res.status(err.status || err.statusCode || 500).json({
+    error: err.expose ? err.message : "সার্ভারে একটি সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।",
+  });
+});
+
 if (process.env.NODE_ENV === "production") {
   const fs = require("fs");
   const { buildSeoMeta, injectSeoMeta } = require("./lib/seoMeta");

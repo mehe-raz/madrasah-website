@@ -99,7 +99,7 @@ router.put("/notification-prefs", async (req, res) => {
 router.post("/topup-request", async (req, res) => {
   const amountTaka = Number(req.body?.amountTaka);
   const trxId = String(req.body?.trxId || "").trim();
-  if (!(amountTaka > 0)) return res.status(400).json({ error: "amountTaka must be a positive number" });
+  if (!(amountTaka > 0) || !Number.isInteger(amountTaka)) return res.status(400).json({ error: "amountTaka must be a positive whole number" });
   if (!trxId) return res.status(400).json({ error: "trxId is required" });
 
   const row = await db.get(
@@ -138,7 +138,7 @@ function adminCallbackUrl(req) {
 
 router.post("/topup-via-gateway/create", async (req, res) => {
   const amountTaka = Number(req.body?.amountTaka);
-  if (!(amountTaka > 0)) return res.status(400).json({ error: "amountTaka must be a positive number" });
+  if (!(amountTaka > 0) || !Number.isInteger(amountTaka)) return res.status(400).json({ error: "amountTaka must be a positive whole number" });
 
   const gateway = await getConnectedGateway();
   if (!gateway) return res.status(503).json({ error: "প্রতিষ্ঠানের বিকাশ গেটওয়ে কানেক্টেড নেই" });

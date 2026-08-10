@@ -52,7 +52,13 @@ router.post("/", idempotent(async (req, res) => {
   if (!student) return res.status(404).json({ error: "Student not found" });
 
   const payAmount = Number(amount);
-  if (!payAmount || payAmount <= 0) return res.status(400).json({ error: "Invalid amount" });
+  // payments.amount (and income.amount, which this also writes to via the
+  // Student Fee mirror below) is an `integer` column — a decimal here would
+  // otherwise pass this check and only fail at the INSERT, surfacing as an
+  // unexplained 500 with the payment never recorded.
+  if (!payAmount || payAmount <= 0 || !Number.isInteger(payAmount)) {
+    return res.status(400).json({ error: "সঠিক পরিমাণ আবশ্যক (পূর্ণ সংখ্যা, দশমিক ছাড়া)" });
+  }
 
   const date = new Date().toISOString().slice(0, 10);
   const currentDue = Number(student.due || 0);

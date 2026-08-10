@@ -131,6 +131,10 @@ export function Income() {
       setMsg("Amount required");
       return;
     }
+    if (!Number.isInteger(amount)) {
+      setMsg("পরিমাণ পূর্ণ সংখ্যা হতে হবে (দশমিক ছাড়া)");
+      return;
+    }
     setSaving(true);
     setMsg("");
     try {
@@ -168,6 +172,10 @@ export function Income() {
     const student = selectedStudent;
     if (!student || !amount) {
       setMsg("Student and amount required");
+      return;
+    }
+    if (!Number.isInteger(amount)) {
+      setMsg("পরিমাণ পূর্ণ সংখ্যা হতে হবে (দশমিক ছাড়া)");
       return;
     }
     setSaving(true);
@@ -393,7 +401,7 @@ export function Income() {
           </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <input type="number" placeholder="Amount (BDT)" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} style={fieldStyle} />
+            <input type="number" step="1" min="1" placeholder="Amount (BDT)" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} style={fieldStyle} />
             <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} style={fieldStyle} />
             <input placeholder="Note" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} style={fieldStyle} />
             <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} style={fieldStyle}>
@@ -433,7 +441,7 @@ export function Income() {
             />
           </div>
           <label style={{ fontSize: 12, color: C.muted }}>Amount / পরিমাণ</label>
-          <input type="number" placeholder="Amount" value={studentForm.amount} onChange={(e) => setStudentForm({ ...studentForm, amount: e.target.value })} style={{ ...fieldStyle, marginBottom: 12 }} />
+          <input type="number" step="1" min="1" placeholder="Amount" value={studentForm.amount} onChange={(e) => setStudentForm({ ...studentForm, amount: e.target.value })} style={{ ...fieldStyle, marginBottom: 12 }} />
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
             {METHODS.map((m) => (
               <button key={m} type="button" onClick={() => setStudentForm({ ...studentForm, method: m })} style={{ flex: 1, minWidth: 70, border: `1px solid ${studentForm.method === m ? C.teal : C.border}`, borderRadius: 8, padding: 8, background: studentForm.method === m ? C.tealL : C.card, color: studentForm.method === m ? C.tealD : C.text, cursor: "pointer", fontSize: 12 }}>

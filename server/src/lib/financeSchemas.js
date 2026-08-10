@@ -8,9 +8,15 @@
 const { z } = require("zod");
 const { EXAM_TYPE_VALUES } = require("./examTypes");
 
+// `income.amount` (and `payments.amount`, which a Student Fee income entry
+// also writes to) is an `integer` column in sql/supabase_schema.sql. Without
+// .int(), a decimal amount (e.g. from a stray "." while typing) passed this
+// check and only failed at the database INSERT — an uncaught error that
+// reached the user as an unexplained "HTTP 500" with nothing saved, instead
+// of a normal in-form validation message.
 const incomeCreateSchema = z.object({
   category: z.string().trim().min(1, "ক্যাটাগরি আবশ্যক"),
-  amount: z.coerce.number().positive("সঠিক পরিমাণ আবশ্যক"),
+  amount: z.coerce.number().int("পূর্ণ সংখ্যা লিখুন (টাকা, দশমিক ছাড়া)").positive("সঠিক পরিমাণ আবশ্যক"),
   note: z.string().trim().max(300).optional(),
   method: z.string().trim().max(40).optional(),
   studentId: z.coerce.number().int().positive().optional().nullable(),
@@ -22,7 +28,7 @@ const incomeCreateSchema = z.object({
 // `amount` string would have silently become NaN and hit the database).
 const incomeUpdateSchema = z.object({
   category: z.string().trim().min(1).optional(),
-  amount: z.coerce.number().positive("সঠিক পরিমাণ আবশ্যক").optional(),
+  amount: z.coerce.number().int("পূর্ণ সংখ্যা লিখুন (টাকা, দশমিক ছাড়া)").positive("সঠিক পরিমাণ আবশ্যক").optional(),
   note: z.string().trim().max(300).optional(),
   method: z.string().trim().max(40).optional(),
   date: z.string().trim().max(10).optional(),
