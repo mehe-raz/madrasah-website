@@ -160,26 +160,45 @@ async function initDb() {
     }
   }
 
-  // Fix (2026-08): students/payments/expenses above are seeded with
-  // explicit ids via "OVERRIDING SYSTEM VALUE" (so the seed data's ids
-  // match its own cross-references, e.g. payments.studentId -> students.id)
-  // but that NEVER advances each table's identity sequence — Postgres has
-  // no way to know ids 1..N are already taken. Every later NORMAL insert
-  // (a real admission, a real payment, a real expense — none of which
-  // specify an id) then pulls the sequence's next value, which still
-  // starts at 1, and collides with an already-used id: "duplicate key
-  // value violates unique constraint ..._pkey", an uncaught 23505 that
-  // surfaced to users as an unexplained save failure on routine data entry
-  // (this is what income.js's payments-linked writes and expenses.js hit).
-  // setval(..., MAX(id)) resyncs the sequence to actual data on every boot
-  // — a no-op once already in sync, and safe/cheap to run unconditionally
-  // (covers both a fresh seed today and an existing database seeded before
-  // this fix existed). false = "next nextval() returns max+1", not max
-  // itself, which would re-collide with the row that already has that id.
-  for (const table of ["students", "payments", "expenses"]) {
-    await pg.run(
-      `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE((SELECT MAX(id) FROM ${table}), 1), (SELECT MAX(id) FROM ${table}) IS NOT NULL)`
-    );
+  // Fix (2026-08, widened): every table's identity/serial "id" sequence can
+  // drift out of sync with its actual data — not just the 3 tables JS-seeds
+  // with explicit ids (students/payments/expenses via "OVERRIDING SYSTEM
+  // VALUE", which never advances the sequence itself), but ANY table whose
+  // rows were ever inserted with an explicit id outside a normal app
+  // INSERT — e.g. a raw SQL restore/import when this database was set up or
+  // migrated between hosts. When a sequence lags behind, the next NORMAL
+  // insert (a real attendance mark, hifz sabaq log, income entry — none of
+  // which specify an id) pulls an already-used id from the sequence and
+  // Postgres rejects it: "duplicate key value violates unique constraint
+  // ..._pkey" (23505) — an uncaught error that surfaced to users as "এই
+  // তথ্য ইতিমধ্যে বিদ্যমান" on completely ordinary data entry, on whichever
+  // table's sequence happened to be behind. The original fix only covered
+  // the 3 tables known to be JS-seeded; this instead discovers EVERY
+  // identity-backed "id" sequence in the schema via Postgres's own catalog
+  // and resyncs all of them, so it's correct regardless of how or when a
+  // given table's data actually got into the database. setval(..., MAX(id),
+  // true) is a no-op once a sequence is already ahead of MAX(id), and safe
+  // to run unconditionally on every boot.
+  try {
+    const idSequences = await pg.all(`
+      SELECT c.relname AS table_name
+      FROM pg_class s
+      JOIN pg_depend d ON d.objid = s.oid AND d.deptype IN ('a', 'i')
+      JOIN pg_class c ON d.refobjid = c.oid
+      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = d.refobjsubid
+      WHERE s.relkind = 'S' AND a.attname = 'id' AND c.relnamespace = 'public'::regnamespace
+    `);
+    for (const { table_name: table } of idSequences) {
+      await pg.run(
+        `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE((SELECT MAX(id) FROM "${table}"), 1), (SELECT MAX(id) FROM "${table}") IS NOT NULL)`
+      );
+    }
+  } catch (e) {
+    // Never let a sequence-resync hiccup (unexpected catalog shape, a
+    // restricted hosted-Postgres permission, etc.) block the whole app from
+    // booting — worst case here is falling back to the pre-fix behavior
+    // (possible duplicate-key 409s on affected tables), not a dead server.
+    console.warn("Identity sequence resync failed (non-fatal):", e.message);
   }
 }
 
