@@ -2,15 +2,18 @@ import { C } from "../theme/colors";
 import type { IconKey } from "../lib/icons";
 import type { DashboardData, Expense, Payment, Settings, Student } from "../types";
 
+// `class` values below are the actual জামাত/গ্রুপ names from
+// server/src/lib/classTree.js's DEFAULT_CLASS_TREE (bn labels), not the old
+// placeholder "হিফজ ১ / কিতাব ৩" style — see the class/jamaat hierarchy work.
 export const STUDENTS: Student[] = [
-  { id: 1, name: "মুহাম্মদ আবদুল্লাহ", nameEn: "Muhammad Abdullah", roll: "001", class: "হিফজ ১", dept: "হিফজ", type: "আবাসিক", fee: 2500, due: 0, phone: "01711-111111", blood: "B+", para: 12, status: "সক্রিয়" },
-  { id: 2, name: "ইমরান হোসেন", nameEn: "Imran Hossain", roll: "002", class: "কিতাব ৩", dept: "কিতাব", type: "অনাবাসিক", fee: 1500, due: 1500, phone: "01722-222222", blood: "O+", para: 0, status: "সক্রিয়" },
-  { id: 3, name: "আহমদ ফারুক", nameEn: "Ahmed Faruk", roll: "003", class: "নাজেরা ২", dept: "নাজেরা", type: "আবাসিক", fee: 2000, due: 4000, phone: "01733-333333", blood: "A+", para: 0, status: "সক্রিয়" },
-  { id: 4, name: "রাশেদুল ইসলাম", nameEn: "Rashedul Islam", roll: "004", class: "হিফজ ২", dept: "হিফজ", type: "আবাসিক", fee: 2500, due: 0, phone: "01744-444444", blood: "AB+", para: 20, status: "সক্রিয়" },
-  { id: 5, name: "নূর মুহাম্মদ", nameEn: "Nur Muhammad", roll: "005", class: "নূরানী ১", dept: "নূরানী", type: "অনাবাসিক", fee: 800, due: 800, phone: "01755-555555", blood: "B-", para: 0, status: "সক্রিয়" },
-  { id: 6, name: "তানভীর আহমদ", nameEn: "Tanvir Ahmed", roll: "006", class: "কিতাব ১", dept: "কিতাব", type: "অনাবাসিক", fee: 1500, due: 3000, phone: "01766-666666", blood: "O-", para: 0, status: "সক্রিয়" },
-  { id: 7, name: "জুনায়েদ মুহাম্মদ", nameEn: "Junaid Muhammad", roll: "007", class: "হিফজ ৩", dept: "হিফজ", type: "আবাসিক", fee: 2500, due: 0, phone: "01777-777777", blood: "A-", para: 30, status: "সক্রিয়" },
-  { id: 8, name: "সাইফুল ইসলাম", nameEn: "Saiful Islam", roll: "008", class: "নাজেরা ১", dept: "নাজেরা", type: "অনাবাসিক", fee: 1200, due: 1200, phone: "01788-888888", blood: "AB-", para: 0, status: "নিষ্ক্রিয়" },
+  { id: 1, name: "মুহাম্মদ আবদুল্লাহ", nameEn: "Muhammad Abdullah", roll: "001", class: "ক গ্রুপ", dept: "হিফজ", type: "আবাসিক", fee: 2500, due: 0, phone: "01711-111111", blood: "B+", para: 12, status: "সক্রিয়" },
+  { id: 2, name: "ইমরান হোসেন", nameEn: "Imran Hossain", roll: "002", class: "মীযান জামাত", dept: "কিতাব", type: "অনাবাসিক", fee: 1500, due: 1500, phone: "01722-222222", blood: "O+", para: 0, status: "সক্রিয়" },
+  { id: 3, name: "আহমদ ফারুক", nameEn: "Ahmed Faruk", roll: "003", class: "খ গ্রুপ", dept: "নাজেরা", type: "আবাসিক", fee: 2000, due: 4000, phone: "01733-333333", blood: "A+", para: 0, status: "সক্রিয়" },
+  { id: 4, name: "রাশেদুল ইসলাম", nameEn: "Rashedul Islam", roll: "004", class: "খ গ্রুপ", dept: "হিফজ", type: "আবাসিক", fee: 2500, due: 0, phone: "01744-444444", blood: "AB+", para: 20, status: "সক্রিয়" },
+  { id: 5, name: "নূর মুহাম্মদ", nameEn: "Nur Muhammad", roll: "005", class: "গ গ্রুপ", dept: "নূরানী", type: "অনাবাসিক", fee: 800, due: 800, phone: "01755-555555", blood: "B-", para: 0, status: "সক্রিয়" },
+  { id: 6, name: "তানভীর আহমদ", nameEn: "Tanvir Ahmed", roll: "006", class: "মীযান", dept: "কিতাব", type: "অনাবাসিক", fee: 1500, due: 3000, phone: "01766-666666", blood: "O-", para: 0, status: "সক্রিয়" },
+  { id: 7, name: "জুনায়েদ মুহাম্মদ", nameEn: "Junaid Muhammad", roll: "007", class: "গ গ্রুপ", dept: "হিফজ", type: "আবাসিক", fee: 2500, due: 0, phone: "01777-777777", blood: "A-", para: 30, status: "সক্রিয়" },
+  { id: 8, name: "সাইফুল ইসলাম", nameEn: "Saiful Islam", roll: "008", class: "ক গ্রুপ", dept: "নাজেরা", type: "অনাবাসিক", fee: 1200, due: 1200, phone: "01788-888888", blood: "AB-", para: 0, status: "নিষ্ক্রিয়" },
 ];
 
 export const PAYMENTS: Payment[] = [

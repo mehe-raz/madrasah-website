@@ -112,6 +112,18 @@ async function initDb() {
       [JSON.stringify(DEFAULT_CATEGORIES)]
     );
 
+    // Same class/jamaat hierarchy tenantProvision.js seeds for a fresh
+    // multi-tenant institution (see lib/classTree.js's DEFAULT_CLASS_TREE) —
+    // a single-tenant deployment has no tenantProvision.js step, so without
+    // this it would boot with an empty classOptionsTree and every admission
+    // form's class picker would show nothing until Super Admin built the
+    // tree by hand from Settings.
+    const { SETTINGS_KEY: CLASS_TREE_SETTINGS_KEY, DEFAULT_CLASS_TREE } = require("./lib/classTree");
+    await pg.run(
+      "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING",
+      [CLASS_TREE_SETTINGS_KEY, JSON.stringify(DEFAULT_CLASS_TREE)]
+    );
+
     const today = new Date().toISOString().slice(0, 10);
     for (const s of seed.students.slice(0, 6)) {
       await pg.run('INSERT INTO attendance ("studentId", date, status) VALUES ($1, $2, $3)', [s.id, today, "উপস্থিত"]);
