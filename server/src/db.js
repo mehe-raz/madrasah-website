@@ -159,6 +159,28 @@ async function initDb() {
       );
     }
   }
+
+  // Fix (2026-08): students/payments/expenses above are seeded with
+  // explicit ids via "OVERRIDING SYSTEM VALUE" (so the seed data's ids
+  // match its own cross-references, e.g. payments.studentId -> students.id)
+  // but that NEVER advances each table's identity sequence — Postgres has
+  // no way to know ids 1..N are already taken. Every later NORMAL insert
+  // (a real admission, a real payment, a real expense — none of which
+  // specify an id) then pulls the sequence's next value, which still
+  // starts at 1, and collides with an already-used id: "duplicate key
+  // value violates unique constraint ..._pkey", an uncaught 23505 that
+  // surfaced to users as an unexplained save failure on routine data entry
+  // (this is what income.js's payments-linked writes and expenses.js hit).
+  // setval(..., MAX(id)) resyncs the sequence to actual data on every boot
+  // — a no-op once already in sync, and safe/cheap to run unconditionally
+  // (covers both a fresh seed today and an existing database seeded before
+  // this fix existed). false = "next nextval() returns max+1", not max
+  // itself, which would re-collide with the row that already has that id.
+  for (const table of ["students", "payments", "expenses"]) {
+    await pg.run(
+      `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE((SELECT MAX(id) FROM ${table}), 1), (SELECT MAX(id) FROM ${table}) IS NOT NULL)`
+    );
+  }
 }
 
 let initPromise;

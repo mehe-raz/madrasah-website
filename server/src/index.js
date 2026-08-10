@@ -470,7 +470,20 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ error: "প্রদত্ত তথ্যের ফরম্যাট সঠিক নয়। আবার চেষ্টা করুন।" });
   }
   if (err?.code === "23505") {
-    return res.status(409).json({ error: "এই তথ্য ইতিমধ্যে বিদ্যমান।" });
+    // TEMP DIAGNOSTIC (remove once the real cause is confirmed): a normal,
+    // legitimate insert (new income entry, new expense, new attendance row)
+    // should never collide — if this fires on routine use rather than an
+    // actual duplicate, it's almost certainly the "id" identity sequence
+    // being out of sync with existing rows (see db.js's OVERRIDING SYSTEM
+    // VALUE seed inserts, which never call setval() afterward), not a real
+    // "this already exists". err.detail names the exact column/value so we
+    // can tell which case it is instead of guessing.
+    console.error("23505 detail:", err.detail, "| constraint:", err.constraint, "| table:", err.table);
+    return res.status(409).json({
+      error: "এই তথ্য সংরক্ষণে সমস্যা হয়েছে (ডুপ্লিকেট)।",
+      _debugDetail: err.detail || null,
+      _debugConstraint: err.constraint || null,
+    });
   }
   if (err?.code === "23503") {
     return res.status(400).json({ error: "সংশ্লিষ্ট তথ্য পাওয়া যায়নি।" });
