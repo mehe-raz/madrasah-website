@@ -38,7 +38,15 @@ router.get("/", async (_req, res) => {
            COUNT(*)::int AS total,
            COUNT(*) FILTER (WHERE type = 'Residential')::int AS residential,
            COALESCE(SUM(due), 0)::int AS "totalDue",
-           COUNT(*) FILTER (WHERE due > 0)::int AS "dueCount"
+           COUNT(*) FILTER (WHERE due > 0)::int AS "dueCount",
+           COUNT(*) FILTER (
+             WHERE status = 'Active' AND fee > 0
+             AND FLOOR(due::numeric / fee) >= 2
+           )::int AS "riskCount",
+           COALESCE(SUM(due) FILTER (
+             WHERE status = 'Active' AND fee > 0
+             AND FLOOR(due::numeric / fee) >= 2
+           ), 0)::int AS "riskTotalDue"
          FROM students`
       ),
       db.all(`SELECT dept AS name, COUNT(*)::int AS value FROM students GROUP BY dept`),
@@ -64,6 +72,8 @@ router.get("/", async (_req, res) => {
   const residential = statsRow?.residential || 0;
   const totalDue = statsRow?.totalDue || 0;
   const dueCount = statsRow?.dueCount || 0;
+  const riskCount = statsRow?.riskCount || 0;
+  const riskTotalDue = statsRow?.riskTotalDue || 0;
   const monthlyIncome = monthlyIncomeRow?.t || 0;
   const monthlyExpense = monthlyExpenseRow?.t || 0;
 
@@ -123,6 +133,8 @@ router.get("/", async (_req, res) => {
       monthlyIncome: monthlyIncome || 0,
       totalDue,
       dueCount,
+      riskCount,
+      riskTotalDue,
       monthlyExpense: monthlyExpense || 0,
       attendance: `${present}/${attTotal || total}`,
       attendancePct: attTotal ? ((present / attTotal) * 100).toFixed(1) : "0",

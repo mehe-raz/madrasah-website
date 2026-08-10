@@ -240,21 +240,36 @@ router.get("/", async (req, res) => {
   if (dueOnly) {
     conditions.push(`due > 0`);
   }
+  // riskOnly: "Risk Zone" — students with an estimated 2+ months of unpaid
+  // fees (due ÷ fee, floored). Per-month payments aren't tracked separately
+  // in this schema, so this is an approximation off the accumulated `due`
+  // balance. fee = 0 is excluded to avoid a division by zero (and because a
+  // 0-fee student can never be "behind"). Only currently active students are
+  // considered, matching the existing dueOnly/status filter convention.
+  const riskOnly = req.query.riskOnly === "1" || req.query.riskOnly === "true";
+  if (riskOnly) {
+    conditions.push(`status = 'Active' AND fee > 0 AND FLOOR(due::numeric / fee) >= 2`);
+  }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  // Computed alongside LIST_COLUMNS (not folded into that shared constant,
+  // since it's also reused by routes/hifz.js where it isn't needed) so the
+  // client can show/sort on "months unpaid" without recomputing due÷fee
+  // itself. NULLIF avoids a division-by-zero for fee = 0 rows.
+  const selectColumns = `${LIST_COLUMNS}, FLOOR(due::numeric / NULLIF(fee, 0))::int AS "monthsUnpaid"`;
 
   const paginate = req.query.paginate === "1" || req.query.paginate === "true" || req.query.page != null || req.query.limit != null;
   if (paginate) {
     const limit = clampInt(req.query.limit, 25, 1, 200);
     const page = clampInt(req.query.page, 1, 1, 100000);
     const offset = (page - 1) * limit;
-    const orderBy = dueOnly ? "due DESC, roll" : "roll";
+    const orderBy = dueOnly || riskOnly ? "due DESC, roll" : "roll";
     const totalRow = await db.get(
       `SELECT COUNT(*)::int AS total, COALESCE(SUM(due), 0)::int AS "totalDue" FROM students ${where}`,
       params
     );
     const total = totalRow?.total || 0;
     const items = await db.all(
-      `SELECT ${LIST_COLUMNS} FROM students ${where} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `SELECT ${selectColumns} FROM students ${where} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
     return res.json({
@@ -263,13 +278,13 @@ router.get("/", async (req, res) => {
       limit,
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
-      // Only meaningful (and only sent) for the dueOnly query — sum of
-      // `due` across every matching row, not just the current page.
-      ...(dueOnly ? { totalDue: totalRow?.totalDue || 0 } : {}),
+      // Only meaningful (and only sent) for the dueOnly/riskOnly queries —
+      // sum of `due` across every matching row, not just the current page.
+      ...(dueOnly || riskOnly ? { totalDue: totalRow?.totalDue || 0 } : {}),
     });
   }
 
-  const rows = await db.all(`SELECT ${LIST_COLUMNS} FROM students ${where} ORDER BY roll`, params);
+  const rows = await db.all(`SELECT ${selectColumns} FROM students ${where} ORDER BY roll`, params);
   res.json(rows);
 });
 

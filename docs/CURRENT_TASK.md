@@ -13,6 +13,47 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
+## Task: "রিস্ক জোন" — ২+ মাস বেতন বকেয়া ছাত্রদের আলাদা লিস্ট, ৩ ভাগে,
+পুরো পরিকল্পনা `docs/RISK_ZONE_PLAN.md`-এ (ad-hoc, নিচের exam-type
+এন্ট্রির সাথে অসম্পর্কিত — আলাদা ফাইল/এলাকা, তাই আলাদা এন্ট্রি,
+AGENTS.md-এর নিয়ম অনুযায়ী পুরনো এন্ট্রি অপরিবর্তিত রাখা হয়েছে)
+
+## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2, Phase 3 বাকি)
+
+Started: 2026-08-10
+
+### Phase 1 (ব্যাকএন্ড: "কত মাস বকেয়া" হিসাব + API) — সম্পন্ন (2026-08-10)
+- [x] `server/src/routes/dashboard.js` — stats কোয়েরিতে নতুন `riskCount`
+  (কতজন সক্রিয় ছাত্রের `FLOOR(due/fee) >= 2`) ও `riskTotalDue` (তাদের
+  সঞ্চিত বকেয়ার যোগফল) যোগ করা হয়েছে, বিদ্যমান `totalDue`/`dueCount`
+  অপরিবর্তিত। JS ভ্যারিয়েবল এক্সট্র্যাকশন ও রেসপন্সের `stats`-এ যোগ।
+- [x] `server/src/routes/students.js` — `GET /api/students`-এ নতুন
+  `riskOnly` ফিল্টার (`dueOnly`-এর ঠিক প্যাটার্নে): `status = 'Active'
+  AND fee > 0 AND FLOOR(due::numeric / fee) >= 2`। পাশাপাশি একটা নতুন
+  computed কলাম `monthsUnpaid` (`FLOOR(due::numeric / NULLIF(fee,0))`)
+  উভয় SELECT-এ (paginated ও non-paginated) যোগ হয়েছে — `LIST_COLUMNS`
+  নিজে বদলানো হয়নি (এটা `routes/hifz.js`-ও ব্যবহার করে, সেখানে এই
+  কলামের দরকার নেই), বরং লোকাল `selectColumns = LIST_COLUMNS + ...`
+  ভ্যারিয়েবল বানানো হয়েছে। `dueOnly`-এর মতোই `riskOnly`-তেও
+  `orderBy = "due DESC, roll"` ও পেজিনেটেড রেসপন্সে `totalDue` যোগ হয়।
+- **প্ল্যান থেকে একটা সংশোধন:** `RISK_ZONE_PLAN.md`-এর SQL খসড়ায়
+  `status = 'সক্রিয়'` অনুমান করা হয়েছিল, কিন্তু আসল কোড
+  (`client/src/modules/Students.tsx`-এর status dropdown, ও
+  `server/src/routes/students.js`-এর admission default) যাচাই করে
+  দেখা গেছে student status কলামের আসল ভ্যালু ইংরেজি `'Active'`/`'Inactive'`
+  (Bengali label শুধু UI-তে দেখানো হয়, কলামে সংরক্ষিত হয় না) — তাই
+  বাস্তবায়নে `status = 'Active'` ব্যবহার করা হয়েছে, প্ল্যানের বাংলা
+  অনুমান না।
+- [x] `node -c` দিয়ে দুটো পরিবর্তিত ফাইল সিনট্যাক্স-চেক পাস।
+- **যাচাই করা যায়নি (sandbox-এ network/node_modules নেই):** পুরো
+  `npm run check`, আসল DB-তে হিসাবটা সঠিক আসছে কিনা — ব্যবহারকারীর
+  প্যাকেজড CMD চালানোর সময় প্রথম যাচাই হবে।
+
+### Phase 2 (ফ্রন্টএন্ড: ড্যাশবোর্ড কার্ড + রিস্ক-জোন লিস্ট ভিউ) — এখনো শুরু হয়নি
+### Phase 3 (যাচাই, পলিশ, এজ-কেস, ডক) — এখনো শুরু হয়নি
+
+---
+
 ## Status: IN_PROGRESS (Part 1, Part 2, Part 3 সম্পন্ন — Part 4 বাকি)
 
 Started: 2026-08-09
