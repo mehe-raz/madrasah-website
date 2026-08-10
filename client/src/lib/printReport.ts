@@ -421,69 +421,60 @@ export function printResultSheet(sheet: ResultSheetOptions, targetWindow?: Windo
 }
 
 // ----------------------------------------------------------------------
-// Student ID card — CR80 size (85.6mm × 54mm, standard ID card size),
-// front + back, printed together on one page with a dashed cut guide so
-// it can be trimmed after printing. Own layout (not the shared admin-
-// report header) since this needs to look like an actual card, not a
-// document. Uses the institution's own brandColor (Settings > Website
-// Color) for the accent bands, falling back to a purple close to the
-// original card template this was modeled on.
+// Student ID card — front + back, reproducing the exact purple
+// abstract-wave card design supplied for this feature (photo circle with
+// offset purple ring top, decorative wave corners, dot clusters, details
+// list; back: rounded rules badge, bullet list, contact rows, signature
+// line). Layout, proportions and element positions are kept exactly as
+// given — only the placeholder text is swapped for the real student's
+// data. Card is 64mm × 98.4mm (same 400:615 ratio as the source design).
 // ----------------------------------------------------------------------
 
 const ID_CARD_STYLES = `
   @page { margin: 10mm; }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
-    margin: 0; padding: 16px; color: #1e293b;
-    display: flex; flex-direction: column; align-items: center; gap: 8mm;
+    padding: 16px; display: flex; gap: 8mm; align-items: flex-start;
   }
-  .id-card {
-    width: 85.6mm; height: 54mm; border-radius: 3.5mm; position: relative;
-    overflow: hidden; border: 0.3mm solid #d6d3f5; background: #fff;
+  .idc { width: 64mm; height: 98.4mm; background: #fff; position: relative; overflow: hidden; border: 1.6mm solid #3d1f8c; }
+  .idc svg.wave { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  .idc .photo-wrap { position: absolute; top: 17.6mm; left: 50%; transform: translateX(-50%); width: 32mm; height: 32mm; }
+  .idc .photo-purple { position: absolute; top: 2.56mm; left: -1.28mm; width: 31.36mm; height: 31.36mm; border-radius: 46% 54% 58% 42% / 52% 44% 56% 48%; background: #3d1f8c; }
+  .idc .photo-white {
+    position: absolute; top: 0; left: 0; width: 32mm; height: 32mm; border-radius: 50%;
+    border: 0.32mm solid #222; object-fit: cover; background: repeating-conic-gradient(#d9d9d9 0% 25%, #fff 0% 50%) 50% / 3.2mm 3.2mm;
   }
-  .id-card__band {
-    position: absolute; top: 0; left: 0; right: 0; height: 17mm;
-    background: linear-gradient(120deg, var(--brand), var(--brand-soft));
+  .idc .photo-initials {
+    position: absolute; top: 0; left: 0; width: 32mm; height: 32mm; border-radius: 50%;
+    border: 0.32mm solid #222; background: #f1f5f9; color: #3d1f8c; display: flex; align-items: center; justify-content: center;
+    font-size: 12mm; font-weight: 800;
   }
-  .id-card__band--bottom { top: auto; bottom: 0; height: 6mm; }
-  .id-card__logo {
-    position: absolute; top: 2mm; left: 3mm; height: 8mm; width: 8mm;
-    object-fit: contain; border-radius: 2mm; background: #fff; padding: 1mm;
-  }
-  .id-card__org { position: absolute; top: 2.5mm; left: 12mm; right: 3mm; color: #fff; font-size: 7.5px; font-weight: 700; line-height: 1.25; }
-  .id-card__org--nologo { left: 3mm; }
-  .id-card__photo-wrap {
-    position: absolute; top: 8mm; left: 50%; transform: translateX(-50%);
-    width: 21mm; height: 21mm; border-radius: 50%; background: #fff;
-    padding: 1mm; box-shadow: 0 0 0 0.4mm var(--brand);
-  }
-  .id-card__photo { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; background: #f1f5f9; }
-  .id-card__initials {
-    width: 100%; height: 100%; border-radius: 50%; background: #f1f5f9; color: var(--brand);
-    display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800;
-  }
-  .id-card__name { position: absolute; top: 31mm; left: 3mm; right: 3mm; text-align: center; font-size: 11.5px; font-weight: 800; color: #0f172a; }
-  .id-card__facts {
-    position: absolute; top: 37mm; left: 5mm; right: 5mm; font-size: 8px;
-    display: grid; grid-template-columns: 1fr 1fr; gap: 1mm 3mm;
-  }
-  .id-card__facts .k { color: #64748b; }
-  .id-card__facts .k b { color: #0f172a; }
-  .id-card__idno { position: absolute; bottom: 0; left: 0; right: 0; height: 6mm; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 7.5px; font-weight: 700; letter-spacing: 0.3px; }
+  .idc .dots { position: absolute; display: grid; grid-template-columns: repeat(2, 1.28mm); grid-auto-rows: 1.28mm; gap: 1.28mm; }
+  .idc .dots span { width: 1.28mm; height: 1.28mm; border-radius: 50%; background: #6b6b6b; }
+  .idc .name { position: absolute; top: 54.4mm; left: 0; right: 0; text-align: center; font-size: 5.4mm; font-weight: 800; color: #3a3a3a; }
+  .idc .position { position: absolute; top: 62.1mm; left: 0; right: 0; text-align: center; font-size: 3.2mm; font-weight: 700; color: #4a26a8; }
+  .idc .facts { position: absolute; top: 71.2mm; left: 6.4mm; right: 4mm; font-size: 2.56mm; }
+  .idc .facts .row { display: flex; margin-bottom: 1.28mm; }
+  .idc .facts .lab { font-weight: 800; color: #3a3a3a; width: 19.2mm; flex-shrink: 0; }
+  .idc .facts .colon { width: 2.24mm; color: #7a7a7a; flex-shrink: 0; }
+  .idc .facts .val { color: #7a7a7a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .id-card--back { padding: 4mm 4mm 8mm; }
-  .id-card--back .id-card__org { position: static; color: #0f172a; text-align: center; font-size: 8.5px; }
-  .id-card--back .id-card__org div.sub { color: #64748b; font-weight: 500; font-size: 7px; margin-top: 0.5mm; }
-  .id-card__rules { list-style: none; margin: 3mm 0 0; padding: 0; font-size: 6.8px; color: #334155; line-height: 1.5; }
-  .id-card__rules li { padding-left: 3mm; position: relative; margin-bottom: 1mm; }
-  .id-card__rules li::before { content: "•"; position: absolute; left: 0; color: var(--brand); font-weight: 800; }
-  .id-card__guardian { margin-top: 2.5mm; font-size: 7.5px; color: #334155; }
-  .id-card__guardian b { color: #0f172a; }
-  .id-card__sign { position: absolute; bottom: 2mm; right: 5mm; text-align: center; font-size: 6.8px; color: #64748b; }
-  .id-card__sign .line { width: 26mm; border-top: 0.3mm solid #94a3b8; margin-bottom: 1mm; }
+  .idc .badge {
+    position: absolute; top: 18.9mm; left: 5.76mm; background: #3d1f8c; color: #fff; font-weight: 800; font-size: 2.6mm;
+    letter-spacing: 0.2mm; padding: 1.92mm 4.16mm; border-radius: 4.16mm;
+  }
+  .idc .bullets { position: absolute; top: 30.4mm; left: 5.76mm; right: 5.76mm; font-size: 2.24mm; color: #555; }
+  .idc .bullets li { list-style: none; position: relative; padding-left: 2.88mm; margin-bottom: 3.2mm; line-height: 1.5; }
+  .idc .bullets li::before { content: ""; position: absolute; left: 0; top: 0.9mm; width: 1.12mm; height: 1.12mm; border-radius: 50%; background: #5b2fb8; }
+  .idc .contact { position: absolute; top: 65.6mm; left: 9.6mm; font-size: 2.56mm; }
+  .idc .contact .row { display: flex; margin-bottom: 0.96mm; }
+  .idc .contact .lab { font-weight: 800; color: #3a3a3a; width: 12.8mm; flex-shrink: 0; }
+  .idc .sig { position: absolute; top: 84mm; left: 0; right: 0; text-align: center; }
+  .idc .sig .line { width: 27.2mm; height: 0.16mm; background: #5b2fb8; margin: 0 auto 0.96mm; }
+  .idc .sig .caption { font-size: 3mm; font-weight: 800; color: #222; }
 
-  .id-card-cut { font-size: 9px; color: #94a3b8; border-top: 0.3mm dashed #cbd5e1; width: 85.6mm; text-align: center; padding-top: 2mm; }
+  .idc-cut { font-size: 9px; color: #94a3b8; text-align: center; margin-top: 4px; }
 `;
 
 export interface IdCardOptions {
@@ -494,71 +485,75 @@ export interface IdCardOptions {
   roll: string;
   session?: string;
   blood?: string;
-  admissionNumber?: string;
-  guardianName?: string;
-  guardianMobile?: string;
-  village?: string;
-  upazila?: string;
-  district?: string;
 }
 
-/** Print a two-sided student ID card (CR80 size, front + back). */
+/** Print the student ID card (front + back), matching the supplied design exactly. */
 export function printStudentIdCard(student: IdCardOptions, targetWindow?: Window | null) {
   const settings = madrasaSettings();
-  const brand = settings.brandColor || "#6d28d9";
   const initials = (student.name || "").trim().slice(0, 1) || "?";
-  const classLine = [student.class, student.section].filter(Boolean).join(" - ");
-  const address = [student.village, student.upazila, student.district].filter(Boolean).join(", ");
 
   const front = `
-    <div class="id-card">
-      <div class="id-card__band"></div>
-      ${settings.logo ? `<img class="id-card__logo" src="${escapeHtml(settings.logo)}" alt="">` : ""}
-      <div class="id-card__org ${settings.logo ? "" : "id-card__org--nologo"}">${escapeHtml(settings.name)}<br>ছাত্র পরিচয়পত্র</div>
-      <div class="id-card__photo-wrap">
+    <div class="idc">
+      <svg class="wave" viewBox="0 0 400 615" preserveAspectRatio="none">
+        <path d="M0,0 H270 C220,10 160,35 110,70 C70,95 30,110 0,110 Z" fill="#cabce8"/>
+        <path d="M0,95 C50,90 90,70 140,45 C190,20 230,5 265,0" fill="none" stroke="#3d1f8c" stroke-width="2.5"/>
+        <path d="M400,615 H150 C210,600 270,575 315,545 C355,520 385,505 400,502 Z" fill="#cabce8"/>
+        <path d="M400,520 C350,525 305,548 255,575 C205,600 165,613 130,615" fill="none" stroke="#3d1f8c" stroke-width="2.5"/>
+      </svg>
+      <div class="photo-wrap">
+        <div class="photo-purple"></div>
         ${
           student.studentPhoto
-            ? `<img class="id-card__photo" src="${escapeHtml(student.studentPhoto)}" alt="">`
-            : `<div class="id-card__initials">${escapeHtml(initials)}</div>`
+            ? `<img class="photo-white" src="${escapeHtml(student.studentPhoto)}" alt="">`
+            : `<div class="photo-initials">${escapeHtml(initials)}</div>`
         }
       </div>
-      <div class="id-card__name">${escapeHtml(student.name || "")}</div>
-      <div class="id-card__facts">
-        <div class="k">ক্লাস: <b>${escapeHtml(classLine || "-")}</b></div>
-        <div class="k">রোল: <b>${escapeHtml(student.roll || "-")}</b></div>
-        <div class="k">সেশন: <b>${escapeHtml(student.session || "-")}</b></div>
-        <div class="k">রক্তের গ্রুপ: <b>${escapeHtml(student.blood || "-")}</b></div>
+      <div class="dots" style="top:40.8mm; left:5.6mm;">${"<span></span>".repeat(8)}</div>
+      <div class="dots" style="top:36mm; right:5.6mm;">${"<span></span>".repeat(8)}</div>
+      <div class="name">${escapeHtml(student.name || "")}</div>
+      <div class="position">${escapeHtml(student.class || "")}</div>
+      <div class="facts">
+        <div class="row"><span class="lab">শাখা</span><span class="colon">:</span><span class="val">${escapeHtml(student.section || "-")}</span></div>
+        <div class="row"><span class="lab">রোল</span><span class="colon">:</span><span class="val">${escapeHtml(student.roll || "-")}</span></div>
+        <div class="row"><span class="lab">সেশন</span><span class="colon">:</span><span class="val">${escapeHtml(student.session || "-")}</span></div>
+        <div class="row"><span class="lab">রক্তের গ্রুপ</span><span class="colon">:</span><span class="val">${escapeHtml(student.blood || "-")}</span></div>
       </div>
-      <div class="id-card__band id-card__band--bottom"></div>
-      <div class="id-card__idno">আইডি নং: ${escapeHtml(student.admissionNumber || "-")}</div>
     </div>
   `;
 
   const back = `
-    <div class="id-card id-card--back">
-      <div class="id-card__org">
-        ${escapeHtml(settings.name)}
-        <div class="sub">${escapeHtml([settings.address, settings.phone].filter(Boolean).join(" · "))}</div>
-      </div>
-      <ul class="id-card__rules">
-        <li>এই পরিচয়পত্রটি প্রতিষ্ঠানের সম্পত্তি — মেয়াদ শেষে ফেরত দিতে হবে।</li>
-        <li>কার্ডটি সবসময় সাথে রাখুন এবং চাওয়ামাত্র দেখাতে হবে।</li>
-        <li>হারিয়ে গেলে অবিলম্বে প্রতিষ্ঠানের অফিসে জানান।</li>
+    <div class="idc">
+      <svg class="wave" viewBox="0 0 400 615" preserveAspectRatio="none">
+        <path d="M400,0 H140 C190,15 250,45 300,75 C345,100 380,115 400,115 Z" fill="#cabce8"/>
+        <path d="M170,0 C210,25 260,55 305,80 C345,100 375,112 400,112" fill="none" stroke="#3d1f8c" stroke-width="2.5"/>
+        <path d="M0,615 H255 C205,600 150,575 105,545 C65,520 30,505 0,502 Z" fill="#cabce8"/>
+        <path d="M0,520 C45,525 90,548 135,575 C180,600 215,613 245,615" fill="none" stroke="#3d1f8c" stroke-width="2.5"/>
+      </svg>
+      <div class="dots" style="top:7.2mm; left:5.6mm;">${"<span></span>".repeat(8)}</div>
+      <div class="badge">নিয়মাবলী</div>
+      <ul class="bullets">
+        <li>এই পরিচয়পত্রটি প্রতিষ্ঠানের সম্পত্তি, মেয়াদ শেষে বা চাহিবামাত্র ফেরত দিতে হবে।</li>
+        <li>কার্ডটি সর্বদা সাথে রাখুন এবং কর্তৃপক্ষ চাইলে সাথে সাথে প্রদর্শন করতে হবে।</li>
+        <li>কার্ডটি হারিয়ে গেলে অবিলম্বে প্রতিষ্ঠানের অফিসে যোগাযোগ করুন।</li>
       </ul>
-      <div class="id-card__guardian">
-        অভিভাবক: <b>${escapeHtml(student.guardianName || "-")}</b> · মোবাইল: <b>${escapeHtml(student.guardianMobile || "-")}</b>
-        ${address ? `<br>ঠিকানা: ${escapeHtml(address)}` : ""}
+      <div class="contact">
+        <div class="row"><span class="lab">ফোন</span><span>:&nbsp;${escapeHtml(settings.phone || "-")}</span></div>
+        <div class="row"><span class="lab">ঠিকানা</span><span>:&nbsp;${escapeHtml(settings.address || "-")}</span></div>
       </div>
-      <div class="id-card__sign"><div class="line"></div>অধ্যক্ষের স্বাক্ষর</div>
+      <div class="sig">
+        <div class="line"></div>
+        <div class="caption">অধ্যক্ষের স্বাক্ষর</div>
+      </div>
+      <div class="dots" style="bottom:9.6mm; right:5.6mm;">${"<span></span>".repeat(8)}</div>
     </div>
   `;
 
-  const body = `${front}${back}<div class="id-card-cut">✂ কেটে নিন — Front / Back</div>`;
+  const body = `${front}${back}`;
 
   const w = targetWindow ?? window.open("", "_blank", "width=520,height=760");
   if (!w) throw new PopupBlockedError();
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>আইডি কার্ড - ${escapeHtml(student.name || "")}</title>
-    <style>:root{--brand:${brand};--brand-soft:${brand}cc;}${ID_CARD_STYLES}</style></head><body>${body}</body></html>`;
+    <style>${ID_CARD_STYLES}</style></head><body>${body}</body></html>`;
   w.document.open();
   w.document.write(html);
   w.document.close();
