@@ -18,17 +18,48 @@ the next sequential number.
 অসম্পর্কিত — আলাদা ফাইল/এলাকা, তাই আলাদা এন্ট্রি, AGENTS.md-এর নিয়ম
 অনুযায়ী পুরনো এন্ট্রি অপরিবর্তিত রাখা হয়েছে)
 
-## Status: PLANNED (কোনো Phase শুরু হয়নি — ব্যবহারকারীর "শুরু কর" নির্দেশের
-অপেক্ষায়)
+## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2 বাকি)
 
-Planned: 2026-08-11
+Started: 2026-08-11
 
 দেখুন `docs/ATTENDANCE_DEVICE_PLAN.md` — সম্পূর্ণ প্রেক্ষাপট, ৫টা Phase-এর
-বিস্তারিত ব্রেকডাউন, ও শুরু করার আগে কনফার্ম করা লাগবে এমন অ্যাসাম্পশন
-সেখানে আছে। ব্যবহারকারী "শুরু কর" বললে Phase 1 (DB স্কিমা: `attendance_devices`,
-`attendance_logs`, `students.fingerprintId`/`cardUid`) দিয়ে শুরু হবে, এবং
-এই এন্ট্রির Status তখন IN_PROGRESS-এ বদলে "সম্পন্ন"/"বাকি" তালিকা যোগ হবে
-(উপরের টেমপ্লেট অনুযায়ী)।
+বিস্তারিত ব্রেকডাউন, ও Phase 1 শুরুর সময় কনফার্ম হওয়া অ্যাসাম্পশন সেখানে আছে।
+
+### Phase 1 (DB স্কিমা: ডিভাইস, পাঞ্চ-লগ, ছাত্র-ম্যাপিং) — সম্পন্ন (2026-08-11)
+- [x] `server/sql/supabase_schema.sql` (protected path — AGENTS.md রুল ৪
+  অনুযায়ী, এই কাজেরই অংশ বলে প্ল্যান ফাইলে আগেই ফ্ল্যাগ করা হয়েছিল, তাই
+  সরাসরি এগোনো হয়েছে):
+  - `students`-এ `alter table ... add column if not exists` দিয়ে
+    `"fingerprintId" text`, `"cardUid" text` (বিদ্যমান `admissionNumber`
+    ইত্যাদির ঠিক প্যাটার্নে) + দুটোরই partial unique index (null/খালি
+    বাদ দিয়ে)।
+  - নতুন `attendance_devices` টেবিল (`deviceId` ইউনিক, `secretKey`,
+    `name`, `location`, `active`, `createdAt`) — `attendance` টেবিলের
+    ঠিক নিচে বসানো হয়েছে (সম্পর্কিত বলে)।
+  - নতুন `attendance_logs` টেবিল (`studentId` fk cascade, `deviceId` fk
+    set-null, `punchAt`, `direction` nullable, `method` default
+    'fingerprint') + `(studentId, punchAt)`-এর উপর ইনডেক্স। raw ইভেন্ট,
+    কখনো আপডেট/ডিলিট হবে না — দৈনিক `attendance.status` এখান থেকেই
+    ডেরাইভ হবে Phase 2-এ (এই টেবিল দুটো এখনো কোনো রাউট থেকে ব্যবহৃত হচ্ছে
+    না, শুধু স্কিমা)।
+  - `server/src/tenantProvision.js` যাচাই করে দেখা হয়েছে — এটা এই একই
+    `supabase_schema.sql` ফাইল পড়ে নতুন প্রতিষ্ঠানের schema বানায়, তাই
+    নতুন কোনো প্রতিষ্ঠানের জন্য আলাদা কিছু করা লাগেনি; বিদ্যমান
+    প্রতিষ্ঠানগুলো এই `alter table`/`create table if not exists`
+    স্টেটমেন্টগুলো পরের বার schema sync/deploy-এ স্বয়ংক্রিয়ভাবে পাবে
+    (বাকি সব রেট্রোঅ্যাকটিভ ফিক্সের মতোই)।
+- Python দিয়ে ব্র্যাকেট/প্যারেন্থেসিস ব্যালান্স চেক করা হয়েছে (সমান
+  পাওয়া গেছে) — **আসল Postgres-এ এই SQL প্রথম চলবে আপনার প্যাকেজড CMD-তে
+  (`npm run check` + schema sync), sandbox-এ যাচাই সম্ভব না, আগের সব
+  স্কিমা-পরিবর্তনের মতোই।**
+
+### Phase 2 (ডিভাইস API — ব্যাকএন্ড, নতুন unauthenticated রুট) — বাকি
+প্ল্যান ফাইলের Phase 2 অনুযায়ী: `server/src/routes/deviceAttendance.js`
+(`POST /api/device/punch`, `GET /api/device/latest-punch/:deviceId`),
+`index.js`-এ মাউন্ট + rate limiter + `tenantResolve.js`-এর
+`isSkippedPath()` যাচাই, `opsSchemas.js`-এ Zod স্কিমা, `recordAudit()`
+কল, এবং `server/src/routes/attendanceDevices.js` (Admin-only ডিভাইস
+ম্যানেজমেন্ট, authenticated চেইনের ভেতরে)।
 
 ---
 
