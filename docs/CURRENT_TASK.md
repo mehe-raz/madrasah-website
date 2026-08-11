@@ -13,6 +13,25 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
+## Task: ফিঙ্গারপ্রিন্ট/কার্ড ডিভাইস দিয়ে হাজিরা — ৫ ভাগে, পুরো পরিকল্পনা
+`docs/ATTENDANCE_DEVICE_PLAN.md`-এ (ad-hoc, নিচের সব এন্ট্রির সাথে
+অসম্পর্কিত — আলাদা ফাইল/এলাকা, তাই আলাদা এন্ট্রি, AGENTS.md-এর নিয়ম
+অনুযায়ী পুরনো এন্ট্রি অপরিবর্তিত রাখা হয়েছে)
+
+## Status: PLANNED (কোনো Phase শুরু হয়নি — ব্যবহারকারীর "শুরু কর" নির্দেশের
+অপেক্ষায়)
+
+Planned: 2026-08-11
+
+দেখুন `docs/ATTENDANCE_DEVICE_PLAN.md` — সম্পূর্ণ প্রেক্ষাপট, ৫টা Phase-এর
+বিস্তারিত ব্রেকডাউন, ও শুরু করার আগে কনফার্ম করা লাগবে এমন অ্যাসাম্পশন
+সেখানে আছে। ব্যবহারকারী "শুরু কর" বললে Phase 1 (DB স্কিমা: `attendance_devices`,
+`attendance_logs`, `students.fingerprintId`/`cardUid`) দিয়ে শুরু হবে, এবং
+এই এন্ট্রির Status তখন IN_PROGRESS-এ বদলে "সম্পন্ন"/"বাকি" তালিকা যোগ হবে
+(উপরের টেমপ্লেট অনুযায়ী)।
+
+---
+
 ## Task: "রিস্ক জোন" — ২+ মাস বেতন বকেয়া ছাত্রদের আলাদা লিস্ট, ৩ ভাগে,
 পুরো পরিকল্পনা `docs/RISK_ZONE_PLAN.md`-এ (ad-hoc, নিচের exam-type
 এন্ট্রির সাথে অসম্পর্কিত — আলাদা ফাইল/এলাকা, তাই আলাদা এন্ট্রি,
