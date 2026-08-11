@@ -141,22 +141,35 @@ router.post("/", validate(incomeCreateSchema), async (req, res) => {
   const year = new Date().getFullYear();
 
   const insertId = await db.withTransaction(async (tx) => {
-    const receipt = await nextReceipt(tx, { table: "income", key: "income_receipt", prefix: `INC-${year}-`, pad: 4 });
+    // A "Student Fee" entry made here (instead of via the Payments module)
+    // mirrors into `payments` below — and from here on, both rows share
+    // ONE receipt (the RCP- one), the same way payments.js's own mirror
+    // does it (see the POST / there: it reuses its own receipt for the
+    // income row it creates). That shared receipt is what lets PATCH/DELETE
+    // below find and keep the paired row in sync instead of one going
+    // stale — before this, this direction minted two unrelated receipt
+    // numbers (INC- for income, RCP- for payments) with nothing connecting
+    // them, so editing or deleting the income row here silently left a
+    // mismatched payments row behind.
+    const isFeeForStudent = student && category === "Student Fee";
+    const receipt = isFeeForStudent
+      ? await nextReceipt(tx, { table: "payments", key: "payment_receipt", prefix: `RCP-${year}-`, pad: 3 })
+      : await nextReceipt(tx, { table: "income", key: "income_receipt", prefix: `INC-${year}-`, pad: 4 });
+
     const result = await tx.run(
       `INSERT INTO income (category, amount, date, note, method, receipt, "studentId", status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [category, amt, entryDate, note || "", method || "Cash", receipt, studentId || null, "Completed"]
     );
 
-    if (student && category === "Student Fee") {
+    if (isFeeForStudent) {
       const newDue = Math.max(0, student.due - amt);
       await tx.run("UPDATE students SET due = $1 WHERE id = $2", [newDue, studentId]);
 
-      const payReceipt = await nextReceipt(tx, { table: "payments", key: "payment_receipt", prefix: `RCP-${year}-`, pad: 3 });
       await tx.run(
         `INSERT INTO payments ("studentId", student, roll, amount, date, receipt, method, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [studentId, student.name, student.roll, amt, entryDate, payReceipt, method || "Cash", newDue === 0 ? "Completed" : "Partial"]
+        [studentId, student.name, student.roll, amt, entryDate, receipt, method || "Cash", newDue === 0 ? "Completed" : "Partial"]
       );
     }
 
@@ -188,6 +201,8 @@ router.patch("/:id", validate(incomeUpdateSchema), async (req, res) => {
 
   const nextCategory = category ?? existing.category;
   const nextAmount = amount != null ? amount : existing.amount;
+  const wasFee = existing.category === "Student Fee";
+  const isFee = nextCategory === "Student Fee";
 
   await db.withTransaction(async (tx) => {
     await tx.run(
@@ -206,12 +221,26 @@ router.patch("/:id", validate(incomeUpdateSchema), async (req, res) => {
     // the new effect (if it still does / now does), so editing an entry
     // can't silently leave the student's balance out of sync.
     if (existing.studentId) {
-      const wasFee = existing.category === "Student Fee";
-      const isFee = nextCategory === "Student Fee";
       const delta = (wasFee ? existing.amount : 0) - (isFee ? nextAmount : 0);
       if (delta !== 0) {
         await tx.run("UPDATE students SET due = GREATEST(0, due + $1) WHERE id = $2", [delta, existing.studentId]);
       }
+    }
+
+    // Since income.js's own POST now mints one shared receipt for a
+    // Student-Fee entry and its mirrored payments row (see POST / above),
+    // editing amount/method/date here without also touching that payments
+    // row would immediately break the invariant it exists to keep — the
+    // receipt would show one amount in Fees/Payments and another in
+    // Income. Only applies when this entry was (and still is) a Student
+    // Fee entry; a category change away from it is left alone (the
+    // payments row is history at that point, not a live mirror).
+    if (wasFee && isFee && existing.receipt) {
+      await tx.run(
+        `UPDATE payments SET amount = COALESCE($1, amount), method = COALESCE($2, method), date = COALESCE($3, date)
+         WHERE receipt = $4`,
+        [amount != null ? amount : null, method ?? null, date ?? null, existing.receipt]
+      );
     }
   });
 
@@ -243,11 +272,22 @@ router.delete("/:id", async (req, res) => {
     return res.status(202).json({ ok: true, pendingApproval: true, request });
   }
 
-  const result = await db.run("DELETE FROM income WHERE id = $1", [id]);
-  if (result.rowCount === 0) return res.status(404).json({ error: "Not found" });
-  if (existing.category === "Student Fee" && existing.studentId) {
-    await db.run("UPDATE students SET due = due + $1 WHERE id = $2", [existing.amount, existing.studentId]);
-  }
+  // Same shared-receipt invariant as PATCH above: a Student-Fee income row
+  // has a matching payments row under the same receipt (see POST /). Delete
+  // it too, in the same transaction, so approval-role's immediate delete
+  // can't leave a payment sitting in Fees/Payments for an income entry that
+  // no longer exists.
+  await db.withTransaction(async (tx) => {
+    await tx.run("DELETE FROM income WHERE id = $1", [id]);
+    if (existing.category === "Student Fee") {
+      if (existing.studentId) {
+        await tx.run("UPDATE students SET due = due + $1 WHERE id = $2", [existing.amount, existing.studentId]);
+      }
+      if (existing.receipt) {
+        await tx.run("DELETE FROM payments WHERE receipt = $1", [existing.receipt]);
+      }
+    }
+  });
   await recordAudit({
     action: "income.deleted",
     actor: req.user,

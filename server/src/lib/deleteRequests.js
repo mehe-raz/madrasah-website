@@ -63,11 +63,25 @@ async function deleteEntity(entityType, entityId) {
   if (entityType === "income") {
     const income = await db.get("SELECT * FROM income WHERE id = $1", [entityId]);
     if (!income) return false;
-    const result = await db.run("DELETE FROM income WHERE id = $1", [entityId]);
-    if (result.rowCount > 0 && income.category === "Student Fee" && income.studentId) {
-      await db.run("UPDATE students SET due = due + $1 WHERE id = $2", [income.amount, income.studentId]);
-    }
-    return result.rowCount > 0;
+    // Same shared-receipt invariant as the immediate-delete path in
+    // routes/income.js: a Student-Fee income row's receipt matches its
+    // mirrored payments row 1:1 (see income.js's POST /), so approving a
+    // delete request for one must remove both — otherwise a request
+    // submitted by a non-approval-role user and approved later would leave
+    // exactly the same orphaned payments row the direct-delete path was
+    // fixed to avoid.
+    return db.withTransaction(async (tx) => {
+      const result = await tx.run("DELETE FROM income WHERE id = $1", [entityId]);
+      if (result.rowCount > 0 && income.category === "Student Fee") {
+        if (income.studentId) {
+          await tx.run("UPDATE students SET due = due + $1 WHERE id = $2", [income.amount, income.studentId]);
+        }
+        if (income.receipt) {
+          await tx.run("DELETE FROM payments WHERE receipt = $1", [income.receipt]);
+        }
+      }
+      return result.rowCount > 0;
+    });
   }
 
   if (entityType === "payment-delete") {
