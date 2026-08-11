@@ -1,0 +1,14 @@
+{
+  "name": "madrasah-attendance-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Standalone Node.js service that speaks a fingerprint device's push protocol and forwards each punch to POST /api/device/punch on the main madrasah-website server. See README.md — this is NOT part of the main app's npm install/build/check (docs/ATTENDANCE_DEVICE_PLAN.md, Phase 5: bridge lives outside the main codebase on purpose).",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0"
+  }
+}

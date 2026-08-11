@@ -18,7 +18,7 @@ the next sequential number.
 অসম্পর্কিত — আলাদা ফাইল/এলাকা, তাই আলাদা এন্ট্রি, AGENTS.md-এর নিয়ম
 অনুযায়ী পুরনো এন্ট্রি অপরিবর্তিত রাখা হয়েছে)
 
-## Status: IN_PROGRESS (Phase 1–4 সম্পন্ন — Phase 5 বাকি)
+## Status: IN_PROGRESS (Phase 1–4 সম্পন্ন — Phase 5 আংশিক/অপরীক্ষিত, আসল ডিভাইসের অপেক্ষায়)
 
 Started: 2026-08-11
 
@@ -183,11 +183,44 @@ Started: 2026-08-11
   lint/typecheck/build সম্ভব হয়নি)। **পুরো `npm run check` আপনার
   প্যাকেজড CMD-তেই প্রথম চলবে, আগের সব ফেজের মতোই।**
 
+### Phase 5 (হার্ডওয়্যার bridge — প্রাথমিক/generic, ব্র্যান্ড অজানা) —
+আংশিক, 2026-08-12
+- [x] `hardware-bridge/` — নতুন standalone Node.js প্রজেক্ট (মূল
+  root/client/server-এর `npm install`/`npm run check`-এর বাইরে, নিজস্ব
+  `package.json`, express+dotenv নির্ভরতা)। ব্যবহারকারী ডিভাইসের
+  ব্র্যান্ড এখনো ঠিক করেননি বলে push/ADMS-ধরনের প্রোটোকল (অনেক সাশ্রয়ী
+  ফিঙ্গারপ্রিন্ট ডিভাইস/ক্লোন যেটা ব্যবহার করে) ধরে একটা generic
+  সংস্করণ বানানো হয়েছে — user-এর স্পষ্ট সিদ্ধান্ত অনুযায়ী (push vs pull
+  আলোচনার পর)।
+  - `hardware-bridge/index.js`: `GET /iclock/cdata` (হ্যান্ডশেক),
+    `POST /iclock/cdata?table=ATTLOG` (পাঞ্চ ডাটা পার্স করে প্রতিটা
+    রেকর্ড `POST /api/device/punch`-এ ফরওয়ার্ড করে), `GET
+    /iclock/getrequest` (কমান্ড পোলিং, খালি "OK")। সব রিকোয়েস্ট
+    `raw-requests.log`-এ লগ হয় — আসল ডিভাইস কানেক্ট হওয়ার পর dialect
+    মেলানো/অ্যাডজাস্ট করার জন্য এটাই মূল টুল।
+  - `hardware-bridge/.env.example`: `BRIDGE_PORT`, `MADRASAH_API_BASE`,
+    `DEVICE_ID`, `DEVICE_SECRET`, `IDENTIFIER_TYPE`।
+  - `hardware-bridge/README.md`: সেটআপ ধাপ, PIN↔fingerprintId ম্যাচিং
+    নিয়ম, ও ডিভাইসটা যদি push/ADMS না হয়ে pull/SDK বা
+    keyboard-emulation টাইপ বের হয় তাহলে কী করতে হবে তার নোট।
+  - `.gitignore`-এ `hardware-bridge/raw-requests.log` যোগ (bulk
+    `node_modules/`/`.env` প্যাটার্ন আগে থেকেই path-agnostic বলে এমনিতেই
+    কভার করছিল)।
+- **সম্পূর্ণ অপরীক্ষিত** — আসল হার্ডওয়্যার হাতে নেই বলে sandbox বা
+  ব্যবহারকারীর মেশিন কোথাও থেকেই টেস্ট করা যায়নি। `node --check` দিয়ে
+  শুধু সিনট্যাক্স যাচাই হয়েছে। এই ফোল্ডার মূল অ্যাপের `npm run check`-এর
+  scope-এর বাইরে (`scripts/check-server.js` শুধু `server/src` স্ক্যান
+  করে) বলে প্যাকেজড CMD-তেও এটা যাচাই হবে না — আলাদাভাবে `cd
+  hardware-bridge && npm install && npm start` চালিয়ে টেস্ট করতে হবে।
+
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] Phase 5 — হার্ডওয়্যার bridge/agent (মূল রিপোর বাইরে)। শুরুর আগে
-  ডিভাইসের ব্র্যান্ড/মডেল জানা দরকার (প্ল্যান ফাইলের ধারা ৩ ও Phase 5
-  সেকশন দেখুন) — এখনো জানা নেই, পরের সেশনে ব্যবহারকারীকে জিজ্ঞেস করে
-  শুরু হবে।
+- [ ] আসল ডিভাইস কেনার/ব্র্যান্ড-মডেল জানার পর: `raw-requests.log`
+  ব্যবহারকারীর কাছ থেকে নিয়ে `hardware-bridge/index.js`-এর
+  হ্যান্ডশেক/ATTLOG-পার্সিং আসল ডিভাইসের dialect-এর সাথে মেলানো/
+  অ্যাডজাস্ট করা, অথবা ডিভাইস pull/SDK বা keyboard-emulation টাইপ হলে
+  সম্পূর্ণ ভিন্ন পদ্ধতিতে (README-এর নোট দেখুন) নতুন করে বানানো। Phase 4
+  কিয়স্ক পেজে টেস্ট পাঞ্চ দিয়ে end-to-end (ডিভাইস → bridge → API →
+  কিয়স্ক স্ক্রিন → গার্জিয়ান SMS) যাচাই এই ধাপেই হবে।
 
 ### Phase 2/4 ফিক্স — অজানা স্ক্যানের "ছাত্র খুঁজে পাওয়া যায়নি" (2026-08-12,
 ব্যবহারকারীর অনুরোধে, Phase 4-এর সাথে ধরা পড়া জানা সীমাবদ্ধতা)

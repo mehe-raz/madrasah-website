@@ -6,3 +6,7 @@ server/data/
 .DS_Store
 *.diff
 *-diff.txt
+
+# hardware-bridge (Phase 5) — raw traffic dump, useful locally for
+# debugging a real device's dialect but not something to commit.
+hardware-bridge/raw-requests.log
