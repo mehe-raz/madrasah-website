@@ -45,6 +45,7 @@ export const ROUTE_PERMISSION = {
   "/api/delete-requests": "dashboard",
   "/api/students": "students",
   "/api/attendance": "attendance",
+  "/api/attendance-devices": "attendance",
   "/api/payments": "income",
   "/api/income": "income",
   "/api/expenses": "expenses",

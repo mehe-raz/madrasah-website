@@ -30,6 +30,12 @@ const ROUTE_PERMISSION = {
   "/api/delete-requests": "dashboard",
   "/api/students": "students",
   "/api/attendance": "attendance",
+  // Admin device management (docs/ATTENDANCE_DEVICE_PLAN.md Phase 2) — same
+  // "attendance" tier, since it's the same Admin/Hostel Manager/Teacher
+  // audience that already handles daily attendance. The device's own
+  // punch/latest-punch endpoints (/api/device/*) are unauthenticated by
+  // design (see routes/deviceAttendance.js) and never reach this map.
+  "/api/attendance-devices": "attendance",
   "/api/payments": "income",
   "/api/income": "income",
   "/api/expenses": "expenses",

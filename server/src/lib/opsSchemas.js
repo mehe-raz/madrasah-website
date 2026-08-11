@@ -42,9 +42,36 @@ const hifzSabaqSchema = z.object({
   sabaq: z.string().trim().max(1000).optional().default(""),
 });
 
+// docs/ATTENDANCE_DEVICE_PLAN.md Phase 2 — device-facing punch + admin
+// device-management schemas. Kept in this file alongside attendance*
+// above rather than a new file, since these are also attendance-domain
+// validation and this file is already the "ops" catch-all (see file
+// header comment).
+const devicePunchSchema = z.object({
+  deviceId: z.string().trim().min(1, "ডিভাইস আইডি আবশ্যক").max(100),
+  secretKey: z.string().trim().min(1, "সিক্রেট কী আবশ্যক").max(200),
+  identifier: z.string().trim().min(1, "fingerprintId/cardUid আবশ্যক").max(200),
+  identifierType: z.enum(["fingerprint", "card"]),
+});
+
+const attendanceDeviceCreateSchema = z.object({
+  deviceId: z.string().trim().min(1, "ডিভাইস আইডি আবশ্যক").max(100),
+  name: z.string().trim().max(120).optional().default(""),
+  location: z.string().trim().max(200).optional().default(""),
+});
+
+const attendanceDeviceUpdateSchema = z.object({
+  name: z.string().trim().max(120).optional(),
+  location: z.string().trim().max(200).optional(),
+  active: z.boolean().optional(),
+});
+
 module.exports = {
   expenseCreateSchema,
   attendanceSaveSchema,
   hifzParaSchema,
   hifzSabaqSchema,
+  devicePunchSchema,
+  attendanceDeviceCreateSchema,
+  attendanceDeviceUpdateSchema,
 };

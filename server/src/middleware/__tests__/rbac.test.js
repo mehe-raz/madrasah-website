@@ -17,6 +17,10 @@ const EXPECTED_ALLOWED = {
   "/api/delete-requests": ["Super Admin", "Admin", "Accountant", "Hostel Manager"],
   "/api/students": ["Super Admin", "Admin", "Hostel Manager"],
   "/api/attendance": ["Super Admin", "Admin", "Teacher", "Hostel Manager"],
+  // Same "attendance" permission as /api/attendance above (docs/
+  // ATTENDANCE_DEVICE_PLAN.md Phase 2) — admin device management, same
+  // role tier as daily attendance itself, not a new permission bucket.
+  "/api/attendance-devices": ["Super Admin", "Admin", "Teacher", "Hostel Manager"],
   "/api/payments": ["Super Admin", "Admin", "Accountant"],
   "/api/income": ["Super Admin", "Admin", "Accountant"],
   "/api/expenses": ["Super Admin", "Admin", "Accountant"],

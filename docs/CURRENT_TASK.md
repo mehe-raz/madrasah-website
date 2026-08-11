@@ -18,7 +18,7 @@ the next sequential number.
 অসম্পর্কিত — আলাদা ফাইল/এলাকা, তাই আলাদা এন্ট্রি, AGENTS.md-এর নিয়ম
 অনুযায়ী পুরনো এন্ট্রি অপরিবর্তিত রাখা হয়েছে)
 
-## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2 বাকি)
+## Status: IN_PROGRESS (Phase 1, Phase 2 সম্পন্ন — Phase 3 বাকি)
 
 Started: 2026-08-11
 
@@ -53,13 +53,80 @@ Started: 2026-08-11
   (`npm run check` + schema sync), sandbox-এ যাচাই সম্ভব না, আগের সব
   স্কিমা-পরিবর্তনের মতোই।**
 
-### Phase 2 (ডিভাইস API — ব্যাকএন্ড, নতুন unauthenticated রুট) — বাকি
-প্ল্যান ফাইলের Phase 2 অনুযায়ী: `server/src/routes/deviceAttendance.js`
-(`POST /api/device/punch`, `GET /api/device/latest-punch/:deviceId`),
-`index.js`-এ মাউন্ট + rate limiter + `tenantResolve.js`-এর
-`isSkippedPath()` যাচাই, `opsSchemas.js`-এ Zod স্কিমা, `recordAudit()`
-কল, এবং `server/src/routes/attendanceDevices.js` (Admin-only ডিভাইস
-ম্যানেজমেন্ট, authenticated চেইনের ভেতরে)।
+### Phase 2 (ডিভাইস API — ব্যাকএন্ড, নতুন unauthenticated রুট) — সম্পন্ন (2026-08-11)
+- [x] `server/src/lib/opsSchemas.js` — নতুন `devicePunchSchema`,
+  `attendanceDeviceCreateSchema`, `attendanceDeviceUpdateSchema` (Zod),
+  বিদ্যমান স্কিমাগুলোর ঠিক পাশে, একই ফাইলে (ফাইলের হেডার কমেন্ট অনুযায়ী
+  এটাই attendance-domain ভ্যালিডেশনের catch-all)।
+- [x] নতুন `server/src/routes/deviceAttendance.js` — ডিভাইসের নিজস্ব
+  পাবলিক এন্ডপয়েন্ট (স্টাফ JWT নেই বলে `deviceId`+`secretKey` দিয়ে নিজস্ব
+  অথ):
+  - `POST /api/device/punch` — ডিভাইস অথেন্টিকেট করে,
+    `identifierType` অনুযায়ী `fingerprintId`/`cardUid` দিয়ে ছাত্র খুঁজে,
+    `attendance_logs`-এ ইনসার্ট করে, দিনের প্রথম পাঞ্চ কিনা চেক করে (`LIKE`
+    দিয়ে date-prefix ম্যাচ, যেহেতু `punchAt` টেক্সট কলাম), `attendance`
+    টেবিলে সেই একই `ON CONFLICT ("studentId", date) DO UPDATE` upsert
+    (routes/attendance.js-এর সাথে হুবহু মিলিয়ে, যাতে ডিভাইস-হাজিরা আর
+    ম্যানুয়াল হাজিরা কখনো আলাদা লজিকে না চলে), `recordAudit()`, এবং
+    প্রথম পাঞ্চ হলে ও ফোন নম্বর থাকলে `sendGuardianSms()`
+    (`notificationType: "attendancePunch"` — settings-পেজ টগল Phase 3-এ)।
+  - `GET /api/device/latest-punch/:deviceId` — কিয়স্ক পোলিং-এর জন্য (Phase
+    4), সর্বশেষ পাঞ্চের ছাত্র-ইনফো ফেরত দেয়।
+  - দুটোই আলাদা rate limiter সহ (`devicePunchLimiter`,
+    `deviceLatestLimiter`, ৬০/মিনিট)।
+- [x] নতুন `server/src/routes/attendanceDevices.js` — Admin-facing ডিভাইস
+  ম্যানেজমেন্ট (authenticated চেইনের ভেতরে, `requirePermission("attendance")`):
+  `GET /`, `POST /` (নতুন ডিভাইস + `crypto.randomBytes` দিয়ে জেনারেটেড
+  `secretKey`, শুধু creation/regenerate রেসপন্সেই ফেরত আসে — list-এ না),
+  `PUT /:id` (name/location/active আপডেট), `POST /:id/regenerate-secret`।
+  ডুপ্লিকেট `deviceId`-এ Postgres 23505 ধরে ৪০৯ রেসপন্স
+  (payments_receipt_unique-এর প্যাটার্নে)। প্রতিটা সংবেদনশীল অ্যাকশনে
+  `recordAudit()`।
+- [x] `server/src/index.js` — `/api/device` নতুন unauthenticated রাউট
+  `/api/guardian-auth`-এর ঠিক পরে, `requireAuth` চেইনের আগে মাউন্ট করা
+  হয়েছে (tenantResolve-এর পরে, তাই মাল্টি-টেন্যান্ট মোডে ডিভাইসের
+  রিকোয়েস্টও Host-ভিত্তিক স্বাভাবিক তেন্যান্ট-রেজোলিউশনই পায় — কোনো
+  `isSkippedPath()` এন্ট্রি লাগেনি, যেটা প্ল্যান ফাইলে "এই ধাপেই ঠিক হবে"
+  বলে রাখা হয়েছিল)। `/api/attendance-devices` authenticated চেইনে
+  `/api/attendance`-এর ঠিক পরে যোগ হয়েছে।
+- [x] `server/src/config/roles.js` — `ROUTE_PERMISSION`-এ
+  `"/api/attendance-devices": "attendance"` (নতুন কোনো permission bucket
+  বানানো হয়নি, প্ল্যানের ধারা ৩-এর সিদ্ধান্ত অনুযায়ী)। `npm run check`
+  চললে `client/src/lib/roles.generated.ts` স্বয়ংক্রিয়ভাবে সিঙ্ক হবে
+  (কখনো হাতে এডিট করা হয়নি, AGENTS.md রুল ৩)।
+- সবগুলো পরিবর্তিত/নতুন `.js` ফাইল `node --check` দিয়ে সিনট্যাক্স-পাস
+  (sandbox-এ node আছে, কিন্তু `node_modules`/network নেই বলে zod ইত্যাদি
+  আসলে `require()` করে লোড-টেস্ট করা যায়নি) — **পুরো `npm run check` ও
+  আসল একটা টেস্ট-পাঞ্চ পাঠিয়ে ম্যানুয়াল যাচাই আপনার প্যাকেজড CMD-তেই প্রথম
+  হবে।**
+
+### Phase 3 (গার্জিয়ান SMS হুক — settings-পেজ ইন্টিগ্রেশন) — বাকি
+প্ল্যান ফাইলের Phase 3 অনুযায়ী: `server/src/routes/sms.js`-এর
+`NOTIFICATION_TYPES`-এ `"attendancePunch"` যোগ (এখন এটা settings পেজে
+টগল না করেই ডিফল্ট চালু আছে — Phase 2-এর `sendGuardianSms` কল ইতিমধ্যে
+`notificationType: "attendancePunch"` পাস করছে, কিন্তু `NOTIFICATION_TYPES`
+লিস্টে না থাকায় এখনো অ্যাডমিন সেটিংস পেজ থেকে বন্ধ করতে পারবেন না — এটাই
+Phase 3-এর মূল কাজ)।
+
+### Phase 2 রিটোঅ্যাকটিভ ফিক্স (2026-08-11, ব্যবহারকারীর CMD চালিয়ে ধরা পড়েছে)
+- ব্যবহারকারীর মেশিনে `npm run check`-এর `test:unit` ধাপে
+  `server/src/middleware/__tests__/rbac.test.js`-এর
+  `"the expectations table above covers every currently-gated route"`
+  টেস্ট ফেল করেছিল — সেই ফাইলের হাতে-লেখা `EXPECTED_ALLOWED` টেবিল
+  `ROUTE_PERMISSION`-এর প্রতিটা কী-এর বিরুদ্ধে পিন করে রাখে (দেখুন ফাইলের
+  নিজস্ব হেডার কমেন্ট), Phase 2-এ `/api/attendance-devices` যোগ করার সময়
+  এই টেবিলে এন্ট্রি যোগ করা হয়নি বলে মিসম্যাচ।
+- **ফিক্স:** `EXPECTED_ALLOWED`-এ `"/api/attendance-devices": ["Super
+  Admin", "Admin", "Teacher", "Hostel Manager"]` যোগ — `/api/attendance`-এর
+  ঠিক একই তালিকা, কারণ দুটোই একই `"attendance"` permission শেয়ার করে
+  (`ROUTE_PERMISSION`-এ), তাই `canAccess()` উভয় রুটে একই রোল-সেট অনুমোদন
+  করে। এখানে একটা লক্ষণীয় ব্যাপার: Teacher-এরও এই ডিভাইস-ম্যানেজমেন্ট
+  রুটে অ্যাক্সেস থাকবে (নতুন permission bucket না বানিয়ে বিদ্যমান
+  "attendance" রিইউজ করার সরাসরি ফলাফল, প্ল্যান ফাইলের ধারা ৩-এর
+  সিদ্ধান্ত অনুযায়ী — ইচ্ছাকৃত, বাগ না)।
+- `node --check` দিয়ে ফাইলটার সিনট্যাক্স যাচাই করা হয়েছে (sandbox-এ
+  vitest চালানো সম্ভব না)। **এই ফিক্স-সহ `npm run check` আবার চালিয়ে
+  `test:unit` পাস করছে কিনা যাচাই করা লাগবে আপনার CMD-তে।**
 
 ---
 

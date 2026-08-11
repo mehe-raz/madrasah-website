@@ -186,6 +186,15 @@ app.use("/api/auth", authLimiter, require("./routes/auth"));
 // per-route, same pattern as routes/auth.js.
 app.use("/api/guardian-auth", require("./routes/guardianAuth"));
 
+// Fingerprint/card attendance-device API (docs/ATTENDANCE_DEVICE_PLAN.md,
+// Phase 2) — a device has no staff JWT, so this is mounted here (after
+// tenantResolve, before the staff requireAuth/rbac chain below) and
+// authenticates itself with deviceId+secretKey instead. See
+// routes/deviceAttendance.js's header comment for why no tenantResolve
+// isSkippedPath() entry is needed (this route DOES belong to a tenant,
+// resolved the normal Host-based way, same as /api/guardian-auth above).
+app.use("/api/device", require("./routes/deviceAttendance"));
+
 
 // Platform/Super-Admin panel (Part 5) — talks only to the registry schema,
 // never a tenant_xxx schema, so it's mounted here (before the tenant
@@ -411,6 +420,10 @@ app.use("/api", apiLimiter, requireAuth, verifyCsrfToken, rbacMiddleware);
 
 app.use("/api/students", require("./routes/students"));
 app.use("/api/attendance", require("./routes/attendance"));
+// Admin device management for attendance_devices (Phase 2) — the device's
+// own public-facing endpoint is /api/device above, mounted before this
+// authenticated chain; this one is the staff-facing CRUD side.
+app.use("/api/attendance-devices", require("./routes/attendanceDevices"));
 app.use("/api/payments", require("./routes/payments"));
 app.use("/api/income", require("./routes/income"));
 app.use("/api/expenses", require("./routes/expenses"));
