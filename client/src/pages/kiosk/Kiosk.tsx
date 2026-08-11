@@ -10,15 +10,10 @@
 // dependency). Idle screen shows a clock + the institution's name/logo
 // (usePublicSite, same hook every public page already uses).
 //
-// Known gap (not fixed here — out of this task's scope): an UNMATCHED scan
-// (fingerprint/card not linked to any student) is rejected by POST
-// /device/punch with a 404 and never written to attendance_logs, so the
-// latest-punch polling endpoint this page reads has no way to know it
-// happened — the kiosk simply shows nothing for that scan instead of the
-// "ছাত্র খুঁজে পাওয়া যায়নি" message the plan doc's Phase 4 section describes.
-// Surfacing that would mean Phase 2's route/schema recording failed
-// attempts too, which is a backend change outside a frontend-only phase —
-// flagging it here rather than quietly expanding scope (AGENTS.md rule 1).
+// An unmatched scan (fingerprint/card not linked to any student) is logged
+// with matched:false (server/src/routes/deviceAttendance.js's POST /punch,
+// 2026-08-12 fix) and shown here as "ছাত্র খুঁজে পাওয়া যায়নি" — same
+// idle/punch/hide cycle as a normal match.
 // ============================================================================
 
 import { useEffect, useRef, useState } from "react";
@@ -115,20 +110,30 @@ export function Kiosk() {
     <div className="kiosk">
       {punch ? (
         <div className="kiosk__punch" key={punch.punchAt}>
-          {punch.student.photo ? (
-            <img
-              className="kiosk__photo"
-              src={cloudinaryResize(punch.student.photo, "f_auto,q_auto,w_500")}
-              alt={punch.student.name}
-            />
+          {punch.matched && punch.student ? (
+            <>
+              {punch.student.photo ? (
+                <img
+                  className="kiosk__photo"
+                  src={cloudinaryResize(punch.student.photo, "f_auto,q_auto,w_500")}
+                  alt={punch.student.name}
+                />
+              ) : (
+                <div className="kiosk__photo kiosk__photo--placeholder">{punch.student.name.charAt(0)}</div>
+              )}
+              <p className="kiosk__name">{punch.student.name}</p>
+              <p className="kiosk__meta">
+                {[punch.student.class, punch.student.section].filter(Boolean).join(" - ")} · রোল {punch.student.roll}
+              </p>
+              <p className="kiosk__punch-time">{formatPunchTime(punch.punchAt)}-এ প্রবেশ করেছে</p>
+            </>
           ) : (
-            <div className="kiosk__photo kiosk__photo--placeholder">{punch.student.name.charAt(0)}</div>
+            <>
+              <div className="kiosk__photo kiosk__photo--unmatched">?</div>
+              <p className="kiosk__name">ছাত্র খুঁজে পাওয়া যায়নি</p>
+              <p className="kiosk__meta">এই ফিঙ্গারপ্রিন্ট/কার্ড কোনো ছাত্রের সাথে যুক্ত নেই</p>
+            </>
           )}
-          <p className="kiosk__name">{punch.student.name}</p>
-          <p className="kiosk__meta">
-            {[punch.student.class, punch.student.section].filter(Boolean).join(" - ")} · রোল {punch.student.roll}
-          </p>
-          <p className="kiosk__punch-time">{formatPunchTime(punch.punchAt)}-এ প্রবেশ করেছে</p>
         </div>
       ) : (
         <div className="kiosk__idle">

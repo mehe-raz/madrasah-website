@@ -658,7 +658,11 @@ export interface KioskPunchStudent {
 
 export interface KioskPunch {
   punchAt: string;
-  student: KioskPunchStudent;
+  // false for an unmatched fingerprint/card scan (added 2026-08-12, see
+  // deviceAttendance.js's POST /punch) — student is null in that case, not
+  // omitted, so callers can't forget to check this before reading it.
+  matched: boolean;
+  student: KioskPunchStudent | null;
 }
 
 export interface KioskLatestPunchResponse {

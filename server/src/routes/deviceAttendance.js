@@ -90,6 +90,16 @@ router.post("/punch", devicePunchLimiter, validate(devicePunchSchema), async (re
     [identifier]
   );
   if (!student || student.status !== "Active") {
+    // Logged (studentId null, matched false) instead of just returning the
+    // error, so the kiosk's latest-punch poll (Phase 4) has a row to find
+    // and can show "ছাত্র খুঁজে পাওয়া যায়নি" for a real failed scan — added
+    // 2026-08-12, see supabase_schema.sql's 2026-08-12 comment on this
+    // table for why studentId had to become nullable for this.
+    await db.run(
+      `INSERT INTO attendance_logs ("studentId", "deviceId", "punchAt", direction, method, matched, identifier)
+       VALUES (NULL, $1, $2, NULL, $3, false, $4)`,
+      [device.id, new Date().toISOString(), identifierType, identifier]
+    );
     return res.status(404).json({ error: "ছাত্র খুঁজে পাওয়া যায়নি" });
   }
 
@@ -158,10 +168,14 @@ router.get("/latest-punch/:deviceId", deviceLatestLimiter, async (req, res) => {
   );
   if (!device) return res.status(404).json({ error: "ডিভাইস খুঁজে পাওয়া যায়নি" });
 
+  // LEFT JOIN (not JOIN) so an unmatched attempt — studentId null, matched
+  // false, see the insert in POST /punch above — still comes back instead
+  // of being silently dropped from this query; the kiosk (Phase 4) tells
+  // the two cases apart via "matched".
   const log = await db.get(
-    `SELECT al."punchAt", s.name, s.class, s.section, s.roll, s."studentPhoto"
+    `SELECT al."punchAt", al.matched, s.name, s.class, s.section, s.roll, s."studentPhoto"
      FROM attendance_logs al
-     JOIN students s ON s.id = al."studentId"
+     LEFT JOIN students s ON s.id = al."studentId"
      WHERE al."deviceId" = $1
      ORDER BY al."punchAt" DESC
      LIMIT 1`,
@@ -172,13 +186,16 @@ router.get("/latest-punch/:deviceId", deviceLatestLimiter, async (req, res) => {
   res.json({
     punch: {
       punchAt: log.punchAt,
-      student: {
-        name: log.name,
-        class: log.class,
-        section: log.section,
-        roll: log.roll,
-        photo: log.studentPhoto,
-      },
+      matched: log.matched,
+      student: log.matched
+        ? {
+            name: log.name,
+            class: log.class,
+            section: log.section,
+            roll: log.roll,
+            photo: log.studentPhoto,
+          }
+        : null,
     },
   });
 });

@@ -189,6 +189,43 @@ Started: 2026-08-11
   সেকশন দেখুন) — এখনো জানা নেই, পরের সেশনে ব্যবহারকারীকে জিজ্ঞেস করে
   শুরু হবে।
 
+### Phase 2/4 ফিক্স — অজানা স্ক্যানের "ছাত্র খুঁজে পাওয়া যায়নি" (2026-08-12,
+ব্যবহারকারীর অনুরোধে, Phase 4-এর সাথে ধরা পড়া জানা সীমাবদ্ধতা)
+- Phase 4-এর প্রথম ডেলিভারিতে ফ্ল্যাগ করা গ্যাপ: অজানা fingerprintId/
+  cardUid দিয়ে পাঞ্চ করলে ব্যাকএন্ড কোথাও লগ করত না, তাই কিয়স্ক সেই
+  ব্যর্থ স্ক্যান সম্পর্কে কিছুই জানতে পারত না।
+- **ফিক্স (protected path — `server/sql/supabase_schema.sql`, AGENTS.md
+  রুল ৪ অনুযায়ী স্পষ্টভাবে জানিয়ে এগোনো হলো, এই পুরো ফিচারের জন্যই আগে
+  ফ্ল্যাগ করা ব্যতিক্রম, প্ল্যান ফাইলের ধারা ৫ দেখুন):**
+  - `attendance_logs.studentId` এখন nullable (আগে `not null`), + দুটো নতুন
+    কলাম: `matched boolean not null default true`, `identifier text`।
+    বিদ্যমান tenant-দের জন্য idempotent `alter table` ব্লক (payments-এর
+    2026-08-05 nullable-fix-এর ঠিক প্যাটার্নে) — নতুন ইনস্টলে এমনিতেই
+    `create table` স্টেটমেন্ট থেকেই পাবে।
+  - `server/src/routes/deviceAttendance.js`-এর `POST /punch`: ছাত্র না
+    পাওয়া গেলে এখন `attendance_logs`-এ একটা রো ইনসার্ট হয়
+    (`studentId NULL, matched false, identifier <যা স্ক্যান হয়েছিল>`) —
+    রেসপন্স আগের মতোই ৪০৪ + একই এরর মেসেজ, ডিভাইস/bridge-এর জন্য কোনো
+    ব্রেকিং চেঞ্জ নেই।
+  - `GET /latest-punch/:deviceId`: `JOIN students` থেকে `LEFT JOIN
+    students`-এ বদলানো হয়েছে (নাহলে unmatched রো — যার studentId null —
+    কোয়েরি থেকে বাদ পড়ে যেত)। রেসপন্সে এখন `matched` বুলিয়ান আছে;
+    `matched: false` হলে `student: null`।
+  - `client/src/types/index.ts`-এর `KioskPunch`-এ `matched: boolean` +
+    `student: KioskPunchStudent | null` (আগে student সবসময় present
+    ধরা হতো)।
+  - `client/src/pages/kiosk/Kiosk.tsx`: পাঞ্চ-স্টেটে `matched` চেক করে
+    হয় ছাত্রের কার্ড, নয়তো লাল "ছাত্র খুঁজে পাওয়া যায়নি" কার্ড দেখায়
+    (`.kiosk__photo--unmatched` নতুন ক্লাস, `index.css`) — idle-এ ফেরার
+    ৩ সেকেন্ডের টাইমার/পোলিং লজিক অপরিবর্তিত।
+  - `attendanceSaveSchema`/`devicePunchSchema` কোনোটাই ছোঁয়া হয়নি —
+    রিকোয়েস্ট শেপ একই আছে, শুধু সার্ভার-সাইড হ্যান্ডলিং বদলেছে।
+- `node --check` দিয়ে `deviceAttendance.js`-এর সিনট্যাক্স যাচাই +
+  bracket-balance চেক বাকি সব পরিবর্তিত `.ts`/`.tsx`/`.css`/`.sql` ফাইলে
+  (sandbox-এ আসল Postgres/node_modules নেই)। **পুরো `npm run check` +
+  schema sync (নতুন কলাম আসলে বসছে কিনা) আপনার প্যাকেজড CMD-তেই প্রথম
+  যাচাই হবে, আগের সব ধাপের মতোই।**
+
 ### নোট
 Phase 4 শেষে কিয়স্ক পেজ পরীক্ষা করতে আসল ডিভাইস লাগবে না — যেকোনো
 ব্রাউজারে `/kiosk/<একটা বিদ্যমান deviceId>` খুলে, তারপর

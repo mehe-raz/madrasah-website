@@ -3454,6 +3454,16 @@ img {
   font-weight: 800;
 }
 
+.kiosk__photo--unmatched {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(244, 63, 94, 0.14);
+  color: #f43f5e;
+  font-size: 96px;
+  font-weight: 800;
+}
+
 .kiosk__name {
   font-size: 44px;
   font-weight: 800;
