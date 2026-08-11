@@ -13,6 +13,53 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
+## Task: মাল্টি-টেন্যান্ট সেলফ-সার্ভিস ডিভাইস কানেক্ট + ছাত্র ফিঙ্গারপ্রিন্ট
+এনরোলমেন্ট — ৪ Phase-এ (কিছু Phase sub-phase-এ ভাগ করা), পুরো পরিকল্পনা
+`docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md`-এ (ad-hoc, নিচের
+ফিঙ্গারপ্রিন্ট-ডিভাইস এন্ট্রির **উপরে বসছে**, তার ব্যাকএন্ড/কিয়স্ক অংশ
+রিইউজ করে — কিন্তু আলাদা ফাইল/এন্ট্রি, পুরনো এন্ট্রি অপরিবর্তিত)
+
+## Status: IN_PROGRESS (এখনো কোনো Phase শুরু হয়নি — শুধু প্ল্যান লেখা হয়েছে)
+
+Started: 2026-08-12 (প্ল্যান লেখার তারিখ; কোডিং শুরুর তারিখ ভিন্ন হতে পারে)
+
+দেখুন `docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md` — সম্পূর্ণ প্রেক্ষাপট,
+৪টা Phase-এর (কিছু sub-phase-এ ভাগ করা) বিস্তারিত ব্রেকডাউন, ও শুরুর আগে
+কনফার্ম করা লাগবে এমন ৪টা অ্যাসাম্পশন সেখানে আছে।
+
+### সম্পন্ন
+- [x] প্ল্যান ডকুমেন্ট লেখা (`docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md`) —
+  Phase 1 (ডিভাইস-ম্যানেজমেন্ট UI, 2 sub-phase), Phase 2 (ছাত্র
+  fingerprintId/cardUid ফিল্ড + স্ক্যান-এনরোলমেন্ট মোড, 3 sub-phase),
+  Phase 3 (hardware-bridge সহজ প্যাকেজ, 2 sub-phase), Phase 4 (সেটআপ
+  গাইড, 2 sub-phase)।
+
+### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে)
+- [ ] **প্রথমে** — ব্যবহারকারী প্ল্যানের ধারা ৩-এর ৪টা অ্যাসাম্পশন
+  (এনরোলমেন্ট-মোডের ডিজাইন, raw identifier এক্সপোজ করার নতুন
+  authenticated এন্ডপয়েন্ট, hardware-bridge exe-প্যাকেজিং-এ নতুন
+  dev-dependency, গাইডে ছবি/placeholder) কনফার্ম করেছেন কিনা যাচাই —
+  স্পষ্ট "শুরু কর" (বা "Phase 1 থেকে শুরু কর") না পাওয়া পর্যন্ত কোনো
+  Phase শুরু করা যাবে না (ব্যবহারকারীর নিজের নিয়ম, উপরের চ্যাট দেখুন)।
+- [ ] Phase 1 (1A → 1B), Phase 2 (2A → 2B → 2C), Phase 3 (3A, তারপর 3B
+  আলাদা কনফার্মেশন সহ), Phase 4 (4A → 4B) — প্ল্যান ডকের ধারা ৪-এ
+  ঠিক যে ক্রমে লেখা আছে সেই ক্রমেই, একবারে এক sub-phase, প্রতি
+  sub-phase শেষে `npm run check` + ব্যবহারকারীর প্যাকেজড CMD দিয়ে
+  যাচাই — পাস না করলে পরের sub-phase-এ যাওয়া যাবে না।
+- [ ] প্রতিটা sub-phase শেষ হলে এই এন্ট্রিতে "সম্পন্ন"-এ সরিয়ে "বাকি"
+  আপডেট করতে হবে (packaging/zip-এর আগে), যাতে পরের কোনো এজেন্ট এই
+  ফাইল পড়ে ঠিক কোথায় আছে বুঝতে পারে।
+
+### নোট
+এই টাস্ক `ATTENDANCE_DEVICE_PLAN.md`-এর ব্যাকএন্ড (attendance_devices/
+attendance_logs টেবিল, `POST /api/device/punch`, `GET
+/device/latest-punch/:deviceId`, `attendanceDevices.js` API, কিয়স্ক পেজ)
+পুরোপুরি রিইউজ করে — সেগুলো এই টাস্কে আবার লেখা হবে না, শুধু তার উপরে
+মিসিং UI/UX (অ্যাডমিন পেজ, ছাত্র-ফর্ম ফিল্ড, এনরোলমেন্ট-মোড, সহজ
+bridge, গাইড) যোগ হচ্ছে।
+
+---
+
 ## Task: ফিঙ্গারপ্রিন্ট/কার্ড ডিভাইস দিয়ে হাজিরা — ৫ ভাগে, পুরো পরিকল্পনা
 `docs/ATTENDANCE_DEVICE_PLAN.md`-এ (ad-hoc, নিচের সব এন্ট্রির সাথে
 অসম্পর্কিত — আলাদা ফাইল/এলাকা, তাই আলাদা এন্ট্রি, AGENTS.md-এর নিয়ম
