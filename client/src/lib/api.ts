@@ -23,6 +23,7 @@ import type {
   IncomeEntry,
   IncomeSummary,
   InstitutionBillingStatus,
+  KioskLatestPunchResponse,
   Notification,
   PaginatedResult,
   Payment,
@@ -958,6 +959,18 @@ export const api = {
       "/sms/topup-via-gateway/execute",
       { method: "POST", body: JSON.stringify({ paymentID }) }
     ),
+
+  // -------------------------------------------------------------------------
+  // Attendance device kiosk (docs/ATTENDANCE_DEVICE_PLAN.md, Phase 4) — no
+  // staff/guardian session at all (see server/src/routes/deviceAttendance.js
+  // header comment), just a public read polled by pages/kiosk/Kiosk.tsx.
+  // request()'s credentials:"include"/CSRF header are harmless no-ops here
+  // since a kiosk tablet never has an auth cookie to send.
+  // -------------------------------------------------------------------------
+  device: {
+    getLatestPunch: (deviceId: string) =>
+      request<KioskLatestPunchResponse>(`/device/latest-punch/${deviceId}`),
+  },
 
   // -------------------------------------------------------------------------
   // Guardian Portal (Step 5) — separate session/cookie from the staff `api.*`

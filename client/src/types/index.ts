@@ -644,3 +644,23 @@ export interface InstitutionBillingStatus {
   /** true only if the PLATFORM operator's own bKash account is connected — not this institution's own gateway. */
   platformGatewayConnected: boolean;
 }
+
+// Attendance device kiosk (docs/ATTENDANCE_DEVICE_PLAN.md, Phase 4) — same
+// shape server/src/routes/deviceAttendance.js's GET /device/latest-punch/:id
+// sends (toStudentPayload()/the inline SELECT there), just typed client-side.
+export interface KioskPunchStudent {
+  name: string;
+  class: string;
+  section?: string;
+  roll: string;
+  photo?: string;
+}
+
+export interface KioskPunch {
+  punchAt: string;
+  student: KioskPunchStudent;
+}
+
+export interface KioskLatestPunchResponse {
+  punch: KioskPunch | null;
+}

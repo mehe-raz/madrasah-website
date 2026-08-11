@@ -3369,3 +3369,123 @@ img {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 12px;
 }
+
+/* Attendance device kiosk monitor (docs/ATTENDANCE_DEVICE_PLAN.md, Phase 4)
+   — pages/kiosk/Kiosk.tsx. A full-viewport, always-on tablet screen, so this
+   deliberately doesn't reuse the page-content max-width/padding rules the
+   rest of the app uses. */
+.kiosk {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.16), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.12), transparent 26%),
+    var(--bg);
+  color: var(--text);
+}
+
+.kiosk__idle,
+.kiosk__punch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.kiosk__logo {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-soft);
+}
+
+.kiosk__institution {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+
+.kiosk__clock {
+  font-size: 96px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 2px;
+}
+
+.kiosk__date {
+  font-size: 22px;
+  color: var(--muted);
+  margin-top: 14px;
+}
+
+.kiosk__hint {
+  font-size: 18px;
+  color: var(--muted);
+  margin-top: 48px;
+  padding: 12px 28px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.kiosk__photo {
+  width: 260px;
+  height: 260px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  box-shadow: var(--shadow-pop);
+  border: 6px solid var(--card);
+  margin-bottom: 28px;
+}
+
+.kiosk__photo--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--slate-l);
+  color: var(--brand);
+  font-size: 96px;
+  font-weight: 800;
+}
+
+.kiosk__name {
+  font-size: 44px;
+  font-weight: 800;
+}
+
+.kiosk__meta {
+  font-size: 22px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.kiosk__punch-time {
+  font-size: 20px;
+  color: var(--brand);
+  font-weight: 700;
+  margin-top: 20px;
+  padding: 10px 24px;
+  border-radius: var(--radius-pill);
+  background: var(--slate-l);
+}
+
+.kiosk--error {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kiosk__error-title {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.kiosk__error-desc {
+  font-size: 16px;
+  color: var(--muted);
+}

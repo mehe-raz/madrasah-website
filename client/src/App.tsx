@@ -19,6 +19,7 @@ const Pricing = lazy(() => import("./pages/Pricing").then((m) => ({ default: m.P
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy").then((m) => ({ default: m.PrivacyPolicy })));
 const ResultLookup = lazy(() => import("./pages/ResultLookup").then((m) => ({ default: m.ResultLookup })));
 const TermsOfService = lazy(() => import("./pages/TermsOfService").then((m) => ({ default: m.TermsOfService })));
+const Kiosk = lazy(() => import("./pages/kiosk/Kiosk").then((m) => ({ default: m.Kiosk })));
 const Attendance = lazy(() => import("./modules/Attendance").then((m) => ({ default: m.Attendance })));
 const AdmissionsReview = lazy(() => import("./modules/AdmissionsReview").then((m) => ({ default: m.AdmissionsReview })));
 const AuditLogs = lazy(() => import("./modules/AuditLogs").then((m) => ({ default: m.AuditLogs })));
@@ -91,6 +92,11 @@ export default function App() {
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/pricing" element={<Pricing />} />
+            {/* Attendance device kiosk monitor (docs/ATTENDANCE_DEVICE_PLAN.md,
+                Phase 4) — a tablet mounted above the device stays open on this
+                URL indefinitely, so it must be public like /result above:
+                no staff login, deliberately outside <ProtectedRoute>. */}
+            <Route path="/kiosk/:deviceId" element={<Kiosk />} />
             <Route
               path="/guardian/*"
               element={
