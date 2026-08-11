@@ -598,6 +598,7 @@ export interface SmsNotificationPrefs {
   feeDueReminder: boolean;
   resultPublished: boolean;
   paymentReceived: boolean;
+  attendancePunch: boolean;
 }
 
 export interface SmsWallet {

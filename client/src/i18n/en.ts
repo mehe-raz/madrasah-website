@@ -654,6 +654,7 @@ export const en = {
     notifyFeeDue: "Due-fee reminders",
     notifyResultPublished: "Result published",
     notifyPaymentReceived: "bKash payment received",
+    notifyAttendancePunch: "Device attendance (entry) punch",
     gatewayTopupTitle: "Auto top-up via bKash gateway",
     gatewayTopupSubtitle: "Top up instantly using your connected bKash account — no manual Trx ID verification needed",
     gatewayTopupButton: "Top up via bKash",

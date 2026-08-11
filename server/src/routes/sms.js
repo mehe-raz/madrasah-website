@@ -33,7 +33,7 @@ const PREFS_KEY = "smsNotificationPrefs";
 // this list here (not just inferred from whatever keys happen to exist in
 // the stored JSON) means the settings page always shows every togglable
 // type, even before the admin has saved any preferences at all.
-const NOTIFICATION_TYPES = ["feeDueReminder", "resultPublished", "paymentReceived"];
+const NOTIFICATION_TYPES = ["feeDueReminder", "resultPublished", "paymentReceived", "attendancePunch"];
 
 async function getPrefs() {
   const row = await db.get("SELECT value FROM settings WHERE key = $1", [PREFS_KEY]);

@@ -18,7 +18,7 @@ the next sequential number.
 অসম্পর্কিত — আলাদা ফাইল/এলাকা, তাই আলাদা এন্ট্রি, AGENTS.md-এর নিয়ম
 অনুযায়ী পুরনো এন্ট্রি অপরিবর্তিত রাখা হয়েছে)
 
-## Status: IN_PROGRESS (Phase 1, Phase 2 সম্পন্ন — Phase 3 বাকি)
+## Status: IN_PROGRESS (Phase 1–3 সম্পন্ন — Phase 4 বাকি)
 
 Started: 2026-08-11
 
@@ -100,13 +100,29 @@ Started: 2026-08-11
   আসল একটা টেস্ট-পাঞ্চ পাঠিয়ে ম্যানুয়াল যাচাই আপনার প্যাকেজড CMD-তেই প্রথম
   হবে।**
 
-### Phase 3 (গার্জিয়ান SMS হুক — settings-পেজ ইন্টিগ্রেশন) — বাকি
-প্ল্যান ফাইলের Phase 3 অনুযায়ী: `server/src/routes/sms.js`-এর
-`NOTIFICATION_TYPES`-এ `"attendancePunch"` যোগ (এখন এটা settings পেজে
-টগল না করেই ডিফল্ট চালু আছে — Phase 2-এর `sendGuardianSms` কল ইতিমধ্যে
-`notificationType: "attendancePunch"` পাস করছে, কিন্তু `NOTIFICATION_TYPES`
-লিস্টে না থাকায় এখনো অ্যাডমিন সেটিংস পেজ থেকে বন্ধ করতে পারবেন না — এটাই
-Phase 3-এর মূল কাজ)।
+### Phase 3 (গার্জিয়ান SMS হুক — settings-পেজ ইন্টিগ্রেশন) — সম্পন্ন (2026-08-11)
+- [x] `server/src/routes/sms.js` — `NOTIFICATION_TYPES`-এ `"attendancePunch"`
+  যোগ (বিদ্যমান তিনটা টাইপ অপরিবর্তিত)। `getPrefs()`/`PUT
+  /notification-prefs` কোনো কোড-চেঞ্জ ছাড়াই এই নতুন টাইপ স্বয়ংক্রিয়ভাবে
+  ধরে নেয় (দুটোই `NOTIFICATION_TYPES` লুপ করে), যেমনটা ফাইলের হেডার
+  কমেন্টে বলা আছে। এখন থেকে অ্যাডমিন সেটিংস পেজ থেকে এই টাইপ বন্ধ/চালু
+  করতে পারবেন — আগে ডিফল্ট চালু থাকলেও টগল করার উপায় ছিল না।
+- [x] `client/src/types/index.ts` — `SmsNotificationPrefs`-এ
+  `attendancePunch: boolean` যোগ।
+- [x] `client/src/modules/SmsSettings.tsx` — `togglePref`-এর key union-এ
+  `"attendancePunch"` যোগ, ও notification-settings কার্ডে বিদ্যমান তিনটা
+  checkbox-row-এর ঠিক প্যাটার্নে চতুর্থ checkbox-row যোগ (কোনো নতুন
+  `style={{...}}` লাগেনি, `checkbox-row` ক্লাস রিইউজ — AGENTS.md ডিজাইন-
+  সিস্টেম রুল মেনে)।
+- [x] `client/src/i18n/bn.ts` ও `en.ts` — দুটোতেই `notifyAttendancePunch`
+  key যোগ (বিদ্যমান তিন `notify*` key-এর ঠিক পাশে, দুই ফাইলে key-parity
+  বজায় রেখে)। "exit" SMS টাইপ এই ধাপে যোগ হয়নি — প্ল্যানের ধারা ৩ অনুযায়ী
+  ইচ্ছাকৃতভাবে শুধু entry-punch, ভবিষ্যতে আলাদা কাজ হিসেবে যোগ হবে।
+- `node --check` দিয়ে `sms.js`-এর সিনট্যাক্স যাচাই + বাকি চারটা
+  `.ts`/`.tsx` ফাইলে bracket/parenthesis ব্যালান্স চেক (sandbox-এ
+  node_modules/tsc নেই বলে আসল typecheck/lint/build সম্ভব হয়নি)।
+  **পুরো `npm run check` আপনার প্যাকেজড CMD-তেই প্রথম চলবে, আগের সব
+  ধাপের মতোই।**
 
 ### Phase 2 রিটোঅ্যাকটিভ ফিক্স (2026-08-11, ব্যবহারকারীর CMD চালিয়ে ধরা পড়েছে)
 - ব্যবহারকারীর মেশিনে `npm run check`-এর `test:unit` ধাপে

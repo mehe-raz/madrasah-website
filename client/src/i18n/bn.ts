@@ -652,6 +652,7 @@ export const bn = {
     notifyFeeDue: "বকেয়া বেতনের reminder",
     notifyResultPublished: "ফলাফল প্রকাশিত হলে",
     notifyPaymentReceived: "বিকাশে পেমেন্ট পাওয়া গেলে",
+    notifyAttendancePunch: "ডিভাইসে হাজিরা (প্রবেশ) দিলে",
     gatewayTopupTitle: "বিকাশ গেটওয়ে দিয়ে স্বয়ংক্রিয় টপ-আপ",
     gatewayTopupSubtitle: "আপনার কানেক্টেড বিকাশ অ্যাকাউন্ট দিয়ে সাথে সাথে টপ-আপ করুন — ম্যানুয়াল Trx ID যাচাইয়ের প্রয়োজন নেই",
     gatewayTopupButton: "বিকাশে টপ-আপ করুন",

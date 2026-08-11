@@ -99,7 +99,10 @@ export function SmsSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const togglePref = async (key: "feeDueReminder" | "resultPublished" | "paymentReceived", value: boolean) => {
+  const togglePref = async (
+    key: "feeDueReminder" | "resultPublished" | "paymentReceived" | "attendancePunch",
+    value: boolean
+  ) => {
     if (!wallet) return;
     const prevPrefs = wallet.notificationPrefs;
     setWallet({ ...wallet, notificationPrefs: { ...prevPrefs, [key]: value } });
@@ -197,6 +200,15 @@ export function SmsSettings() {
                 onChange={(e) => togglePref("paymentReceived", e.target.checked)}
               />
               {t.sms.notifyPaymentReceived}
+            </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={wallet.notificationPrefs.attendancePunch}
+                disabled={savingPrefs}
+                onChange={(e) => togglePref("attendancePunch", e.target.checked)}
+              />
+              {t.sms.notifyAttendancePunch}
             </label>
           </Card>
 
