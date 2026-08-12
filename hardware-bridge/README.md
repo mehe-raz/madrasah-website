@@ -1,64 +1,119 @@
-# Attendance Device Bridge (Phase 5 — unverified/generic)
+# হাজিরা ডিভাইস ব্রিজ (Attendance Device Bridge)
 
-Standalone Node.js service that receives punch data from a fingerprint
-device and forwards it to `POST /api/device/punch` on the main
-madrasah-website server. This is **separate from the main app** — its own
-`package.json`/`npm install`, its own process, meant to run on a small
-always-on machine near the device (not as part of the website deploy).
+এই ছোট প্রোগ্রামটা ফিঙ্গারপ্রিন্ট/কার্ড মেশিন আর আপনার মাদরাসা ওয়েবসাইটের
+মাঝখানে বসে থাকে — মেশিনে কেউ আঙুল দিলে, এই প্রোগ্রামটা সেই তথ্য নিয়ে
+ওয়েবসাইটে পাঠিয়ে দেয়। এটা মূল ওয়েবসাইটের অংশ না — আলাদা একটা ছোট প্রোগ্রাম,
+যেই কম্পিউটারে হাজিরা মেশিনটা লাগানো আছে সেখানে সবসময় চালু রাখতে হয়।
 
-## Status: generic, not yet tested against real hardware
+**অবস্থা:** এটা এখনো নির্দিষ্ট কোনো ব্র্যান্ডের মেশিনে টেস্ট করা হয়নি। বাজারের
+বেশিরভাগ সস্তা ফিঙ্গারপ্রিন্ট মেশিন (ZKTeco ও তার মতো ফার্মওয়্যারের অন্যান্য
+মেশিন) যেই সাধারণ পদ্ধতি ("push/ADMS") ব্যবহার করে, এটা সেটার জন্য লেখা।
+আপনার মেশিনে হয়তো প্রথমবারেই কাজ করবে, নাও করতে পারে — না করলে নিচের
+"কাজ না করলে কী করবেন" অংশ দেখুন।
 
-This was written before a specific device brand/model was chosen
-(`docs/ATTENDANCE_DEVICE_PLAN.md`, Phase 5). It implements the commonly
-documented "push/ADMS" protocol shape that many budget fingerprint
-devices (ZKTeco and OEM/clone devices on similar firmware) use — but the
-exact wire format can differ per device/firmware, so **treat this as a
-starting point, not a guarantee.**
+আপনার মেশিনে কী এলো তার প্রতিটা রেকর্ড `raw-requests.log` নামের একটা ফাইলে
+সেভ হতে থাকে — কিছু সমস্যা হলে এই ফাইলটাই সবচেয়ে বেশি কাজে লাগবে।
 
-Every request the bridge receives is logged to `raw-requests.log` (method,
-URL, headers, body). Once you have the real device talking to this bridge,
-that file is the fastest way to see exactly what it's sending and adjust
-`index.js` to match — send that log along if you want help adjusting it.
+---
 
-## Setup
+## যা যা লাগবে
 
-1. `cd hardware-bridge && npm install`
-2. `cp .env.example .env` and fill in:
-   - `MADRASAH_API_BASE` — your running server's API URL
-   - `DEVICE_ID` / `DEVICE_SECRET` — create a device from the admin
-     dashboard's device management page first (Phase 2); the secret is
-     only shown once at creation/regeneration time
-   - `BRIDGE_PORT` — whatever's free on the machine this runs on
-3. `npm start`
-4. On the physical device's own menu (usually under
-   Network/Communication/Cloud settings), set its "Server IP" and "Server
-   Port" (or "ADMS" toggle, wording varies by device) to point at the
-   machine running this bridge and `BRIDGE_PORT`.
-5. Scan a test fingerprint/card and watch the bridge's console output +
-   `raw-requests.log`. If nothing shows up at all, the device likely isn't
-   even reaching this bridge (network/firewall, or it uses a different
-   protocol entirely — see "If this doesn't work" below).
+- একটা কম্পিউটার, যেটা মেশিনের কাছেই বসানো থাকবে এবং সবসময় চালু থাকবে
+  (যেমন অফিসের ডেস্কটপ/ল্যাপটপ)
+- সেই কম্পিউটারে **Node.js** ইনস্টল করা — এটা একটা ফ্রি প্রোগ্রাম যেটা ছাড়া
+  এই ব্রিজ চলবে না। না থাকলে [nodejs.org](https://nodejs.org) থেকে
+  "LTS" লেখা ভার্সনটা ডাউনলোড করে সাধারণ কোনো সফটওয়্যারের মতোই
+  ইনস্টল করুন (Next → Next → Install)।
+- আপনার ওয়েবসাইট থেকে "হাজিরা ডিভাইস" পেজে গিয়ে একটা ডিভাইস তৈরি করা
+  (deviceId ও secretKey পাবেন — secretKey একবারই দেখাবে, টুকে রাখুন)
 
-## Matching PIN to a student
+---
 
-The device identifies a person by a "PIN" (its own internal enrollment
-number). Whatever PIN the device sends must be typed **exactly**, character
-for character, into that student's `fingerprintId` field on the admin
-dashboard (Students module) — this bridge does no translation between the
-two, per the Phase 1 plan's manual-enrollment decision.
+## ধাপে ধাপে সেটআপ
 
-## If this doesn't work with your actual device
+প্রতিটা ধাপের আগে বলা আছে এটা আসলে কী করে, যাতে আন্দাজে না করে বুঝে করতে পারেন।
 
-Some devices don't speak push/ADMS at all — common alternatives once you
-know the real brand/model:
-- **Pull/SDK-based** device (most non-push ZKTeco-family devices): needs a
-  different bridge design (this one connects TO the device instead of
-  waiting for it), usually over a local TCP SDK — a different piece of
-  code, not a tweak of this file.
-- **Keyboard-emulation card reader**: doesn't need this bridge at all — see
-  the "known gap" note in `client/src/pages/kiosk/Kiosk.tsx`'s Phase 4
-  section; a hidden input on the kiosk page can capture the scan directly.
+**১. কমান্ড প্রম্পট / টার্মিনাল খুলুন এবং এই ফোল্ডারে যান**
+এটা একটা কালো/সাদা টেক্সট-বক্স যেখানে লিখে কম্পিউটারকে নির্দেশ দেওয়া যায়
+(Windows-এ Start মেনুতে "cmd" লিখে খুঁজুন)।
+```
+cd hardware-bridge
+```
+*এটা কী করে:* টার্মিনালকে বলে দেয় এখন থেকে এই `hardware-bridge` ফোল্ডারের
+ভেতরের কমান্ডগুলোই চালাতে হবে।
 
-Once the real brand/model is known, bring it up again — the plan doc's
-Phase 5 section can be updated with the actual protocol and this bridge
-adjusted or replaced accordingly.
+**২. প্রয়োজনীয় প্রোগ্রামগুলো ইনস্টল করুন**
+```
+npm install
+```
+*এটা কী করে:* এই ব্রিজ চালাতে যেসব ছোট প্রোগ্রাম/লাইব্রেরি লাগে, ইন্টারনেট
+থেকে সেগুলো ডাউনলোড করে এই ফোল্ডারেই রেখে দেয়। প্রথমবার একটু সময় লাগতে
+পারে (ইন্টারনেট স্পিড অনুযায়ী), একবার হয়ে গেলে পরে আর লাগে না।
+
+**৩. কনফিগারেশন ফাইল তৈরি করুন**
+`.env.example` নামের ফাইলটা কপি করে নতুন নাম দিন `.env` (এক্সটেনশন বাদে
+পুরো নামটাই — সামনে কোনো নাম নেই, শুধু `.env`)।
+
+*এটা কী করে:* `.env.example`-এ একটা নমুনা টেমপ্লেট আছে; `.env` হলো
+আপনার নিজের আসল তথ্য বসানোর কপি — এই ফাইলটা কখনো কারো সাথে শেয়ার করবেন
+না, এতে আপনার secretKey থাকবে।
+
+`.env` ফাইলটা Notepad দিয়ে খুলে এই তিনটা মান বসান:
+- `MADRASAH_API_BASE` — আপনার ওয়েবসাইটের ঠিকানা, শেষে `/api` যোগ করে
+  (যেমন `https://yourschool.com/api`)
+- `DEVICE_ID` ও `DEVICE_SECRET` — আগে যে ডিভাইসটা তৈরি করেছিলেন,
+  তার আইডি ও সিক্রেট (সিক্রেট হারিয়ে ফেললে ড্যাশবোর্ড থেকে আবার
+  বানিয়ে নেওয়া যায় "regenerate" বাটনে)
+
+**৪. ব্রিজ চালু করুন**
+```
+npm start
+```
+*এটা কী করে:* এই প্রোগ্রামটা চালু করে দেয় এবং মেশিন থেকে তথ্য আসার
+অপেক্ষায় থাকে। চালু হওয়ার সাথে সাথে একটা স্বয়ংক্রিয় পরীক্ষা চলে —
+টার্মিনালে যদি "✓ কনফিগারেশন ঠিক আছে" লেখা দেখেন, বুঝবেন
+`MADRASAH_API_BASE` ঠিকানাটা সঠিক আছে। "⚠ সতর্কতা" দেখলে, ওই লাইনে
+কী ভুল থাকতে পারে সেটাই বলা থাকবে — সেটা ঠিক করে আবার `npm start`
+চালান।
+
+এই টার্মিনাল/উইন্ডো বন্ধ করে ফেললে ব্রিজও বন্ধ হয়ে যাবে — তাই মেশিন
+চালু রাখতে চাইলে এই উইন্ডোটাও খোলা/চালু রাখতে হবে।
+
+**৫. মেশিনের নিজের মেনুতে সেটিংস দিন**
+মেশিনের নিজের মেনুতে (সাধারণত Network / Communication / Cloud নামের
+অংশে) "Server IP" আর "Server Port" (কোনো কোনো মেশিনে "ADMS" নামে) —
+এই দুইটাতে বসান এই ব্রিজ যেই কম্পিউটারে চলছে তার IP ঠিকানা আর
+`.env`-এ দেওয়া `BRIDGE_PORT` (ডিফল্ট `8090`)।
+
+**৬. পরীক্ষা করুন**
+মেশিনে একটা টেস্ট আঙুল/কার্ড স্ক্যান করুন এবং টার্মিনালের লেখা +
+`raw-requests.log` ফাইল দেখুন। কিছু না দেখলে, মেশিনটা এই ব্রিজ
+পর্যন্তই পৌঁছাচ্ছে না (নেটওয়ার্ক/ফায়ারওয়াল সমস্যা, অথবা মেশিনটা
+ভিন্ন কোনো পদ্ধতি ব্যবহার করে) — নিচের অংশ দেখুন।
+
+---
+
+## ছাত্রের PIN মেলানো
+
+মেশিন প্রতিটা মানুষকে চেনে একটা "PIN" নম্বর দিয়ে (মেশিনে এনরোল করার সময়
+যেটা বসানো হয়েছিল)। ওয়েবসাইটের অ্যাডমিন প্যানেলে ছাত্র প্রোফাইলের
+`fingerprintId`/`cardUid` ফিল্ডে **হুবহু একই** PIN বসাতে হবে, একটা
+সংখ্যাও এদিক-ওদিক হলে মিলবে না। এই ব্রিজ কোনো পরিবর্তন/অনুবাদ করে না।
+
+---
+
+## কাজ না করলে কী করবেন
+
+মেশিনের ব্র্যান্ড/মডেল অনুযায়ী তিন ধরনের হতে পারে:
+
+- **Push/ADMS মেশিন (এই ব্রিজ যেটার জন্য লেখা)** — উপরের ধাপগুলো অনুসরণ
+  করলে কাজ করার কথা। না করলে `raw-requests.log` ফাইলটা দেখুন — মেশিন
+  থেকে কী এসেছে সেটা বোঝা যাবে।
+- **Pull/SDK-ভিত্তিক মেশিন** — এই ব্রিজ ভিন্নভাবে কাজ করে (মেশিন এই
+  ব্রিজে তথ্য পাঠায় না, বরং এই ব্রিজকেই মেশিনে গিয়ে তথ্য আনতে হয়) —
+  এর জন্য আলাদা কোড লাগবে, এই ফাইল কাজ করবে না।
+- **কীবোর্ড-ইমুলেশন কার্ড রিডার** — এই ব্রিজেরই দরকার নেই, কিয়স্ক পেজেই
+  সরাসরি কার্ড স্ক্যান করানো যায় (`client/src/pages/kiosk/Kiosk.tsx`)।
+
+আপনার মেশিনের ব্র্যান্ড/মডেল জানা থাকলে সেটা জানান — সেই অনুযায়ী এই
+ব্রিজটা ঠিক করে দেওয়া বা প্রয়োজনে নতুন করে লেখা যাবে।
