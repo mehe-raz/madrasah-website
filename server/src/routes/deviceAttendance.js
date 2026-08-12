@@ -119,11 +119,17 @@ router.post("/punch", devicePunchLimiter, validate(devicePunchSchema), async (re
   // direction stays null: per the plan doc's Phase-1 assumption, most
   // fingerprint/card devices don't distinguish in/out at the hardware
   // level, so entry/exit is derived from first/last punch ordering
-  // instead of being recorded here.
+  // instead of being recorded here. "identifier" is now stored here too
+  // (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2C) — previously
+  // only the unmatched branch above stored it; the new staff-facing
+  // GET /:id/latest-scan (attendanceDevices.js) needs a raw identifier on
+  // every scan, not just unmatched ones, so a re-enrollment scan of an
+  // already-enrolled finger/card still surfaces something to the
+  // "স্ক্যান করে বসান" UI instead of silently returning null.
   await db.run(
-    `INSERT INTO attendance_logs ("studentId", "deviceId", "punchAt", direction, method)
-     VALUES ($1, $2, $3, NULL, $4)`,
-    [student.id, device.id, punchAt, identifierType]
+    `INSERT INTO attendance_logs ("studentId", "deviceId", "punchAt", direction, method, identifier)
+     VALUES ($1, $2, $3, NULL, $4, $5)`,
+    [student.id, device.id, punchAt, identifierType, identifier]
   );
 
   // Reuses the exact upsert routes/attendance.js's manual save already

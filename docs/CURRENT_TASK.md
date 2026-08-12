@@ -75,21 +75,40 @@ Started: 2026-08-12 (প্ল্যান লেখার তারিখ; ক�
   `i18n/en.ts`-এর `students` ব্লকে `fingerprintId`/`cardUid` লেবেল যোগ
   (key-parity যাচাই করা হয়েছে)। ব্রেস-ব্যালান্স যাচাই করা হয়েছে,
   sandbox-এ `npm run check` নিজে চালানো যায়নি।
+- [x] **Phase 2C সম্পন্ন — Phase 2 সম্পূর্ণ শেষ** — "স্ক্যান করে বসান"
+  এনরোলমেন্ট মোড। ব্যাকএন্ড: `server/src/routes/attendanceDevices.js`-এ
+  নতুন `GET /:id/latest-scan` (staff-authenticated, "attendance"
+  permission — router-লেভেলেই আছে, নতুন কিছু লাগেনি), সংখ্যাসূচক
+  `attendance_devices.id` দিয়ে (PUT/regenerate-secret-এর মতোই, kiosk-এর
+  পাবলিক এন্ডপয়েন্টের স্ট্রিং `deviceId`-এর মতো না) — সর্বশেষ
+  `attendance_logs` রো-এর `punchAt`+raw `identifier` ফেরত দেয়।
+  `server/src/routes/deviceAttendance.js`-এর `POST /punch`-এর
+  matched-punch INSERT-এও এখন `identifier` কলাম সেভ হয় (আগে শুধু
+  unmatched ব্রাঞ্চে হতো) — যাতে re-enrollment স্ক্যানেও রেসপন্স খালি না
+  থাকে। ফ্রন্টএন্ড: `types/index.ts`-এ `AttendanceDeviceLatestScanResponse`,
+  `api.ts`-এ `api.attendanceDevices.getLatestScan(id)`, নতুন
+  `client/src/components/ScanEnrollModal.tsx` (`ScanEnrollButton` —
+  স্ব-সম্পূর্ণ ট্রিগার-বাটন + মোডাল: ডিভাইস-ড্রপডাউন → "শুরু করুন" →
+  ২ সেকেন্ড পোলিং, ৩০ সেকেন্ড টাইমআউট, রেসপন্স `punchAt` মোডাল-ওপেনিং
+  সময়ের চেয়ে নতুন হলেই ক্যাপচার)। `Students.tsx`-এ fingerprintId/cardUid
+  ইনপুটের পাশে বসানো (নতুন `.field-with-action` CSS ক্লাস,
+  `index.css`)। `i18n/bn.ts`/`en.ts`-এর `attendanceDevices` ব্লকে
+  `scan*` কী-গুলো যোগ (key-parity + ব্যবহৃত-কী উভয়ই যাচাই করা হয়েছে)।
+  `node --check` (ব্যাকএন্ড) + ব্রেস-ব্যালান্স (ফ্রন্টএন্ড) দিয়ে
+  যাচাই করা হয়েছে, sandbox-এ `npm run check` নিজে চালানো যায়নি।
 
 ### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে)
-- [ ] ব্যবহারকারীর সর্বশেষ `npm run check` রেজাল্ট দেখে Phase 1/2A/2B-তে
-  কোনো টাইপ/লিন্ট/টেস্ট এরর থাকলে ঠিক করা (প্রথম অগ্রাধিকার)।
-- [ ] **Phase 2C** — "স্ক্যান করে বসান" এনরোলমেন্ট মোড। প্ল্যান ডকের ধারা
-  ৩-এর অ্যাসাম্পশন অনুযায়ী: নতুন staff-authenticated এন্ডপয়েন্ট
-  (`attendanceDevices.js`-এ, "attendance" permission-গার্ডেড) যেটা raw
-  scan identifier ফেরত দেয়, `api.attendanceDevices.getLatestScan()`,
-  এবং ছাত্র-ফর্মে (Phase 2B-এর `fingerprintId`/`cardUid` ইনপুটের পাশে)
-  ডিভাইস-বাছাই + পোলিং মোডাল যা স্ক্যান এলে অটো-ফিল করে। এটাই Phase
-  2-এর সবচেয়ে বড়/জটিল সাব-ফেজ।
-- [ ] Phase 3 (3A, তারপর 3B আলাদা কনফার্মেশন সহ), Phase 4 (4A → 4B) —
-  প্ল্যান ডকের ধারা ৪-এ ঠিক যে ক্রমে লেখা আছে সেই ক্রমেই, একবারে এক
-  sub-phase, প্রতি sub-phase শেষে `npm run check` + ব্যবহারকারীর
-  প্যাকেজড CMD দিয়ে যাচাই — পাস না করলে পরের sub-phase-এ যাওয়া যাবে না।
+- [ ] ব্যবহারকারীর সর্বশেষ `npm run check` রেজাল্ট দেখে Phase 1/2A/2B/2C-তে
+  কোনো টাইপ/লিন্ট/টেস্ট এরর থাকলে ঠিক করা (প্রথম অগ্রাধিকার) — **Phase 2
+  পুরোপুরি সম্পন্ন**, পরের কাজ সরাসরি Phase 3।
+- [ ] **Phase 3 (hardware-bridge সহজে চালানোর প্যাকেজ)** — শুরুর আগে
+  প্ল্যান ডকের ধারা ৩-এর Phase-3-সংক্রান্ত অ্যাসাম্পশন (3B-তে নতুন
+  dev-dependency + ব্যবহারকারীর নিজের Windows মেশিনে বিল্ড/টেস্ট লাগবে)
+  ব্যবহারকারীর কাছ থেকে কনফার্ম করে নেওয়া, বিশেষত 3B শুরুর আগে আলাদাভাবে।
+  3A (কোনো নতুন dependency ছাড়া UX/এরর-মেসেজ উন্নতি) দিয়ে শুরু করা
+  নিরাপদ, কনফার্মেশন ছাড়াই।
+- [ ] Phase 4 (4A → 4B) — প্ল্যান ডকের ধারা ৪-এ ঠিক যে ক্রমে লেখা আছে
+  সেই ক্রমেই।
 - [ ] প্রতিটা sub-phase শেষ হলে এই এন্ট্রিতে "সম্পন্ন"-এ সরিয়ে "বাকি"
   আপডেট করতে হবে (packaging/zip-এর আগে), যাতে পরের কোনো এজেন্ট এই
   ফাইল পড়ে ঠিক কোথায় আছে বুঝতে পারে।

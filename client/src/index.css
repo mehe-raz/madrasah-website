@@ -1195,6 +1195,21 @@ img {
   margin-bottom: 20px;
 }
 
+/* docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2C — a .ds-field next
+   to a same-row action button (Students.tsx's fingerprintId/cardUid
+   inputs + their "স্ক্যান করে বসান" button). flex-end aligns the button
+   with the input's bottom edge, not the field's label. */
+.field-with-action {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.field-with-action > .ds-field {
+  flex: 1;
+  min-width: 0;
+}
+
 .form-grid--wide {
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }

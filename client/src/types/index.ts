@@ -701,3 +701,11 @@ export interface AttendanceDeviceSecretResponse {
   deviceId: string;
   secretKey: string;
 }
+
+// GET /:id/latest-scan (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase
+// 2C) — staff-only, raw-identifier variant of KioskLatestPunchResponse
+// above. Both fields null when the device has no punch history yet.
+export interface AttendanceDeviceLatestScanResponse {
+  punchAt: string | null;
+  identifier: string | null;
+}

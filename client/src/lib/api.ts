@@ -3,6 +3,7 @@ import type {
   AdmissionApplicationInput,
   AttendanceDevice,
   AttendanceDeviceCreateResponse,
+  AttendanceDeviceLatestScanResponse,
   AttendanceDeviceSecretResponse,
   AttendanceResponse,
   AuditLog,
@@ -993,6 +994,11 @@ export const api = {
       request<AttendanceDevice>(`/attendance-devices/${id}`, { method: "PUT", body: JSON.stringify(body) }),
     regenerateSecret: (id: number) =>
       request<AttendanceDeviceSecretResponse>(`/attendance-devices/${id}/regenerate-secret`, { method: "POST" }),
+    // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2C — polled by
+    // ScanEnrollModal (components/ScanEnrollModal.tsx) every ~2s while its
+    // modal is open, same 2s cadence as the kiosk's public polling.
+    getLatestScan: (id: number) =>
+      request<AttendanceDeviceLatestScanResponse>(`/attendance-devices/${id}/latest-scan`),
   },
 
   // -------------------------------------------------------------------------

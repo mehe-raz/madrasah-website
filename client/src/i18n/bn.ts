@@ -741,6 +741,14 @@ export const bn = {
     secretModalWarning: "এই সিক্রেট কী আর কখনো দেখানো হবে না। এখনই কপি করে ডিভাইস/hardware-bridge-এ বসিয়ে রাখুন।",
     copy: "কপি করুন",
     copied: "কপি হয়েছে",
+    // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2C — ScanEnrollModal.tsx
+    scanToFill: "স্ক্যান করে বসান",
+    scanModalTitle: "ডিভাইস থেকে স্ক্যান করে বসান",
+    scanNoDevices: "কোনো সক্রিয় ডিভাইস পাওয়া যায়নি — আগে একটা ডিভাইস যোগ করুন",
+    scanStart: "শুরু করুন",
+    scanWaiting: "এখন আঙুল/কার্ড স্ক্যান করুন...",
+    scanTimeout: "স্ক্যান শনাক্ত হয়নি, আবার চেষ্টা করুন",
+    scanRetry: "আবার চেষ্টা করুন",
   },
   // ad-hoc, docs/CURRENT_TASK.md — InstitutionBilling.tsx
   institutionBilling: {

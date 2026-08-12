@@ -743,6 +743,14 @@ export const en = {
     secretModalWarning: "This secret key will never be shown again. Copy it now and set it on the device/hardware-bridge.",
     copy: "Copy",
     copied: "Copied",
+    // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2C — ScanEnrollModal.tsx
+    scanToFill: "Scan to fill",
+    scanModalTitle: "Scan from a device to fill this field",
+    scanNoDevices: "No active devices found — add a device first",
+    scanStart: "Start",
+    scanWaiting: "Scan the finger/card now...",
+    scanTimeout: "No scan detected, try again",
+    scanRetry: "Try again",
   },
   // ad-hoc, docs/CURRENT_TASK.md — InstitutionBilling.tsx
   institutionBilling: {

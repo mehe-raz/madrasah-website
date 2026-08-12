@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SkeletonTableRows } from "../components/Skeleton";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { Badge } from "../components/Badge";
+import { ScanEnrollButton } from "../components/ScanEnrollModal";
 import { Button, Card, ClassCascadeSelect, Field, Input, ReadonlyValue, Select, Textarea } from "../components/ui";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
@@ -737,8 +738,14 @@ export function Students() {
                 {renderInput(t.students.englishName, "nameEn")}
                 {renderInput(t.students.dateOfBirth, "dateOfBirth", "date")}
                 {renderInput(`${t.students.birthRegistration} (${t.students.optional})`, "birthRegistrationNumber")}
-                {renderInput(`${t.students.fingerprintId} (${t.students.optional})`, "fingerprintId")}
-                {renderInput(`${t.students.cardUid} (${t.students.optional})`, "cardUid")}
+                <div className="field-with-action">
+                  {renderInput(`${t.students.fingerprintId} (${t.students.optional})`, "fingerprintId")}
+                  <ScanEnrollButton onCaptured={(value) => setField("fingerprintId", value)} />
+                </div>
+                <div className="field-with-action">
+                  {renderInput(`${t.students.cardUid} (${t.students.optional})`, "cardUid")}
+                  <ScanEnrollButton onCaptured={(value) => setField("cardUid", value)} />
+                </div>
                 {renderSelect(t.students.gender, "gender", genderOptions)}
                 {renderSelect(t.students.religion, "religion", religionOptions)}
                 {renderSelect(t.students.blood, "blood", bloodOptions)}

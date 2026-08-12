@@ -42,6 +42,31 @@ router.get("/", async (req, res) => {
   res.json(rows);
 });
 
+// docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2C — staff-
+// authenticated (this router's "attendance" permission, applied above),
+// deliberately separate from the public GET /device/latest-punch/:deviceId
+// in routes/deviceAttendance.js. That kiosk-facing endpoint never exposes
+// a raw fingerprintId/cardUid (only matched student info), so a random
+// kiosk poller can't "listen in" on another student's scan; this one does
+// expose it, but only to an authenticated staff member with the
+// "attendance" permission, for the student-enrollment flow in
+// Students.tsx (Phase 2B's fingerprintId/cardUid fields). Uses the
+// numeric attendance_devices.id, same as PUT/regenerate-secret above (not
+// the string deviceId, which is what deviceAttendance.js's public
+// endpoints key on).
+router.get("/:id/latest-scan", async (req, res) => {
+  const log = await db.get(
+    `SELECT "punchAt", identifier
+     FROM attendance_logs
+     WHERE "deviceId" = $1
+     ORDER BY "punchAt" DESC
+     LIMIT 1`,
+    [req.params.id]
+  );
+  if (!log) return res.json({ punchAt: null, identifier: null });
+  res.json({ punchAt: log.punchAt, identifier: log.identifier });
+});
+
 router.post("/", validate(attendanceDeviceCreateSchema), async (req, res) => {
   const { deviceId, name, location } = req.body;
   const secretKey = generateSecret();
