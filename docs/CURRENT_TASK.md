@@ -43,17 +43,49 @@ Started: 2026-08-12 (প্ল্যান লেখার তারিখ; ক�
   `/attendance-devices` রুট, `Sidebar.tsx`-এ nav আইটেম ("attendance"
   permission-এর আওতায়), `i18n/bn.ts` ও `i18n/en.ts`-এ `nav.attendanceDevices`
   + `attendanceDevices` ব্লক (key-parity যাচাই করা হয়েছে)। ব্যাকএন্ডে কোনো
-  পরিবর্তন লাগেনি (আগে থেকেই রেডি ছিল)। **এখনো `npm run check` দিয়ে
-  ব্যবহারকারীর মেশিনে যাচাই বাকি** — sandbox-এ নেটওয়ার্ক বন্ধ থাকায়
-  `npm install`/`npm run check` চালানো সম্ভব হয়নি, শুধু ম্যানুয়াল
-  ব্রেস-ব্যালান্স + key-parity যাচাই করা হয়েছে।
+  পরিবর্তন লাগেনি (আগে থেকেই রেডি ছিল)। ব্যবহারকারীর মেশিনে `npm run check`
+  চালিয়ে ২টা `no-restricted-syntax` (raw `style={{}}`) lint এরর পাওয়া
+  গিয়েছিল — `index.css`-এ নতুন `.ds-readonly--mono`/`.ds-field--spaced`
+  ক্লাস যোগ করে ঠিক করা হয়েছে (দ্বিতীয় zip-এ)। **এই ফিক্সের পর
+  typecheck/build/test ধাপ পাস করেছে কিনা ব্যবহারকারী স্পষ্টভাবে জানাননি**
+  — তিনি সরাসরি Phase 2 শুরু করতে বলেছেন, তাই এগোনো হয়েছে; কোনো
+  typecheck/build/test এরর এলে সেটা এখনো এই টাস্কেরই অংশ হিসেবে ঠিক করা
+  লাগবে।
+- [x] **Phase 2A সম্পন্ন** — ছাত্র create/update-এ fingerprintId/cardUid
+  গ্রহণ (ব্যাকএন্ড, কোনো ফ্রন্টএন্ড এখনো না): `server/src/models/studentAdmission.js`-এ
+  `TEXT_FIELDS`, `RETURNING_COLUMNS`, `LIST_COLUMNS`-এ দুই ফিল্ড যোগ (ঐচ্ছিক,
+  `REQUIRED_FIELDS`-এ যোগ হয়নি); `server/src/routes/students.js`-এ
+  `INSERT_COLUMNS`-এ যোগ (`UPDATE_COLUMNS` স্বয়ংক্রিয়ভাবে একই পায়,
+  `documents` বাদে), `duplicateError()`-এ pre-check কোয়েরি (বার্তা:
+  "This fingerprint ID/card UID is already linked to another student"),
+  `constraintError()`-এ `students_fingerprint_id_unique`/`students_card_uid_unique`
+  DB constraint ম্যাপিং (schema-তে Phase 1-এই ইনডেক্স দুটো ছিল, নতুন
+  মাইগ্রেশন লাগেনি)। `node --check` দিয়ে সিনট্যাক্স যাচাই করা হয়েছে
+  (sandbox-এ নেটওয়ার্ক বন্ধ, `npm run check` নিজে চালানো যায়নি)।
+- [x] **Phase 2B সম্পন্ন** — ছাত্র প্রোফাইল ফর্মে fingerprintId/cardUid-এর
+  সাধারণ (ম্যানুয়াল টাইপ) ইনপুট ফিল্ড: `client/src/types/index.ts`-এর
+  `Student` টাইপে দুই ফিল্ড (এই কোডবেসে আলাদা `StudentAdmission` টাইপ
+  নেই — `Students.tsx`-এর `AdmissionForm` সরাসরি `Student`-এর উপর
+  বসানো, তাই `Student`-এ যোগ করাই যথেষ্ট)। `client/src/modules/Students.tsx`-এ:
+  `emptyForm`-এ দুই ফিল্ড, ফর্মের স্টেপ-০ studentInfo সেকশনে
+  birthRegistrationNumber-এর ঠিক পরে দুইটা `renderInput(...)` (ঐচ্ছিক
+  লেবেল সহ), ডিটেইল-ভিউ রো-তেও যোগ। `saveAdmission()`-এর payload
+  `{ ...form }` স্প্রেড করে বলে আলাদা কোনো ওয়্যারিং ছাড়াই সাবমিট হয়ে
+  যায় (Phase 2A ব্যাকএন্ড এগুলো আগে থেকেই গ্রহণ করে)। `i18n/bn.ts` ও
+  `i18n/en.ts`-এর `students` ব্লকে `fingerprintId`/`cardUid` লেবেল যোগ
+  (key-parity যাচাই করা হয়েছে)। ব্রেস-ব্যালান্স যাচাই করা হয়েছে,
+  sandbox-এ `npm run check` নিজে চালানো যায়নি।
 
 ### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে)
-- [ ] ব্যবহারকারীর `npm run check` রেজাল্ট দেখে Phase 1-এ কোনো টাইপ/লিন্ট
-  এরর থাকলে ঠিক করা (প্রথম অগ্রাধিকার, যেহেতু sandbox-এ compile-check করা
-  যায়নি)।
-- [ ] Phase 2 (2A → 2B → 2C) — ব্যবহারকারী Phase 1 পাস করার কনফার্মেশন
-  দেওয়ার পর শুরু।
+- [ ] ব্যবহারকারীর সর্বশেষ `npm run check` রেজাল্ট দেখে Phase 1/2A/2B-তে
+  কোনো টাইপ/লিন্ট/টেস্ট এরর থাকলে ঠিক করা (প্রথম অগ্রাধিকার)।
+- [ ] **Phase 2C** — "স্ক্যান করে বসান" এনরোলমেন্ট মোড। প্ল্যান ডকের ধারা
+  ৩-এর অ্যাসাম্পশন অনুযায়ী: নতুন staff-authenticated এন্ডপয়েন্ট
+  (`attendanceDevices.js`-এ, "attendance" permission-গার্ডেড) যেটা raw
+  scan identifier ফেরত দেয়, `api.attendanceDevices.getLatestScan()`,
+  এবং ছাত্র-ফর্মে (Phase 2B-এর `fingerprintId`/`cardUid` ইনপুটের পাশে)
+  ডিভাইস-বাছাই + পোলিং মোডাল যা স্ক্যান এলে অটো-ফিল করে। এটাই Phase
+  2-এর সবচেয়ে বড়/জটিল সাব-ফেজ।
 - [ ] Phase 3 (3A, তারপর 3B আলাদা কনফার্মেশন সহ), Phase 4 (4A → 4B) —
   প্ল্যান ডকের ধারা ৪-এ ঠিক যে ক্রমে লেখা আছে সেই ক্রমেই, একবারে এক
   sub-phase, প্রতি sub-phase শেষে `npm run check` + ব্যবহারকারীর

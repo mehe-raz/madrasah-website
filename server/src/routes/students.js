@@ -62,6 +62,9 @@ const INSERT_COLUMNS = [
   ['"admissionFee"', "admissionFee"],
   ["discount", "discount"],
   ["documents", "documents"],
+  // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2A
+  ['"fingerprintId"', "fingerprintId"],
+  ['"cardUid"', "cardUid"],
 ];
 
 const UPDATE_COLUMNS = INSERT_COLUMNS.filter(([column]) => column !== "documents");
@@ -102,6 +105,26 @@ async function duplicateError(admission, excludeId) {
     if (row) return "Admission number already exists";
   }
 
+  // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2A — same partial-
+  // unique pattern as birthRegistrationNumber/admissionNumber above,
+  // matching the students_fingerprint_id_unique/students_card_uid_unique
+  // indexes in server/sql/supabase_schema.sql.
+  if (admission.fingerprintId) {
+    const row = await db.get(
+      `SELECT id FROM students WHERE "fingerprintId" = $1 AND ($2::int IS NULL OR id <> $2)`,
+      [admission.fingerprintId, excludeId || null]
+    );
+    if (row) return "This fingerprint ID is already linked to another student";
+  }
+
+  if (admission.cardUid) {
+    const row = await db.get(
+      `SELECT id FROM students WHERE "cardUid" = $1 AND ($2::int IS NULL OR id <> $2)`,
+      [admission.cardUid, excludeId || null]
+    );
+    if (row) return "This card UID is already linked to another student";
+  }
+
   return "";
 }
 
@@ -113,6 +136,9 @@ function constraintError(err) {
   if (!db.isUniqueViolation?.(err)) return "";
   if (err.constraint === "students_admission_number_unique") return "Admission number already exists";
   if (err.constraint === "students_birth_registration_unique") return "Birth registration number already exists";
+  // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2A
+  if (err.constraint === "students_fingerprint_id_unique") return "This fingerprint ID is already linked to another student";
+  if (err.constraint === "students_card_uid_unique") return "This card UID is already linked to another student";
   return "Duplicate student admission value";
 }
 

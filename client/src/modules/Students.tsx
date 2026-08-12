@@ -39,6 +39,9 @@ const emptyForm: AdmissionForm = {
   nameEn: "",
   dateOfBirth: "",
   birthRegistrationNumber: "",
+  // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2B
+  fingerprintId: "",
+  cardUid: "",
   gender: "Male",
   religion: "Islam",
   blood: "",
@@ -542,6 +545,8 @@ export function Students() {
             [t.students.englishName, viewing.nameEn],
             [t.students.dateOfBirth, viewing.dateOfBirth],
             [t.students.birthRegistration, viewing.birthRegistrationNumber || "ঐচ্ছিক"],
+            [t.students.fingerprintId, viewing.fingerprintId || t.students.optional],
+            [t.students.cardUid, viewing.cardUid || t.students.optional],
             [t.students.gender, viewing.gender],
             [t.students.religion, viewing.religion],
             [t.students.blood, viewing.blood],
@@ -732,6 +737,8 @@ export function Students() {
                 {renderInput(t.students.englishName, "nameEn")}
                 {renderInput(t.students.dateOfBirth, "dateOfBirth", "date")}
                 {renderInput(`${t.students.birthRegistration} (${t.students.optional})`, "birthRegistrationNumber")}
+                {renderInput(`${t.students.fingerprintId} (${t.students.optional})`, "fingerprintId")}
+                {renderInput(`${t.students.cardUid} (${t.students.optional})`, "cardUid")}
                 {renderSelect(t.students.gender, "gender", genderOptions)}
                 {renderSelect(t.students.religion, "religion", religionOptions)}
                 {renderSelect(t.students.blood, "blood", bloodOptions)}

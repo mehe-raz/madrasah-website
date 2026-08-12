@@ -395,6 +395,9 @@ export const en = {
     englishName: "English Name",
     dateOfBirth: "Date of Birth",
     birthRegistration: "Birth Registration Number",
+    // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2B
+    fingerprintId: "Fingerprint ID",
+    cardUid: "Card UID",
     gender: "Gender",
     religion: "Religion",
     studentPhoto: "Student Photo",

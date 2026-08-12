@@ -35,6 +35,12 @@ const TEXT_FIELDS = [
   "dept",
   "status",
   "phone",
+  // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2A — optional, only
+  // set once a student is enrolled on an attendance device (Phase 2C's
+  // scan-to-enroll mode, or typed in manually via Phase 2B's form fields).
+  // Not in REQUIRED_FIELDS below: most students won't have these set.
+  "fingerprintId",
+  "cardUid",
 ];
 
 const NUMBER_FIELDS = ["para", "fee", "due", "admissionFee", "discount"];
@@ -216,7 +222,8 @@ const RETURNING_COLUMNS = `
   "motherName", "motherMobile", "motherOccupation",
   "guardianName", "guardianRelationship", "guardianMobile",
   "presentAddress", "permanentAddress", district, upazila, "postOffice", village,
-  "previousInstitution", "previousClass", "admissionFee", discount, documents
+  "previousInstitution", "previousClass", "admissionFee", discount, documents,
+  "fingerprintId", "cardUid"
 `;
 
 // Same as RETURNING_COLUMNS but without the "documents" JSONB column, which
@@ -238,7 +245,8 @@ const LIST_COLUMNS = `
   "motherName", "motherMobile", "motherOccupation",
   "guardianName", "guardianRelationship", "guardianMobile",
   "presentAddress", "permanentAddress", district, upazila, "postOffice", village,
-  "previousInstitution", "previousClass", "admissionFee", discount
+  "previousInstitution", "previousClass", "admissionFee", discount,
+  "fingerprintId", "cardUid"
 `;
 
 module.exports = {

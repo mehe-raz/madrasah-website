@@ -393,6 +393,9 @@ export const bn = {
     englishName: "ইংরেজি নাম",
     dateOfBirth: "জন্ম তারিখ",
     birthRegistration: "জন্ম নিবন্ধন নম্বর",
+    // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2B
+    fingerprintId: "ফিঙ্গারপ্রিন্ট আইডি",
+    cardUid: "কার্ড UID",
     gender: "লিঙ্গ",
     religion: "ধর্ম",
     studentPhoto: "ছাত্রের ছবি",

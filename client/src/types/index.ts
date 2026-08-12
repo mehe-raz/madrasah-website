@@ -45,6 +45,12 @@ export interface Student {
   previousInstitution?: string;
   previousClass?: string;
   documents?: StudentDocuments;
+  // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2 — optional, set
+  // once a student is enrolled on an attendance device (typed manually via
+  // Phase 2B's form fields, or auto-filled by Phase 2C's scan-to-enroll
+  // mode). Matches server/src/models/studentAdmission.js's TEXT_FIELDS.
+  fingerprintId?: string;
+  cardUid?: string;
   att?: string;
   attendanceSummary?: {
     total: number;
