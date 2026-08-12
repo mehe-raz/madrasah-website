@@ -39,17 +39,34 @@ Started: 2026-08-13 (প্ল্যান লেখার তারিখ)
 ### সম্পন্ন
 - [x] পূর্ণাঙ্গ প্ল্যান ডকুমেন্ট লেখা হয়েছে ও চ্যাটে ব্যবহারকারীকে
   প্রযুক্তি-সিদ্ধান্ত (SMSGate) ও স্কোপ (ভয়েস কল বাদ) জানানো হয়েছে।
+- [x] **Phase 1 সম্পন্ন (2026-08-13)** — DB স্কিমা + এনক্রিপশন হেল্পার
+  (কোনো রুট না, প্ল্যান ফাইলের ধারা অনুযায়ী):
+  - `server/sql/supabase_schema.sql` (protected path — প্ল্যান ফাইলেই
+    আগে থেকে ফ্ল্যাগ করা ছিল) — নতুন তিনটা টেবিল: `own_sms_gateway`
+    (গেটওয়ে কানেকশন, bKash gateway টেবিলের প্যাটার্নে), `sms_contacts`
+    (নাম+নম্বর+ঐচ্ছিক group, `groupName` ইনডেক্সসহ), `sms_broadcast_logs`
+    (সামারি হিস্টোরি)।
+  - `server/src/lib/ownSmsGatewayCredentials.js` — নতুন,
+    `paymentGatewayCredentials.js`-এর শেপে `getConnectedGateway()`
+    (ডিক্রিপ্টেড `{username, password}` অথবা `null`), বিদ্যমান
+    `gatewayCredentialCrypto.js`/`GATEWAY_CREDENTIAL_KEY` reuse করে —
+    নতুন crypto ফাইল বানানো হয়নি।
+  - `server/src/lib/smsProviders/smsgate.js` — নতুন, `bulksmsbd.js`-এর
+    adapter শেপে `send({username, password, to, message}) -> {ok, raw}`।
+    **`smsProviders/index.js`-এর রেজিস্ট্রিতে ইচ্ছাকৃতভাবে যোগ করা হয়নি**
+    (প্ল্যানের ডিজাইন-সিদ্ধান্ত #5 অনুযায়ী — ওটা platform-wide, এটা
+    per-tenant, সম্পূর্ণ আলাদা রুটে ব্যবহার হবে Phase 3-এ)।
+  - **সতর্কতা অপরিবর্তিত আছে (Phase 2/3-এর জন্য):** SMSGate API-র
+    এন্ডপয়েন্ট/রেসপন্স শেপ এখনো বাস্তবে টেস্ট করা হয়নি — Phase 2
+    বাস্তবায়নের সময় `https://docs.sms-gate.app/integration/api/` ভিজিট
+    করে/আসল রিকোয়েস্ট পাঠিয়ে কনফার্ম করা উচিত।
+  - দুটো নতুন `.js` ফাইল `node --check` পাস করেছে; SQL ফাইলে
+    paren-balance ম্যানুয়ালি যাচাই করা হয়েছে। এই Phase-এ কোনো রুট/UI
+    ওয়্যারিং হয়নি বলে `npm run lint`/`typecheck` প্রভাবিত হওয়ার কথা না,
+    তবু **পুরো `npm run check` প্যাকেজড CMD-তেই প্রথম যাচাই হবে** (এই
+    sandbox-এ network/node_modules না থাকায় এখানে চালানো যায়নি)।
 
-### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে — কোনো Phase-ই এখনো কোড করা
-হয়নি)
-- [ ] **Phase 1** — DB স্কিমা (৩ টেবিল, protected path — প্ল্যান ফাইলেই
-  আগে থেকে ফ্ল্যাগ করা আছে, থামার দরকার নেই) + `ownSmsGatewayCredentials.js`
-  + `smsProviders/smsgate.js` adapter। **শুরুর আগে
-  `https://docs.sms-gate.app/integration/api/` ভিজিট করে/একটা আসল টেস্ট
-  রিকোয়েস্ট পাঠিয়ে Cloud API-র এন্ডপয়েন্ট/রেসপন্স শেপ কনফার্ম করে নেওয়া
-  উচিত** — প্ল্যান ফাইলে যা লেখা আছে তা পাবলিক ডকুমেন্টেশন থেকে নেওয়া,
-  বাস্তবে কল করে যাচাই করা হয়নি (হার্ডওয়্যার-ব্রিজের ADMS dialect-এর
-  মতোই একই ধরনের অনিশ্চয়তা)।
+### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
 - [ ] Phase 2 — গেটওয়ে কানেক্ট/ডিসকানেক্ট/স্ট্যাটাস রুট
   (`routes/ownSmsGateway.js`) + roles.js + rbac.test.js
   `EXPECTED_ALLOWED` আপডেট (এই কোডবেসে নতুন রুট যোগ করার সময় এই টেবিল
