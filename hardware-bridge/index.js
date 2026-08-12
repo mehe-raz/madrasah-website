@@ -27,12 +27,30 @@
 // server (Phase 2's deviceAttendance.js), using the deviceId+secretKey
 // pair created from the admin dashboard's device management page — same
 // contract the plan doc's Phase 5 section describes.
+//
+// Phase 3B note: this same file also runs as a packaged standalone .exe
+// (see package.json's "build" script, uses `pkg`) — no Node.js install
+// needed on the machine next to the device. See BASE_DIR below for the
+// one behavioral difference that requires (packaged vs `npm start`).
 // ============================================================================
 
-require("dotenv").config();
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+
+// ---------------------------------------------------------------------------
+// Phase 3B — when this runs as a packaged .exe (via `pkg`), __dirname points
+// inside a read-only virtual snapshot bundled into the executable, not the
+// real folder the .exe sits in. process.pkg only exists in that packaged
+// mode, so BASE_DIR falls back to the exe's real folder then — meaning
+// .env and raw-requests.log live next to the .exe on disk, editable in
+// Notepad, exactly like the plain `npm start` (non-packaged) setup already
+// works. Nothing changes for the non-packaged path (process.pkg is
+// undefined there, so BASE_DIR stays __dirname as before).
+// ---------------------------------------------------------------------------
+const BASE_DIR = process.pkg ? path.dirname(process.execPath) : __dirname;
+
+require("dotenv").config({ path: path.join(BASE_DIR, ".env") });
 
 const PORT = process.env.BRIDGE_PORT || 8090;
 const API_BASE = (process.env.MADRASAH_API_BASE || "").trim();
@@ -88,7 +106,9 @@ if (missing.length > 0) {
   }
   console.error(
     "প্রথমবার হলে: .env.example ফাইলটা কপি করে নাম দিন .env, তারপর উপরের মানগুলো বসান।\n" +
-      "First time setup: copy .env.example to .env, then fill in the values above.\n"
+      "(exe দিয়ে চালালে: .env ফাইলটা exe-এর ঠিক পাশেই একই ফোল্ডারে রাখতে হবে।)\n" +
+      "First time setup: copy .env.example to .env, then fill in the values above.\n" +
+      "(Running the .exe: the .env file must sit in the same folder as the .exe.)\n"
   );
   process.exit(1);
 }
@@ -101,7 +121,7 @@ const app = express();
 // silently dropped by a stricter parser.
 app.use(express.text({ type: "*/*", limit: "2mb" }));
 
-const LOG_FILE = path.join(__dirname, "raw-requests.log");
+const LOG_FILE = path.join(BASE_DIR, "raw-requests.log");
 
 // Every request gets logged, unmatched routes especially — this is the
 // main debugging tool once a real device is connected, since its exact
