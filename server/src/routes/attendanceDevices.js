@@ -21,6 +21,8 @@ const {
   attendanceDeviceUpdateSchema,
 } = require("../lib/opsSchemas");
 const { recordAudit } = require("../lib/auditLog");
+const tenantContext = require("../tenantContext");
+const registryDb = require("../registryDb");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in
@@ -36,7 +38,7 @@ function generateSecret() {
 // as an API key. Listing devices never re-exposes an existing secret.
 router.get("/", async (req, res) => {
   const rows = await db.all(
-    `SELECT id, "deviceId", name, location, active, "createdAt"
+    `SELECT id, "deviceId", name, location, active, protocol, "createdAt"
      FROM attendance_devices ORDER BY "createdAt" DESC`
   );
   res.json(rows);
@@ -68,16 +70,16 @@ router.get("/:id/latest-scan", async (req, res) => {
 });
 
 router.post("/", validate(attendanceDeviceCreateSchema), async (req, res) => {
-  const { deviceId, name, location } = req.body;
+  const { deviceId, name, location, protocol } = req.body;
   const secretKey = generateSecret();
 
   let row;
   try {
     row = await db.get(
-      `INSERT INTO attendance_devices ("deviceId", "secretKey", name, location, active, "createdAt")
-       VALUES ($1, $2, $3, $4, true, $5)
-       RETURNING id, "deviceId", name, location, active, "createdAt"`,
-      [deviceId, secretKey, name, location, new Date().toISOString()]
+      `INSERT INTO attendance_devices ("deviceId", "secretKey", name, location, active, protocol, "createdAt")
+       VALUES ($1, $2, $3, $4, true, $5, $6)
+       RETURNING id, "deviceId", name, location, active, protocol, "createdAt"`,
+      [deviceId, secretKey, name, location, protocol, new Date().toISOString()]
     );
   } catch (err) {
     // attendance_devices_device_id_unique (Phase 1 schema) — same
@@ -87,6 +89,36 @@ router.post("/", validate(attendanceDeviceCreateSchema), async (req, res) => {
       return res.status(409).json({ error: "এই ডিভাইস আইডি ইতিমধ্যে ব্যবহৃত হচ্ছে" });
     }
     throw err;
+  }
+
+  // docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 1 — also
+  // register this deviceId in the cross-tenant global registry, so a
+  // bridge-free Push/ADMS request (which only carries a raw deviceId, no
+  // subdomain to resolve the tenant from) can later be routed back to this
+  // institution/schema. Only applies in multi-tenant mode — single-tenant
+  // deployments have no institution to register against (same "no
+  // institution in context -> skip" reasoning as middleware/planGate.js).
+  const institution = tenantContext.get()?.institution;
+  if (institution) {
+    try {
+      await registryDb.registerDevice({
+        deviceId: row.deviceId,
+        institutionId: institution.id,
+        schemaName: institution.schema_name,
+        secretOrCommKey: secretKey,
+        protocol: row.protocol,
+      });
+    } catch (err) {
+      // deviceId is globally unique in the registry (stricter than the
+      // per-tenant unique index this tenant-side insert just satisfied) —
+      // roll back the tenant-side row so the two stores never disagree
+      // about whether this deviceId exists here.
+      await db.run(`DELETE FROM attendance_devices WHERE id = $1`, [row.id]);
+      if (err.status === 409) {
+        return res.status(409).json({ error: err.message });
+      }
+      throw err;
+    }
   }
 
   await recordAudit({
@@ -108,10 +140,19 @@ router.put("/:id", validate(attendanceDeviceUpdateSchema), async (req, res) => {
          location = COALESCE($2, location),
          active = COALESCE($3, active)
      WHERE id = $4
-     RETURNING id, "deviceId", name, location, active`,
+     RETURNING id, "deviceId", name, location, active, protocol`,
     [name ?? null, location ?? null, active ?? null, req.params.id]
   );
   if (!row) return res.status(404).json({ error: "ডিভাইস খুঁজে পাওয়া যায়নি" });
+
+  // Keep the global registry's active flag in sync (Phase 1) — a
+  // deactivated device must stop being routable via deviceId lookup too.
+  // No-op if this device was never registered globally (see
+  // registryDb.updateDeviceRegistryActive's comment).
+  if (tenantContext.get()?.institution && active !== undefined && active !== null) {
+    await registryDb.updateDeviceRegistryActive(row.deviceId, row.active);
+  }
+
   res.json(row);
 });
 
@@ -123,6 +164,12 @@ router.post("/:id/regenerate-secret", async (req, res) => {
     [secretKey, req.params.id]
   );
   if (!row) return res.status(404).json({ error: "ডিভাইস খুঁজে পাওয়া যায়নি" });
+
+  // Same sync reasoning as PUT above — the global registry's
+  // secret_or_comm_key must match the tenant-side secretKey it mirrors.
+  if (tenantContext.get()?.institution) {
+    await registryDb.updateDeviceRegistrySecret(row.deviceId, secretKey);
+  }
 
   await recordAudit({
     action: "attendanceDevice.secretRegenerated",

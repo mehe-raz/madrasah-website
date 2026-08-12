@@ -4,6 +4,7 @@ import type {
   AttendanceDevice,
   AttendanceDeviceCreateResponse,
   AttendanceDeviceLatestScanResponse,
+  AttendanceDeviceProtocol,
   AttendanceDeviceSecretResponse,
   AttendanceResponse,
   AuditLog,
@@ -985,7 +986,7 @@ export const api = {
   // -------------------------------------------------------------------------
   attendanceDevices: {
     list: () => request<AttendanceDevice[]>("/attendance-devices"),
-    create: (body: { deviceId: string; name?: string; location?: string }) =>
+    create: (body: { deviceId: string; name?: string; location?: string; protocol?: AttendanceDeviceProtocol }) =>
       request<AttendanceDeviceCreateResponse>("/attendance-devices", {
         method: "POST",
         body: JSON.stringify(body),

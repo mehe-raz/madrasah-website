@@ -727,6 +727,13 @@ export const en = {
     namePlaceholder: "e.g. Main Gate",
     locationLabel: "Location",
     locationPlaceholder: "e.g. Main building, ground floor",
+    // docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 1
+    protocolLabel: "Device type",
+    protocolLabels: {
+      push_adms: "Push/ADMS (fingerprint machine — no program needed)",
+      key_reader: "Key/card reader (USB)",
+      pull_sdk: "Pull/SDK (needs the bridge program)",
+    },
     create: "Add",
     creating: "Adding...",
     createFailed: "Failed to add",

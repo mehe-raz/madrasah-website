@@ -679,12 +679,19 @@ export interface KioskLatestPunchResponse {
 // Phase 1) — admin-facing CRUD for attendance_devices, distinct from the
 // device's own public-facing punch/latest-punch API above. Matches
 // server/src/routes/attendanceDevices.js's response shapes.
+// docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 1 — which
+// kind of device this is; drives what connection instructions get shown
+// (Phase 3) and, for push_adms, means no local hardware-bridge program is
+// needed at all.
+export type AttendanceDeviceProtocol = "push_adms" | "key_reader" | "pull_sdk";
+
 export interface AttendanceDevice {
   id: number;
   deviceId: string;
   name: string | null;
   location: string | null;
   active: boolean;
+  protocol: AttendanceDeviceProtocol;
   createdAt: string;
 }
 

@@ -725,6 +725,13 @@ export const bn = {
     namePlaceholder: "যেমন: মূল গেট",
     locationLabel: "অবস্থান",
     locationPlaceholder: "যেমন: প্রধান ভবন, নিচতলা",
+    // docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 1
+    protocolLabel: "ডিভাইসের ধরন",
+    protocolLabels: {
+      push_adms: "Push/ADMS (ফিঙ্গারপ্রিন্ট মেশিন — কোনো প্রোগ্রাম লাগবে না)",
+      key_reader: "কি-রিডার / কার্ড রিডার (USB)",
+      pull_sdk: "Pull/SDK (bridge প্রোগ্রাম লাগবে)",
+    },
     create: "যোগ করুন",
     creating: "যোগ হচ্ছে...",
     createFailed: "যোগ করতে ব্যর্থ হয়েছে",

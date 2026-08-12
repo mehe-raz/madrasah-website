@@ -22,7 +22,7 @@ Phase-এ, পুরো পরিকল্পনা `docs/ATTENDANCE_DEVICE_CENT
 4-এর (সেটআপ গাইড) উপর প্রভাব ফেলতে পারে — Phase 4 লেখার সময় এই টাস্কের
 অগ্রগতি বিবেচনায় নিতে হবে)
 
-## Status: IN_PROGRESS (এখনো কোনো Phase শুরু হয়নি — শুধু প্ল্যান লেখা হয়েছে)
+## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2 বাকি)
 
 Started: 2026-08-12 (প্ল্যান লেখার তারিখ; কোডিং শুরুর তারিখ ভিন্ন হতে পারে)
 
@@ -35,12 +35,55 @@ Started: 2026-08-12 (প্ল্যান লেখার তারিখ; ক�
 - [x] প্ল্যান ডকুমেন্ট লেখা ও ব্যবহারকারীর সাথে আলোচনা করে নিশ্চিত করা
 - [x] সেলফ-সার্ভিস টাস্কের বিদ্যমান কোড থেকে রিইউজ-বিশ্লেষণ (ধারা ৩.৫)
   যোগ করা
+- [x] **Phase 1 সম্পন্ন (2026-08-12)** — গ্লোবাল ডিভাইস-রেজিস্ট্রি স্কিমা +
+  অ্যাডমিন প্যানেল ওয়্যারিং, প্ল্যান ডকের ধারা ৫-এ যা লেখা আছে সেভাবে:
+  - `server/sql/registry_schema.sql` (protected path — AGENTS.md রুল ৪
+    অনুযায়ী, এই কাজেরই অংশ) — নতুন `registry.device_registry` টেবিল
+    (`device_id` গ্লোবাল প্রাইমারি-কি, `institution_id`, `schema_name`,
+    `secret_or_comm_key`, `protocol`, `brand`, `active`) + ইনডেক্স।
+  - `server/sql/supabase_schema.sql` — `attendance_devices`-এ নতুন
+    `protocol` কলাম (idempotent `alter table ... add column if not
+    exists`, ডিফল্ট `'push_adms'`)।
+  - `server/src/registryDb.js` — নতুন `registerDevice()` (গ্লোবাল
+    ইউনিকনেস-ভায়োলেশনে পরিষ্কার ৪০৯ Error ছোঁড়ে),
+    `updateDeviceRegistrySecret()`, `updateDeviceRegistryActive()`,
+    `deleteDeviceRegistryEntry()` — সবগুলো এক্সপোর্ট করা হয়েছে।
+  - `server/src/lib/opsSchemas.js` — `attendanceDeviceCreateSchema`-এ
+    নতুন `protocol` ফিল্ড (`z.enum(["push_adms","key_reader","pull_sdk"])`,
+    ডিফল্ট `push_adms`)।
+  - `server/src/routes/attendanceDevices.js` — `POST /` এখন tenant-schema
+    ইনসার্টের পাশাপাশি (শুধু multi-tenant মোডে, `tenantContext.get()`-এ
+    institution থাকলে) `registryDb.registerDevice()` কল করে; গ্লোবাল
+    রেজিস্ট্রিতে deviceId আগে থেকেই অন্য প্রতিষ্ঠানে থাকলে (৪০৯) তখনই
+    ট্রেন্যান্ট-সাইড রো ডিলিট করে রোলব্যাক করা হয়, দুই স্টোর কখনো
+    বেমিল না থাকে তা নিশ্চিত করতে। `PUT /:id` (active টগল) ও `POST
+    /:id/regenerate-secret` এখন গ্লোবাল রেজিস্ট্রির
+    active/secret_or_comm_key-ও সিঙ্ক করে (single-tenant/আগে-থেকে-
+    রেজিস্টার-না-হওয়া ডিভাইসে silently no-op)। `GET /`-এর SELECT-এ
+    `protocol` কলাম যোগ হয়েছে।
+  - ফ্রন্টএন্ড: `client/src/types/index.ts` (নতুন
+    `AttendanceDeviceProtocol` টাইপ + `AttendanceDevice.protocol`),
+    `client/src/lib/api.ts` (`create()` এখন `protocol` পাঠায়),
+    `client/src/modules/AttendanceDevices.tsx` (নতুন "ডিভাইসের ধরন"
+    `<Select>` ফর্মে, তৈরির পর রিসেট হয়, লিস্টে প্রতিটা ডিভাইসের পাশে
+    ধরন দেখানো একটা নতুন `Badge`)। `client/src/i18n/bn.ts`+`en.ts`-এ
+    `attendanceDevices.protocolLabel`/`protocolLabels.{push_adms,
+    key_reader,pull_sdk}` (key-parity স্ক্রিপ্ট দিয়ে যাচাই করা হয়েছে)।
+  - সবগুলো পরিবর্তিত/নতুন `.js` ফাইল `node --check` পাস করেছে; সব
+    `.ts`/`.tsx`/`.sql` ফাইলে bracket/paren-balance script দিয়ে
+    ম্যানুয়ালি যাচাই করা হয়েছে। **পুরো `npm run check` + একটা টেস্ট
+    ডিভাইস অ্যাড করে গ্লোবাল ও tenant দুই টেবিলেই সঠিক ডেটা যাচ্ছে
+    কিনা — এই sandbox-এ network/node_modules না থাকায় চালানো যায়নি,
+    আপনার প্যাকেজড CMD-তেই প্রথম যাচাই হবে (আগের সব Phase-এর প্যাটার্নে)।**
 
 ### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে)
-- [ ] Phase 1 (গ্লোবাল ডিভাইস-রেজিস্ট্রি স্কিমা + অ্যাডমিন প্যানেল
-  ওয়্যারিং) — প্ল্যান ডকের ধারা ৫-এ যা লেখা আছে সেভাবে, শুরুর আগে
-  ব্যবহারকারীর "শুরু কর" নিশ্চিতকরণ লাগবে
-- [ ] Phase 2 → Phase 3 → Phase 4 (ধারা ৬-এর ক্রম অনুযায়ী)
+- [ ] Phase 2 (ADMS-সামঞ্জস্যপূর্ণ পাবলিক ইনজেশন এন্ডপয়েন্ট) — প্ল্যান
+  ডকের ধারা ৫-এ যা লেখা আছে সেভাবে: নতুন `server/src/routes/deviceIngest.js`,
+  punch-প্রসেসিং লজিক `deviceAttendance.js` থেকে একটা শেয়ার্ড ফাংশনে বের
+  করে দুই রাউট ফাইল থেকেই কল করা, ADMS প্রোটোকলের রিকোয়েস্ট/রেসপন্স
+  ফরম্যাট `hardware-bridge/index.js`-এর বিদ্যমান পার্সিং কোড থেকে হুবহু
+  নিয়ে আসা।
+- [ ] Phase 3 → Phase 4 (ধারা ৬-এর ক্রম অনুযায়ী)
 - [ ] প্রতিটা Phase শেষ হলে এই এন্ট্রিতে "সম্পন্ন"-এ সরিয়ে "বাকি" আপডেট
   করতে হবে (packaging/zip-এর আগে)
 
@@ -54,7 +97,7 @@ Started: 2026-08-12 (প্ল্যান লেখার তারিখ; ক�
 সেলফ-সার্ভিস টাস্কের Phase 1/2A/2B/2C-এর বিদ্যমান কোড থেকে ঠিক কী
 রিইউজ হবে, কোনটা শেয়ার্ড ফাংশনে বের করতে হবে, আর কোনটা একদমই নতুন —
 তার বিস্তারিত তালিকা `ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md`-এর
-নতুন **ধারা ৩.৫**-এ যোগ করা হয়েছে। Phase 1 শুরু করার আগে এই ধারাটা
+নতুন **ধারা ৩.৫**-এ যোগ করা হয়েছে। Phase 2 শুরু করার আগে এই ধারাটা
 পড়ে নেওয়া, যাতে বিদ্যমান কোড ভুল করে আবার লেখা না হয়।
 
 ---

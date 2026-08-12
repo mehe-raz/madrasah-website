@@ -7,11 +7,20 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "../components/Badge";
 import { SkeletonCardList } from "../components/Skeleton";
-import { Button, Card, Field, Input } from "../components/ui";
+import { Button, Card, Field, Input, Select } from "../components/ui";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
-import type { AttendanceDevice, AttendanceDeviceCreateResponse, AttendanceDeviceSecretResponse } from "../types";
+import type {
+  AttendanceDevice,
+  AttendanceDeviceCreateResponse,
+  AttendanceDeviceProtocol,
+  AttendanceDeviceSecretResponse,
+} from "../types";
+
+// docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 1 — order
+// matches the plan doc's table in section 2 (most-common first).
+const PROTOCOL_OPTIONS: AttendanceDeviceProtocol[] = ["push_adms", "key_reader", "pull_sdk"];
 
 // Shown once right after creation or a regenerate-secret call — never
 // re-fetchable afterwards (the server never returns an existing secret in
@@ -80,6 +89,7 @@ export function AttendanceDevices() {
   const [deviceId, setDeviceId] = useState("");
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
+  const [protocol, setProtocol] = useState<AttendanceDeviceProtocol>("push_adms");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -114,11 +124,13 @@ export function AttendanceDevices() {
         deviceId: deviceId.trim(),
         name: name.trim() || undefined,
         location: location.trim() || undefined,
+        protocol,
       });
       setSecret({ deviceId: res.deviceId, secretKey: res.secretKey });
       setDeviceId("");
       setName("");
       setLocation("");
+      setProtocol("push_adms");
       load();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : t.attendanceDevices.createFailed);
@@ -173,6 +185,15 @@ export function AttendanceDevices() {
           <Field label={t.attendanceDevices.locationLabel}>
             <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t.attendanceDevices.locationPlaceholder} />
           </Field>
+          <Field label={t.attendanceDevices.protocolLabel}>
+            <Select value={protocol} onChange={(e) => setProtocol(e.target.value as AttendanceDeviceProtocol)}>
+              {PROTOCOL_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {t.attendanceDevices.protocolLabels[p]}
+                </option>
+              ))}
+            </Select>
+          </Field>
         </div>
         <Button variant="sky" solid onClick={create} disabled={creating}>
           {creating ? t.attendanceDevices.creating : t.attendanceDevices.create}
@@ -192,6 +213,7 @@ export function AttendanceDevices() {
             <Card key={d.id} tight className="class-post">
               <div className="class-post__head">
                 <Badge label={d.active ? t.attendanceDevices.active : t.attendanceDevices.inactive} color={d.active ? C.emerald : C.slate} />
+                <Badge label={t.attendanceDevices.protocolLabels[d.protocol]} color={C.sky} />
                 <span className="class-post__meta">{d.deviceId}</span>
               </div>
               <div className="class-post__title">{d.name || t.attendanceDevices.unnamed}</div>

@@ -54,10 +54,17 @@ const devicePunchSchema = z.object({
   identifierType: z.enum(["fingerprint", "card"]),
 });
 
+// docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 1 — "ধরন"
+// field. Defaults to push_adms (the common case) so the selfservice plan's
+// existing create form keeps working unchanged until it's updated to send
+// this explicitly.
+const DEVICE_PROTOCOLS = ["push_adms", "key_reader", "pull_sdk"];
+
 const attendanceDeviceCreateSchema = z.object({
   deviceId: z.string().trim().min(1, "ডিভাইস আইডি আবশ্যক").max(100),
   name: z.string().trim().max(120).optional().default(""),
   location: z.string().trim().max(200).optional().default(""),
+  protocol: z.enum(DEVICE_PROTOCOLS).optional().default("push_adms"),
 });
 
 const attendanceDeviceUpdateSchema = z.object({
@@ -74,4 +81,5 @@ module.exports = {
   devicePunchSchema,
   attendanceDeviceCreateSchema,
   attendanceDeviceUpdateSchema,
+  DEVICE_PROTOCOLS,
 };

@@ -120,6 +120,13 @@ create table if not exists attendance_devices (
 create unique index if not exists attendance_devices_device_id_unique
 on attendance_devices ("deviceId");
 
+-- docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 1 — which
+-- kind of device this is ('push_adms' | 'key_reader' | 'pull_sdk', see
+-- registry.device_registry's comment in registry_schema.sql for what each
+-- means). Idempotent add for existing tenant schemas; new schemas get it
+-- straight from the create table above.
+alter table attendance_devices add column if not exists protocol text not null default 'push_adms';
+
 -- Raw punch events, one row per scan — never updated or deleted, kept as
 -- the audit trail behind the daily attendance.status summary above.
 -- routes/deviceAttendance.js computes "first punch of the day" / "last

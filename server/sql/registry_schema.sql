@@ -233,3 +233,40 @@ create table if not exists registry.platform_payment_intents (
 
 create index if not exists platform_payment_intents_institution_idx
   on registry.platform_payment_intents (institution_id);
+
+-- ============================================================================
+-- Global device registry (ad-hoc —
+-- docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 1)
+-- ============================================================================
+-- A bridge-free Push/ADMS attendance device (see the plan doc's section 3.2)
+-- sends its raw device_id straight to the server with no subdomain/Host
+-- header to resolve the tenant from — so this table is the one place that
+-- maps a device_id back to which institution/schema owns it. device_id is
+-- the primary key here, so it's enforced GLOBALLY unique across every
+-- institution (stricter than the existing per-tenant
+-- attendance_devices_device_id_unique index).
+--
+-- deviceId/secretKey ownership stays tenant-side (attendance_devices is
+-- still the source of truth for name/location/active) — this is only a
+-- cross-tenant lookup index, kept in sync by routes/attendanceDevices.js
+-- whenever a device is created/updated/secret-regenerated. Single-tenant
+-- deployments (MULTI_TENANT_MODE off, no institution in tenantContext)
+-- never write here.
+create table if not exists registry.device_registry (
+  device_id text primary key,
+  institution_id integer not null references registry.institutions(id) on delete cascade,
+  schema_name text not null,
+  secret_or_comm_key text not null,
+  -- 'push_adms' (server understands the protocol directly, no local
+  -- program needed), 'key_reader' (USB keyboard-emulation, types straight
+  -- into the kiosk page — also bridge-free), 'pull_sdk' (device is
+  -- passive, needs hardware-bridge/ or a brand-cloud adapter, see the
+  -- plan doc's section 3.3/3.4).
+  protocol text not null default 'push_adms',
+  brand text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists device_registry_institution_idx
+  on registry.device_registry (institution_id);

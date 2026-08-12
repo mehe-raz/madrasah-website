@@ -700,9 +700,78 @@ async function runExpiryScan() {
   return suspended;
 }
 
+// ============================================================================
+// Global device registry (ad-hoc —
+// docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 1)
+// ============================================================================
+// See the table comment above registry.device_registry in
+// registry_schema.sql for why this exists. Only ever called from
+// routes/attendanceDevices.js, and only when a tenant institution is
+// actually in context (single-tenant deployments have no institution to
+// register against, and never need cross-tenant deviceId uniqueness).
+
+// Inserts the lookup row for a newly-created device. Throws a 409-status
+// Error (same shape as createInstitution's duplicate-code check) if the
+// deviceId is already registered to ANY institution — this is the
+// authoritative global-uniqueness check; the caller is expected to roll
+// back its own tenant-side insert on this error, since deviceId is only
+// unique per-schema there.
+async function registerDevice({ deviceId, institutionId, schemaName, secretOrCommKey, protocol }) {
+  try {
+    const result = await registryPool.query(
+      `INSERT INTO registry.device_registry
+         (device_id, institution_id, schema_name, secret_or_comm_key, protocol)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [deviceId, institutionId, schemaName, secretOrCommKey, protocol || "push_adms"]
+    );
+    return result.rows[0];
+  } catch (err) {
+    if (pg.isUniqueViolation(err)) {
+      const dup = new Error(`ডিভাইস আইডি "${deviceId}" ইতিমধ্যে অন্য একটি প্রতিষ্ঠানে ব্যবহৃত হচ্ছে`);
+      dup.status = 409;
+      throw dup;
+    }
+    throw err;
+  }
+}
+
+// Called from PUT /:id (active toggle) and POST /:id/regenerate-secret so
+// the lookup row never drifts from the tenant-side attendance_devices row
+// that owns it. Both are no-ops (0 rows affected) if this device was never
+// registered globally (e.g. created before Phase 1, or in a single-tenant
+// deployment) — deliberately silent, matching the "best effort sync,
+// tenant-side stays the source of truth" note above.
+async function updateDeviceRegistrySecret(deviceId, secretOrCommKey) {
+  await registryPool.query(
+    `UPDATE registry.device_registry SET secret_or_comm_key = $1 WHERE device_id = $2`,
+    [secretOrCommKey, deviceId]
+  );
+}
+
+async function updateDeviceRegistryActive(deviceId, active) {
+  await registryPool.query(
+    `UPDATE registry.device_registry SET active = $1 WHERE device_id = $2`,
+    [active, deviceId]
+  );
+}
+
+// Used only to roll back a registerDevice() call when the caller's own
+// tenant-side insert needs to be undone (e.g. some other failure after
+// both writes) — not exposed as a device "delete" feature, since
+// attendanceDevices.js has no delete endpoint (devices are deactivated,
+// not removed).
+async function deleteDeviceRegistryEntry(deviceId) {
+  await registryPool.query(`DELETE FROM registry.device_registry WHERE device_id = $1`, [deviceId]);
+}
+
 module.exports = {
   registryPool,
   initRegistrySchema,
+  registerDevice,
+  updateDeviceRegistrySecret,
+  updateDeviceRegistryActive,
+  deleteDeviceRegistryEntry,
   assertValidCode,
   codeToSchemaName,
   listInstitutions,
