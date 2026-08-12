@@ -22,6 +22,53 @@ import type {
 // matches the plan doc's table in section 2 (most-common first).
 const PROTOCOL_OPTIONS: AttendanceDeviceProtocol[] = ["push_adms", "key_reader", "pull_sdk"];
 
+// docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 3 — the
+// protocol-specific "how do I connect this" block shown inside SecretModal,
+// right below the secret key. Server/port/comm-key values here are
+// best-effort per the plan doc's section 7 caveat (unverified against real
+// ADMS hardware) — the deviceIngest.js route this describes is itself
+// explicitly documented as unverified.
+function ConnectInstructions({ protocol, onOpenGuide }: { protocol: AttendanceDeviceProtocol; onOpenGuide: () => void }) {
+  const { t } = useLanguage();
+  const c = t.attendanceDevices;
+
+  if (protocol === "push_adms") {
+    return (
+      <div className="ds-field ds-field--spaced">
+        <span className="ds-label">{c.connectTitle}</span>
+        <div className="device-guide__note">{c.connectPushAdmsNote}</div>
+        <div className="ds-field ds-field--spaced">
+          <span className="ds-label">{c.connectServerLabel}</span>
+          <ReadonlyRow value={window.location.hostname} />
+        </div>
+        <div className="ds-field ds-field--spaced">
+          <span className="ds-label">{c.connectPortLabel}</span>
+          <ReadonlyRow value="443 (HTTPS)" />
+        </div>
+      </div>
+    );
+  }
+
+  if (protocol === "key_reader") {
+    return (
+      <div className="ds-field ds-field--spaced">
+        <span className="ds-label">{c.connectTitle}</span>
+        <div className="device-guide__note">{c.connectKeyReaderNote}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ds-field ds-field--spaced">
+      <span className="ds-label">{c.connectTitle}</span>
+      <div className="device-guide__note">{c.connectPullSdkNote}</div>
+      <Button variant="outline" onClick={onOpenGuide}>
+        {c.guideLink}
+      </Button>
+    </div>
+  );
+}
+
 // Shown once right after creation or a regenerate-secret call — never
 // re-fetchable afterwards (the server never returns an existing secret in
 // GET /, same "shown once" contract as an API key). Kept as a small local
@@ -30,13 +77,16 @@ const PROTOCOL_OPTIONS: AttendanceDeviceProtocol[] = ["push_adms", "key_reader",
 function SecretModal({
   deviceId,
   secretKey,
+  protocol,
   onClose,
 }: {
   deviceId: string;
   secretKey: string;
+  protocol: AttendanceDeviceProtocol;
   onClose: () => void;
 }) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -61,6 +111,7 @@ function SecretModal({
           <span className="ds-label">{t.attendanceDevices.secretKeyLabel}</span>
           <ReadonlyRow value={secretKey} />
         </div>
+        <ConnectInstructions protocol={protocol} onOpenGuide={() => navigate("/attendance-devices/guide")} />
         <div className="confirm-modal__actions">
           <Button variant="outline" onClick={onClose}>
             {t.common.close}
@@ -94,7 +145,7 @@ export function AttendanceDevices() {
   const [createError, setCreateError] = useState("");
 
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [secret, setSecret] = useState<{ deviceId: string; secretKey: string } | null>(null);
+  const [secret, setSecret] = useState<{ deviceId: string; secretKey: string; protocol: AttendanceDeviceProtocol } | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -126,7 +177,7 @@ export function AttendanceDevices() {
         location: location.trim() || undefined,
         protocol,
       });
-      setSecret({ deviceId: res.deviceId, secretKey: res.secretKey });
+      setSecret({ deviceId: res.deviceId, secretKey: res.secretKey, protocol });
       setDeviceId("");
       setName("");
       setLocation("");
@@ -154,7 +205,7 @@ export function AttendanceDevices() {
     setBusyId(device.id);
     try {
       const res: AttendanceDeviceSecretResponse = await api.attendanceDevices.regenerateSecret(device.id);
-      setSecret({ deviceId: res.deviceId, secretKey: res.secretKey });
+      setSecret({ deviceId: res.deviceId, secretKey: res.secretKey, protocol: device.protocol });
     } finally {
       setBusyId(null);
     }
@@ -231,7 +282,12 @@ export function AttendanceDevices() {
       </Card>
 
       {secret && (
-        <SecretModal deviceId={secret.deviceId} secretKey={secret.secretKey} onClose={() => setSecret(null)} />
+        <SecretModal
+          deviceId={secret.deviceId}
+          secretKey={secret.secretKey}
+          protocol={secret.protocol}
+          onClose={() => setSecret(null)}
+        />
       )}
     </div>
   );

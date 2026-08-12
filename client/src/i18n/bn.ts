@@ -107,6 +107,7 @@ export const bn = {
     monthlyExpense: "মাসিক ব্যয়",
     todayAttendance: "আজকের হাজিরা",
     riskZone: "রিস্ক জোন",
+    riskZoneCardAriaLabel: "রিস্ক জোন কার্ড — ২+ মাস বকেয়া ছাত্রদের তালিকা দেখতে চাপুন",
     residentialSub: "{count} জন আবাসিক",
     totalPercent: "মোটের {percent}%",
     monthLabel: "চলতি মাস",
@@ -748,6 +749,17 @@ export const bn = {
     secretModalWarning: "এই সিক্রেট কী আর কখনো দেখানো হবে না। এখনই কপি করে ডিভাইস/hardware-bridge-এ বসিয়ে রাখুন।",
     copy: "কপি করুন",
     copied: "কপি হয়েছে",
+    // docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 3 —
+    // protocol-specific connect instructions inside the secret modal.
+    connectTitle: "কীভাবে কানেক্ট করবেন",
+    connectPushAdmsNote:
+      "ডিভাইসের মেনুতে গিয়ে Server/IP ঘরে নিচের ঠিকানা, Port ঘরে নিচের পোর্ট নাম্বার বসান, আর Comm Key ঘরে উপরের সিক্রেট কী-টাই বসান। ডিভাইসের নিজস্ব \"Device ID\"/\"Serial Number\" সেটিংসেও উপরের ডিভাইস আইডিটাই হুবহু বসাতে হবে। কোনো প্রোগ্রাম ইনস্টল করা লাগবে না। কিছু সস্তা মডেল HTTPS সাপোর্ট নাও করতে পারে — কাজ না করলে আমাদের সাথে যোগাযোগ করুন।",
+    connectServerLabel: "সার্ভার ঠিকানা (Domain)",
+    connectPortLabel: "পোর্ট",
+    connectKeyReaderNote:
+      "কোনো প্রোগ্রাম/সেটআপ লাগবে না — কার্ড রিডারটা USB দিয়ে কিয়স্ক স্ক্রিনের কম্পিউটারে লাগিয়ে কিয়স্ক পেজ খুলুন, কার্ড ট্যাপ করলেই সরাসরি কাজ করবে।",
+    connectPullSdkNote:
+      "এই ধরনের ডিভাইসের জন্য একটা ছোট hardware-bridge প্রোগ্রাম চালাতে হবে। ধাপে ধাপে ইনস্টল/সেটআপের নির্দেশনা নিচের গাইডে আছে।",
     // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2C — ScanEnrollModal.tsx
     scanToFill: "স্ক্যান করে বসান",
     scanModalTitle: "ডিভাইস থেকে স্ক্যান করে বসান",

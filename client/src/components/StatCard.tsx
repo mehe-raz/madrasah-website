@@ -12,15 +12,23 @@ interface StatCardProps {
   // becomes clickable (mouse + keyboard). Existing call sites that don't
   // pass this prop are unaffected (no role/tabIndex/cursor change).
   onClick?: () => void;
+  // docs/RISK_ZONE_PLAN.md, Phase 3 — optional custom accessible name for a
+  // clickable card. Without this, a screen reader falls back to reading the
+  // card's visible text nodes in DOM order (label, value, sub) when
+  // role="button" is set, which is serviceable but doesn't read as a single
+  // action description. Only worth setting where that matters (e.g. a card
+  // that navigates somewhere) — most call sites can leave it unset.
+  ariaLabel?: string;
 }
 
-export function StatCard({ label, value, color, icon, sub, onClick }: StatCardProps) {
+export function StatCard({ label, value, color, icon, sub, onClick, ariaLabel }: StatCardProps) {
   const Icon = Icons[icon];
   const clickableProps = onClick
     ? {
         onClick,
         role: "button" as const,
         tabIndex: 0,
+        "aria-label": ariaLabel,
         onKeyDown: (e: KeyboardEvent) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();

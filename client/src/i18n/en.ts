@@ -109,6 +109,7 @@ export const en = {
     monthlyExpense: "Monthly Expense",
     todayAttendance: "Today's Attendance",
     riskZone: "Risk Zone",
+    riskZoneCardAriaLabel: "Risk Zone card — press to view students with 2+ months unpaid",
     residentialSub: "{count} residential",
     totalPercent: "{percent}% of total",
     monthLabel: "Current month",
@@ -750,6 +751,17 @@ export const en = {
     secretModalWarning: "This secret key will never be shown again. Copy it now and set it on the device/hardware-bridge.",
     copy: "Copy",
     copied: "Copied",
+    // docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 3 —
+    // protocol-specific connect instructions inside the secret modal.
+    connectTitle: "How to connect",
+    connectPushAdmsNote:
+      "In the device's own menu, enter the address below in the Server/IP field, the port below in the Port field, and the secret key above in the Comm Key field. The device's own \"Device ID\"/\"Serial Number\" setting must match the device ID above exactly. No program needs to be installed. Some cheaper models may not support HTTPS — contact us if it doesn't work.",
+    connectServerLabel: "Server address (Domain)",
+    connectPortLabel: "Port",
+    connectKeyReaderNote:
+      "No program or setup needed — plug the card reader into the computer running the kiosk screen via USB, open the kiosk page, and tapping a card will just work.",
+    connectPullSdkNote:
+      "This type of device needs a small hardware-bridge program running. Step-by-step install/setup instructions are in the guide below.",
     // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2C — ScanEnrollModal.tsx
     scanToFill: "Scan to fill",
     scanModalTitle: "Scan from a device to fill this field",

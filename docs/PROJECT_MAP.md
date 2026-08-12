@@ -219,8 +219,33 @@ Testing procedure: `docs/OFFLINE_FIRST_TESTING.md`.
   still needs the one-time manual `guardian_push_subscriptions` table SQL
   via the Super-Admin "run SQL on all tenants" tool — see
   `docs/CURRENT_TASK.md`'s (now archived) entry for the exact statement.
-- `docs/CURRENT_TASK.md` — **multi-part task handoff queue**. Always check
-  this one regardless of task (see AGENTS.md pointer at the top of that file).
+- `docs/RISK_ZONE_PLAN.md` — 3-phase plan for a "Risk Zone" dashboard card +
+  call-list view (students with an estimated 2+ months of unpaid fees,
+  `due ÷ fee` floored, `fee=0`/inactive already excluded server-side).
+  **All 3 phases done (2026-08-13):** Phase 1 (backend `riskOnly` query
+  param on `GET /students`, dashboard `riskCount`/`riskTotalDue` stats),
+  Phase 2 (dashboard `StatCard` + `/reports/call-list/risk` view, reusing
+  `CallListView.tsx`/`Reports.tsx` from `CALL_LIST_PLAN.md` above — same
+  `tel:`/call-marking machinery, just a new `kind`), Phase 3 (real-data
+  threshold verification done by the user directly — not from this
+  sandbox — plus a custom `aria-label` on the dashboard's risk-zone
+  `StatCard`, since it's the one clickable card where the visible-text
+  fallback read less clearly as an action). The empty-state message and
+  `fee=0`/inactive exclusion turned out to already be correct from Phase 1,
+  so Phase 3 needed no further backend changes.
+- **Results/ফলাফল — per-subject bulk marks-entry** (ad-hoc, no separate
+  plan doc — full detail in `docs/CURRENT_TASK.md`, search "ফলাফল
+  সেকশন"). Replaced the old single-student, free-text-exam-name entry flow
+  with: fixed exam-type list (`server/src/lib/examTypes.js` +
+  `client/src/lib/examTypes.ts`, canonical English value stored regardless
+  of UI language) → pick a class/subject/full-marks once → the whole
+  class's roll list appears with one marks input per student →
+  `POST /api/results/subject-batch` merges that one subject into each
+  student's existing result row (`mergeSubjectIntoList()` in
+  `server/src/lib/results.js`) instead of replacing the whole `subjects[]`
+  array. **All 4 parts done (2026-08-13, final part was verification/docs
+  only, no code)** — the single-student entry form no longer exists in
+  `modules/Results.tsx`; the saved-results list below it is unchanged.
 - `docs/CALL_LIST_PLAN.md` — 3-phase plan for a new "call list" view under
   Reports (student list / due list): full-page in-app list with a green
   `tel:` call button per row and a per-month called/not-called mark, backed

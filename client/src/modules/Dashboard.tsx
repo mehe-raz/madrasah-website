@@ -132,6 +132,7 @@ export function Dashboard() {
           color={C.rose}
           sub={fmt(stats.riskTotalDue)}
           onClick={() => navigate("/reports/call-list/risk")}
+          ariaLabel={t.dashboard.riskZoneCardAriaLabel}
         />
         <StatCard label={t.dashboard.monthlyExpense} value={fmt(stats.monthlyExpense)} icon="expenses" color={C.amber} sub={t.dashboard.monthLabel} />
         <StatCard label={t.dashboard.todayAttendance} value={stats.attendance} icon="attendance" color={C.violet} sub={`${stats.attendancePct}%`} />
