@@ -3529,3 +3529,65 @@ img {
   font-size: 16px;
   color: var(--muted);
 }
+
+/* Attendance device self-service setup guide
+   (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 4A/4B —
+   client/src/modules/AttendanceDeviceGuide.tsx). Icon-based numbered step
+   cards, no screenshot assets. */
+.device-guide__topbar {
+  margin-bottom: 16px;
+}
+
+.device-guide__step {
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+
+.device-guide__step-num {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--slate-l);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.device-guide__step-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-guide__step-icon {
+  color: var(--muted);
+}
+
+.device-guide__step-body {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.device-guide__step-body--spaced {
+  margin-top: 10px;
+}
+
+.device-guide__note {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--slate-l);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}

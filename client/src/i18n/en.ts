@@ -751,6 +751,31 @@ export const en = {
     scanWaiting: "Scan the finger/card now...",
     scanTimeout: "No scan detected, try again",
     scanRetry: "Try again",
+    guideLink: "How do I connect it?",
+  },
+  // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 4A/4B —
+  // AttendanceDeviceGuide.tsx
+  attendanceDeviceGuide: {
+    title: "How to connect — step-by-step guide",
+    subtitle: "The full process for setting up a new attendance device, start to finish",
+    back: "Back",
+    step1Title: "1. Add a device",
+    step1Body:
+      "In the form at the top of this page, enter a device ID (e.g. main-gate-01), a name, and a location, then press \"Add\". A secret key will then be shown — it's shown only once, so copy it now and keep it somewhere safe; you'll need it in the next step.",
+    step2Title: "2. Connect the device",
+    step2Body:
+      "Most fingerprint/card devices need a small program (hardware-bridge) running on a computer on the same network as the device. Start the program and enter the device ID and secret key from the previous step — it will then start forwarding the device's scans to the server. If set up correctly, the terminal will show \"✓ configuration OK\".",
+    step2Note:
+      "Detailed install/run steps are in the hardware-bridge folder's README file. If your device is just a keyboard-emulation card reader (a direct connection without a bridge), that simpler path hasn't been built into this system yet — let us know if you need it.",
+    step3Title: "3. Enroll students' fingerprints/cards",
+    step3Body:
+      "Go to the Students module and edit any student's profile. Next to the fingerprint ID/card UID fields there's a \"Scan to fill\" button — pressing it lets you pick a device, then scan the student's finger/card and the ID fills in automatically. You can also check the device's own menu for the ID and type it in by hand.",
+    step4Title: "4. Open the kiosk screen",
+    step4Body:
+      "On the tablet/monitor mounted above the device, open the address below in a browser (with your device ID in place) — this screen can stay open on its own, no separate login needed. When a student scans, their photo, name, class, and roll will show.",
+    kioskUrlLabel: "Kiosk address pattern",
+    kioskUrlPlaceholder: "your-device-id",
+    doneNote: "Once all four steps are done, the device is fully ready — every new scan is automatically recorded as attendance, and an SMS goes to the guardian on the first punch of the day.",
   },
   // ad-hoc, docs/CURRENT_TASK.md — InstitutionBilling.tsx
   institutionBilling: {

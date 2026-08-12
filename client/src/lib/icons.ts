@@ -54,6 +54,8 @@ import {
   Palette,
   Phone,
   Fingerprint,
+  Usb,
+  Tv,
   type LucideIcon,
 } from "lucide-react";
 
@@ -116,6 +118,10 @@ export const Icons = {
   // Attendance device management (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md,
   // Phase 1B) — nav item + page header icon.
   fingerprint: Fingerprint,
+  // Setup guide steps (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 4A) —
+  // "connect the bridge" and "open the kiosk screen" steps.
+  bridge: Usb,
+  kiosk: Tv,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof Icons;

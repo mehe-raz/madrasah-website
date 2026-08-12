@@ -4,6 +4,7 @@
 // docs/ATTENDANCE_DEVICE_PLAN.md) via api.attendanceDevices (Phase 1A).
 // No new backend code — this file is purely the missing frontend.
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "../components/Badge";
 import { SkeletonCardList } from "../components/Skeleton";
 import { Button, Card, Field, Input } from "../components/ui";
@@ -70,6 +71,7 @@ function ReadonlyRow({ value }: { value: string }) {
 
 export function AttendanceDevices() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   const [devices, setDevices] = useState<AttendanceDevice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,8 +150,15 @@ export function AttendanceDevices() {
 
   return (
     <div>
-      <h2 className="page-title">{t.attendanceDevices.title}</h2>
-      <p className="page-subtitle">{t.attendanceDevices.subtitle}</p>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">{t.attendanceDevices.title}</h2>
+          <p className="page-subtitle">{t.attendanceDevices.subtitle}</p>
+        </div>
+        <Button variant="outline" onClick={() => navigate("/attendance-devices/guide")}>
+          {t.attendanceDevices.guideLink}
+        </Button>
+      </div>
 
       <Card className="class-post-form">
         <h3 className="page-header__title">{t.attendanceDevices.formTitle}</h3>
