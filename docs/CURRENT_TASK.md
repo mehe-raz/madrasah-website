@@ -22,7 +22,7 @@ Phase-এ, পুরো পরিকল্পনা `docs/ATTENDANCE_DEVICE_CENT
 4-এর (সেটআপ গাইড) উপর প্রভাব ফেলতে পারে — Phase 4 লেখার সময় এই টাস্কের
 অগ্রগতি বিবেচনায় নিতে হবে)
 
-## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2 বাকি)
+## Status: IN_PROGRESS (Phase 1, Phase 2 সম্পন্ন — Phase 3 বাকি)
 
 Started: 2026-08-12 (প্ল্যান লেখার তারিখ; কোডিং শুরুর তারিখ ভিন্ন হতে পারে)
 
@@ -76,14 +76,57 @@ Started: 2026-08-12 (প্ল্যান লেখার তারিখ; ক�
     কিনা — এই sandbox-এ network/node_modules না থাকায় চালানো যায়নি,
     আপনার প্যাকেজড CMD-তেই প্রথম যাচাই হবে (আগের সব Phase-এর প্যাটার্নে)।**
 
+- [x] **Phase 2 সম্পন্ন (2026-08-12)** — ADMS-সামঞ্জস্যপূর্ণ পাবলিক
+  ইনজেশন এন্ডপয়েন্ট, প্ল্যান ডকের ধারা ৫-এ যা লেখা আছে সেভাবে:
+  - `server/src/registryDb.js` — নতুন `getDeviceRegistryEntry(deviceId)`
+    (Phase 1-এর `registerDevice()`-এর কাউন্টারপার্ট, শুধু লুকআপ) —
+    এক্সপোর্ট করা হয়েছে।
+  - নতুন `server/src/lib/devicePunch.js` — punch-প্রসেসিং লজিক
+    (`deviceAttendance.js` থেকে হুবহু, আচরণ অপরিবর্তিত) একটা শেয়ার্ড
+    `recordDevicePunch({device, identifier, identifierType})` ফাংশনে বের
+    করা হয়েছে (ছাত্র লুকআপ, attendance_logs/attendance upsert,
+    recordAudit, sendGuardianSms — সব একই)। `toStudentPayload()`-ও এখানে
+    সরানো হয়েছে।
+  - `server/src/routes/deviceAttendance.js` — `POST /punch` এখন
+    `recordDevicePunch()` কল করে, নিজের auth (deviceId+secretKey) ও JSON
+    রেসপন্স শেপ অপরিবর্তিত রেখে — আচরণে কোনো পরিবর্তন নেই, শুধু কোড সরানো
+    হয়েছে।
+  - নতুন `server/src/routes/deviceIngest.js` — deviceId (ADMS-এর `SN`
+    query param) দিয়ে `registryDb.getDeviceRegistryEntry()` লুকআপ →
+    Comm Key মিলিয়ে দেখা (একই ভ্যালু যেটা creation-এর সময় `secretKey`
+    হিসেবে দেখানো হয়েছিল) → `registryDb.isAccessAllowed()` চেক →
+    `tenantContext.run()` দিয়ে ম্যানুয়ালি tenant schema scope করা
+    (`middleware/tenantResolve.js`-এর `withTenantByCode()`-এর একই
+    মেকানিজম, কিন্তু institution code-এর বদলে ইতিমধ্যে-জানা
+    schema_name/institution দিয়ে) → `recordDevicePunch()` রিইউজ। ADMS
+    হ্যান্ডশেক/ATTLOG/getrequest রিকোয়েস্ট-রেসপন্স ফরম্যাট
+    `hardware-bridge/index.js` থেকে হুবহু কপি করা হয়েছে (নতুন করে অনুমান
+    না করে, ধারা ৩.৫ অনুযায়ী)। Comm Key-বিহীন/ভুল-Comm-Key রিকোয়েস্টেও
+    সবসময় `"OK"` রেসপন্স যায় (ডিভাইসের auth-failure বোঝার/রিট্রাই-লুপে
+    আটকে যাওয়ার সুযোগ না দিতে) — শুধু আসল ডেটা-লেখা স্কিপ হয়।
+  - `server/src/index.js` — `app.use("/iclock", require("./routes/deviceIngest"))`
+    বেয়ার top-level path-এ মাউন্ট করা হয়েছে (`/api`-এর নিচে না, কারণ আসল
+    ADMS ডিভাইস ফার্মওয়্যার এই ফিক্সড পাথেই রিকোয়েস্ট পাঠায়) — `/api/device`
+    মাউন্টের ঠিক পরে। `tenantResolve.js` শুধু `/api/*` পাথ পরীক্ষা করে
+    বলে এটা এমনিতেই তার Host-ভিত্তিক রাউটিং-এর বাইরে, কোনো
+    `isSkippedPath()` এন্ট্রি লাগেনি।
+  - সবগুলো পরিবর্তিত/নতুন `.js` ফাইল `node --check` পাস করেছে। **পুরো
+    `npm run check` + curl/Postman দিয়ে একটা সিমুলেটেড ADMS
+    হ্যান্ডশেক+ATTLOG পাঠিয়ে punch রেকর্ড হচ্ছে কিনা, ভুল Comm Key-তে
+    silently স্কিপ হচ্ছে কিনা — এই sandbox-এ network/node_modules না
+    থাকায় চালানো যায়নি, আপনার প্যাকেজড CMD-তেই প্রথম যাচাই হবে (আগের সব
+    Phase-এর প্যাটার্নে)। এই ডিজাইন সম্পূর্ণ অপরীক্ষিত আসল হার্ডওয়্যারে
+    (ধারা ৭-এর ঝুঁকি অনুযায়ী) — বিশেষ করে ADMS-এর Comm Key ঠিক কীভাবে
+    (কোন query param/header-এ) পাঠানো হয় সেটা এখনো নিশ্চিত না, আসল
+    ডিভাইস কানেক্ট হওয়ার পর `deviceIngest.js`-এর `extractCommKey()`
+    এডজাস্ট করা লাগতে পারে।**
+
 ### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে)
-- [ ] Phase 2 (ADMS-সামঞ্জস্যপূর্ণ পাবলিক ইনজেশন এন্ডপয়েন্ট) — প্ল্যান
-  ডকের ধারা ৫-এ যা লেখা আছে সেভাবে: নতুন `server/src/routes/deviceIngest.js`,
-  punch-প্রসেসিং লজিক `deviceAttendance.js` থেকে একটা শেয়ার্ড ফাংশনে বের
-  করে দুই রাউট ফাইল থেকেই কল করা, ADMS প্রোটোকলের রিকোয়েস্ট/রেসপন্স
-  ফরম্যাট `hardware-bridge/index.js`-এর বিদ্যমান পার্সিং কোড থেকে হুবহু
-  নিয়ে আসা।
-- [ ] Phase 3 → Phase 4 (ধারা ৬-এর ক্রম অনুযায়ী)
+- [ ] Phase 3 (অ্যাডমিন প্যানেলে "কীভাবে কানেক্ট করব" নির্দেশনা,
+  ব্র্যান্ড-নির্বিশেষে) → Phase 4 (ব্র্যান্ড-ক্লাউড adapter কাঠামো,
+  ঐচ্ছিক) — ধারা ৬-এর ক্রম অনুযায়ী। Phase 3 শুরু করার আগে Phase 2-এর
+  `deviceIngest.js` `npm run check` পাস করেছে ও (সম্ভব হলে) একটা
+  সিমুলেটেড রিকোয়েস্ট দিয়ে যাচাই হয়েছে তা নিশ্চিত করা।
 - [ ] প্রতিটা Phase শেষ হলে এই এন্ট্রিতে "সম্পন্ন"-এ সরিয়ে "বাকি" আপডেট
   করতে হবে (packaging/zip-এর আগে)
 

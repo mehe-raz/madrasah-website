@@ -26,8 +26,13 @@ const rateLimit = require("express-rate-limit");
 const db = require("../db");
 const { validate } = require("../middleware/validate");
 const { devicePunchSchema } = require("../lib/opsSchemas");
-const { recordAudit } = require("../lib/auditLog");
-const { sendGuardianSms } = require("../lib/guardianSms");
+// docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 2 — the actual
+// punch-recording work (student lookup, attendance_logs/attendance upsert,
+// audit, guardian SMS) now lives in lib/devicePunch.js, shared with the new
+// routes/deviceIngest.js so the two device-facing entry points can never
+// disagree on how a punch is recorded. This file keeps its own device auth
+// and JSON response shape — only the DB work in between moved out.
+const { recordDevicePunch, toStudentPayload } = require("../lib/devicePunch");
 
 const router = express.Router();
 
@@ -63,108 +68,33 @@ async function authenticateDevice(deviceId, secretKey) {
   return device;
 }
 
-function toStudentPayload(student) {
-  return {
-    id: student.id,
-    name: student.name,
-    class: student.class,
-    section: student.section,
-    roll: student.roll,
-    photo: student.studentPhoto,
-  };
-}
-
 router.post("/punch", devicePunchLimiter, validate(devicePunchSchema), async (req, res) => {
   const { deviceId, secretKey, identifier, identifierType } = req.body;
 
   const device = await authenticateDevice(deviceId, secretKey);
   if (!device) return res.status(401).json({ error: "ডিভাইস শনাক্ত করা যায়নি" });
 
-  // Column choice driven by identifierType, not by guessing which of the
-  // two a given string looks like — see students.fingerprintId/cardUid
-  // (Phase 1 schema), both plain unique text columns.
-  const column = identifierType === "card" ? '"cardUid"' : '"fingerprintId"';
-  const student = await db.get(
-    `SELECT id, name, class, section, roll, "studentPhoto", phone, status
-     FROM students WHERE ${column} = $1`,
-    [identifier]
-  );
-  if (!student || student.status !== "Active") {
-    // Logged (studentId null, matched false) instead of just returning the
-    // error, so the kiosk's latest-punch poll (Phase 4) has a row to find
-    // and can show "ছাত্র খুঁজে পাওয়া যায়নি" for a real failed scan — added
-    // 2026-08-12, see supabase_schema.sql's 2026-08-12 comment on this
-    // table for why studentId had to become nullable for this.
-    await db.run(
-      `INSERT INTO attendance_logs ("studentId", "deviceId", "punchAt", direction, method, matched, identifier)
-       VALUES (NULL, $1, $2, NULL, $3, false, $4)`,
-      [device.id, new Date().toISOString(), identifierType, identifier]
-    );
+  // docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 2 — the
+  // actual student-lookup/attendance_logs/attendance/audit/guardian-SMS
+  // work now lives in lib/devicePunch.js's recordDevicePunch(), shared with
+  // routes/deviceIngest.js's ADMS endpoint. Behavior here is unchanged from
+  // before the extraction — only where the code lives moved.
+  const result = await recordDevicePunch({ device, identifier, identifierType });
+
+  if (!result.matched) {
+    // Logged (studentId null, matched false, done inside recordDevicePunch)
+    // instead of just returning the error, so the kiosk's latest-punch
+    // poll (Phase 4) has a row to find and can show "ছাত্র খুঁজে পাওয়া
+    // যায়নি" for a real failed scan.
     return res.status(404).json({ error: "ছাত্র খুঁজে পাওয়া যায়নি" });
   }
 
-  const punchAt = new Date().toISOString();
-  const today = punchAt.slice(0, 10);
-
-  // "punchAt" is stored as ISO-8601 text (Phase 1 schema), which sorts and
-  // prefix-matches correctly as a string — a LIKE 'today%' is enough to
-  // count today's punches without a separate date column.
-  const priorToday = await db.get(
-    `SELECT COUNT(*)::int AS count FROM attendance_logs
-     WHERE "studentId" = $1 AND "punchAt" LIKE $2`,
-    [student.id, `${today}%`]
-  );
-  const isFirstPunchToday = priorToday.count === 0;
-
-  // direction stays null: per the plan doc's Phase-1 assumption, most
-  // fingerprint/card devices don't distinguish in/out at the hardware
-  // level, so entry/exit is derived from first/last punch ordering
-  // instead of being recorded here. "identifier" is now stored here too
-  // (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 2C) — previously
-  // only the unmatched branch above stored it; the new staff-facing
-  // GET /:id/latest-scan (attendanceDevices.js) needs a raw identifier on
-  // every scan, not just unmatched ones, so a re-enrollment scan of an
-  // already-enrolled finger/card still surfaces something to the
-  // "স্ক্যান করে বসান" UI instead of silently returning null.
-  await db.run(
-    `INSERT INTO attendance_logs ("studentId", "deviceId", "punchAt", direction, method, identifier)
-     VALUES ($1, $2, $3, NULL, $4, $5)`,
-    [student.id, device.id, punchAt, identifierType, identifier]
-  );
-
-  // Reuses the exact upsert routes/attendance.js's manual save already
-  // uses, so a device punch and a teacher's manual mark can never disagree
-  // about which unique index they're conflicting on.
-  await db.run(
-    `INSERT INTO attendance ("studentId", date, status)
-     VALUES ($1, $2, 'উপস্থিত')
-     ON CONFLICT ("studentId", date) DO UPDATE SET status = EXCLUDED.status`,
-    [student.id, today]
-  );
-
-  await recordAudit({
-    action: "attendance.devicePunch",
-    entityType: "attendance_logs",
-    entityId: student.id,
-    label: `${student.name} (রোল ${student.roll}) — ডিভাইস পাঞ্চ (${device.name || device.deviceId})`,
-    details: { deviceId: device.deviceId, method: identifierType, punchAt, firstToday: isFirstPunchToday },
+  res.json({
+    ok: true,
+    student: toStudentPayload(result.student),
+    punchAt: result.punchAt,
+    firstToday: result.firstToday,
   });
-
-  // Guardian SMS only on the day's first punch (entry) — see plan doc
-  // Phase 1 assumption: notifying on every punch would burn SMS wallet
-  // balance on a student who scans more than once. sendGuardianSms never
-  // throws (no phone on file, plan doesn't include SMS, empty wallet — all
-  // skip silently), same contract as every other call site.
-  if (isFirstPunchToday && student.phone) {
-    await sendGuardianSms({
-      to: student.phone,
-      message: `${student.name} (রোল ${student.roll}) আজ ${punchAt.slice(11, 16)}-এ মাদরাসায় প্রবেশ করেছে।`,
-      reference: `attendance-punch:${student.id}:${today}`,
-      notificationType: "attendancePunch",
-    });
-  }
-
-  res.json({ ok: true, student: toStudentPayload(student), punchAt, firstToday: isFirstPunchToday });
 });
 
 router.get("/latest-punch/:deviceId", deviceLatestLimiter, async (req, res) => {

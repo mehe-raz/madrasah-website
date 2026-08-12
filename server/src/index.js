@@ -195,6 +195,18 @@ app.use("/api/guardian-auth", require("./routes/guardianAuth"));
 // resolved the normal Host-based way, same as /api/guardian-auth above).
 app.use("/api/device", require("./routes/deviceAttendance"));
 
+// Bridge-free ADMS attendance-device ingestion
+// (docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 2) — mounted
+// at the bare top-level /iclock path (not /api), matching the fixed path
+// real ADMS device firmware sends to (an admin can only configure a server
+// IP/port on the device itself, never a path/subdomain — see the plan
+// doc's section 3.1/3.2). deviceId-scoped tenant routing happens INSIDE
+// this router (registry.device_registry lookup, routes/deviceIngest.js),
+// not via tenantResolve.js/Host header, so this deliberately sits outside
+// both tenantResolve (which only inspects "/api/*" paths — no
+// isSkippedPath() entry needed here) and the requireAuth/rbac chain below.
+app.use("/iclock", require("./routes/deviceIngest"));
+
 
 // Platform/Super-Admin panel (Part 5) — talks only to the registry schema,
 // never a tenant_xxx schema, so it's mounted here (before the tenant

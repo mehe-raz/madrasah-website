@@ -742,6 +742,20 @@ async function registerDevice({ deviceId, institutionId, schemaName, secretOrCom
 // registered globally (e.g. created before Phase 1, or in a single-tenant
 // deployment) — deliberately silent, matching the "best effort sync,
 // tenant-side stays the source of truth" note above.
+// Looks up which institution/schema owns a deviceId — the core lookup for
+// Phase 2's bridge-free ADMS ingestion endpoint (routes/deviceIngest.js),
+// which receives only a raw deviceId with no Host/subdomain to resolve the
+// tenant from otherwise. Returns undefined if the deviceId was never
+// registered (e.g. a tenant-only device created before Phase 1, or in a
+// single-tenant deployment) or is unknown.
+async function getDeviceRegistryEntry(deviceId) {
+  const result = await registryPool.query(
+    `SELECT * FROM registry.device_registry WHERE device_id = $1`,
+    [deviceId]
+  );
+  return result.rows[0];
+}
+
 async function updateDeviceRegistrySecret(deviceId, secretOrCommKey) {
   await registryPool.query(
     `UPDATE registry.device_registry SET secret_or_comm_key = $1 WHERE device_id = $2`,
@@ -769,6 +783,7 @@ module.exports = {
   registryPool,
   initRegistrySchema,
   registerDevice,
+  getDeviceRegistryEntry,
   updateDeviceRegistrySecret,
   updateDeviceRegistryActive,
   deleteDeviceRegistryEntry,
