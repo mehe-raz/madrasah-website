@@ -116,6 +116,38 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             plan-lock check yet — plan-gating for this feature is still an
             open decision (docs/CURRENT_TASK.md), so isLocked() isn't
             called here the way it is for "sms"/"bkash" below. */}
+        {/* Attendance device management
+            (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 1B) — kept
+            outside NAV_IDS like the blocks below because it reuses the
+            "attendance" permission but needs its own nav LABEL
+            (t.nav.attendance already labels the /attendance route above,
+            reusing t.nav[item.key] here would show "হাজিরা" twice). No
+            plan-lock: this is core to the attendance feature, not gated
+            behind a separate plan feature. */}
+        {canAccess(role, "attendance") && (
+          <NavLink
+            to="/attendance-devices"
+            onClick={onNavigate}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.attendanceDevices : undefined}
+          >
+            <Icons.fingerprint size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.attendanceDevices}</span>}
+          </NavLink>
+        )}
         {canAccess(role, "settings") && (
           <NavLink
             to="/guardian-reminders"

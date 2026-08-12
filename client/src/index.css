@@ -2381,6 +2381,13 @@ img {
 
 .ds-field { display: block; }
 
+/* docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 1B — spacing between
+   two stacked .ds-field blocks outside a .form-grid (e.g. the secret modal
+   in AttendanceDevices.tsx), where .form-grid's own gap doesn't apply. */
+.ds-field--spaced {
+  margin-top: 12px;
+}
+
 .ds-label {
   display: block;
   font-size: 12px;
@@ -2423,6 +2430,14 @@ img {
   box-sizing: border-box;
   color: var(--text);
   background: var(--slate-l);
+}
+
+/* docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 1B — monospace +
+   wrap-anywhere display for device IDs/secret keys shown read-only in
+   AttendanceDevices.tsx's secret modal. */
+.ds-readonly--mono {
+  font-family: monospace;
+  word-break: break-all;
 }
 
 /* Buttons: base + color variant + optional --outline modifier. Usage:

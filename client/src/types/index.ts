@@ -668,3 +668,30 @@ export interface KioskPunch {
 export interface KioskLatestPunchResponse {
   punch: KioskPunch | null;
 }
+
+// Attendance device management (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md,
+// Phase 1) — admin-facing CRUD for attendance_devices, distinct from the
+// device's own public-facing punch/latest-punch API above. Matches
+// server/src/routes/attendanceDevices.js's response shapes.
+export interface AttendanceDevice {
+  id: number;
+  deviceId: string;
+  name: string | null;
+  location: string | null;
+  active: boolean;
+  createdAt: string;
+}
+
+// Only ever returned once — at creation, POST / — never by GET /, same
+// "shown once" contract as the server route.
+export interface AttendanceDeviceCreateResponse extends AttendanceDevice {
+  secretKey: string;
+}
+
+// POST /:id/regenerate-secret returns a smaller shape than create (no
+// name/location/active/createdAt) — matches attendanceDevices.js exactly.
+export interface AttendanceDeviceSecretResponse {
+  id: number;
+  deviceId: string;
+  secretKey: string;
+}

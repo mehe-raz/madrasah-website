@@ -53,6 +53,7 @@ import {
   UserRound,
   Palette,
   Phone,
+  Fingerprint,
   type LucideIcon,
 } from "lucide-react";
 
@@ -112,6 +113,9 @@ export const Icons = {
   // Reports > কল-লিস্ট ফিচার (docs/CALL_LIST_PLAN.md, Phase 2) — green
   // call button per row.
   phone: Phone,
+  // Attendance device management (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md,
+  // Phase 1B) — nav item + page header icon.
+  fingerprint: Fingerprint,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof Icons;

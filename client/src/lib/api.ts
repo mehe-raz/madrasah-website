@@ -1,6 +1,9 @@
 import type {
   AdmissionApplication,
   AdmissionApplicationInput,
+  AttendanceDevice,
+  AttendanceDeviceCreateResponse,
+  AttendanceDeviceSecretResponse,
   AttendanceResponse,
   AuditLog,
   AuditLogMeta,
@@ -970,6 +973,26 @@ export const api = {
   device: {
     getLatestPunch: (deviceId: string) =>
       request<KioskLatestPunchResponse>(`/device/latest-punch/${deviceId}`),
+  },
+
+  // -------------------------------------------------------------------------
+  // Attendance device management (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md,
+  // Phase 1A) — staff-authenticated CRUD for attendance_devices, wiring
+  // server/src/routes/attendanceDevices.js's four endpoints. Not to be
+  // confused with the public `device` namespace above (kiosk polling, no
+  // session).
+  // -------------------------------------------------------------------------
+  attendanceDevices: {
+    list: () => request<AttendanceDevice[]>("/attendance-devices"),
+    create: (body: { deviceId: string; name?: string; location?: string }) =>
+      request<AttendanceDeviceCreateResponse>("/attendance-devices", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    update: (id: number, body: { name?: string; location?: string; active?: boolean }) =>
+      request<AttendanceDevice>(`/attendance-devices/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    regenerateSecret: (id: number) =>
+      request<AttendanceDeviceSecretResponse>(`/attendance-devices/${id}/regenerate-secret`, { method: "POST" }),
   },
 
   // -------------------------------------------------------------------------

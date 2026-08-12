@@ -33,19 +33,31 @@ Started: 2026-08-12 (প্ল্যান লেখার তারিখ; ক�
   fingerprintId/cardUid ফিল্ড + স্ক্যান-এনরোলমেন্ট মোড, 3 sub-phase),
   Phase 3 (hardware-bridge সহজ প্যাকেজ, 2 sub-phase), Phase 4 (সেটআপ
   গাইড, 2 sub-phase)।
+- [x] **Phase 1 (1A + 1B) সম্পন্ন** — ডিভাইস-ম্যানেজমেন্ট অ্যাডমিন পেজ:
+  `client/src/types/index.ts` (AttendanceDevice/AttendanceDeviceCreateResponse/
+  AttendanceDeviceSecretResponse), `client/src/lib/api.ts`
+  (`api.attendanceDevices.{list,create,update,regenerateSecret}`),
+  `client/src/lib/icons.ts` (fingerprint আইকন), নতুন
+  `client/src/modules/AttendanceDevices.tsx` (লিস্ট + অ্যাড-ফর্ম + একবারই
+  দেখানো secretKey মোডাল + active টগল + regenerate-secret), `App.tsx`-এ
+  `/attendance-devices` রুট, `Sidebar.tsx`-এ nav আইটেম ("attendance"
+  permission-এর আওতায়), `i18n/bn.ts` ও `i18n/en.ts`-এ `nav.attendanceDevices`
+  + `attendanceDevices` ব্লক (key-parity যাচাই করা হয়েছে)। ব্যাকএন্ডে কোনো
+  পরিবর্তন লাগেনি (আগে থেকেই রেডি ছিল)। **এখনো `npm run check` দিয়ে
+  ব্যবহারকারীর মেশিনে যাচাই বাকি** — sandbox-এ নেটওয়ার্ক বন্ধ থাকায়
+  `npm install`/`npm run check` চালানো সম্ভব হয়নি, শুধু ম্যানুয়াল
+  ব্রেস-ব্যালান্স + key-parity যাচাই করা হয়েছে।
 
 ### বাকি (পরের এজেন্ট এখান থেকে শুরু করবে)
-- [ ] **প্রথমে** — ব্যবহারকারী প্ল্যানের ধারা ৩-এর ৪টা অ্যাসাম্পশন
-  (এনরোলমেন্ট-মোডের ডিজাইন, raw identifier এক্সপোজ করার নতুন
-  authenticated এন্ডপয়েন্ট, hardware-bridge exe-প্যাকেজিং-এ নতুন
-  dev-dependency, গাইডে ছবি/placeholder) কনফার্ম করেছেন কিনা যাচাই —
-  স্পষ্ট "শুরু কর" (বা "Phase 1 থেকে শুরু কর") না পাওয়া পর্যন্ত কোনো
-  Phase শুরু করা যাবে না (ব্যবহারকারীর নিজের নিয়ম, উপরের চ্যাট দেখুন)।
-- [ ] Phase 1 (1A → 1B), Phase 2 (2A → 2B → 2C), Phase 3 (3A, তারপর 3B
-  আলাদা কনফার্মেশন সহ), Phase 4 (4A → 4B) — প্ল্যান ডকের ধারা ৪-এ
-  ঠিক যে ক্রমে লেখা আছে সেই ক্রমেই, একবারে এক sub-phase, প্রতি
-  sub-phase শেষে `npm run check` + ব্যবহারকারীর প্যাকেজড CMD দিয়ে
-  যাচাই — পাস না করলে পরের sub-phase-এ যাওয়া যাবে না।
+- [ ] ব্যবহারকারীর `npm run check` রেজাল্ট দেখে Phase 1-এ কোনো টাইপ/লিন্ট
+  এরর থাকলে ঠিক করা (প্রথম অগ্রাধিকার, যেহেতু sandbox-এ compile-check করা
+  যায়নি)।
+- [ ] Phase 2 (2A → 2B → 2C) — ব্যবহারকারী Phase 1 পাস করার কনফার্মেশন
+  দেওয়ার পর শুরু।
+- [ ] Phase 3 (3A, তারপর 3B আলাদা কনফার্মেশন সহ), Phase 4 (4A → 4B) —
+  প্ল্যান ডকের ধারা ৪-এ ঠিক যে ক্রমে লেখা আছে সেই ক্রমেই, একবারে এক
+  sub-phase, প্রতি sub-phase শেষে `npm run check` + ব্যবহারকারীর
+  প্যাকেজড CMD দিয়ে যাচাই — পাস না করলে পরের sub-phase-এ যাওয়া যাবে না।
 - [ ] প্রতিটা sub-phase শেষ হলে এই এন্ট্রিতে "সম্পন্ন"-এ সরিয়ে "বাকি"
   আপডেট করতে হবে (packaging/zip-এর আগে), যাতে পরের কোনো এজেন্ট এই
   ফাইল পড়ে ঠিক কোথায় আছে বুঝতে পারে।
