@@ -563,6 +563,13 @@ img {
   background: #dcfce7; /* C.emeraldL */
 }
 
+/* docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 6 — BulkSms.tsx's message
+   preview line (neutral/informational, not a success/warning/error). */
+.alert--sky {
+  color: #075985; /* C.skyD */
+  background: #e0f2fe; /* C.skyL */
+}
+
 .sync-panel__title {
   font-weight: 600;
   margin-bottom: 6px;
@@ -1459,6 +1466,38 @@ img {
   .sms-contact-row__delete {
     justify-self: start;
   }
+}
+
+/* docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 6 — BulkSms.tsx */
+.bulk-sms-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* Compose section's recipient checkbox list — reuses .checkbox-row for the
+   checkbox+label alignment, but each row also shows the phone number, so a
+   dedicated 2-column layout (not the 4-column .sms-contact-row grid used
+   by the contacts-manager tab) is used here. */
+.sms-recipient-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.sms-recipient-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
 }
 
 

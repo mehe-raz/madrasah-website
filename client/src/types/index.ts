@@ -654,6 +654,15 @@ export interface OwnSmsGatewayStatus {
   configured: boolean;
 }
 
+// Own-phone/SIM bulk SMS — broadcast-send response
+// (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 6) — server/src/routes/
+// sms.js's POST /broadcast (Phase 3 backend, already returns this shape).
+export interface SmsBroadcastResult {
+  total: number;
+  sent: number;
+  failed: number;
+}
+
 // bKash create→execute checkout (Phase 8F) — shared shape for both the
 // guardian fee-payment flow (routes/guardianAuth.js) and the admin SMS
 // wallet gateway top-up (routes/sms.js's /topup-via-gateway/*).

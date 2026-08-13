@@ -27,6 +27,7 @@ const AttendanceDeviceGuide = lazy(() =>
   import("./modules/AttendanceDeviceGuide").then((m) => ({ default: m.AttendanceDeviceGuide }))
 );
 const AuditLogs = lazy(() => import("./modules/AuditLogs").then((m) => ({ default: m.AuditLogs })));
+const BulkSms = lazy(() => import("./modules/BulkSms").then((m) => ({ default: m.BulkSms })));
 const ClassPosts = lazy(() => import("./modules/ClassPosts").then((m) => ({ default: m.ClassPosts })));
 const Dashboard = lazy(() => import("./modules/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Expenses = lazy(() => import("./modules/Expenses").then((m) => ({ default: m.Expenses })));
@@ -214,6 +215,19 @@ export default function App() {
                   element={
                     <PlanFeatureGate feature="sms">
                       <SmsSettings />
+                    </PlanFeatureGate>
+                  }
+                />
+                {/* Own-phone/SIM bulk SMS gateway (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md,
+                    Phase 6) — reuses the same "sms" plan feature as the paid-reseller
+                    SmsSettings route above (both are SMS-related, plan doc's Phase 2
+                    note: no new feature key). Completely separate route/module though —
+                    no wallet/balance involved here, just the institution's own phone. */}
+                <Route
+                  path="bulk-sms"
+                  element={
+                    <PlanFeatureGate feature="sms">
+                      <BulkSms />
                     </PlanFeatureGate>
                   }
                 />

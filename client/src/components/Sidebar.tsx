@@ -206,6 +206,41 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             )}
           </NavLink>
         )}
+        {/* "বাল্ক SMS (নিজের ফোন)" (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md,
+            Phase 6) — same reasoning as the SMS block above: reuses the
+            "settings" permission and the "sms" plan feature (no new
+            feature key, per the plan doc), but needs its own nav LABEL and
+            route since it's a completely separate module/route from
+            SmsSettings ("/sms" — paid-reseller wallet) above. */}
+        {canAccess(role, "settings") && (
+          <NavLink
+            to="/bulk-sms"
+            onClick={onNavigate}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.bulkSms : undefined}
+          >
+            <Icons.bulkSms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.bulkSms}</span>}
+            {open && isLocked("sms") && (
+              <span className="nav-item__lock-badge" aria-hidden="true">
+                <Icons.lock size={12} />
+              </span>
+            )}
+          </NavLink>
+        )}
         {/* "বিকাশ পেমেন্ট গেটওয়ে" (Phase 8E) — same reasoning as the SMS
             block above: reuses "settings" permission, own label/lock via
             the "bkash" plan feature, kept outside NAV_IDS. */}

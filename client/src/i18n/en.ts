@@ -16,6 +16,8 @@ export const en = {
     settings: "Settings",
     auditLogs: "Audit Logs",
     sms: "SMS Service",
+    // docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 6
+    bulkSms: "Bulk SMS (own phone)",
     paymentGateway: "bKash Gateway",
     guardianReminders: "Guardian Reminders",
     // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 1B
@@ -848,6 +850,24 @@ export const en = {
     contactAdd: "Add",
     contactDelete: "Delete",
     contactDeleteConfirm: "Delete this contact?",
+    // Phase 6 — BulkSms.tsx (three tabs + compose/send section)
+    tabGateway: "Gateway",
+    tabContacts: "Contacts",
+    tabCompose: "Compose & Send",
+    composeLoadFailed: "Failed to load",
+    composeGatewayNotConnected: "Connect your phone from the \"Gateway\" tab first",
+    composeMessageLabel: "Message",
+    composeMessagePlaceholder: "e.g. Dear {name}, tomorrow's guardian meeting is at 4 PM.",
+    composePlaceholderHint: "Writing {name} will insert each person's name into their message",
+    composePreviewLabel: "Preview",
+    composeRecipientsTitle: "Select recipients",
+    composeNoContacts: "No contacts yet — add some from the \"Contacts\" tab.",
+    composeSelectAll: "Select all",
+    composeConfirm: "Send SMS to {count} people?",
+    composeSendFailed: "Failed to send",
+    composeSending: "Sending...",
+    composeSend: "Send",
+    composeSummary: "Total {total} — sent {sent}, failed {failed}",
   },
   // ad-hoc, docs/CURRENT_TASK.md — InstitutionBilling.tsx
   institutionBilling: {

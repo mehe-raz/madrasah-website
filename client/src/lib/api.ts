@@ -43,6 +43,7 @@ import type {
   OwnSmsGatewayStatus,
   PaymentGatewayStatus,
   SmsNotificationPrefs,
+  SmsBroadcastResult,
   SmsContact,
   SmsWallet,
   Student,
@@ -966,6 +967,14 @@ export const api = {
     request<SmsContact>(`/sms-contacts/${id}`, { method: "PUT", body: JSON.stringify(body) }),
 
   deleteSmsContact: (id: number) => request<{ ok: boolean }>(`/sms-contacts/${id}`, { method: "DELETE" }),
+
+  // -------------------------------------------------------------------------
+  // Own-phone/SIM bulk SMS — broadcast-send (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md,
+  // Phase 6) — server/src/routes/sms.js's POST /broadcast (Phase 3 backend,
+  // already implemented). `contactIds: "all"` targets every sms_contacts row.
+  // -------------------------------------------------------------------------
+  sendSmsBroadcast: (body: { contactIds: number[] | "all"; message: string }) =>
+    request<SmsBroadcastResult>("/sms/broadcast", { method: "POST", body: JSON.stringify(body) }),
 
   // Institution self-service platform-subscription billing (ad-hoc,
   // docs/CURRENT_TASK.md) — the institution pays ITS OWN monthly bill to

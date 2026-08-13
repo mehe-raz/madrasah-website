@@ -56,6 +56,7 @@ import {
   Fingerprint,
   Usb,
   Tv,
+  Send,
   type LucideIcon,
 } from "lucide-react";
 
@@ -122,6 +123,11 @@ export const Icons = {
   // "connect the bridge" and "open the kiosk screen" steps.
   bridge: Usb,
   kiosk: Tv,
+  // Own-phone/SIM bulk SMS gateway nav item
+  // (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 6) — distinct from the
+  // existing `sms` (paid-reseller wallet) icon since these are two separate
+  // nav entries.
+  bulkSms: Send,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof Icons;

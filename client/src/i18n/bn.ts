@@ -14,6 +14,8 @@ export const bn = {
     settings: "সেটিংস",
     auditLogs: "অডিট লগ",
     sms: "SMS সেবা",
+    // docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 6
+    bulkSms: "বাল্ক SMS (নিজের ফোন)",
     paymentGateway: "বিকাশ গেটওয়ে",
     guardianReminders: "গার্ডিয়ান রিমাইন্ডার",
     // docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 1B
@@ -846,6 +848,24 @@ export const bn = {
     contactAdd: "যোগ করুন",
     contactDelete: "মুছে ফেলুন",
     contactDeleteConfirm: "এই কন্টাক্টটি মুছে ফেলতে চান?",
+    // Phase 6 — BulkSms.tsx (তিনটা ট্যাব + কম্পোজ/সেন্ড সেকশন)
+    tabGateway: "গেটওয়ে",
+    tabContacts: "কন্টাক্ট",
+    tabCompose: "কম্পোজ ও পাঠান",
+    composeLoadFailed: "লোড করতে ব্যর্থ হয়েছে",
+    composeGatewayNotConnected: "প্রথমে \"গেটওয়ে\" ট্যাব থেকে আপনার ফোন সংযুক্ত করুন",
+    composeMessageLabel: "বার্তা",
+    composeMessagePlaceholder: "যেমন: প্রিয় {নাম}, আগামীকাল অভিভাবক সভা বিকাল ৪টায়।",
+    composePlaceholderHint: "{নাম} লিখলে প্রতিটা মেসেজে সেই ব্যক্তির নাম বসে যাবে",
+    composePreviewLabel: "প্রিভিউ",
+    composeRecipientsTitle: "প্রাপক নির্বাচন করুন",
+    composeNoContacts: "কোনো কন্টাক্ট নেই — \"কন্টাক্ট\" ট্যাব থেকে যোগ করুন।",
+    composeSelectAll: "সবাইকে নির্বাচন করুন",
+    composeConfirm: "{count} জনকে SMS পাঠাতে চান?",
+    composeSendFailed: "পাঠাতে ব্যর্থ হয়েছে",
+    composeSending: "পাঠানো হচ্ছে...",
+    composeSend: "পাঠান",
+    composeSummary: "মোট {total} জন — সফল {sent}, ব্যর্থ {failed}",
   },
   // ad-hoc, docs/CURRENT_TASK.md — InstitutionBilling.tsx
   institutionBilling: {

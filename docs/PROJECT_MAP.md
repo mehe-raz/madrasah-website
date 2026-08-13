@@ -210,6 +210,21 @@ Testing procedure: `docs/OFFLINE_FIRST_TESTING.md`.
   and sandbox testing (8G) are still explicitly blocked until the user
   says their provider accounts are ready — don't start those on your own
   initiative.
+- `docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md` — 6-phase plan (now Phase 7
+  polish/edge-case remaining) for a separate, parallel bulk-SMS system
+  that uses the institution's own phone/SIM (via the free SMSGate/
+  sms-gate.app Cloud API) instead of the paid BulkSMSBD reseller wallet
+  above — no wallet/deduction, cost sits on the institution's own SIM
+  balance. New DB tables: `own_sms_gateway`, `sms_contacts`,
+  `sms_broadcast_logs` (`server/sql/supabase_schema.sql`). Frontend:
+  `client/src/modules/BulkSms.tsx` (3 tabs — gateway connect, contacts,
+  compose & send), routed at `/bulk-sms`, reuses the existing `"sms"`
+  plan feature. **Any already-provisioned tenant needs the 3 new tables'
+  `create table if not exists` statements run manually via the
+  Super-Admin "run SQL on all tenants" migration tool** (see the plan
+  doc / `docs/CURRENT_TASK.md`'s Phase 1 section for the exact SQL) —
+  in single-tenant mode this happens automatically on next server
+  restart instead (`initSchema()` re-runs the schema file on every boot).
 - `docs/PUSH_NOTIFICATION_PLAN.md` — 7-phase Guardian Push Notification
   architecture (Web Push + VAPID). All 7 phases complete as of 2026-08-08:
   schema (Phase 1), `notifyGuardians()` in `server/src/lib/guardianPush.js`
