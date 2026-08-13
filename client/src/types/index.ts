@@ -616,6 +616,18 @@ export interface SmsWallet {
   topupBkashNumber: string;
 }
 
+// Own-phone/SIM bulk SMS gateway — manual contact list
+// (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 5) — server/src/routes/
+// smsContacts.js. Deliberately unrelated to students/guardians (design
+// decision #2 in the plan doc) — a standalone, manually-maintained list.
+export interface SmsContact {
+  id: number;
+  name: string;
+  phone: string;
+  groupName: string | null;
+  createdAt: string;
+}
+
 // bKash self-connect settings — server/src/routes/paymentGateway.js
 // (BUSINESS_READINESS_ROADMAP.md Phase 8E). Credentials themselves never
 // come back from the server after being saved — only connection status.

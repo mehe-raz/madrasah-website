@@ -1395,6 +1395,73 @@ img {
   font-size: 11px;
 }
 
+/* Own-SIM bulk SMS — manual contact list (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md,
+   Phase 5) — same table-like-row-on-desktop/stacked-card-on-mobile pattern
+   as .marks-entry-list above, but with its own 4-column layout
+   (name/phone/group/delete). */
+.sms-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sms-contact-header {
+  display: grid;
+  grid-template-columns: 1fr 140px 120px 70px;
+  gap: 12px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.sms-contact-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 120px 70px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.sms-contact-row__name {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.sms-contact-row__meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sms-contact-row__delete {
+  justify-self: end;
+}
+
+@media (max-width: 640px) {
+  .sms-contact-header {
+    display: none;
+  }
+
+  .sms-contact-row {
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+  }
+
+  .sms-contact-row__meta {
+    grid-column: 1 / -1;
+  }
+
+  .sms-contact-row__delete {
+    justify-self: start;
+  }
+}
+
+
 .field-hint-success {
   color: #10b981; /* C.emerald */
   font-size: 11px;

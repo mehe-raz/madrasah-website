@@ -177,10 +177,42 @@ Started: 2026-08-13 (প্ল্যান লেখার তারিখ)
   - **সতর্কতা অপরিবর্তিত (Phase 5/6-এর জন্যও প্রযোজ্য):** SMSGate API-র
     আসল রেসপন্স শেপ এখনো লাইভ ডিভাইস দিয়ে টেস্ট করা হয়নি।
 
+- [x] **Phase 5 সম্পন্ন (2026-08-13)** — ফ্রন্টএন্ড কন্টাক্ট ম্যানেজমেন্ট
+  UI, প্ল্যান ফাইলের ধারা অনুযায়ী:
+  - `client/src/types/index.ts` — নতুন `SmsContact` টাইপ (id/name/phone/
+    groupName/createdAt, Phase 3-এর `smsContacts.js`-এর রেসপন্স শেপে)।
+  - `client/src/lib/api.ts` — নতুন `getSmsContacts`/`createSmsContact`/
+    `updateSmsContact`/`deleteSmsContact` (Phase 3-এর `/api/sms-contacts`
+    রুট চারটার client wiring)।
+  - নতুন `client/src/modules/SmsContactsManager.tsx` — নাম/নম্বর/
+    (ঐচ্ছিক) গ্রুপ ইনপুট ফর্ম → "যোগ করুন" বাটন → নিচে তালিকা (প্রতি
+    রো-তে নাম/নম্বর/গ্রুপ + মুছে ফেলার বাটন, `window.confirm()` সহ)।
+    ডেস্কটপে টেবিল-সদৃশ গ্রিড, মোবাইলে (≤640px) স্ট্যাকড কার্ড —
+    `marks-entry-list`-এর responsive প্যাটার্ন অনুসরণ করে নতুন
+    `.sms-contact-*` CSS ক্লাস (`index.css`)। শুধু `components/ui/`
+    (`Card`/`Field`/`Input`/`Button`) — কোনো raw `style={{}}` নেই।
+  - **এই ফাইলটা `BulkSmsGateway.tsx`-এ মেশানো হয়নি, আলাদা রাখা হয়েছে**
+    (`SmsContactsManager` — self-contained, নিজের `useEffect`/state) —
+    Phase 6-এ চূড়ান্ত মডিউল-গঠন সিদ্ধান্ত (একটাই `BulkSms.tsx`, ৩টা ট্যাব)
+    অনুযায়ী দুটো কম্পোনেন্টই সেখান থেকে import হয়ে বসবে, এখন জোর করে
+    মেশালে Phase 6-এ আবার আলাদা করতে হতো।
+  - `client/src/i18n/bn.ts` + `en.ts` — বিদ্যমান `bulkSms` ব্লকেই ১৭টা
+    নতুন `contact*` কী যোগ (আলাদা ব্লক না, যেহেতু একই ফিচারের অংশ —
+    key-parity স্ক্রিপ্ট দিয়ে যাচাই করা হয়েছে, মোট ৪৭টা কী দুই ফাইলেই)।
+  - **এই কম্পোনেন্টও এখনো কোনো রুট/নেভে ওয়্যার করা হয়নি** — Phase 4-এর
+    মতোই একই কারণে (Phase 6-এ একসাথে ওয়্যার হবে)। কোনো এডিট-ইন-প্লেস UI
+    নেই এই ধাপে (শুধু add+list+delete, প্ল্যান ফাইলে যা বলা আছে) — সার্ভারে
+    `PUT /:id` রেডি আছে (`api.updateSmsContact`ও এক্সপোর্ট করা হয়েছে),
+    ভবিষ্যতে এডিট UI লাগলে আলাদা টাস্ক হিসেবে যোগ করা যাবে।
+  - bracket-balance script + i18n key-parity script দিয়ে যাচাই করা
+    হয়েছে। **পুরো `npm run check` প্যাকেজড CMD-তেই প্রথম যাচাই হবে।**
+
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] Phase 5 — ফ্রন্টএন্ড কন্টাক্ট ম্যানেজমেন্ট UI।
 - [ ] Phase 6 — ফ্রন্টএন্ড কম্পোজ/সেন্ড UI + রাউট/নেভ/i18n ওয়্যারিং
-  (মডিউল-গঠন সিদ্ধান্ত প্ল্যান ফাইলে লেখা আছে — একটাই মডিউল, ৩ সেকশন)।
+  (মডিউল-গঠন সিদ্ধান্ত প্ল্যান ফাইলে লেখা আছে — একটাই মডিউল, ৩ সেকশন —
+  এই মডিউল `BulkSmsGateway.tsx` (Phase 4) ও `SmsContactsManager.tsx`
+  (Phase 5) দুটো কম্পোনেন্টকেই ট্যাব/সেকশন হিসেবে import করে বসাবে, নতুন
+  করে লিখতে হবে না)।
 - [ ] Phase 7 — পলিশ/এজ-কেস/PROJECT_MAP.md ডকুমেন্টেশন, তারপর এই এন্ট্রি
   DONE-এ পাল্টানো (`npm run check` পাস করলে)।
 

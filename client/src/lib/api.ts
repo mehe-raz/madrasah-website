@@ -43,6 +43,7 @@ import type {
   OwnSmsGatewayStatus,
   PaymentGatewayStatus,
   SmsNotificationPrefs,
+  SmsContact,
   SmsWallet,
   Student,
   StudentResult,
@@ -949,6 +950,22 @@ export const api = {
 
   disconnectOwnSmsGateway: () =>
     request<{ connected: boolean }>("/own-sms-gateway/disconnect", { method: "POST" }),
+
+  // -------------------------------------------------------------------------
+  // Own-phone/SIM bulk SMS — manual contact list (docs/
+  // OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 5) — server/src/routes/
+  // smsContacts.js. Same "settings" + "sms" plan-feature gate as the
+  // gateway-connect routes above.
+  // -------------------------------------------------------------------------
+  getSmsContacts: () => request<SmsContact[]>("/sms-contacts"),
+
+  createSmsContact: (body: { name: string; phone: string; groupName?: string }) =>
+    request<SmsContact>("/sms-contacts", { method: "POST", body: JSON.stringify(body) }),
+
+  updateSmsContact: (id: number, body: { name?: string; phone?: string; groupName?: string }) =>
+    request<SmsContact>(`/sms-contacts/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+
+  deleteSmsContact: (id: number) => request<{ ok: boolean }>(`/sms-contacts/${id}`, { method: "DELETE" }),
 
   // Institution self-service platform-subscription billing (ad-hoc,
   // docs/CURRENT_TASK.md) — the institution pays ITS OWN monthly bill to
