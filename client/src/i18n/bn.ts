@@ -794,6 +794,42 @@ export const bn = {
     kioskUrlPlaceholder: "আপনার-ডিভাইস-আইডি",
     doneNote: "চারটা ধাপ শেষ হলে ডিভাইসটা সম্পূর্ণ প্রস্তুত — নতুন প্রতিটা স্ক্যান স্বয়ংক্রিয়ভাবে হাজিরায় যুক্ত হবে ও গার্জিয়ানকে (প্রথম পাঞ্চে) এসএমএস যাবে।",
   },
+  // docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 4 — BulkSmsGateway.tsx
+  bulkSms: {
+    gatewayTitle: "নিজের ফোন SMS গেটওয়ে",
+    gatewaySubtitle: "আপনার নিজের ফোন/SIM দিয়ে ফ্রি বাল্ক SMS পাঠাতে ফোনটা গেটওয়ে হিসেবে সংযুক্ত করুন",
+    gatewayLoadFailed: "লোড করতে ব্যর্থ হয়েছে",
+    gatewayStatusConnected: "কানেক্টেড",
+    gatewayStatusNotConnected: "কানেক্টেড নয়",
+    gatewayLastChecked: "সর্বশেষ যাচাই",
+    gatewayNotConfigured: "সার্ভারে GATEWAY_CREDENTIAL_KEY সেট করা নেই — প্ল্যাটফর্ম অপারেটরের সাথে যোগাযোগ করুন",
+    gatewayDisconnect: "ডিসকানেক্ট করুন",
+    gatewayDisconnecting: "ডিসকানেক্ট হচ্ছে...",
+    gatewayInstructionsTitle: "কীভাবে ফোন সংযুক্ত করবেন",
+    gatewayStep1Title: "১. অ্যাপ ইনস্টল করুন",
+    gatewayStep1Body:
+      "যে ফোন ও SIM দিয়ে SMS পাঠাতে চান, সেই ফোনে Google Play থেকে \"SMS Gateway for Android\" (SMSGate) অ্যাপটি ইনস্টল করুন।",
+    gatewayStep2Title: "২. পারমিশন দিন",
+    gatewayStep2Body: "অ্যাপ খুলে SMS পাঠানোর অনুমতি (permission) চাইলে \"অনুমতি দিন\" চাপুন।",
+    gatewayStep3Title: "৩. Cloud মোড চালু করুন",
+    gatewayStep3Body:
+      "অ্যাপের সেটিংসে গিয়ে \"Cloud Server\" মোড চালু করুন — অ্যাপ নিজেই একটা username ও password দেখাবে বা সেট করতে দেবে।",
+    gatewayStep4Title: "৪. তথ্য এখানে বসান",
+    gatewayStep4Body: "সেই username ও password নিচের ফর্মে বসিয়ে \"সংযুক্ত করুন\" চাপুন।",
+    gatewayStep5Title: "৫. ফোনটা প্রস্তুত রাখুন",
+    gatewayStep5Body:
+      "ফোনটা সবসময় চার্জে ও ইন্টারনেটে সংযুক্ত রাখুন, এবং অ্যাপের জন্য ব্যাটারি অপটিমাইজেশন বন্ধ রাখুন — নাহলে ফোন ঘুমিয়ে গেলে SMS পাঠানো বন্ধ হয়ে যেতে পারে।",
+    gatewayFormTitle: "ফোন গেটওয়ে সংযুক্ত করুন",
+    gatewayFormSubtitle: "উপরের ধাপ অনুযায়ী অ্যাপ থেকে পাওয়া username/password দিন",
+    gatewayValidation: "সব ফিল্ড পূরণ করুন",
+    gatewayConnectFailed: "কানেক্ট করতে ব্যর্থ হয়েছে",
+    gatewayConnecting: "কানেক্ট হচ্ছে...",
+    gatewayConnect: "সংযুক্ত করুন",
+    gatewayUsernameLabel: "Username",
+    gatewayUsernamePlaceholder: "Username",
+    gatewayPasswordLabel: "Password",
+    gatewayPasswordPlaceholder: "Password",
+  },
   // ad-hoc, docs/CURRENT_TASK.md — InstitutionBilling.tsx
   institutionBilling: {
     title: "সাবস্ক্রিপশন বিল",

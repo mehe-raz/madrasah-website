@@ -796,6 +796,42 @@ export const en = {
     kioskUrlPlaceholder: "your-device-id",
     doneNote: "Once all four steps are done, the device is fully ready — every new scan is automatically recorded as attendance, and an SMS goes to the guardian on the first punch of the day.",
   },
+  // docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 4 — BulkSmsGateway.tsx
+  bulkSms: {
+    gatewayTitle: "Own-phone SMS gateway",
+    gatewaySubtitle: "Connect your own phone/SIM as a gateway to send free bulk SMS",
+    gatewayLoadFailed: "Failed to load",
+    gatewayStatusConnected: "Connected",
+    gatewayStatusNotConnected: "Not connected",
+    gatewayLastChecked: "Last checked",
+    gatewayNotConfigured: "GATEWAY_CREDENTIAL_KEY isn't set on the server — contact the platform operator",
+    gatewayDisconnect: "Disconnect",
+    gatewayDisconnecting: "Disconnecting...",
+    gatewayInstructionsTitle: "How to connect your phone",
+    gatewayStep1Title: "1. Install the app",
+    gatewayStep1Body:
+      "On the phone (and SIM) you want to send SMS from, install the \"SMS Gateway for Android\" (SMSGate) app from Google Play.",
+    gatewayStep2Title: "2. Grant permission",
+    gatewayStep2Body: "Open the app and tap \"Allow\" when it asks for permission to send SMS.",
+    gatewayStep3Title: "3. Turn on Cloud mode",
+    gatewayStep3Body:
+      "In the app's settings, turn on \"Cloud Server\" mode — the app will show or let you set a username and password.",
+    gatewayStep4Title: "4. Enter the details here",
+    gatewayStep4Body: "Enter that username and password in the form below and press \"Connect\".",
+    gatewayStep5Title: "5. Keep the phone ready",
+    gatewayStep5Body:
+      "Keep the phone charged and connected to the internet, and turn off battery optimization for the app — otherwise sending may stop if the phone goes to sleep.",
+    gatewayFormTitle: "Connect your phone gateway",
+    gatewayFormSubtitle: "Enter the username/password shown by the app from the steps above",
+    gatewayValidation: "Fill in every field",
+    gatewayConnectFailed: "Failed to connect",
+    gatewayConnecting: "Connecting...",
+    gatewayConnect: "Connect",
+    gatewayUsernameLabel: "Username",
+    gatewayUsernamePlaceholder: "Username",
+    gatewayPasswordLabel: "Password",
+    gatewayPasswordPlaceholder: "Password",
+  },
   // ad-hoc, docs/CURRENT_TASK.md — InstitutionBilling.tsx
   institutionBilling: {
     title: "Subscription Bill",

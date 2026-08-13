@@ -628,6 +628,20 @@ export interface PaymentGatewayStatus {
   configured: boolean;
 }
 
+// Own-phone/SIM bulk SMS gateway (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md,
+// Phase 4) — server/src/routes/ownSmsGateway.js. Same shape as
+// PaymentGatewayStatus above (SMSGate credentials never come back after
+// being saved, only connection status) but a separate, unrelated system —
+// no money involved, just an institution's own phone acting as an SMS relay.
+export interface OwnSmsGatewayStatus {
+  connected: boolean;
+  provider: "smsgate";
+  lastCheckedAt: string | null;
+  lastError: string | null;
+  /** false if the server has no GATEWAY_CREDENTIAL_KEY set — connect attempts will fail with a clear message. */
+  configured: boolean;
+}
+
 // bKash create→execute checkout (Phase 8F) — shared shape for both the
 // guardian fee-payment flow (routes/guardianAuth.js) and the admin SMS
 // wallet gateway top-up (routes/sms.js's /topup-via-gateway/*).

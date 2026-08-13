@@ -40,6 +40,7 @@ import type {
   Settings,
   SiteContent,
   BkashCheckoutStart,
+  OwnSmsGatewayStatus,
   PaymentGatewayStatus,
   SmsNotificationPrefs,
   SmsWallet,
@@ -930,6 +931,24 @@ export const api = {
 
   disconnectPaymentGateway: () =>
     request<{ connected: boolean }>("/payment-gateway/disconnect", { method: "POST" }),
+
+  // -------------------------------------------------------------------------
+  // Own-phone/SIM bulk SMS gateway connect (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md,
+  // Phase 4) — server/src/routes/ownSmsGateway.js. requirePlanFeature("sms")-
+  // gated on the server (reuses the existing "sms" plan feature — this is a
+  // second, separate SMS-sending path from getSmsWallet's paid-reseller flow
+  // above, not a new feature key).
+  // -------------------------------------------------------------------------
+  getOwnSmsGatewayStatus: () => request<OwnSmsGatewayStatus>("/own-sms-gateway/status"),
+
+  connectOwnSmsGateway: (body: { username: string; password: string }) =>
+    request<{ connected: boolean; provider?: string; lastCheckedAt?: string; error?: string }>("/own-sms-gateway/connect", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  disconnectOwnSmsGateway: () =>
+    request<{ connected: boolean }>("/own-sms-gateway/disconnect", { method: "POST" }),
 
   // Institution self-service platform-subscription billing (ad-hoc,
   // docs/CURRENT_TASK.md) — the institution pays ITS OWN monthly bill to
