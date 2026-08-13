@@ -89,6 +89,18 @@ const ROUTE_PERMISSION = {
   // side (message list, unread count, mark-read) lives under
   // /api/guardian-auth instead — see routes/guardianAuth.js.
   "/api/guardian-reminders": "settings",
+  // Own-phone/SIM bulk SMS gateway connect settings
+  // (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md Phase 2) — same "settings" tier
+  // as /api/payment-gateway above; the route itself additionally gates on
+  // the existing "sms" plan feature (reused, not a new feature key — this
+  // is a second SMS-sending path, completely separate from /api/sms's
+  // paid-reseller wallet system).
+  "/api/own-sms-gateway": "settings",
+  // Own-SIM bulk SMS contact list (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md
+  // Phase 3) — same "settings" tier as /api/own-sms-gateway above. The
+  // broadcast-send endpoint stays under /api/sms (already listed above),
+  // not a separate entry.
+  "/api/sms-contacts": "settings",
 };
 
 module.exports = { ROLE_PERMISSIONS, ROUTE_PERMISSION };

@@ -71,5 +71,7 @@ export const ROUTE_PERMISSION = {
     "settings"
   ],
   "/api/guardian-approvals": "settings",
-  "/api/guardian-reminders": "settings"
+  "/api/guardian-reminders": "settings",
+  "/api/own-sms-gateway": "settings",
+  "/api/sms-contacts": "settings"
 } as const;

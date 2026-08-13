@@ -39,6 +39,8 @@ const EXPECTED_ALLOWED = {
   "/api/sms": ["Admin", "Super Admin"], //
   "/api/payment-gateway": ["Admin", "Super Admin"], // Phase 8E — bKash self-connect, same tier as /api/sms
   "/api/guardian-reminders": ["Admin", "Super Admin"], // Guardian Reminder Messenger (ad-hoc) — same "settings" tier as /api/sms above
+  "/api/own-sms-gateway": ["Admin", "Super Admin"], // OWN_SIM_BULK_SMS_GATEWAY_PLAN Phase 2 — same tier as /api/payment-gateway
+  "/api/sms-contacts": ["Admin", "Super Admin"], // OWN_SIM_BULK_SMS_GATEWAY_PLAN Phase 3 — same tier as /api/own-sms-gateway
   "/api/institution-billing": ["Admin", "Super Admin"], // Institution self-service platform-subscription billing (ad-hoc) — same "settings" tier as /api/payment-gateway above
 };
 

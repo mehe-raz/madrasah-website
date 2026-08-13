@@ -16,12 +16,16 @@
 // ============================================================================
 
 const express = require("express");
+const { z } = require("zod");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { requirePlanFeature } = require("../middleware/planGate");
 const { recordAudit } = require("../lib/auditLog");
+const { validate } = require("../middleware/validate");
 const bkashGateway = require("../lib/bkashGateway");
 const { getConnectedGateway } = require("../lib/paymentGatewayCredentials");
+const { getConnectedGateway: getConnectedOwnSmsGateway } = require("../lib/ownSmsGatewayCredentials");
+const smsgate = require("../lib/smsProviders/smsgate");
 
 const router = express.Router();
 router.use(requirePermission("settings"));
@@ -216,6 +220,93 @@ router.post("/topup-via-gateway/execute", async (req, res) => {
   });
 
   res.json({ ok: true, amountTaka: intent.amount });
+});
+
+// ============================================================================
+// POST /broadcast — own-SIM bulk SMS send (Phase 3)
+// ============================================================================
+// Deliberately inside this same router (not a new file) so it inherits the
+// requirePermission("settings") + requirePlanFeature("sms") gate already
+// set up above — see plan doc's Phase 3 note. Completely separate from
+// every other route in this file: no sms_wallets/sms_transactions
+// involvement, cost is on the institution's own SIM. Uses the own-SIM
+// gateway (own_sms_gateway, lib/ownSmsGatewayCredentials.js /
+// lib/smsProviders/smsgate.js — Phase 1/2), never sendGuardianSms()/the
+// bKash-funded wallet above.
+// ============================================================================
+
+const broadcastSchema = z.object({
+  contactIds: z.union([z.array(z.coerce.number().int().positive()), z.literal("all")]),
+  message: z.string().trim().min(1, "মেসেজ আবশ্যক").max(1000),
+});
+
+// Local 01XXXXXXXXX (how sms_contacts.phone is stored, see smsContacts.js)
+// -> international +8801XXXXXXXXX (what the SMSGate API expects per the
+// plan doc's example phoneNumbers value).
+function toInternational(localPhone) {
+  const digits = String(localPhone || "").replace(/\D/g, "");
+  return `+880${digits.slice(-10)}`;
+}
+
+// Replaces both {নাম} and {name} (bn/en users both write naturally — see
+// plan doc's design decision #4) with the contact's actual name.
+function personalize(template, name) {
+  return template.split("{নাম}").join(name).split("{name}").join(name);
+}
+
+router.post("/broadcast", validate(broadcastSchema), async (req, res) => {
+  const gateway = await getConnectedOwnSmsGateway();
+  if (!gateway) {
+    return res.status(503).json({ error: "প্রথমে আপনার ফোন গেটওয়ে সংযুক্ত করুন" });
+  }
+
+  const { contactIds, message } = req.body;
+  const contacts =
+    contactIds === "all"
+      ? await db.all('SELECT id, name, phone FROM sms_contacts ORDER BY name')
+      : await db.all(
+          'SELECT id, name, phone FROM sms_contacts WHERE id = ANY($1) ORDER BY name',
+          [contactIds]
+        );
+
+  let sentCount = 0;
+  let failedCount = 0;
+  // Sequential loop, one request per contact (rate-limit-friendly) — same
+  // single-recipient pattern as lib/smsProviders/bulksmsbd.js, needed here
+  // because each message is personalized per contact.
+  for (const contact of contacts) {
+    const personalized = personalize(message, contact.name);
+    let result;
+    try {
+      result = await smsgate.send({
+        username: gateway.username,
+        password: gateway.password,
+        to: toInternational(contact.phone),
+        message: personalized,
+      });
+    } catch {
+      result = { ok: false };
+    }
+    if (result.ok) sentCount += 1;
+    else failedCount += 1;
+  }
+
+  await db.run(
+    `INSERT INTO sms_broadcast_logs
+     ("messageTemplate", "recipientCount", "sentCount", "failedCount", "sentBy", "createdAt")
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [message, contacts.length, sentCount, failedCount, req.user?.id || null, new Date().toISOString()]
+  );
+
+  await recordAudit({
+    action: "own-sms-gateway.broadcast-sent",
+    actor: req.user,
+    entityType: "sms_broadcast_logs",
+    label: `নিজের ফোন গেটওয়ে দিয়ে বাল্ক SMS: মোট ${contacts.length}, সফল ${sentCount}, ব্যর্থ ${failedCount}`,
+    details: { total: contacts.length, sent: sentCount, failed: failedCount },
+  });
+
+  res.json({ total: contacts.length, sent: sentCount, failed: failedCount });
 });
 
 module.exports = router;

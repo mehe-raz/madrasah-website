@@ -459,6 +459,14 @@ app.use("/api/admissions", require("./routes/admissions"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/sms", require("./routes/sms"));
 app.use("/api/payment-gateway", require("./routes/paymentGateway"));
+// Own-phone/SIM bulk SMS gateway connect settings
+// (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md Phase 2) — separate, parallel
+// system from /api/sms's paid-reseller wallet flow above.
+app.use("/api/own-sms-gateway", require("./routes/ownSmsGateway"));
+// Own-SIM bulk SMS contact list (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md
+// Phase 3) — the broadcast-send endpoint itself lives under /api/sms
+// (routes/sms.js's POST /broadcast, extended in this same Phase), not here.
+app.use("/api/sms-contacts", require("./routes/smsContacts"));
 // Institution self-service platform-subscription billing (ad-hoc,
 // docs/CURRENT_TASK.md) — reverse money direction from the line above
 // (institution -> platform, not guardian -> institution).

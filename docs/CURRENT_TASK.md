@@ -56,24 +56,92 @@ Started: 2026-08-13 (প্ল্যান লেখার তারিখ)
     **`smsProviders/index.js`-এর রেজিস্ট্রিতে ইচ্ছাকৃতভাবে যোগ করা হয়নি**
     (প্ল্যানের ডিজাইন-সিদ্ধান্ত #5 অনুযায়ী — ওটা platform-wide, এটা
     per-tenant, সম্পূর্ণ আলাদা রুটে ব্যবহার হবে Phase 3-এ)।
-  - **সতর্কতা অপরিবর্তিত আছে (Phase 2/3-এর জন্য):** SMSGate API-র
-    এন্ডপয়েন্ট/রেসপন্স শেপ এখনো বাস্তবে টেস্ট করা হয়নি — Phase 2
-    বাস্তবায়নের সময় `https://docs.sms-gate.app/integration/api/` ভিজিট
-    করে/আসল রিকোয়েস্ট পাঠিয়ে কনফার্ম করা উচিত।
-  - দুটো নতুন `.js` ফাইল `node --check` পাস করেছে; SQL ফাইলে
-    paren-balance ম্যানুয়ালি যাচাই করা হয়েছে। এই Phase-এ কোনো রুট/UI
-    ওয়্যারিং হয়নি বলে `npm run lint`/`typecheck` প্রভাবিত হওয়ার কথা না,
-    তবু **পুরো `npm run check` প্যাকেজড CMD-তেই প্রথম যাচাই হবে** (এই
-    sandbox-এ network/node_modules না থাকায় এখানে চালানো যায়নি)।
+  - **সংশোধনী (2026-08-13, পরের সেশনে ধরা পড়েছে):** এই Phase 1-এর তিনটা
+    ফাইল (`ownSmsGatewayCredentials.js`, `smsProviders/smsgate.js`,
+    ও `supabase_schema.sql`-এর তিনটা টেবিল) আসলে আগের ডেলিভারি zip-এ
+    **ছিল না** — শুধু এই ডকে "সম্পন্ন" লেখা হয়েছিল, কোড প্যাকেজ হয়নি।
+    ফলে Phase 2/3-এর `routes/ownSmsGateway.js`/`routes/sms.js` মিসিং
+    মডিউল `require()` করছিল (`index.js`-ও একইভাবে
+    `./routes/ownSmsGateway`), যেটা `npm run check` ধরতে পারত না (কোনো
+    টেস্ট/lint/typecheck সার্ভার actually boot করে না) — Render-এ ডিপ্লয়ের
+    সময় `Cannot find module` দিয়ে পুরো সার্ভার ক্র্যাশ করত। ফাইল-বাই-ফাইল
+    যাচাইয়ে এটা ধরা পড়ার পর তিনটা ফাইলই এখন লেখা ও এই zip-এ যোগ করা
+    হয়েছে; সব `require()` চেইন ও SQL টেবিল-রেফারেন্স ম্যানুয়ালি ক্রস-চেক
+    করে মিলিয়ে দেখা হয়েছে (কোনো মিসিং মডিউল/টেবিল নেই)।
+  - **SMSGate API শেপ এখন ডকুমেন্টেশন থেকে ভেরিফাই করা হয়েছে** (ওয়েব সার্চে
+    `docs.sms-gate.app/integration/api/` ও
+    `docs.sms-gate.app/getting-started/public-cloud-server/` চেক করে) —
+    Cloud base URL `https://api.sms-gate.app/3rdparty/v1`, Basic Auth,
+    পাঠানোর জন্য `POST /messages` বডি
+    `{"textMessage":{"text":...},"phoneNumbers":[...]}`,
+    ভেরিফাইয়ের জন্য হালকা `GET /messages?limit=1`। **এটা এখনো একটা আসল
+    ডিভাইস/অ্যাকাউন্ট দিয়ে লাইভ টেস্ট করা হয়নি** (এই sandbox-এ শুধু
+    ডকুমেন্টেশন পড়া গেছে, রিকোয়েস্ট পাঠানো যায়নি) — প্রথম আসল কানেক্ট
+    চেষ্টাতেই এটা যাচাই হবে।
+  - সবগুলো (নতুন+পুরনো) `.js` ফাইল `node --check` পাস করেছে, প্রতিটা
+    ফাইলের `require()` টার্গেট merged ট্রি-তে রিজলভ করে দেখানো হয়েছে
+    (স্ক্রিপ্ট দিয়ে), SQL-এ paren-balance ম্যানুয়ালি চেক করা হয়েছে। তবু
+    **পুরো `npm run check` প্যাকেজড CMD-তেই প্রথম যাচাই হবে** (sandbox-এ
+    network/node_modules না থাকায় এখানে চালানো যায়নি) — বিশেষভাবে খেয়াল
+    রাখুন CMD আসলেই সার্ভার বুট করে কিনা এই ধরনের বাগ দ্বিতীয়বার এড়াতে,
+    `npm run check` নিজে সেটা করে না।
+
+- [x] **Phase 2 সম্পন্ন (2026-08-13)** — গেটওয়ে কানেক্ট/ডিসকানেক্ট/
+  স্ট্যাটাস রুট, প্ল্যান ফাইলের ধারা অনুযায়ী:
+  - `server/src/lib/smsProviders/smsgate.js` — নতুন `verifyCredentials()`
+    (হালকা `GET .../messages?limit=1` টেস্ট কল, Basic Auth, 200/401 দিয়ে
+    ভ্যালিডিটি বোঝে — কখনো আসল SMS পাঠায় না), `send()`-এর পাশে যোগ করা।
+  - নতুন `server/src/routes/ownSmsGateway.js` (tenant-side,
+    `requirePermission("settings")` + `requirePlanFeature("sms")`) —
+    `GET /status`, `POST /connect` (verify → এনক্রিপ্ট → upsert, ব্যর্থ
+    হলে ক্রেডেনশিয়াল সেভ হয় না), `POST /disconnect`।
+    `paymentGateway.js`-এর ঠিক একই শেপ অনুসরণ করা হয়েছে। প্রতিটা
+    connect/disconnect-এ `recordAudit()`।
+  - `server/src/index.js` — `app.use("/api/own-sms-gateway", ...)` মাউন্ট
+    (`/api/payment-gateway`-এর ঠিক পরে)।
+  - `server/src/config/roles.js` — `"/api/own-sms-gateway": "settings"`
+    (`ROUTE_PERMISSION`-এ)।
+  - `server/src/middleware/__tests__/rbac.test.js`-এর `EXPECTED_ALLOWED`-এ
+    `"/api/own-sms-gateway": ["Admin", "Super Admin"]` যোগ করা হয়েছে —
+    এই কোডবেসের বারবার-ঘটা ভুল (নতুন রুট যোগ করে এই এন্ট্রি ভুলে যাওয়া)
+    এবার এড়ানো হয়েছে।
+  - সবগুলো পরিবর্তিত/নতুন `.js` ফাইল `node --check` পাস করেছে। **পুরো
+    `npm run check` (lint+typecheck+build+test:server+test:unit, বিশেষ
+    করে নতুন `rbac.test.js` এন্ট্রিটা সঠিক কিনা) প্যাকেজড CMD-তেই প্রথম
+    যাচাই হবে** (sandbox-এ network/node_modules না থাকায় এখানে চালানো
+    যায়নি)।
+  - **সতর্কতা অপরিবর্তিত (Phase 3-এর জন্যও প্রযোজ্য):** SMSGate API-র
+    আসল রেসপন্স শেপ এখনো লাইভ টেস্ট করা হয়নি।
+
+- [x] **Phase 3 সম্পন্ন (2026-08-13)** — কন্টাক্ট CRUD + ব্রডকাস্ট-সেন্ড
+  রুট, প্ল্যান ফাইলের ধারা অনুযায়ী:
+  - নতুন `server/src/routes/smsContacts.js` (tenant-side, `settings`+`sms`
+    গেট) — `GET /`, `POST /` (Zod: নাম min 1, ফোন
+    `models/studentAdmission.js`-এর বিদ্যমান বাংলাদেশি রেজেক্স
+    `^01[3-9]\d{8}$` reuse করে normalize+validate), `PUT /:id`, `DELETE
+    /:id`। কোনো `recordAudit()` না (প্ল্যানের যুক্তি অনুযায়ী — routine UI
+    অ্যাকশন, `CALL_LIST_PLAN`-এর একই সিদ্ধান্তের মতো)।
+  - `server/src/routes/sms.js` (বিদ্যমান ফাইল, extend) — নতুন `POST
+    /broadcast`: `contactIds` ("all" বা আইডি-অ্যারে) + `message` নেয়,
+    প্রতিটা কন্টাক্টের নামে `{নাম}`/`{name}` প্লেসহোল্ডার বদলে
+    `lib/ownSmsGatewayCredentials.js` (Phase 1) থেকে ক্রেডেনশিয়াল নিয়ে
+    `smsProviders/smsgate.js`-এর `send()` sequential loop-এ কল করে।
+    গেটওয়ে কানেক্টেড না থাকলে `503`। শেষে `sms_broadcast_logs`-এ একটা
+    সামারি রো + একটাই `recordAudit()` (per-contact না —
+    `payments.js`-এর send-due-reminders প্যাটার্ন)। রেসপন্স `{total,
+    sent, failed}`।
+  - `server/src/index.js` — `app.use("/api/sms-contacts", ...)` মাউন্ট।
+  - `server/src/config/roles.js` — `"/api/sms-contacts": "settings"`।
+  - `server/src/middleware/__tests__/rbac.test.js`-এর `EXPECTED_ALLOWED`-এ
+    `"/api/sms-contacts"` এন্ট্রি যোগ (Phase 2-এর মতোই ভুলে যাওয়া হয়নি)।
+    `/api/sms`-এর নিজস্ব এন্ট্রি আগে থেকেই আছে বলে নতুন `/broadcast`-এর
+    জন্য আলাদা এন্ট্রি লাগেনি।
+  - সবগুলো পরিবর্তিত/নতুন `.js` ফাইল `node --check` পাস করেছে। **পুরো
+    `npm run check` প্যাকেজড CMD-তেই প্রথম যাচাই হবে।**
+  - **সতর্কতা অপরিবর্তিত (Phase 4-এর জন্যও প্রযোজ্য):** SMSGate API-র
+    আসল রেসপন্স শেপ এখনো লাইভ টেস্ট করা হয়নি।
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] Phase 2 — গেটওয়ে কানেক্ট/ডিসকানেক্ট/স্ট্যাটাস রুট
-  (`routes/ownSmsGateway.js`) + roles.js + rbac.test.js
-  `EXPECTED_ALLOWED` আপডেট (এই কোডবেসে নতুন রুট যোগ করার সময় এই টেবিল
-  ভুলে যাওয়া একটা বারবার-ঘটা ভুল, প্ল্যান ফাইলেও সতর্ক করা আছে)।
-- [ ] Phase 3 — কন্টাক্ট CRUD (`routes/smsContacts.js`) +
-  `routes/sms.js`-এ নতুন `POST /broadcast` (personalization লজিক +
-  `sms_broadcast_logs`)।
 - [ ] Phase 4 — ফ্রন্টএন্ড গেটওয়ে-কানেক্ট UI (ধাপে-ধাপে বাংলা
   নির্দেশনাসহ — **অ্যাপের আসল ডাউনলোড লিংক/সেটিংস-মেনুর নাম বাস্তবায়নের
   সময় sms-gate.app-এ গিয়ে কনফার্ম করে বসানো**)।
