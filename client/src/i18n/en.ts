@@ -367,6 +367,7 @@ export const en = {
     currentPhone: "Current Phone",
     admissionFee: "Admission Fee",
     previousDue: "Current/Previous Due",
+    previousDueHint: "The amount entered here is saved directly as the student's current total due (it does not change past payment history) — use this to enter an opening due from a previous institution/system, or to correct a mistake.",
     attendanceMonth: "Attendance Summary (Month)",
     totalAttendance: "Total Attendance Summary",
     totalDays: "Total Days",

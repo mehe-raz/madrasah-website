@@ -802,6 +802,10 @@ export function Students() {
                 {renderInput(t.students.admissionFee, "admissionFee", "number")}
                 {renderInput(t.students.monthlyFee, "fee", "number")}
                 {renderInput(t.students.discount, "discount", "number")}
+                {renderInput(t.students.previousDue, "due", "number")}
+              </div>
+              <div className="info-box">
+                <div className="info-box__value">{t.students.previousDueHint}</div>
               </div>
 
               {sectionTitle(t.students.documents)}
@@ -809,11 +813,6 @@ export function Students() {
                 {renderUpload(t.students.birthCertificate, "birthCertificate")}
                 {renderUpload(t.students.guardianNid, "guardianNid")}
                 {renderUpload(t.students.previousCertificate, "previousCertificate", true)}
-              </div>
-
-              <div className="info-box">
-                <div className="info-box__label">{t.students.totalAttendance}</div>
-                <div className="info-box__value">{t.students.previousDue}: {fmt(Number(form.due || 0))}</div>
               </div>
             </>
           )}
