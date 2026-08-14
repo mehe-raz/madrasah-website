@@ -16,6 +16,9 @@ export const en = {
     settings: "Settings",
     auditLogs: "Audit Logs",
     sms: "SMS Service",
+    // ad-hoc, docs/CURRENT_TASK.md — parent label for the collapsible SMS
+    // group (SMS Service + Bulk SMS sub-items) in Sidebar.tsx.
+    smsGroup: "SMS",
     // docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 6
     bulkSms: "Bulk SMS (own phone)",
     paymentGateway: "bKash Gateway",

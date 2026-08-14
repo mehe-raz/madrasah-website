@@ -1,4 +1,5 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { usePlanFeatures } from "../context/PlanContext";
@@ -36,6 +37,19 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
   const { user: authUser } = useAuth();
   const role = authUser?.role || user.role;
   const { isLocked } = usePlanFeatures();
+  const location = useLocation();
+
+  // ad-hoc, docs/CURRENT_TASK.md — the two SMS-related nav items ("SMS
+  // সেবা" wallet settings + "বাল্ক SMS" own-phone gateway) used to be two
+  // separate top-level pills; now grouped under one expandable "SMS"
+  // parent so they read as sub-categories of one feature instead of two
+  // unrelated items. Starts expanded if the user is already on either
+  // sub-route (e.g. a page refresh on /bulk-sms shouldn't hide its own
+  // parent), collapsed otherwise.
+  const [smsGroupOpen, setSmsGroupOpen] = useState(
+    location.pathname === "/sms" || location.pathname === "/bulk-sms"
+  );
+  const smsGroupActive = location.pathname === "/sms" || location.pathname === "/bulk-sms";
 
   const navItems = NAV_IDS.filter((n) => canAccess(role, n.key));
 
@@ -172,74 +186,146 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.guardianReminders}</span>}
           </NavLink>
         )}
-        {/* "SMS সেবা" (Phase 8D) — rendered outside NAV_IDS like audit-logs
-            below, because it reuses the "settings" permission for access
-            but needs its own nav LABEL (t.nav[item.key] would otherwise
-            show "Settings" twice) and its own plan-lock check ("sms", not
-            "auditLogs"). */}
-        {canAccess(role, "settings") && (
-          <NavLink
-            to="/sms"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.sms : undefined}
-          >
-            <Icons.sms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.sms}</span>}
-            {open && isLocked("sms") && (
-              <span className="nav-item__lock-badge" aria-hidden="true">
-                <Icons.lock size={12} />
-              </span>
-            )}
-          </NavLink>
+        {/* "SMS" group (ad-hoc, docs/CURRENT_TASK.md) — replaces the two
+            previously-separate top-level pills ("SMS সেবা" wallet settings
+            at /sms, and "বাল্ক SMS (নিজের ফোন)" own-phone gateway at
+            /bulk-sms) with one parent + two sub-items, since both are
+            really the same feature (sending SMS to guardians) with two
+            delivery methods. Both routes still reuse the "settings"
+            permission and "sms" plan feature exactly as before — only the
+            nav presentation changed, not access control.
+            In icon-rail mode (open === false) there's no room for a
+            sub-menu flyout, so this falls back to the original two
+            separate icon-only links instead of trying to build a rail
+            flyout for two items. */}
+        {canAccess(role, "settings") && !open && (
+          <>
+            <NavLink
+              to="/sms"
+              onClick={onNavigate}
+              className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
+              style={({ isActive }) => ({
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "11px 10px",
+                textDecoration: "none",
+                color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+                background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+                border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+                fontSize: 13,
+                fontWeight: 800,
+                justifyContent: "center",
+              })}
+              title={t.nav.sms}
+            >
+              <Icons.sms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+            </NavLink>
+            <NavLink
+              to="/bulk-sms"
+              onClick={onNavigate}
+              className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
+              style={({ isActive }) => ({
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "11px 10px",
+                textDecoration: "none",
+                color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+                background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+                border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+                fontSize: 13,
+                fontWeight: 800,
+                justifyContent: "center",
+              })}
+              title={t.nav.bulkSms}
+            >
+              <Icons.bulkSms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+            </NavLink>
+          </>
         )}
-        {/* "বাল্ক SMS (নিজের ফোন)" (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md,
-            Phase 6) — same reasoning as the SMS block above: reuses the
-            "settings" permission and the "sms" plan feature (no new
-            feature key, per the plan doc), but needs its own nav LABEL and
-            route since it's a completely separate module/route from
-            SmsSettings ("/sms" — paid-reseller wallet) above. */}
-        {canAccess(role, "settings") && (
-          <NavLink
-            to="/bulk-sms"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.bulkSms : undefined}
-          >
-            <Icons.bulkSms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.bulkSms}</span>}
-            {open && isLocked("sms") && (
-              <span className="nav-item__lock-badge" aria-hidden="true">
-                <Icons.lock size={12} />
-              </span>
+        {canAccess(role, "settings") && open && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setSmsGroupOpen((v) => !v)}
+              aria-expanded={smsGroupOpen}
+              className={`pill nav-chip ${smsGroupActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "11px 12px",
+                width: "100%",
+                border: `1px solid ${smsGroupActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+                background: smsGroupActive ? "rgba(14,165,233,0.16)" : "transparent",
+                color: smsGroupActive ? "#fff" : "rgba(255,255,255,0.84)",
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              <Icons.sms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+              <span style={{ whiteSpace: "nowrap" }}>{t.nav.smsGroup}</span>
+              {isLocked("sms") && (
+                <span className="nav-item__lock-badge" aria-hidden="true">
+                  <Icons.lock size={12} />
+                </span>
+              )}
+              <Icons.chevronDown
+                size={14}
+                style={{
+                  flexShrink: 0,
+                  marginLeft: "auto",
+                  transform: smsGroupOpen ? "rotate(180deg)" : "none",
+                  transition: "transform 0.15s",
+                }}
+                aria-hidden="true"
+              />
+            </button>
+            {smsGroupOpen && (
+              <div style={{ display: "grid", gap: 4, marginTop: 4, paddingLeft: 14 }}>
+                <NavLink
+                  to="/sms"
+                  onClick={onNavigate}
+                  className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+                  style={({ isActive }) => ({
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "9px 12px",
+                    textDecoration: "none",
+                    color: isActive ? "#fff" : "rgba(255,255,255,0.72)",
+                    background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+                    border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                  })}
+                >
+                  <span style={{ whiteSpace: "nowrap" }}>{t.nav.sms}</span>
+                </NavLink>
+                <NavLink
+                  to="/bulk-sms"
+                  onClick={onNavigate}
+                  className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+                  style={({ isActive }) => ({
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "9px 12px",
+                    textDecoration: "none",
+                    color: isActive ? "#fff" : "rgba(255,255,255,0.72)",
+                    background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+                    border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                  })}
+                >
+                  <span style={{ whiteSpace: "nowrap" }}>{t.nav.bulkSms}</span>
+                </NavLink>
+              </div>
             )}
-          </NavLink>
+          </div>
         )}
         {/* "বিকাশ পেমেন্ট গেটওয়ে" (Phase 8E) — same reasoning as the SMS
             block above: reuses "settings" permission, own label/lock via

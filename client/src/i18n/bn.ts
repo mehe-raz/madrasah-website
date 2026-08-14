@@ -14,6 +14,9 @@ export const bn = {
     settings: "সেটিংস",
     auditLogs: "অডিট লগ",
     sms: "SMS সেবা",
+    // ad-hoc, docs/CURRENT_TASK.md — parent label for the collapsible SMS
+    // group (SMS সেবা + বাল্ক SMS sub-items) in Sidebar.tsx.
+    smsGroup: "এসএমএস",
     // docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md, Phase 6
     bulkSms: "বাল্ক SMS (নিজের ফোন)",
     paymentGateway: "বিকাশ গেটওয়ে",
