@@ -8,15 +8,24 @@
 import { useEffect, useState } from "react";
 import { Badge } from "../components/Badge";
 import { SkeletonCardList } from "../components/Skeleton";
-import { Button, Card, Field, Textarea } from "../components/ui";
+import { Button, Card, Field, Select, Textarea } from "../components/ui";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { Icons, type IconKey } from "../lib/icons";
-import type { SmsContact } from "../types";
+import type { SmsBroadcastStudent, SmsContact } from "../types";
 import { BulkSmsGateway } from "./BulkSmsGateway";
 import { SmsContactsManager } from "./SmsContactsManager";
 
 type Tab = "gateway" | "contacts" | "compose";
+
+// ad-hoc, docs/CURRENT_TASK.md — compose recipient source. "contacts" is
+// the original manual sms_contacts list (unchanged); "class" targets every
+// student in one class; both share the same class-loaded checklist below,
+// "class" just starts with everyone checked and "students" is that same
+// checklist scoped down by the admin unchecking names — there's no
+// separate UI mode for the two, just whether the admin narrows the class
+// list before sending.
+type TargetMode = "contacts" | "class";
 
 // Replaces both {নাম} and {name} for the live preview line — must match
 // server/src/routes/sms.js's personalize() exactly (bn/en placeholder
@@ -31,8 +40,20 @@ function ComposeSection() {
 
   const [gatewayConnected, setGatewayConnected] = useState<boolean | null>(null);
   const [contacts, setContacts] = useState<SmsContact[]>([]);
+  const [classes, setClasses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+
+  // ad-hoc, docs/CURRENT_TASK.md — "contacts" reuses the manual sms_contacts
+  // list exactly as before; "class" loads the selected class's students
+  // (guardian phone from the students table) into the same checklist UI,
+  // so picking a class and then unchecking a few names is how "send to
+  // specific students in a class" works — no separate mode needed.
+  const [mode, setMode] = useState<TargetMode>("contacts");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [classStudents, setClassStudents] = useState<SmsBroadcastStudent[]>([]);
+  const [classLoading, setClassLoading] = useState(false);
+  const [classLoadError, setClassLoadError] = useState("");
 
   const [message, setMessage] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -43,11 +64,12 @@ function ComposeSection() {
   const load = () => {
     setLoading(true);
     setLoadError("");
-    Promise.all([api.getOwnSmsGatewayStatus(), api.getSmsContacts()])
-      .then(([status, list]) => {
+    Promise.all([api.getOwnSmsGatewayStatus(), api.getSmsContacts(), api.getClasses()])
+      .then(([status, list, classList]) => {
         setGatewayConnected(status.connected);
         setContacts(list);
         setSelectedIds(new Set(list.map((contact) => contact.id)));
+        setClasses(classList);
       })
       .catch((err) => setLoadError(err instanceof Error ? err.message : c.composeLoadFailed))
       .finally(() => setLoading(false));
@@ -59,11 +81,50 @@ function ComposeSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const allSelected = contacts.length > 0 && selectedIds.size === contacts.length;
+  // Switching mode starts with a fresh recipient list rather than carrying
+  // over ids from the other source (a contact id and a student id are
+  // unrelated numbers) — same reset whether the admin flips mode or picks
+  // a different class.
+  const switchMode = (next: TargetMode) => {
+    setMode(next);
+    setSummary(null);
+    setSendError("");
+    if (next === "contacts") {
+      setSelectedIds(new Set(contacts.map((contact) => contact.id)));
+    } else {
+      setSelectedClass("");
+      setClassStudents([]);
+      setSelectedIds(new Set());
+    }
+  };
+
+  const loadClassStudents = (cls: string) => {
+    setSelectedClass(cls);
+    setSummary(null);
+    setSendError("");
+    if (!cls) {
+      setClassStudents([]);
+      setSelectedIds(new Set());
+      return;
+    }
+    setClassLoading(true);
+    setClassLoadError("");
+    api
+      .getSmsBroadcastStudents(cls)
+      .then((list) => {
+        setClassStudents(list);
+        setSelectedIds(new Set(list.map((student) => student.id)));
+      })
+      .catch((err) => setClassLoadError(err instanceof Error ? err.message : c.composeLoadFailed))
+      .finally(() => setClassLoading(false));
+  };
+
+  const recipients = mode === "contacts" ? contacts : classStudents;
+  const allSelected = recipients.length > 0 && selectedIds.size === recipients.length;
   const someSelected = selectedIds.size > 0 && !allSelected;
 
   const toggleAll = () => {
-    setSelectedIds(allSelected ? new Set() : new Set(contacts.map((contact) => contact.id)));
+    setSelectedIds(allSelected ? new Set() : new Set(recipients.map((r) => r.id)));
   };
 
   const toggleOne = (id: number) => {
@@ -75,7 +136,7 @@ function ComposeSection() {
     });
   };
 
-  const previewName = contacts.find((contact) => selectedIds.has(contact.id))?.name;
+  const previewName = recipients.find((r) => selectedIds.has(r.id))?.name;
 
   const send = async () => {
     if (!message.trim() || selectedIds.size === 0) return;
@@ -86,10 +147,19 @@ function ComposeSection() {
     setSendError("");
     setSummary(null);
     try {
-      const result = await api.sendSmsBroadcast({
-        contactIds: allSelected ? "all" : Array.from(selectedIds),
-        message: message.trim(),
-      });
+      const result =
+        mode === "contacts"
+          ? await api.sendSmsBroadcast({
+              targetType: "contacts",
+              contactIds: allSelected ? "all" : Array.from(selectedIds),
+              message: message.trim(),
+            })
+          : await api.sendSmsBroadcast({
+              targetType: "students",
+              targetClass: selectedClass,
+              studentIds: Array.from(selectedIds),
+              message: message.trim(),
+            });
       setSummary(result);
       setMessage("");
     } catch (err) {
@@ -119,14 +189,44 @@ function ComposeSection() {
       </Card>
 
       <Card>
-        <div className="sms-balance">
-          <h3 className="page-header__title">{c.composeRecipientsTitle}</h3>
-          <Badge label={`${selectedIds.size}/${contacts.length}`} color="#0ea5e9" />
+        <h3 className="page-header__title">{c.composeTargetTitle}</h3>
+        <div className="bulk-sms-tabs">
+          <Button variant={mode === "contacts" ? "sky" : "outline"} solid={mode === "contacts"} onClick={() => switchMode("contacts")}>
+            {c.composeTargetContacts}
+          </Button>
+          <Button variant={mode === "class" ? "sky" : "outline"} solid={mode === "class"} onClick={() => switchMode("class")}>
+            {c.composeTargetClass}
+          </Button>
         </div>
 
-        {contacts.length === 0 && <p className="page-subtitle">{c.composeNoContacts}</p>}
+        {mode === "class" && (
+          <Field label={c.composeClassLabel}>
+            <Select value={selectedClass} onChange={(e) => loadClassStudents(e.target.value)}>
+              <option value="">{c.composeClassPlaceholder}</option>
+              {classes.map((cls) => (
+                <option key={cls} value={cls}>
+                  {cls}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+        {mode === "class" && classLoadError && <div className="alert alert--rose">{classLoadError}</div>}
+      </Card>
 
-        {contacts.length > 0 && (
+      <Card>
+        <div className="sms-balance">
+          <h3 className="page-header__title">{c.composeRecipientsTitle}</h3>
+          <Badge label={`${selectedIds.size}/${recipients.length}`} color="#0ea5e9" />
+        </div>
+
+        {mode === "class" && classLoading && <p className="page-subtitle">{c.composeLoading}</p>}
+        {mode === "contacts" && contacts.length === 0 && <p className="page-subtitle">{c.composeNoContacts}</p>}
+        {mode === "class" && !classLoading && selectedClass && classStudents.length === 0 && (
+          <p className="page-subtitle">{c.composeNoClassPhones}</p>
+        )}
+
+        {recipients.length > 0 && !classLoading && (
           <>
             <label className="checkbox-row">
               <input
@@ -140,16 +240,16 @@ function ComposeSection() {
               {c.composeSelectAll}
             </label>
             <div className="sms-recipient-list">
-              {contacts.map((contact) => (
-                <label key={contact.id} className="checkbox-row sms-recipient-row">
+              {recipients.map((r) => (
+                <label key={r.id} className="checkbox-row sms-recipient-row">
                   <input
                     type="checkbox"
-                    checked={selectedIds.has(contact.id)}
-                    onChange={() => toggleOne(contact.id)}
-                    aria-label={`${contact.name} — ${contact.phone}`}
+                    checked={selectedIds.has(r.id)}
+                    onChange={() => toggleOne(r.id)}
+                    aria-label={`${r.name} — ${r.phone}`}
                   />
-                  <span className="sms-contact-row__name">{contact.name}</span>
-                  <span className="sms-contact-row__meta">{contact.phone}</span>
+                  <span className="sms-contact-row__name">{r.name}</span>
+                  <span className="sms-contact-row__meta">{r.phone}</span>
                 </label>
               ))}
             </div>

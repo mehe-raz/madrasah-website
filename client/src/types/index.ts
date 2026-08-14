@@ -663,6 +663,15 @@ export interface SmsBroadcastResult {
   failed: number;
 }
 
+// ad-hoc, docs/CURRENT_TASK.md — class/student picker for the own-phone
+// broadcast compose tab (routes/sms.js's GET /students-for-broadcast).
+export interface SmsBroadcastStudent {
+  id: number;
+  name: string;
+  roll: string;
+  phone: string;
+}
+
 // bKash create→execute checkout (Phase 8F) — shared shape for both the
 // guardian fee-payment flow (routes/guardianAuth.js) and the admin SMS
 // wallet gateway top-up (routes/sms.js's /topup-via-gateway/*).

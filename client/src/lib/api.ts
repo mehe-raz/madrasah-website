@@ -45,6 +45,7 @@ import type {
   SmsNotificationPrefs,
   SmsBroadcastResult,
   SmsContact,
+  SmsBroadcastStudent,
   SmsWallet,
   Student,
   StudentResult,
@@ -968,13 +969,27 @@ export const api = {
 
   deleteSmsContact: (id: number) => request<{ ok: boolean }>(`/sms-contacts/${id}`, { method: "DELETE" }),
 
+  // ad-hoc, docs/CURRENT_TASK.md — class/student picker for the compose
+  // tab's "class" and "students" target modes, server/src/routes/sms.js's
+  // GET /students-for-broadcast.
+  getSmsBroadcastStudents: (cls: string) =>
+    request<SmsBroadcastStudent[]>(`/sms/students-for-broadcast?class=${encodeURIComponent(cls)}`),
+
   // -------------------------------------------------------------------------
   // Own-phone/SIM bulk SMS — broadcast-send (docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md,
   // Phase 6) — server/src/routes/sms.js's POST /broadcast (Phase 3 backend,
   // already implemented). `contactIds: "all"` targets every sms_contacts row.
+  // ad-hoc, docs/CURRENT_TASK.md — targetType/targetClass/studentIds added
+  // for the "class" and "students" modes; targetType defaults to "contacts"
+  // server-side so this stays backward compatible with old callers.
   // -------------------------------------------------------------------------
-  sendSmsBroadcast: (body: { contactIds: number[] | "all"; message: string }) =>
-    request<SmsBroadcastResult>("/sms/broadcast", { method: "POST", body: JSON.stringify(body) }),
+  sendSmsBroadcast: (body: {
+    targetType?: "contacts" | "class" | "students";
+    contactIds?: number[] | "all";
+    targetClass?: string;
+    studentIds?: number[];
+    message: string;
+  }) => request<SmsBroadcastResult>("/sms/broadcast", { method: "POST", body: JSON.stringify(body) }),
 
   // Institution self-service platform-subscription billing (ad-hoc,
   // docs/CURRENT_TASK.md) — the institution pays ITS OWN monthly bill to

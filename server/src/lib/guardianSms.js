@@ -33,7 +33,18 @@
 const tenantContext = require("../tenantContext");
 const { planAllows } = require("../config/planFeatures");
 const { sendSms } = require("./smsSender");
+const { getConnectedGateway } = require("./ownSmsGatewayCredentials");
+const smsgate = require("./smsProviders/smsgate");
 const db = require("../db");
+
+// ad-hoc, docs/CURRENT_TASK.md — same local-01XXXXXXXXX -> +8801XXXXXXXXX
+// conversion as routes/sms.js's toInternational(), needed here too since
+// the own-SIM gateway path below (smsgate.send) expects international
+// format the same way routes/sms.js's /broadcast already sends it.
+function toInternational(localPhone) {
+  const digits = String(localPhone || "").replace(/\D/g, "");
+  return `+880${digits.slice(-10)}`;
+}
 
 function institutionAllowsSms() {
   const ctx = tenantContext.get();
@@ -69,6 +80,32 @@ async function sendGuardianSms({ to, message, reference, notificationType }) {
   if (!to) return { sent: false, reason: "no_phone" };
   if (!institutionAllowsSms()) return { sent: false, reason: "plan_not_allowed" };
   if (!(await notificationTypeAllowed(notificationType))) return { sent: false, reason: "notification_type_disabled" };
+
+  // ad-hoc, docs/CURRENT_TASK.md — try the institution's own-SIM gateway
+  // (routes/sms.js's "Bulk SMS (own phone)" tab) first, same free path the
+  // admin already uses for manual broadcasts. Falls through to the paid,
+  // wallet-funded provider (smsSender.js) only when no own gateway is
+  // connected — never both, so a connected own phone means these four
+  // trigger types (feeDueReminder/resultPublished/paymentReceived/
+  // attendancePunch) never touch the SMS wallet at all. A failed own-
+  // gateway send (device offline, etc.) also falls through to the paid
+  // provider rather than silently dropping the message, same "best
+  // effort, never throws" contract as sendSms() itself.
+  const ownGateway = await getConnectedGateway().catch(() => null);
+  if (ownGateway) {
+    try {
+      const result = await smsgate.send({
+        username: ownGateway.username,
+        password: ownGateway.password,
+        to: toInternational(to),
+        message,
+      });
+      if (result.ok) return { sent: true, via: "own-gateway", raw: result.raw };
+    } catch {
+      // fall through to the paid provider below
+    }
+  }
+
   return sendSms({ to, message, reference });
 }
 

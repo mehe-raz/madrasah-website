@@ -223,6 +223,30 @@ router.post("/topup-via-gateway/execute", async (req, res) => {
 });
 
 // ============================================================================
+// GET /students-for-broadcast — class/student picker for the compose tab
+// ============================================================================
+// ad-hoc, docs/CURRENT_TASK.md: the own-SIM broadcast (below) was contacts-
+// list-only (sms_contacts, deliberately unrelated to student data per the
+// plan doc's design decision #2). Sending to a class or a specific student
+// needs the student's *guardian* phone though, which only exists on the
+// `students` row — this endpoint is that read, scoped to the same
+// "settings" + "sms" gate as the rest of this router (not the "students"
+// permission a normal student-list read would need, since this is reached
+// from the SMS compose tab, not a student-management screen). Only rows
+// with a phone on file are returned — a student with none simply can't be
+// an SMS target, same "no phone -> not sent" contract as
+// payments.js's send-due-reminders and guardianSms.js's sendGuardianSms().
+// ============================================================================
+router.get("/students-for-broadcast", async (req, res) => {
+  const cls = String(req.query.class || "").trim();
+  if (!cls) return res.status(400).json({ error: "ক্লাস দিতে হবে" });
+  const rows = await db.all(
+    `SELECT id, name, roll, phone FROM students WHERE class = $1 AND phone <> '' ORDER BY name`,
+    [cls]
+  );
+  res.json(rows);
+});
+
 // POST /broadcast — own-SIM bulk SMS send (Phase 3)
 // ============================================================================
 // Deliberately inside this same router (not a new file) so it inherits the
@@ -233,12 +257,34 @@ router.post("/topup-via-gateway/execute", async (req, res) => {
 // gateway (own_sms_gateway, lib/ownSmsGatewayCredentials.js /
 // lib/smsProviders/smsgate.js — Phase 1/2), never sendGuardianSms()/the
 // bKash-funded wallet above.
+//
+// ad-hoc, docs/CURRENT_TASK.md — targetType adds "class" (whole class) and
+// "students" (specific students within a class) alongside the original
+// "contacts" (manual sms_contacts list, still the default so old callers
+// with no targetType keep working exactly as before). Both new modes read
+// straight from `students`, never sms_contacts.
 // ============================================================================
 
-const broadcastSchema = z.object({
-  contactIds: z.union([z.array(z.coerce.number().int().positive()), z.literal("all")]),
-  message: z.string().trim().min(1, "মেসেজ আবশ্যক").max(1000),
-});
+const broadcastSchema = z
+  .object({
+    targetType: z.enum(["contacts", "class", "students"]).optional().default("contacts"),
+    contactIds: z.union([z.array(z.coerce.number().int().positive()), z.literal("all")]).optional(),
+    targetClass: z.string().trim().min(1).optional(),
+    studentIds: z.array(z.coerce.number().int().positive()).optional(),
+    message: z.string().trim().min(1, "মেসেজ আবশ্যক").max(1000),
+  })
+  .refine((v) => v.targetType !== "contacts" || v.contactIds !== undefined, {
+    message: "প্রাপক নির্বাচন করুন",
+    path: ["contactIds"],
+  })
+  .refine((v) => v.targetType !== "class" || !!v.targetClass, {
+    message: "ক্লাস নির্বাচন করুন",
+    path: ["targetClass"],
+  })
+  .refine((v) => v.targetType !== "students" || (v.studentIds && v.studentIds.length > 0), {
+    message: "অন্তত একজন ছাত্র নির্বাচন করুন",
+    path: ["studentIds"],
+  });
 
 // Local 01XXXXXXXXX (how sms_contacts.phone is stored, see smsContacts.js)
 // -> international +8801XXXXXXXXX (what the SMSGate API expects per the
@@ -260,14 +306,27 @@ router.post("/broadcast", validate(broadcastSchema), async (req, res) => {
     return res.status(503).json({ error: "প্রথমে আপনার ফোন গেটওয়ে সংযুক্ত করুন" });
   }
 
-  const { contactIds, message } = req.body;
-  const contacts =
-    contactIds === "all"
-      ? await db.all('SELECT id, name, phone FROM sms_contacts ORDER BY name')
-      : await db.all(
-          'SELECT id, name, phone FROM sms_contacts WHERE id = ANY($1) ORDER BY name',
-          [contactIds]
-        );
+  const { targetType, contactIds, targetClass, studentIds, message } = req.body;
+  let contacts;
+  if (targetType === "class") {
+    contacts = await db.all(
+      `SELECT id, name, phone FROM students WHERE class = $1 AND phone <> '' ORDER BY name`,
+      [targetClass]
+    );
+  } else if (targetType === "students") {
+    contacts = await db.all(
+      `SELECT id, name, phone FROM students WHERE id = ANY($1) AND phone <> '' ORDER BY name`,
+      [studentIds]
+    );
+  } else {
+    contacts =
+      contactIds === "all"
+        ? await db.all('SELECT id, name, phone FROM sms_contacts ORDER BY name')
+        : await db.all(
+            'SELECT id, name, phone FROM sms_contacts WHERE id = ANY($1) ORDER BY name',
+            [contactIds]
+          );
+  }
 
   let sentCount = 0;
   let failedCount = 0;
@@ -298,12 +357,18 @@ router.post("/broadcast", validate(broadcastSchema), async (req, res) => {
     [message, contacts.length, sentCount, failedCount, req.user?.id || null, new Date().toISOString()]
   );
 
+  const targetLabel =
+    targetType === "class"
+      ? ` (ক্লাস: ${targetClass})`
+      : targetType === "students"
+        ? " (নির্বাচিত ছাত্র)"
+        : "";
   await recordAudit({
     action: "own-sms-gateway.broadcast-sent",
     actor: req.user,
     entityType: "sms_broadcast_logs",
-    label: `নিজের ফোন গেটওয়ে দিয়ে বাল্ক SMS: মোট ${contacts.length}, সফল ${sentCount}, ব্যর্থ ${failedCount}`,
-    details: { total: contacts.length, sent: sentCount, failed: failedCount },
+    label: `নিজের ফোন গেটওয়ে দিয়ে বাল্ক SMS${targetLabel}: মোট ${contacts.length}, সফল ${sentCount}, ব্যর্থ ${failedCount}`,
+    details: { total: contacts.length, sent: sentCount, failed: failedCount, targetType, targetClass, studentIds },
   });
 
   res.json({ total: contacts.length, sent: sentCount, failed: failedCount });
