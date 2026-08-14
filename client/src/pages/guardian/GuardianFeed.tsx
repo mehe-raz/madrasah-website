@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { api } from "../../lib/api";
 import type { GuardianShellContext } from "../../components/GuardianShell";
+import { classTreeLabel } from "../../lib/classTree";
 import type { ClassPost } from "../../types";
 import { Icons } from "../../lib/icons";
 
@@ -32,7 +33,7 @@ const FILTERS: Array<{ value: ClassPost["type"] | "all"; label: string }> = [
 ];
 
 export function GuardianFeed() {
-  const { refresh } = useOutletContext<GuardianShellContext>();
+  const { refresh, classTree } = useOutletContext<GuardianShellContext>();
   const [filter, setFilter] = useState<ClassPost["type"] | "all">("all");
   const [posts, setPosts] = useState<ClassPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ export function GuardianFeed() {
           >
             <div className="guardian-post__head">
               <span className={`guardian-post-badge ${TYPE_BADGE_CLASS[post.type]}`}>
-                {TYPE_LABEL[post.type]} · {post.class}
+                {TYPE_LABEL[post.type]} · {classTreeLabel(classTree, post.class)}
               </span>
               <span className="guardian-post-time">{relativeTime(post.createdAt)}</span>
             </div>

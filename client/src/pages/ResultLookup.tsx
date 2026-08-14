@@ -1,12 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { usePublicSite } from "../hooks/usePublicSite";
 import { useSeoMeta } from "../hooks/useSeoMeta";
 import { api } from "../lib/api";
+import { classTreeLabel } from "../lib/classTree";
 import { PublicHeader } from "../components/PublicHeader";
 import { PublicFooter } from "../components/PublicFooter";
 import { PublicPageSkeleton } from "../components/PublicPageSkeleton";
 import { C } from "../theme/colors";
-import type { PublicResult } from "../types";
+import type { ClassTreeNode, PublicResult } from "../types";
 
 const inputStyle = {
   width: "100%",
@@ -27,6 +28,22 @@ export function ResultLookup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<PublicResult[]>([]);
+  // Same public/unauthenticated endpoint AdmissionApply.tsx and the guardian
+  // portal use — this page (like /kiosk) sits outside any login, so it
+  // fetches its own copy instead of reading one from a shared context.
+  // `r.class` below is the student's stored `en` data-layer value; without
+  // this it prints in English regardless of site language.
+  const [classTree, setClassTree] = useState<ClassTreeNode[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getPublicClassTree().then((tree) => {
+      if (!cancelled) setClassTree(tree);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useSeoMeta({
     title: `ফলাফল দেখুন — ${site.name}`,
@@ -150,7 +167,7 @@ export function ResultLookup() {
                     <div>
                       <div style={{ fontWeight: 900, fontSize: 15, color: C.text }}>{r.name}</div>
                       <div style={{ fontSize: 12, color: C.muted }}>
-                        {r.class} · রোল {r.roll} · {r.examName} {r.year}
+                        {classTreeLabel(classTree, r.class)} · রোল {r.roll} · {r.examName} {r.year}
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>

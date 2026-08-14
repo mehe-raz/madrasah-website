@@ -3,7 +3,8 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { api } from "../../lib/api";
 import { Button, Field, Input, Select, ClassCascadeSelect } from "../../components/ui";
 import type { GuardianShellContext } from "../../components/GuardianShell";
-import type { ClassOption, ClassTreeNode } from "../../types";
+import { classTreeLabel } from "../../lib/classTree";
+import type { ClassOption } from "../../types";
 import { Icons } from "../../lib/icons";
 
 const statusBadgeClass = (status: string | null) => {
@@ -14,7 +15,7 @@ const statusBadgeClass = (status: string | null) => {
 };
 
 export function GuardianDashboard() {
-  const { children, unreadCount, refresh } = useOutletContext<GuardianShellContext>();
+  const { children, unreadCount, refresh, classTree } = useOutletContext<GuardianShellContext>();
   const navigate = useNavigate();
   const [showAddChild, setShowAddChild] = useState(false);
   const [studentName, setStudentName] = useState("");
@@ -29,17 +30,14 @@ export function GuardianDashboard() {
   // stored class strings, not free text, so "add another child" can't fail
   // on a typo'd/differently-formatted class name.
   const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
-  // Hierarchical replacement for classOptions above (server/src/lib/classTree.js)
-  // — preferred whenever it has loaded and is non-empty. Same public,
-  // unauthenticated endpoint GuardianLogin.tsx's signup form uses.
-  const [classTree, setClassTree] = useState<ClassTreeNode[]>([]);
+  // classTree itself now comes from GuardianShellContext (fetched once in
+  // GuardianShell, shared by every guardian page) instead of a second
+  // fetch here — classOptions (the older flat fallback) still loads
+  // locally since GuardianShell doesn't need it for anything else.
   useEffect(() => {
     let cancelled = false;
     api.getPublicClassOptions().then((options) => {
       if (!cancelled) setClassOptions(options);
-    }).catch(() => {});
-    api.getPublicClassTree().then((tree) => {
-      if (!cancelled) setClassTree(tree);
     }).catch(() => {});
     return () => {
       cancelled = true;
@@ -102,7 +100,7 @@ export function GuardianDashboard() {
               <div className="guardian-child-info">
                 <div className="guardian-child-name">{c.name}</div>
                 <div className="guardian-meta-text">
-                  {c.class} {c.section ? `· শাখা ${c.section}` : ""} · রোল {c.roll}
+                  {classTreeLabel(classTree, c.class)} {c.section ? `· শাখা ${c.section}` : ""} · রোল {c.roll}
                 </div>
               </div>
               <div className="guardian-child-status">

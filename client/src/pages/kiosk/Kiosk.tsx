@@ -20,8 +20,9 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { usePublicSite } from "../../hooks/usePublicSite";
 import { api } from "../../lib/api";
+import { classTreeLabel } from "../../lib/classTree";
 import { cloudinaryResize } from "../../lib/cloudinaryImage";
-import type { KioskPunch } from "../../types";
+import type { ClassTreeNode, KioskPunch } from "../../types";
 
 const POLL_INTERVAL_MS = 2000;
 // How long a punch stays on screen before the kiosk returns to idle — plan
@@ -55,6 +56,21 @@ export function Kiosk() {
   const [deviceMissing, setDeviceMissing] = useState(false);
   const lastPunchAtRef = useRef<string | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Same public/unauthenticated endpoint the result-lookup and admission
+  // pages use — this kiosk screen has no login (see file header), so it
+  // fetches its own copy to turn punch.student.class (a raw `en`
+  // data-layer value) into its বাংলা label.
+  const [classTree, setClassTree] = useState<ClassTreeNode[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getPublicClassTree().then((tree) => {
+      if (!cancelled) setClassTree(tree);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -123,7 +139,7 @@ export function Kiosk() {
               )}
               <p className="kiosk__name">{punch.student.name}</p>
               <p className="kiosk__meta">
-                {[punch.student.class, punch.student.section].filter(Boolean).join(" - ")} · রোল {punch.student.roll}
+                {[classTreeLabel(classTree, punch.student.class), punch.student.section].filter(Boolean).join(" - ")} · রোল {punch.student.roll}
               </p>
               <p className="kiosk__punch-time">{formatPunchTime(punch.punchAt)}-এ প্রবেশ করেছে</p>
             </>

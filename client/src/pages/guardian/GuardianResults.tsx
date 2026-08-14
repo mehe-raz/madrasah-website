@@ -4,10 +4,11 @@ import { api } from "../../lib/api";
 import { printResultSheet } from "../../lib/printReport";
 import { Button } from "../../components/ui";
 import type { GuardianShellContext } from "../../components/GuardianShell";
+import { classTreeLabel } from "../../lib/classTree";
 import type { StudentResult } from "../../types";
 
 export function GuardianResults() {
-  const { children, selected, selectChild } = useOutletContext<GuardianShellContext>();
+  const { children, selected, selectChild, classTree } = useOutletContext<GuardianShellContext>();
   const [results, setResults] = useState<StudentResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,7 +30,7 @@ export function GuardianResults() {
       examName: r.examName,
       year: r.year,
       studentName: r.studentName,
-      class: r.class,
+      class: classTreeLabel(classTree, r.class),
       roll: r.roll,
       subjects: r.subjects.map((s) => ({
         name: s.name,
@@ -86,7 +87,7 @@ export function GuardianResults() {
             <div className="guardian-result-head">
               <div>
                 <div className="guardian-result-exam">{r.examName} {r.year}</div>
-                <div className="guardian-meta-text">{r.class} · রোল {r.roll}</div>
+                <div className="guardian-meta-text">{classTreeLabel(classTree, r.class)} · রোল {r.roll}</div>
               </div>
               <div className="guardian-result-score">
                 <div className="guardian-result-gpa">GPA {r.gpa}</div>

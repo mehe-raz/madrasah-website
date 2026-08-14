@@ -3,11 +3,12 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useGuardianAuth } from "../context/GuardianAuthContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { api } from "../lib/api";
+import { classTreeLabel } from "../lib/classTree";
 import { GuardianMessengerBubble } from "./GuardianMessengerBubble";
 import { GuardianPushSetup } from "./GuardianPushSetup";
 import { HudSpinner } from "./HudSpinner";
 import { Icons, type IconKey } from "../lib/icons";
-import type { GuardianDashboardChild } from "../types";
+import type { ClassTreeNode, GuardianDashboardChild } from "../types";
 
 export interface GuardianShellContext {
   children: GuardianDashboardChild[];
@@ -15,6 +16,12 @@ export interface GuardianShellContext {
   selectChild: (id: number) => void;
   unreadCount: number;
   refresh: () => void;
+  // Public, unauthenticated class/jamaat hierarchy (server/src/lib/classTree.js
+  // via GET /public/class-tree) — fetched once here and shared down through
+  // Outlet context so every guardian page can turn a student's stored `en`
+  // class value into its বাংলা label with classTreeLabel(), instead of each
+  // page re-fetching or showing the raw data-layer string.
+  classTree: ClassTreeNode[];
 }
 
 const NAV_ITEMS: { to: string; label: string; icon: IconKey; end?: boolean }[] = [
@@ -33,6 +40,20 @@ export function GuardianShell() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  // Same public/unauthenticated endpoint AdmissionApply.tsx and
+  // GuardianLogin.tsx's signup form already use — fetched once here (not
+  // per-page) since every guardian screen under this shell needs it.
+  const [classTree, setClassTree] = useState<ClassTreeNode[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getPublicClassTree().then((tree) => {
+      if (!cancelled) setClassTree(tree);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = () => {
     api
@@ -91,7 +112,7 @@ export function GuardianShell() {
   }
 
   const selected = children.find((c) => c.id === selectedId) ?? null;
-  const context: GuardianShellContext = { children, selected, selectChild: setSelectedId, unreadCount, refresh: load };
+  const context: GuardianShellContext = { children, selected, selectChild: setSelectedId, unreadCount, refresh: load, classTree };
 
   return (
     <div className="guardian-shell">
@@ -124,7 +145,7 @@ export function GuardianShell() {
                 onClick={() => setSelectedId(c.id)}
                 className={`pill guardian-tab${c.id === selectedId ? " guardian-tab--active" : ""}`}
               >
-                {c.name} · {c.class}
+                {c.name} · {classTreeLabel(classTree, c.class)}
               </button>
             ))}
           </div>
