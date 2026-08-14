@@ -3,7 +3,8 @@ import { SkeletonCardList } from "../components/Skeleton";
 import { Badge } from "../components/Badge";
 import { Button, Card, Field, Input, Select, Textarea } from "../components/ui";
 import { api } from "../lib/api";
-import { useLanguage } from "../context/AppSettingsContext";
+import { classTreeLabel } from "../lib/classTree";
+import { useAppSettings } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
 import type { ClassPost } from "../types";
 
@@ -26,7 +27,7 @@ function relativeTime(iso: string): string {
 }
 
 export function ClassPosts() {
-  const { t } = useLanguage();
+  const { t, classTree } = useAppSettings();
   const typeLabel: Record<ClassPost["type"], string> = {
     notice: t.classPosts.typeNotice,
     assignment: t.classPosts.typeAssignment,
@@ -113,7 +114,7 @@ export function ClassPosts() {
               <option value="">{t.classPosts.selectClass}</option>
               {classes.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {classTreeLabel(classTree, c)}
                 </option>
               ))}
             </Select>
@@ -163,7 +164,7 @@ export function ClassPosts() {
           posts.map((post) => (
             <Card key={post.id} tight className="class-post">
               <div className="class-post__head">
-                <Badge label={`${typeLabel[post.type]} · ${post.class}`} color={TYPE_COLOR[post.type]} />
+                <Badge label={`${typeLabel[post.type]} · ${classTreeLabel(classTree, post.class)}`} color={TYPE_COLOR[post.type]} />
                 <span className="class-post__meta">{relativeTime(post.createdAt)}</span>
               </div>
               <div className="class-post__title">{post.title}</div>

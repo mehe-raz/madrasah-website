@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { SkeletonCardList } from "../components/Skeleton";
 import { api } from "../lib/api";
-import { useLanguage } from "../context/AppSettingsContext";
+import { useAppSettings } from "../context/AppSettingsContext";
+import { classTreeLabel } from "../lib/classTree";
 import { C } from "../theme/colors";
 import { Button, Card, Field, Input, Select } from "../components/ui";
 import { EXAM_TYPES } from "../lib/examTypes";
@@ -9,7 +10,7 @@ import { printResultSheet } from "../lib/printReport";
 import type { ResultStudentOption, StudentResult } from "../types";
 
 export function Results() {
-  const { t, lang } = useLanguage();
+  const { t, lang, classTree } = useAppSettings();
 
   const [classes, setClasses] = useState<string[]>([]);
   const [selectedClass, setSelectedClass] = useState("");
@@ -203,7 +204,7 @@ export function Results() {
         examName: sheet.examName,
         year: sheet.year,
         studentName: sheet.studentName,
-        class: sheet.class,
+        class: classTreeLabel(classTree, sheet.class),
         roll: sheet.roll,
         subjects: sheet.subjects.map((s) => ({
           name: s.name,
@@ -241,7 +242,7 @@ export function Results() {
               <option value="">{t.results.selectClass}</option>
               {classes.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {classTreeLabel(classTree, c)}
                 </option>
               ))}
             </Select>

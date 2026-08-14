@@ -4,6 +4,7 @@ import { Button, Card, Field, Input, Textarea } from "../components/ui";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { classTreeLabel } from "../lib/classTree";
+import { deptLabel } from "../lib/labels";
 import { C } from "../theme/colors";
 import type { Student } from "../types";
 
@@ -163,7 +164,7 @@ export function Attendance() {
               fontSize: 13,
             }}
           >
-            {d}
+            {d === "All" ? t.common.all : deptLabel(d)}
           </button>
         ))}
       </div>
@@ -246,7 +247,7 @@ export function Attendance() {
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: C.muted }}>{s.roll}</td>
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text }}>{s.name}</td>
                 <td style={{ padding: "10px 14px", color: C.muted }}>{classTreeLabel(classTree, s.class)}</td>
-                <td style={{ padding: "10px 14px" }}><Badge label={s.dept} color={C.teal} /></td>
+                <td style={{ padding: "10px 14px" }}><Badge label={deptLabel(s.dept)} color={C.teal} /></td>
                 <td style={{ padding: "10px 14px" }}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {["উপস্থিত", "অনুপস্থিত", "দেরিতে"].map((v) => {

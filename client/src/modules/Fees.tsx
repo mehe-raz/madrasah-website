@@ -7,16 +7,17 @@ import { StatCard } from "../components/StatCard";
 import { StudentPicker } from "../components/StudentPicker";
 import { Icons } from "../lib/icons";
 import { useAuth } from "../context/AuthContext";
-import { useLanguage } from "../context/AppSettingsContext";
+import { useAppSettings } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
+import { classTreeLabel } from "../lib/classTree";
 import { fmt } from "../lib/fmt";
 import { getOutboxEntriesFor, removeOutboxEntry, type OutboxEntry } from "../lib/offlineDb";
 import { C } from "../theme/colors";
 import type { Payment, Student } from "../types";
 
 export function Fees() {
-  const { t } = useLanguage();
+  const { t, classTree } = useAppSettings();
   const { user } = useAuth();
   // Mirrors the server's isApprovalRole() in lib/deleteRequests.js — kept
   // as an inline check here rather than a new shared util (AGENTS.md Rule 1:
@@ -351,7 +352,7 @@ export function Fees() {
               <RecordCard
                 key={s.id}
                 title={s.name}
-                subtitle={`রোল: ${s.roll}  •  ক্লাস: ${s.class}`}
+                subtitle={`রোল: ${s.roll}  •  ক্লাস: ${classTreeLabel(classTree, s.class)}`}
                 headerRight={<span style={{ color: C.rose, fontWeight: 700, fontSize: 15 }}>{fmt(s.due)}</span>}
                 fields={[
                   { label: "মাসিক বেতন", value: fmt(s.fee) },
@@ -388,7 +389,7 @@ export function Fees() {
                 <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "#fafbfc" }}>
                   <td style={{ padding: "10px 14px", fontWeight: 600, color: C.muted }}>{s.roll}</td>
                   <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text }}>{s.name}</td>
-                  <td style={{ padding: "10px 14px", color: C.muted }}>{s.class}</td>
+                  <td style={{ padding: "10px 14px", color: C.muted }}>{classTreeLabel(classTree, s.class)}</td>
                   <td style={{ padding: "10px 14px", color: C.text }}>{fmt(s.fee)}</td>
                   <td style={{ padding: "10px 14px" }}><span style={{ color: C.rose, fontWeight: 700 }}>{fmt(s.due)}</span></td>
                   <td style={{ padding: "10px 14px" }}>
