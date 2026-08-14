@@ -80,16 +80,20 @@ function ClassTreeRow({
   path,
   depth,
   addLabel,
+  editLabel,
   deleteLabel,
   onAddChild,
+  onEdit,
   onDelete,
 }: {
   node: ClassTreeNode;
   path: string[];
   depth: number;
   addLabel: string;
+  editLabel: string;
   deleteLabel: string;
   onAddChild: (path: string[]) => void;
+  onEdit: (path: string[], node: ClassTreeNode) => void;
   onDelete: (path: string[]) => void;
 }) {
   return (
@@ -102,6 +106,9 @@ function ClassTreeRow({
         <button type="button" onClick={() => onAddChild(path)} className="btn-xs btn-xs--cancel">
           {addLabel}
         </button>
+        <button type="button" onClick={() => onEdit(path, node)} className="btn-xs">
+          {editLabel}
+        </button>
         <button type="button" onClick={() => onDelete(path)} className="btn-xs btn-xs--delete">
           {deleteLabel}
         </button>
@@ -113,8 +120,10 @@ function ClassTreeRow({
           path={[...path, child.en]}
           depth={depth + 1}
           addLabel={addLabel}
+          editLabel={editLabel}
           deleteLabel={deleteLabel}
           onAddChild={onAddChild}
+          onEdit={onEdit}
           onDelete={onDelete}
         />
       ))}
@@ -145,8 +154,9 @@ export function Settings() {
     classTree,
     refreshClassTree,
     saveClassTree,
+    editClassTreeNode,
   } = useAppSettings();
-  const { t } = useLanguage();
+  const { t, tr } = useLanguage();
   const [saved, setSaved] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", role: "Teacher", email: "", password: "" });
   const [editDraft, setEditDraft] = useState<User | null>(null);
@@ -187,6 +197,12 @@ export function Settings() {
   // [...en] = adding a child under that path (see lib/classTree.ts).
   const [classTreeAddTarget, setClassTreeAddTarget] = useState<string[] | null>(null);
   const [classTreeForm, setClassTreeForm] = useState({ bn: "", en: "" });
+  // Same idea as classTreeAddTarget, but for renaming an existing node in
+  // place: null = no "edit entry" form open; otherwise the full en-slug
+  // path (root -> ... -> node) of the node currently being edited.
+  const [classTreeEditTarget, setClassTreeEditTarget] = useState<string[] | null>(null);
+  const [classTreeEditForm, setClassTreeEditForm] = useState({ bn: "", en: "" });
+  const [classTreeEditSaving, setClassTreeEditSaving] = useState(false);
   const isSuperAdmin = authUser?.role === "Super Admin";
   const manageUsers = authUser ? canManageUsers(authUser.role) : false;
   const allowBackup = authUser ? canBackup(authUser.role) : false;
@@ -697,6 +713,37 @@ export function Settings() {
       setMsg(t.settings.classTreeNodeDeleted);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const handleStartEditClassTreeNode = (path: string[], node: ClassTreeNode) => {
+    if (!isSuperAdmin) return;
+    setClassTreeAddTarget(null);
+    setClassTreeEditTarget(path);
+    setClassTreeEditForm({ bn: node.bn, en: node.en });
+  };
+
+  const handleSaveClassTreeNodeEdit = async () => {
+    if (!isSuperAdmin || !classTreeEditTarget) return;
+    const bnValue = classTreeEditForm.bn.trim();
+    const enValue = classTreeEditForm.en.trim().toLowerCase();
+    if (!bnValue || !enValue || !CLASS_EN_SLUG_RE.test(enValue)) return;
+    const enChangedLocally = enValue !== classTreeEditTarget[classTreeEditTarget.length - 1];
+    if (enChangedLocally && !confirm(t.settings.classTreeEditConfirm)) return;
+    setClassTreeEditSaving(true);
+    try {
+      const { migratedCount, enChanged } = await editClassTreeNode(classTreeEditTarget, { bn: bnValue, en: enValue });
+      setClassTreeEditTarget(null);
+      setClassTreeEditForm({ bn: "", en: "" });
+      setMsg(
+        enChanged
+          ? tr("settings.classTreeNodeEdited", { count: migratedCount })
+          : t.settings.classTreeNodeEditedLabelOnly
+      );
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setClassTreeEditSaving(false);
     }
   };
 
@@ -1300,6 +1347,7 @@ export function Settings() {
                     variant="teal"
                     solid
                     onClick={() => {
+                      setClassTreeEditTarget(null);
                       setClassTreeAddTarget([]);
                       setClassTreeForm({ bn: "", en: "" });
                     }}
@@ -1336,6 +1384,33 @@ export function Settings() {
                     </div>
                   )}
 
+                  {classTreeEditTarget !== null && (
+                    <div className="user-form-grid mb-10">
+                      <div className="field-block__label class-tree-add-parent-label">
+                        {t.settings.classTreeEditingLabel}: {classTreeEditTarget.join(" / ")}
+                      </div>
+                      <Input
+                        placeholder={t.settings.classBnLabel}
+                        value={classTreeEditForm.bn}
+                        onChange={(e) => setClassTreeEditForm({ ...classTreeEditForm, bn: e.target.value })}
+                      />
+                      <div>
+                        <Input
+                          placeholder={t.settings.classEnLabel}
+                          value={classTreeEditForm.en}
+                          onChange={(e) => setClassTreeEditForm({ ...classTreeEditForm, en: e.target.value })}
+                        />
+                        <p className="field-block__label">{t.settings.classEnHint}</p>
+                      </div>
+                      <Button variant="teal" solid onClick={handleSaveClassTreeNodeEdit} disabled={classTreeEditSaving}>
+                        {classTreeEditSaving ? t.settings.classTreeEditSaving : t.settings.classTreeEditSave}
+                      </Button>
+                      <Button variant="rose" onClick={() => setClassTreeEditTarget(null)} disabled={classTreeEditSaving}>
+                        {t.settings.classTreeCancel}
+                      </Button>
+                    </div>
+                  )}
+
                   <div className="user-list">
                     {classTree.map((node) => (
                       <ClassTreeRow
@@ -1344,11 +1419,14 @@ export function Settings() {
                         path={[node.en]}
                         depth={0}
                         addLabel={t.settings.classTreeAddChild}
+                        editLabel={t.settings.classTreeEdit}
                         deleteLabel={t.common.delete}
                         onAddChild={(path) => {
+                          setClassTreeEditTarget(null);
                           setClassTreeAddTarget(path);
                           setClassTreeForm({ bn: "", en: "" });
                         }}
+                        onEdit={handleStartEditClassTreeNode}
                         onDelete={handleDeleteClassTreeNode}
                       />
                     ))}

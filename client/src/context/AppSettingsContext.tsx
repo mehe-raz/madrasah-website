@@ -38,6 +38,10 @@ interface AppSettingsContextValue {
   classTree: ClassTreeNode[];
   refreshClassTree: () => Promise<void>;
   saveClassTree: (tree: ClassTreeNode[]) => Promise<void>;
+  // Renames a single node (see api.editClassTreeNode) instead of replacing
+  // the whole tree; returns how many student/etc. rows were migrated so the
+  // caller can show it in a confirmation message.
+  editClassTreeNode: (path: string[], updates: { bn: string; en: string }) => Promise<{ migratedCount: number; enChanged: boolean }>;
 }
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -114,6 +118,12 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const saveClassTreeFn = useCallback(async (tree: ClassTreeNode[]) => {
     const updated = await api.saveClassTree(tree);
     setClassTree(updated);
+  }, []);
+
+  const editClassTreeNodeFn = useCallback(async (path: string[], updates: { bn: string; en: string }) => {
+    const { tree: updated, migratedCount, enChanged } = await api.editClassTreeNode(path, updates);
+    setClassTree(updated);
+    return { migratedCount, enChanged };
   }, []);
 
   const refreshSettings = useCallback(async () => {
@@ -194,6 +204,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       classTree,
       refreshClassTree,
       saveClassTree: saveClassTreeFn,
+      editClassTreeNode: editClassTreeNodeFn,
     }),
     [
       settings,
@@ -211,6 +222,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       classTree,
       refreshClassTree,
       saveClassTreeFn,
+      editClassTreeNodeFn,
     ]
   );
 

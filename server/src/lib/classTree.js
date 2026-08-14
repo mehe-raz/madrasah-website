@@ -213,6 +213,90 @@ const DEFAULT_CLASS_TREE = sanitizeClassTree([
   },
 ]);
 
+// Finds a node by its full `en`-slug path (root -> ... -> node), same path
+// shape the client already builds for add/delete (see client/lib/classTree.ts
+// findClassTreePath / removeClassTreeNode). Returns the live node reference
+// from within `tree` (not a copy) — callers here only read from it before
+// building an immutable replacement tree.
+function findClassTreeNodeByPath(tree, path) {
+  if (!Array.isArray(path) || path.length === 0) return null;
+  let nodes = tree;
+  let node = null;
+  for (const en of path) {
+    node = (nodes || []).find((n) => n.en === en);
+    if (!node) return null;
+    nodes = node.children;
+  }
+  return node;
+}
+
+// Every `en` value currently used anywhere in the tree, so a rename can be
+// checked against global uniqueness the same way sanitizeClassTree()
+// enforces it on write.
+function collectAllEnValues(tree) {
+  const out = new Set();
+  function walk(nodes) {
+    for (const node of nodes || []) {
+      out.add(node.en);
+      if (node.children?.length) walk(node.children);
+    }
+  }
+  walk(tree);
+  return out;
+}
+
+// Immutably replaces just the bn/en label of the node at `path`, leaving
+// every other node (including that node's own children) untouched.
+function replaceNodeLabel(nodes, path, bn, en) {
+  const [head, ...rest] = path;
+  return (nodes || []).map((node) => {
+    if (node.en !== head) return node;
+    if (rest.length === 0) return { ...node, bn, en };
+    return { ...node, children: replaceNodeLabel(node.children, rest, bn, en) };
+  });
+}
+
+class ClassTreeEditError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.code = code;
+  }
+}
+
+// Renames one node's বাংলা label and/or ইংরেজি data-slug in place, keeping
+// its id, its children, and every other node in the tree exactly as they
+// were. Only validates and builds the new tree shape — it does NOT touch
+// student/teacher-assignment/etc. rows; the route handler decides whether
+// that migration is needed (only when the target is a leaf and its `en`
+// actually changed) and runs it in the same transaction as the save below.
+function editClassTreeNode(tree, path, updates) {
+  const bn = cleanText(updates?.bn, BN_MAX_LEN);
+  const en = cleanText(updates?.en, EN_MAX_LEN).toLowerCase();
+  if (!Array.isArray(path) || path.length === 0) {
+    throw new ClassTreeEditError("অবৈধ পাথ", "INVALID_PATH");
+  }
+  if (!bn) throw new ClassTreeEditError("বাংলা নাম আবশ্যক", "INVALID_BN");
+  if (!en || !EN_SLUG_RE.test(en)) {
+    throw new ClassTreeEditError(
+      "ইংরেজি ডাটা-লেবেল শুধু ছোট হাতের অক্ষর, সংখ্যা ও হাইফেন দিয়ে হতে হবে",
+      "INVALID_EN"
+    );
+  }
+
+  const target = findClassTreeNodeByPath(tree, path);
+  if (!target) throw new ClassTreeEditError("এন্ট্রি খুঁজে পাওয়া যায়নি", "NOT_FOUND");
+
+  const oldEn = target.en;
+  const wasLeaf = !target.children || target.children.length === 0;
+
+  if (en !== oldEn && collectAllEnValues(tree).has(en)) {
+    throw new ClassTreeEditError("এই ইংরেজি ডাটা-লেবেল ইতিমধ্যে ব্যবহৃত হয়েছে", "DUPLICATE_EN");
+  }
+
+  const nextTree = sanitizeClassTree(replaceNodeLabel(tree, path, bn, en));
+  return { tree: nextTree, oldEn, newEn: en, enChanged: en !== oldEn, wasLeaf };
+}
+
 async function getClassTree() {
   const row = await db.get("SELECT value FROM settings WHERE key = $1", [SETTINGS_KEY]);
   if (!row) return [];
@@ -232,6 +316,66 @@ async function saveClassTree(input) {
   return tree;
 }
 
+// Tables (besides students.class, handled separately below) that store the
+// SAME live leaf `en` slug and must move together when a leaf is renamed —
+// i.e. anything that means "this row currently applies to that class", as
+// opposed to a historical snapshot. Snapshots (results.class,
+// admissions."className") are deliberately excluded: those rows are meant
+// to keep reading the class a student was in *at that time*, exactly like
+// they already do when a student's own class changes later (see the
+// comment on the `results` table in supabase_schema.sql) — renaming would
+// incorrectly rewrite history.
+const LIVE_CLASS_REFERENCE_TABLES = [
+  { table: "teacher_class_assignments", column: '"class"' },
+  { table: "class_posts", column: '"class"' },
+  { table: "guardian_reminders", column: '"targetClass"' },
+];
+
+// Moves every row that currently points at `oldEn` (a leaf class/jamaat
+// slug that's being renamed) over to `newEn`, across students.class and
+// every other table in LIVE_CLASS_REFERENCE_TABLES, all inside the given
+// transaction client (`tx` — from db.withTransaction). Returns how many
+// rows were updated in total, purely for the confirmation message. Must
+// only be called for an actual rename of a LEAF node's `en` — non-leaf
+// nodes and unchanged `en` values have nothing to migrate.
+async function migrateLiveClassReferences(tx, oldEn, newEn) {
+  let migratedCount = 0;
+
+  const studentsResult = await tx.run(`UPDATE students SET class = $1 WHERE class = $2`, [newEn, oldEn]);
+  migratedCount += studentsResult.rowCount || 0;
+
+  for (const { table, column } of LIVE_CLASS_REFERENCE_TABLES) {
+    if (table === "teacher_class_assignments") {
+      // Only this table carries a unique ("userId", class) constraint, so
+      // only here can a plain UPDATE hit a 23505 (a teacher who — extremely
+      // rare, but possible from old data — already has a separate
+      // assignment row sitting on `newEn`). Guard just this case rather
+      // than merging/deleting the colliding row; it stays on `oldEn`
+      // untouched, which a Super Admin can clean up by hand if it ever
+      // happens.
+      const result = await tx.run(
+        `UPDATE teacher_class_assignments t SET class = $1
+         WHERE class = $2
+           AND NOT EXISTS (
+             SELECT 1 FROM teacher_class_assignments dup
+             WHERE dup."userId" = t."userId" AND dup.class = $1
+           )`,
+        [newEn, oldEn]
+      );
+      migratedCount += result.rowCount || 0;
+      continue;
+    }
+
+    // class_posts / guardian_reminders have no such constraint — many rows
+    // legitimately already share one class value, so a plain UPDATE is
+    // safe here.
+    const result = await tx.run(`UPDATE ${table} SET ${column} = $1 WHERE ${column} = $2`, [newEn, oldEn]);
+    migratedCount += result.rowCount || 0;
+  }
+
+  return migratedCount;
+}
+
 module.exports = {
   SETTINGS_KEY,
   EN_SLUG_RE,
@@ -240,4 +384,8 @@ module.exports = {
   DEFAULT_CLASS_TREE,
   getClassTree,
   saveClassTree,
+  findClassTreeNodeByPath,
+  editClassTreeNode,
+  migrateLiveClassReferences,
+  ClassTreeEditError,
 };

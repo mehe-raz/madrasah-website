@@ -633,6 +633,20 @@ export const api = {
   saveClassTree: (tree: ClassTreeNode[]) =>
     request<ClassTreeNode[]>("/class-tree", { method: "PUT", body: JSON.stringify({ tree }) }),
 
+  // Renames a single node's বাংলা/ইংরেজি label in place (see
+  // routes/classTree.js's PUT /node) — as opposed to saveClassTree() above,
+  // which replaces the whole tree. `path` is the full list of `en` slugs
+  // from a root department down to (and including) the node being renamed.
+  // When the node is a leaf and its `en` actually changes, the server also
+  // migrates every student/teacher-assignment/etc. row already pointing at
+  // the old slug over to the new one; `migratedCount` reports how many rows
+  // that touched.
+  editClassTreeNode: (path: string[], updates: { bn: string; en: string }) =>
+    request<{ tree: ClassTreeNode[]; migratedCount: number; enChanged: boolean }>("/class-tree/node", {
+      method: "PUT",
+      body: JSON.stringify({ path, ...updates }),
+    }),
+
   // Multi-tenant only (404s on a single-tenant deployment — see
   // requireTenantContext in routes/settings.js). Powers the "ডোমেইন
   // কানেক্ট করুন" section: which plan the institution is on, what that
