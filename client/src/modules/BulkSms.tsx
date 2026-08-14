@@ -9,8 +9,9 @@ import { useEffect, useState } from "react";
 import { Badge } from "../components/Badge";
 import { SkeletonCardList } from "../components/Skeleton";
 import { Button, Card, Field, Select, Textarea } from "../components/ui";
-import { useLanguage } from "../context/AppSettingsContext";
+import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
+import { classTreeLabel } from "../lib/classTree";
 import { Icons, type IconKey } from "../lib/icons";
 import type { SmsBroadcastStudent, SmsContact } from "../types";
 import { BulkSmsGateway } from "./BulkSmsGateway";
@@ -35,7 +36,7 @@ function personalize(template: string, name: string) {
 }
 
 function ComposeSection() {
-  const { t } = useLanguage();
+  const { t, classTree } = useAppSettings();
   const c = t.bulkSms;
 
   const [gatewayConnected, setGatewayConnected] = useState<boolean | null>(null);
@@ -205,7 +206,7 @@ function ComposeSection() {
               <option value="">{c.composeClassPlaceholder}</option>
               {classes.map((cls) => (
                 <option key={cls} value={cls}>
-                  {cls}
+                  {classTreeLabel(classTree, cls)}
                 </option>
               ))}
             </Select>
