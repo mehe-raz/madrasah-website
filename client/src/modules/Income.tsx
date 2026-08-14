@@ -237,13 +237,13 @@ export function Income() {
   // error all just count as "not sent"), so this only needs to show the
   // returned summary, not handle a partial-failure case.
   const handleSendDueReminders = async () => {
-    if (!confirm("সব বকেয়া ছাত্রের গার্ডিয়ানকে SMS reminder পাঠাবেন?")) return;
+    if (!confirm("সব বকেয়া শিক্ষার্থীর গার্ডিয়ানকে SMS reminder পাঠাবেন?")) return;
     setSendingReminders(true);
     setMsg("");
     try {
       const result = await api.sendDueReminders();
       setMsg(
-        `বকেয়া ছাত্র ${result.totalDue} জন — ${result.sent} জন গার্ডিয়ানকে SMS পাঠানো হয়েছে` +
+        `বকেয়া শিক্ষার্থী ${result.totalDue} জন — ${result.sent} জন গার্ডিয়ানকে SMS পাঠানো হয়েছে` +
           (result.noPhone ? `, ${result.noPhone} জনের ফোন নম্বর নেই` : "") +
           (result.notSent ? `, ${result.notSent} জন পাঠানো যায়নি (প্ল্যান/ব্যালেন্স)` : "")
       );
@@ -429,7 +429,7 @@ export function Income() {
               <option key={c} value={c}>{classTreeLabel(classTree, c)}</option>
             ))}
           </select>
-          <label style={{ fontSize: 12, color: C.muted }}>Student / ছাত্র</label>
+          <label style={{ fontSize: 12, color: C.muted }}>Student / শিক্ষার্থী</label>
           <div style={{ marginBottom: 12 }}>
             <StudentPicker
               value={selectedStudent}

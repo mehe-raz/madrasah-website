@@ -139,7 +139,7 @@ export function GuardianDashboard() {
             <p className="guardian-field-note">
               রোল ও ক্লাস আবশ্যক। নাম ও মোবাইল জানা থাকলে দিন — বেশি তথ্য মিললে সাথে সাথেই যুক্ত হবে, না মিললে/ফাঁকা রাখলে Admin অনুমোদনের পর যুক্ত হবে।
             </p>
-            <Field label="ছাত্রের নাম">
+            <Field label="শিক্ষার্থীর নাম">
               <Input value={studentName} onChange={(e) => setStudentName(e.target.value)} />
             </Field>
             <div className="guardian-form-row">
@@ -168,7 +168,7 @@ export function GuardianDashboard() {
               </Field>
               )}
             </div>
-            <Field label="ছাত্রের অভিভাবকের মোবাইল (ভর্তির সময় দেওয়া)">
+            <Field label="শিক্ষার্থীর অভিভাবকের মোবাইল (ভর্তির সময় দেওয়া)">
               <Input value={guardianMobile} onChange={(e) => setGuardianMobile(e.target.value)} />
             </Field>
             {error && <p className="guardian-error-text">{error}</p>}

@@ -18,7 +18,7 @@ const { attachRanksAndSubjectGpa } = require("./results");
 const ATTENDANCE_STATUSES = { PRESENT: "উপস্থিত", ABSENT: "অনুপস্থিত", LATE: "দেরিতে" };
 
 function ownershipError() {
-  const err = new Error("এই ছাত্রের তথ্যে আপনার অ্যাক্সেস নেই");
+  const err = new Error("এই শিক্ষার্থীর তথ্যে আপনার অ্যাক্সেস নেই");
   err.status = 403;
   return err;
 }

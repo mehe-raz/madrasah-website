@@ -158,12 +158,12 @@ export function GuardianLogin() {
             </Field>
 
             <div className="guardian-auth-divider">
-              <p className="guardian-auth-divider__title">ছাত্রের তথ্য (যাচাইয়ের জন্য)</p>
+              <p className="guardian-auth-divider__title">শিক্ষার্থীর তথ্য (যাচাইয়ের জন্য)</p>
               <p className="guardian-field-note">
                 রোল ও ক্লাস আবশ্যক। নাম ও মোবাইল জানা থাকলে দিন — বেশি তথ্য মিললে সাথে সাথেই অ্যাকাউন্ট সক্রিয় হবে, না মিললে/ফাঁকা রাখলে Admin অনুমোদনের পর সক্রিয় হবে।
               </p>
               <div className="guardian-stack-sm">
-                <Field label="ছাত্রের নাম">
+                <Field label="শিক্ষার্থীর নাম">
                   <Input value={studentName} onChange={(e) => setStudentName(e.target.value)} />
                 </Field>
                 <div className="guardian-form-row">
@@ -192,7 +192,7 @@ export function GuardianLogin() {
                   </Field>
                   )}
                 </div>
-                <Field label="ছাত্রের অভিভাবকের মোবাইল (ভর্তির সময় দেওয়া)">
+                <Field label="শিক্ষার্থীর অভিভাবকের মোবাইল (ভর্তির সময় দেওয়া)">
                   <Input value={guardianMobile} onChange={(e) => setGuardianMobile(e.target.value)} placeholder="01XXXXXXXXX" />
                 </Field>
               </div>

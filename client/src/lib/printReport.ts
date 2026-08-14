@@ -266,7 +266,7 @@ export function printAdmissionForm(student: Student, targetWindow?: Window | nul
 
   const docs = student.documents || {};
   const docRows: [string, string | number | null | undefined][] = [
-    ["ছাত্রের ছবি", docs.studentPhoto ? "সংযুক্ত" : ""],
+    ["শিক্ষার্থীর ছবি", docs.studentPhoto ? "সংযুক্ত" : ""],
     ["জন্ম সনদ", docs.birthCertificate ? "সংযুক্ত" : ""],
     ["অভিভাবকের NID", docs.guardianNid ? "সংযুক্ত" : ""],
     ["পূর্বের সনদ", docs.previousCertificate ? "সংযুক্ত" : ""],
@@ -278,7 +278,7 @@ export function printAdmissionForm(student: Student, targetWindow?: Window | nul
         ${section("ভর্তি তথ্য", topRows)}
       </div>
       <div class="photoBox">
-        ${student.studentPhoto ? `<img src="${escapeHtml(student.studentPhoto)}" alt="Student photo">` : `<div class="empty">ছাত্রের ছবি নেই</div>`}
+        ${student.studentPhoto ? `<img src="${escapeHtml(student.studentPhoto)}" alt="Student photo">` : `<div class="empty">শিক্ষার্থীর ছবি নেই</div>`}
         <div style="margin-top:10px;font-size:12px;font-weight:700;color:#0f172a;">${escapeHtml(student.name || "")}</div>
         <div style="margin-top:4px;font-size:11px;color:#64748b;">${escapeHtml(student.admissionNumber || "")}</div>
       </div>
@@ -289,7 +289,7 @@ export function printAdmissionForm(student: Student, targetWindow?: Window | nul
     ${section("ডকুমেন্ট", docRows)}
   `;
 
-  openPrintWindow(`ভর্তি ফরম - ${student.name || "ছাত্র"}`, body, targetWindow);
+  openPrintWindow(`ভর্তি ফরম - ${student.name || "শিক্ষার্থী"}`, body, targetWindow);
 }
 
 /**
@@ -316,7 +316,7 @@ export function printAdmissionSummary(student: Student) {
   ];
 
   printDetailSheet({
-    title: `সংক্ষিপ্ত তথ্য - ${student.name || "ছাত্র"}`,
+    title: `সংক্ষিপ্ত তথ্য - ${student.name || "শিক্ষার্থী"}`,
     rows,
   });
 }

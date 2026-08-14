@@ -227,7 +227,7 @@ export function Fees() {
         <StatCard label="এই তালিকার মোট আদায়" value={fmt(totalCollected)} icon="income" color={C.emerald} />
         <StatCard label="মোট বকেয়া" value={fmt(dueTotal)} icon="alertTriangle" color={C.rose} />
         <StatCard label="এই মাসে পেমেন্ট" value={`${payments.length} টি`} icon="checkCircle" color={C.teal} />
-        <StatCard label="বকেয়া ছাত্র" value={`${dueCount} জন`} icon="clipboard" color={C.amber} />
+        <StatCard label="বকেয়া শিক্ষার্থী" value={`${dueCount} জন`} icon="clipboard" color={C.amber} />
       </div>
 
 
@@ -316,7 +316,7 @@ export function Fees() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 600 }}>
             <thead>
               <tr style={{ background: C.slateL }}>
-                {["রসিদ নং", "ছাত্র", "পরিমাণ", "তারিখ", "মাধ্যম", "স্ট্যাটাস", ""].map((h) => (
+                {["রসিদ নং", "শিক্ষার্থী", "পরিমাণ", "তারিখ", "মাধ্যম", "স্ট্যাটাস", ""].map((h) => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: C.muted, fontWeight: 600, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                 ))}
               </tr>
@@ -363,7 +363,7 @@ export function Fees() {
               />
             ))}
             {!dueStudents.length && (
-              <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>কোনো বকেয়া ছাত্র নেই।</div>
+              <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>কোনো বকেয়া শিক্ষার্থী নেই।</div>
             )}
             {dueTotalPages > 1 && (
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, marginTop: 12 }}>
@@ -414,7 +414,7 @@ export function Fees() {
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 18 }}>বেতন গ্রহণ</h3>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 6 }}>ছাত্র নির্বাচন করুন</label>
+              <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 6 }}>শিক্ষার্থী নির্বাচন করুন</label>
               <StudentPicker value={payStudent} onSelect={(s) => setPayStudent(s)} />
             </div>
             <div style={{ background: C.slateL, borderRadius: 8, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: C.text }}>
@@ -444,7 +444,7 @@ export function Fees() {
 
       {tab === "collect" && !payStudent && (
         <div style={{ maxWidth: 480, background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 24, color: C.muted, fontSize: 13 }}>
-          কোনো সক্রিয় ছাত্র পাওয়া যায়নি।
+          কোনো সক্রিয় শিক্ষার্থী পাওয়া যায়নি।
         </div>
       )}
 

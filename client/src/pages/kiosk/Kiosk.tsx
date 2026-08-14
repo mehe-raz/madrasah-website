@@ -12,7 +12,7 @@
 //
 // An unmatched scan (fingerprint/card not linked to any student) is logged
 // with matched:false (server/src/routes/deviceAttendance.js's POST /punch,
-// 2026-08-12 fix) and shown here as "ছাত্র খুঁজে পাওয়া যায়নি" — same
+// 2026-08-12 fix) and shown here as "শিক্ষার্থী খুঁজে পাওয়া যায়নি" — same
 // idle/punch/hide cycle as a normal match.
 // ============================================================================
 
@@ -130,8 +130,8 @@ export function Kiosk() {
           ) : (
             <>
               <div className="kiosk__photo kiosk__photo--unmatched">?</div>
-              <p className="kiosk__name">ছাত্র খুঁজে পাওয়া যায়নি</p>
-              <p className="kiosk__meta">এই ফিঙ্গারপ্রিন্ট/কার্ড কোনো ছাত্রের সাথে যুক্ত নেই</p>
+              <p className="kiosk__name">শিক্ষার্থী খুঁজে পাওয়া যায়নি</p>
+              <p className="kiosk__meta">এই ফিঙ্গারপ্রিন্ট/কার্ড কোনো শিক্ষার্থীর সাথে যুক্ত নেই</p>
             </>
           )}
         </div>

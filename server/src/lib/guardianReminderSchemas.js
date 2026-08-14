@@ -40,7 +40,7 @@ const guardianReminderCreateSchema = z
     path: ["targetClass"],
   })
   .refine((d) => d.targetType !== "student" || d.targetStudentId, {
-    message: "ছাত্র নির্বাচন আবশ্যক",
+    message: "শিক্ষার্থী নির্বাচন আবশ্যক",
     path: ["targetStudentId"],
   })
   .refine((d) => d.scheduleType !== "specificDate" || d.scheduleDate, {
@@ -56,7 +56,7 @@ const guardianReminderCreateSchema = z
     path: ["scheduleTime"],
   })
   .refine((d) => d.targetType !== "selectedStudents" || (d.selectedStudentIds && d.selectedStudentIds.length > 0), {
-    message: "অন্তত একজন ছাত্র নির্বাচন আবশ্যক",
+    message: "অন্তত একজন শিক্ষার্থী নির্বাচন আবশ্যক",
     path: ["selectedStudentIds"],
   });
 

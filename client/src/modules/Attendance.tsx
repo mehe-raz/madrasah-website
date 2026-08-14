@@ -19,7 +19,7 @@ export function Attendance() {
   const [error, setError] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
-  // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 5 — manual "নির্বাচিত ছাত্র"
+  // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 5 — manual "নির্বাচিত শিক্ষার্থী"
   // reminder flow. No new endpoint: this reuses the existing
   // POST /api/guardian-reminders with targetType:"selectedStudents" +
   // scheduleType:"once", which the server already dispatches immediately

@@ -65,7 +65,7 @@ export function Results() {
 
   // Groups the flat savedResults list (all exams for this class, all mixed
   // together) into one card per (examName, year) — সাজানো ক্লাস → পরীক্ষা →
-  // ছাত্র navigation the results screen needs, instead of every student
+  // শিক্ষার্থী navigation the results screen needs, instead of every student
   // from every exam in one long list. Sorted newest year first, then by
   // exam name, so the most recent exam is the first card.
   const examGroups = Object.values(

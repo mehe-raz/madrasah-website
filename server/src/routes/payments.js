@@ -75,7 +75,7 @@ router.post("/", idempotent(async (req, res) => {
   // Admin/Admin reviews it via POST /:id/resolve-flag below.
   const { isConflict, newDue, status } = computePaymentOutcome(currentDue, payAmount);
   const flagReason = isConflict
-    ? `এই ছাত্রের বকেয়া ইতিমধ্যে ০, কিন্তু ৳${payAmount} এর আরেকটি পেমেন্ট এসেছে — সম্ভবত অফলাইনে দুইজন একই বেতন নিয়েছেন।`
+    ? `এই শিক্ষার্থীর বকেয়া ইতিমধ্যে ০, কিন্তু ৳${payAmount} এর আরেকটি পেমেন্ট এসেছে — সম্ভবত অফলাইনে দুইজন একই বেতন নিয়েছেন।`
     : null;
 
   // receipt is generated inside the transaction via an atomic

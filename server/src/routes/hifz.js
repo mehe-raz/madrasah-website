@@ -21,7 +21,7 @@ router.get("/", async (_req, res) => {
 router.patch("/:studentId/para", validate(hifzParaSchema), async (req, res) => {
   const { para } = req.body;
   const student = await db.get("SELECT * FROM students WHERE id = $1", [req.params.studentId]);
-  if (!student || student.dept !== "Hifz") return res.status(404).json({ error: "হিফজ ছাত্র পাওয়া যায়নি" });
+  if (!student || student.dept !== "Hifz") return res.status(404).json({ error: "হিফজ শিক্ষার্থী পাওয়া যায়নি" });
   const clampedPara = para;
   await db.run("UPDATE students SET para = $1 WHERE id = $2", [clampedPara, student.id]);
   await recordAudit({

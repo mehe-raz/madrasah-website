@@ -17,7 +17,7 @@ router.use(requirePermission("attendance"));
 // role === "Teacher".
 router.use(attachTeacherClasses);
 
-const OUT_OF_SCOPE_ERROR = "আপনার নির্ধারিত ক্লাসের বাইরের ছাত্রের উপস্থিতি সংরক্ষণ করা যাবে না";
+const OUT_OF_SCOPE_ERROR = "আপনার নির্ধারিত ক্লাসের বাইরের শিক্ষার্থীর উপস্থিতি সংরক্ষণ করা যাবে না";
 
 function today() {
   return new Date().toISOString().slice(0, 10);

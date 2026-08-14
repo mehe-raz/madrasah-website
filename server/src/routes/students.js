@@ -316,7 +316,7 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   const row = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);
-  if (!row) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
+  if (!row) return res.status(404).json({ error: "শিক্ষার্থী পাওয়া যায়নি" });
 
   const attendanceRows = await db.all('SELECT status FROM attendance WHERE "studentId" = $1', [req.params.id]);
   const attendanceSummary = {
@@ -373,7 +373,7 @@ router.post("/", idempotent(async (req, res) => {
 
 router.patch("/:id", async (req, res) => {
   const existing = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);
-  if (!existing) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
+  if (!existing) return res.status(404).json({ error: "শিক্ষার্থী পাওয়া যায়নি" });
   const updated = admissionFromBody(req.body, existing);
 
   const errors = validateAdmission(updated);
@@ -415,7 +415,7 @@ router.post("/:id/call-log", async (req, res) => {
     return res.status(400).json({ error: "মাস 'YYYY-MM' ফরম্যাটে দিতে হবে" });
   }
   const student = await db.get("SELECT id FROM students WHERE id = $1", [req.params.id]);
-  if (!student) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
+  if (!student) return res.status(404).json({ error: "শিক্ষার্থী পাওয়া যায়নি" });
 
   await db.run(
     `INSERT INTO student_call_log ("studentId", "callMonth", "calledBy", "calledAt")
@@ -458,7 +458,7 @@ router.patch("/:id/documents", async (req, res) => {
 
 router.delete("/:id", requirePermission("*"), async (req, res) => {
   const existing = await db.get("SELECT * FROM students WHERE id = $1", [req.params.id]);
-  if (!existing) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
+  if (!existing) return res.status(404).json({ error: "শিক্ষার্থী পাওয়া যায়নি" });
 
   await db.run('DELETE FROM attendance WHERE "studentId" = $1', [req.params.id]);
   await db.run("DELETE FROM students WHERE id = $1", [req.params.id]);
@@ -471,12 +471,12 @@ router.delete("/:id", requirePermission("*"), async (req, res) => {
     label: `Deleted ${existing.name} (Roll ${existing.roll})`,
   });
 
-  res.json({ ok: true, message: "ছাত্র মুছে ফেলা হয়েছে" });
+  res.json({ ok: true, message: "শিক্ষার্থী মুছে ফেলা হয়েছে" });
 });
 
 router.get("/:id/pdf", async (req, res) => {
   const student = await db.get("SELECT * FROM students WHERE id = $1", [req.params.id]);
-  if (!student) return res.status(404).json({ error: "ছাত্র পাওয়া যায়নি" });
+  if (!student) return res.status(404).json({ error: "শিক্ষার্থী পাওয়া যায়নি" });
 
   const attendanceRows = await db.all('SELECT status FROM attendance WHERE "studentId" = $1', [req.params.id]);
   const attendanceSummary = {
@@ -517,13 +517,13 @@ router.get("/:id/pdf", async (req, res) => {
       }
     }
 
-    doc.fontSize(24).fillColor("#333").text("মাদ্রাসা ছাত্র প্রোফাইল", { align: "center" });
-    doc.fontSize(12).fillColor("#666").text("ছাত্র তথ্য রিসিপ্ট", { align: "center" });
+    doc.fontSize(24).fillColor("#333").text("মাদ্রাসা শিক্ষার্থী প্রোফাইল", { align: "center" });
+    doc.fontSize(12).fillColor("#666").text("শিক্ষার্থী তথ্য রিসিপ্ট", { align: "center" });
     doc.moveDown();
     doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#333").lineWidth(3).stroke();
     doc.moveDown();
 
-    doc.fontSize(14).fillColor("#333").text("ছাত্রের তথ্য:");
+    doc.fontSize(14).fillColor("#333").text("শিক্ষার্থীর তথ্য:");
     doc.moveDown();
 
     const info = [
@@ -614,7 +614,7 @@ router.post("/:id/guardian-account", async (req, res) => {
   const mobile = (student.guardianMobile || "").trim();
   if (!mobile) {
     return res.status(400).json({
-      error: "এই ছাত্রের প্রোফাইলে অভিভাবকের মোবাইল নম্বর নেই — আগে সেটা যোগ করে সেভ করুন।",
+      error: "এই শিক্ষার্থীর প্রোফাইলে অভিভাবকের মোবাইল নম্বর নেই — আগে সেটা যোগ করে সেভ করুন।",
     });
   }
 
@@ -651,7 +651,7 @@ router.post("/:id/guardian-account", async (req, res) => {
   if (existingLink) {
     return res.status(409).json({
       error: existingLink.status === "active"
-        ? "এই ছাত্র ইতিমধ্যে এই অভিভাবক অ্যাকাউন্টের সাথে যুক্ত আছে।"
+        ? "এই শিক্ষার্থী ইতিমধ্যে এই অভিভাবক অ্যাকাউন্টের সাথে যুক্ত আছে।"
         : "এই সংযোগ অনুরোধটি ইতিমধ্যে বিদ্যমান।",
     });
   }
@@ -688,8 +688,8 @@ router.post("/:id/guardian-account", async (req, res) => {
     // new to show staff here beyond confirming the connection succeeded.
     password: generatedPassword,
     message: generatedPassword
-      ? "নতুন অভিভাবক অ্যাকাউন্ট তৈরি হয়েছে এবং ছাত্রের সাথে যুক্ত হয়েছে।"
-      : "বিদ্যমান অভিভাবক অ্যাকাউন্টের সাথে ছাত্রকে যুক্ত করা হয়েছে।",
+      ? "নতুন অভিভাবক অ্যাকাউন্ট তৈরি হয়েছে এবং শিক্ষার্থীর সাথে যুক্ত হয়েছে।"
+      : "বিদ্যমান অভিভাবক অ্যাকাউন্টের সাথে শিক্ষার্থীকে যুক্ত করা হয়েছে।",
   });
 });
 

@@ -253,13 +253,13 @@ async function listResults({ class: className, classes, examName, year } = {}) {
 async function upsertResult(input) {
   const studentId = Number(input && input.studentId);
   if (!studentId) {
-    const err = new Error("ছাত্র নির্বাচন আবশ্যক");
+    const err = new Error("শিক্ষার্থী নির্বাচন আবশ্যক");
     err.status = 400;
     throw err;
   }
   const student = await db.get("SELECT * FROM students WHERE id = $1", [studentId]);
   if (!student) {
-    const err = new Error("ছাত্র পাওয়া যায়নি");
+    const err = new Error("শিক্ষার্থী পাওয়া যায়নি");
     err.status = 404;
     throw err;
   }

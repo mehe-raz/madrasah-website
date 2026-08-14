@@ -83,7 +83,7 @@ export function ResultLookup() {
                   </div>
                   <div className="soft-panel" style={{ padding: 14 }}>
                     <div style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>ব্যবহার</div>
-                    <div style={{ fontSize: 18, fontWeight: 900 }}>ছাত্র ও অভিভাবক</div>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>শিক্ষার্থী ও অভিভাবক</div>
                   </div>
                 </div>
               </div>

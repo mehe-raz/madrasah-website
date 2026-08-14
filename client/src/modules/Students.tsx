@@ -597,7 +597,7 @@ export function Students() {
 
   const printHistory = () => {
     printReportTable({
-      title: `হাজিরা ইতিহাস - ${viewing?.name || "ছাত্র"}`,
+      title: `হাজিরা ইতিহাস - ${viewing?.name || "শিক্ষার্থী"}`,
       subtitle: `মোট ${attendanceSummary.total} দিন | উপস্থিত ${attendanceSummary.present} | অনুপস্থিত ${attendanceSummary.absent} | দেরিতে ${attendanceSummary.late}`,
       headers: ["তারিখ", "স্ট্যাটাস"],
       rows: attendanceHistory.map((row) => [row.date, row.status]),
@@ -1033,7 +1033,7 @@ export function Students() {
                 </div>
               </>
             ) : (
-              <p className="table-pagination__info mb-18">এই মোবাইল নম্বরে আগে থেকেই একটি অভিভাবক অ্যাকাউন্ট ছিল — সেটা এখন এই ছাত্রের সাথেও যুক্ত করা হয়েছে। পূর্বের পাসওয়ার্ড দিয়েই লগইন করবেন।</p>
+              <p className="table-pagination__info mb-18">এই মোবাইল নম্বরে আগে থেকেই একটি অভিভাবক অ্যাকাউন্ট ছিল — সেটা এখন এই শিক্ষার্থীর সাথেও যুক্ত করা হয়েছে। পূর্বের পাসওয়ার্ড দিয়েই লগইন করবেন।</p>
             )}
 
             <Button variant="outline" onClick={() => setGuardianAccountResult(null)}>{t.common.close}</Button>

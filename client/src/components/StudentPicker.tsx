@@ -103,7 +103,7 @@ export function StudentPicker({ value, onSelect, classFilter, placeholder }: Stu
               </button>
             ))
           ) : (
-            <div className="student-picker__hint">কোনো ছাত্র পাওয়া যায়নি</div>
+            <div className="student-picker__hint">কোনো শিক্ষার্থী পাওয়া যায়নি</div>
           )}
         </div>
       )}

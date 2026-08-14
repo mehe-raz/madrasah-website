@@ -641,7 +641,7 @@ router.post("/bkash/execute", async (req, res) => {
           date,
           receipt,
           status,
-          isConflict ? `এই ছাত্রের বকেয়া ইতিমধ্যে ০, কিন্তু গার্ডিয়ান পোর্টাল থেকে বিকাশে ৳${intent.amount} পেমেন্ট এসেছে।` : null,
+          isConflict ? `এই শিক্ষার্থীর বকেয়া ইতিমধ্যে ০, কিন্তু গার্ডিয়ান পোর্টাল থেকে বিকাশে ৳${intent.amount} পেমেন্ট এসেছে।` : null,
         ]
       );
       if (!isConflict) {

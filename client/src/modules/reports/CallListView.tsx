@@ -9,7 +9,7 @@ import { PopupBlockedError } from "../../lib/printReport";
 import type { Student } from "../../types";
 
 // Reports > "কল লিস্ট" ফিচার (docs/CALL_LIST_PLAN.md, Phase 2).
-// Full-page in-app view for the "ছাত্র তালিকা"/"বকেয়া তালিকা" report cards —
+// Full-page in-app view for the "শিক্ষার্থী তালিকা"/"বকেয়া তালিকা" report cards —
 // replaces the old behavior of those two cards (which used to go straight to
 // print/CSV). Print/CSV are still available, just moved onto this page (see
 // handleExport below, which reuses exportReport() as-is — no new export
@@ -32,7 +32,7 @@ function cleanPhone(phone: string): string {
 }
 
 const TITLES: Record<CallListKind, string> = {
-  students: "কল লিস্ট — ছাত্র তালিকা",
+  students: "কল লিস্ট — শিক্ষার্থী তালিকা",
   due: "কল লিস্ট — বকেয়া তালিকা",
   risk: "কল লিস্ট — রিস্ক জোন (২+ মাস বকেয়া)",
 };
@@ -224,7 +224,7 @@ export function CallListView() {
                 );
               })}
 
-              {students.length === 0 && <p className="page-subtitle">কোনো ছাত্র পাওয়া যায়নি।</p>}
+              {students.length === 0 && <p className="page-subtitle">কোনো শিক্ষার্থী পাওয়া যায়নি।</p>}
             </div>
           </Card>
         </>

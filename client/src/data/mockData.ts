@@ -26,7 +26,7 @@ export const PAYMENTS: Payment[] = [
 export const EXPENSES: Expense[] = [
   { id: 1, cat: "শিক্ষক বেতন", amount: 28000, date: "০১/০৬/২০২৫", note: "জুন মাসের বেতন" },
   { id: 2, cat: "বিদ্যুৎ বিল", amount: 3500, date: "০৫/০৬/২০২৫", note: "মে মাসের বিল" },
-  { id: 3, cat: "খাবার খরচ", amount: 8500, date: "০৭/০৬/২০২৫", note: "আবাসিক ছাত্র" },
+  { id: 3, cat: "খাবার খরচ", amount: 8500, date: "০৭/০৬/২০২৫", note: "আবাসিক শিক্ষার্থী" },
   { id: 4, cat: "রক্ষণাবেক্ষণ", amount: 1200, date: "১০/০৬/২০২৫", note: "পানির পাম্প মেরামত" },
   { id: 5, cat: "স্টেশনারি", amount: 800, date: "১২/০৬/২০২৫", note: "কলম, খাতা ইত্যাদি" },
 ];
@@ -81,7 +81,7 @@ export const MOCK_DASHBOARD: DashboardData = {
     { name: "নূরানী", value: 15 },
   ],
   logs: [
-    { id: 1, action: "নতুন ছাত্র যোগ করা হয়েছে", user: "Admin", time: "১০ মিনিট আগে", icon: "add" },
+    { id: 1, action: "নতুন শিক্ষার্থী যোগ করা হয়েছে", user: "Admin", time: "১০ মিনিট আগে", icon: "add" },
     { id: 2, action: "বেতন গ্রহণ: মুহাম্মদ আবদুল্লাহ — ২৫০০ টাকা", user: "Accountant", time: "৩০ মিনিট আগে", icon: "payment" },
     { id: 3, action: "হাজিরা আপডেট করা হয়েছে — জুন ০৭", user: "Teacher", time: "১ ঘণ্টা আগে", icon: "attendance" },
     { id: 4, action: "ব্যয় যোগ করা হয়েছে: বিদ্যুৎ বিল — ৩৫০০ টাকা", user: "Admin", time: "২ ঘণ্টা আগে", icon: "expense" },
@@ -99,7 +99,7 @@ export const PARA_NAMES = [
 
 export const NAV: { id: string; path: string; label: string; icon: IconKey }[] = [
   { id: "dashboard", path: "/", label: "ড্যাশবোর্ড", icon: "dashboard" },
-  { id: "students", path: "/students", label: "ছাত্র ব্যবস্থাপনা", icon: "students" },
+  { id: "students", path: "/students", label: "শিক্ষার্থী ব্যবস্থাপনা", icon: "students" },
   { id: "attendance", path: "/attendance", label: "হাজিরা", icon: "attendance" },
   { id: "fees", path: "/fees", label: "বেতন ও হিসাব", icon: "income" },
   { id: "expenses", path: "/expenses", label: "ব্যয় ব্যবস্থাপনা", icon: "expenses" },

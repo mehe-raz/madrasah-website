@@ -41,7 +41,7 @@ const resultSubjectSchema = z.object({
 });
 
 const resultSaveSchema = z.object({
-  studentId: z.coerce.number().int().positive("ছাত্র নির্বাচন আবশ্যক"),
+  studentId: z.coerce.number().int().positive("শিক্ষার্থী নির্বাচন আবশ্যক"),
   examName: z.string().trim().min(1, "পরীক্ষার নাম আবশ্যক").max(80),
   year: z.string().trim().min(1, "বছর আবশ্যক").max(4),
   subjects: z.array(resultSubjectSchema).max(20).optional().default([]),
@@ -68,7 +68,7 @@ const resultSubjectBatchSchema = z.object({
         marks: z.coerce.number(),
       })
     )
-    .min(1, "অন্তত একজন ছাত্রের নম্বর আবশ্যক")
+    .min(1, "অন্তত একজন শিক্ষার্থীর নম্বর আবশ্যক")
     .max(200),
 });
 

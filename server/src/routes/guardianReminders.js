@@ -51,14 +51,14 @@ router.post(
     }
     if (targetType === "student") {
       const row = await db.get("SELECT 1 FROM students WHERE id = $1", [targetStudentId]);
-      if (!row) return res.status(400).json({ error: "ছাত্র পাওয়া যায়নি" });
+      if (!row) return res.status(400).json({ error: "শিক্ষার্থী পাওয়া যায়নি" });
     }
     // docs/CONDITIONAL_REMINDERS_PLAN.md Phase 4 — same existence check
     // pattern as the 'student' branch above, but for every id in the array.
     if (targetType === "selectedStudents") {
       const rows = await db.all("SELECT id FROM students WHERE id = ANY($1)", [selectedStudentIds]);
       if (rows.length !== selectedStudentIds.length) {
-        return res.status(400).json({ error: "একটি বা একাধিক ছাত্র পাওয়া যায়নি" });
+        return res.status(400).json({ error: "একটি বা একাধিক শিক্ষার্থী পাওয়া যায়নি" });
       }
     }
 

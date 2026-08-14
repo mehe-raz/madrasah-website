@@ -282,7 +282,7 @@ const broadcastSchema = z
     path: ["targetClass"],
   })
   .refine((v) => v.targetType !== "students" || (v.studentIds && v.studentIds.length > 0), {
-    message: "অন্তত একজন ছাত্র নির্বাচন করুন",
+    message: "অন্তত একজন শিক্ষার্থী নির্বাচন করুন",
     path: ["studentIds"],
   });
 
@@ -361,7 +361,7 @@ router.post("/broadcast", validate(broadcastSchema), async (req, res) => {
     targetType === "class"
       ? ` (ক্লাস: ${targetClass})`
       : targetType === "students"
-        ? " (নির্বাচিত ছাত্র)"
+        ? " (নির্বাচিত শিক্ষার্থী)"
         : "";
   await recordAudit({
     action: "own-sms-gateway.broadcast-sent",

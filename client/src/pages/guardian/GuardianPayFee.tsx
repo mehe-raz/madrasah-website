@@ -16,7 +16,7 @@ export function GuardianPayFee() {
   const [error, setError] = useState("");
 
   if (!child) {
-    return <div className="soft-panel guardian-empty">ছাত্র পাওয়া যায়নি।</div>;
+    return <div className="soft-panel guardian-empty">শিক্ষার্থী পাওয়া যায়নি।</div>;
   }
 
   const startPayment = async () => {

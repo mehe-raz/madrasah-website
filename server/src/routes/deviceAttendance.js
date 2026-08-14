@@ -84,9 +84,9 @@ router.post("/punch", devicePunchLimiter, validate(devicePunchSchema), async (re
   if (!result.matched) {
     // Logged (studentId null, matched false, done inside recordDevicePunch)
     // instead of just returning the error, so the kiosk's latest-punch
-    // poll (Phase 4) has a row to find and can show "ছাত্র খুঁজে পাওয়া
+    // poll (Phase 4) has a row to find and can show "শিক্ষার্থী খুঁজে পাওয়া
     // যায়নি" for a real failed scan.
-    return res.status(404).json({ error: "ছাত্র খুঁজে পাওয়া যায়নি" });
+    return res.status(404).json({ error: "শিক্ষার্থী খুঁজে পাওয়া যায়নি" });
   }
 
   res.json({
