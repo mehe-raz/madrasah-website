@@ -192,104 +192,193 @@ export function printDetailSheet({ title, subtitle, rows }: PrintDetailOptions) 
   openPrintWindow(title, body);
 }
 
-function section(title: string, rows: [string, string | number | null | undefined][]) {
-  return `
-    <div class="section">
-      <div class="section-title">${escapeHtml(title)}</div>
-      <div class="grid">
-        ${rows
-          .map(
-            ([label, value]) => `
-              <div class="cell">
-                <div class="label">${escapeHtml(label)}</div>
-                <div class="value">${escapeHtml(value)}</div>
-              </div>
-            `
-          )
-          .join("")}
-      </div>
-    </div>
-  `;
+// ---------------------------------------------------------------------------
+// Admission Form — fixed reference-template print layout
+// ---------------------------------------------------------------------------
+//
+// This renders the official admission form on top of a static background
+// artwork (client/public/admission-form-template.jpg — a cleaned scan of the
+// institution's paper admission form: border, ornaments, section badges and
+// dotted fill-in lines, with the original madrasa's watermark seal removed).
+// Only the institution logo (from Settings → settings.logo) and the
+// student's matching data are drawn dynamically on top, using
+// absolutely-positioned, millimeter-accurate coordinates measured from the
+// source artwork at 300dpi (2437×3258px → 206.33mm×275.84mm), so the layout
+// stays pixel-accurate regardless of viewport/print scaling.
+//
+// Fields with no exact matching Student data source are intentionally left
+// blank rather than guessed (see docs/CURRENT_TASK.md admission-form task):
+// upazila is never silently mapped to "থানা", documents.guardianNid is a
+// file and never mapped to "জাতীয় পরিচয়পত্র নং", and presentAddress (a single
+// free-text field) is never split into house/ward/thana sub-fields.
+
+const ADMISSION_TEMPLATE_PAGE = { widthMm: 206.33, heightMm: 275.84 };
+
+/** cx/cy/diameter of the logo watermark zone (mm), centered like the original seal. */
+const ADMISSION_LOGO_ZONE = { cxMm: 92.71, cyMm: 130.81, diameterMm: 100 };
+
+interface AdmissionFieldPos {
+  /** y of the dashed fill-in line (mm from top) */
+  y: number;
+  /** x where the dash line starts, i.e. right after the label (mm from left) */
+  x: number;
+  /** x where the dash line ends (mm from left) — bounds the value's max width */
+  xEnd: number;
 }
 
+/** Millimeter coordinates for every fillable line on the reference form. */
+const ADMISSION_FIELD_POS: Record<string, AdmissionFieldPos> = {
+  // শিক্ষার্থীর ব্যক্তিগত তথ্যাবলী
+  studentName: { y: 123.53, x: 27.52, xEnd: 97.28 },
+  nickname: { y: 123.53, x: 122.94, xEnd: 198.88 }, // no source — stays blank
+  dateOfBirth: { y: 129.62, x: 21.93, xEnd: 96.86 },
+  citizenship: { y: 129.62, x: 111.17, xEnd: 198.88 }, // no source — stays blank
+  identifyingMark: { y: 135.72, x: 21.51, xEnd: 97.11 }, // no source — stays blank
+  bloodGroup: { y: 135.72, x: 122.68, xEnd: 198.54 },
+  fatherName: { y: 141.73, x: 25.57, xEnd: 97.28 },
+  motherName: { y: 141.73, x: 115.23, xEnd: 198.88 },
+  birthRegistration: { y: 147.83, x: 21.93, xEnd: 198.88 },
+  // স্থায়ী ঠিকানা (permanent address)
+  permVillage: { y: 166.45, x: 25.23, xEnd: 97.28 },
+  permHouseNo: { y: 172.55, x: 26.5, xEnd: 97.28 }, // no source — stays blank
+  permPost: { y: 178.65, x: 21.84, xEnd: 97.28 },
+  permWard: { y: 184.74, x: 28.11, xEnd: 97.28 }, // no source — stays blank
+  permThana: { y: 190.84, x: 22.1, xEnd: 97.28 }, // no source — stays blank (upazila ≠ থানা)
+  permDistrict: { y: 196.93, x: 25.06, xEnd: 97.11 },
+  permMobile: { y: 202.95, x: 27.6, xEnd: 97.03 }, // no source — stays blank
+  // বর্তমান ঠিকানা (present address) — presentAddress is a single free-text
+  // field with no structured sub-fields, so per the no-guessing rule every
+  // line here stays blank rather than splitting it.
+  presVillage: { y: 166.45, x: 112.52, xEnd: 198.88 },
+  presHouseNo: { y: 172.55, x: 116.76, xEnd: 197.61 },
+  presPost: { y: 178.65, x: 112.1, xEnd: 198.88 },
+  presWard: { y: 184.74, x: 119.04, xEnd: 198.8 },
+  presThana: { y: 190.84, x: 113.71, xEnd: 195.58 },
+  presDistrict: { y: 196.93, x: 115.32, xEnd: 198.88 },
+  presMobile: { y: 202.95, x: 119.46, xEnd: 198.88 },
+  // অভিভাবকের তথ্য ও ঠিকানা
+  guardianName: { y: 227.41, x: 27.09, xEnd: 97.28 },
+  fatherOrHusband: { y: 227.41, x: 118.96, xEnd: 198.88 }, // no source — stays blank
+  guardianProfession: { y: 233.43, x: 31.33, xEnd: 198.88 }, // no source — stays blank
+  guardianNidNumber: { y: 239.44, x: 52.49, xEnd: 97.28 }, // documents.guardianNid is a file, not a number — stays blank
+  guardianRelation: { y: 239.44, x: 128.69, xEnd: 198.88 },
+  guardianContactAddress: { y: 245.53, x: 50.8, xEnd: 198.88 }, // no source — stays blank
+  guardianMobile: { y: 251.8, x: 56.73, xEnd: 97.28 },
+  guardianPersonalMobile: { y: 251.8, x: 127.0, xEnd: 198.37 }, // no source — stays blank
+};
+
+function admissionField(key: keyof typeof ADMISSION_FIELD_POS, value: string | number | null | undefined): string {
+  const v = value === null || value === undefined ? "" : String(value);
+  if (!v) return "";
+  const pos = ADMISSION_FIELD_POS[key];
+  const maxWidth = pos.xEnd - pos.x;
+  return `<div class="af-field" style="top:${pos.y}mm;left:${pos.x}mm;max-width:${maxWidth}mm;">${escapeHtml(v)}</div>`;
+}
+
+const ADMISSION_FORM_STYLES = `
+  @page { margin: 0; size: ${ADMISSION_TEMPLATE_PAGE.widthMm}mm ${ADMISSION_TEMPLATE_PAGE.heightMm}mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif; }
+  .af-page {
+    position: relative;
+    width: ${ADMISSION_TEMPLATE_PAGE.widthMm}mm;
+    height: ${ADMISSION_TEMPLATE_PAGE.heightMm}mm;
+    overflow: hidden;
+    page-break-after: avoid;
+  }
+  .af-page .af-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+  .af-logo {
+    position: absolute;
+    left: ${ADMISSION_LOGO_ZONE.cxMm}mm;
+    top: ${ADMISSION_LOGO_ZONE.cyMm}mm;
+    width: ${ADMISSION_LOGO_ZONE.diameterMm}mm;
+    transform: translate(-50%, -50%);
+    opacity: 0.16;
+    object-fit: contain;
+    z-index: 1;
+  }
+  .af-field {
+    position: absolute;
+    font-size: 3mm;
+    line-height: 1;
+    color: #111111;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transform: translateY(calc(-100% - 0.2mm));
+    z-index: 2;
+  }
+  @media print {
+    html, body { width: ${ADMISSION_TEMPLATE_PAGE.widthMm}mm; }
+  }
+`;
+
+/**
+ * Prints the official Admission Form, matching the reference paper form's
+ * design pixel-for-pixel via the static background artwork above. The only
+ * dynamic visual elements are the institution's logo (from Settings) and the
+ * student's matching data; everything else — border, ornaments, section
+ * badges, dotted lines — comes from the template image itself.
+ */
 export function printAdmissionForm(student: Student, targetWindow?: Window | null) {
-  const topRows: [string, string | number | null | undefined][] = [
-    ["ভর্তি নং", student.admissionNumber || ""],
-    ["ভর্তির তারিখ", student.admissionDate || ""],
-    ["শিক্ষাবর্ষ", student.academicYear || ""],
-    ["সেশন", student.session || ""],
-    ["ক্লাস / জামাত", student.class || ""],
-    ["শাখা", student.section || ""],
-    ["রোল", student.roll || ""],
-    ["ধরন", student.type || ""],
-    ["নাম (বাংলা)", student.name || ""],
-    ["নাম (ইংরেজি)", student.nameEn || ""],
-    ["জন্ম তারিখ", student.dateOfBirth || ""],
-    ["জন্ম নিবন্ধন নম্বর", student.birthRegistrationNumber || "ঐচ্ছিক"],
-    ["লিঙ্গ", student.gender || ""],
-    ["ধর্ম", student.religion || ""],
-    ["রক্তের গ্রুপ", student.blood || ""],
-  ];
+  const settings = madrasaSettings();
 
-  const guardianRows: [string, string | number | null | undefined][] = [
-    ["পিতার নাম", student.fatherName || ""],
-    ["পিতার মোবাইল", student.fatherMobile || ""],
-    ["পিতার পেশা", student.fatherOccupation || ""],
-    ["মাতার নাম", student.motherName || ""],
-    ["মাতার মোবাইল", student.motherMobile || ""],
-    ["মাতার পেশা", student.motherOccupation || ""],
-    ["অভিভাবকের নাম", student.guardianName || ""],
-    ["সম্পর্ক", student.guardianRelationship || ""],
-    ["অভিভাবকের মোবাইল", student.guardianMobile || ""],
-  ];
+  // Student model -> admission-form field mapping (kept separate from the
+  // visual template so the two can evolve independently). Fields with no
+  // exact matching source are left as "" per the strict no-guessing rule.
+  const formData = {
+    studentName: student.name || "",
+    dateOfBirth: student.dateOfBirth || "",
+    identifyingMark: "",
+    fatherName: student.fatherName || "",
+    birthRegistration: student.birthRegistrationNumber || "",
+    nickname: "",
+    citizenship: "",
+    bloodGroup: student.blood || "",
+    motherName: student.motherName || "",
 
-  const addressRows: [string, string | number | null | undefined][] = [
-    ["বর্তমান ঠিকানা", student.presentAddress || ""],
-    ["স্থায়ী ঠিকানা", student.permanentAddress || ""],
-    ["জেলা", student.district || ""],
-    ["উপজেলা", student.upazila || ""],
-    ["ডাকঘর", student.postOffice || ""],
-    ["গ্রাম", student.village || ""],
-  ];
+    permVillage: student.village || "",
+    permHouseNo: "",
+    permPost: student.postOffice || "",
+    permWard: "",
+    permThana: "",
+    permDistrict: student.district || "",
+    permMobile: "",
 
-  const studyRows: [string, string | number | null | undefined][] = [
-    ["পূর্বের প্রতিষ্ঠান", student.previousInstitution || ""],
-    ["পূর্বের ক্লাস", student.previousClass || ""],
-    ["বিভাগ", student.dept || ""],
-    ["মুখস্থ কুরআন (পারা)", student.para ?? ""],
-    ["ভর্তি ফি", student.admissionFee ?? 0],
-    ["মাসিক বেতন", student.fee ?? 0],
-    ["ছাড়", student.discount ?? 0],
-    ["বকেয়া", student.due ?? 0],
-    ["অবস্থা", student.status || ""],
-  ];
+    presVillage: "",
+    presHouseNo: "",
+    presPost: "",
+    presWard: "",
+    presThana: "",
+    presDistrict: "",
+    presMobile: "",
 
-  const docs = student.documents || {};
-  const docRows: [string, string | number | null | undefined][] = [
-    ["শিক্ষার্থীর ছবি", docs.studentPhoto ? "সংযুক্ত" : ""],
-    ["জন্ম সনদ", docs.birthCertificate ? "সংযুক্ত" : ""],
-    ["অভিভাবকের NID", docs.guardianNid ? "সংযুক্ত" : ""],
-    ["পূর্বের সনদ", docs.previousCertificate ? "সংযুক্ত" : ""],
-  ];
+    guardianName: student.guardianName || "",
+    fatherOrHusband: "",
+    guardianProfession: "",
+    guardianNidNumber: "",
+    guardianRelation: student.guardianRelationship || "",
+    guardianContactAddress: "",
+    guardianMobile: student.guardianMobile || "",
+    guardianPersonalMobile: "",
+  } as const;
+
+  const templateUrl = `${window.location.origin}/admission-form-template.jpg`;
+  const fieldsHtml = (Object.keys(formData) as (keyof typeof formData)[])
+    .map((key) => admissionField(key, formData[key]))
+    .join("");
+  const logoHtml = settings.logo ? `<img class="af-logo" src="${escapeHtml(settings.logo)}" alt="">` : "";
 
   const body = `
-    <div class="top">
-      <div>
-        ${section("ভর্তি তথ্য", topRows)}
-      </div>
-      <div class="photoBox">
-        ${student.studentPhoto ? `<img src="${escapeHtml(student.studentPhoto)}" alt="Student photo">` : `<div class="empty">শিক্ষার্থীর ছবি নেই</div>`}
-        <div style="margin-top:10px;font-size:12px;font-weight:700;color:#0f172a;">${escapeHtml(student.name || "")}</div>
-        <div style="margin-top:4px;font-size:11px;color:#64748b;">${escapeHtml(student.admissionNumber || "")}</div>
-      </div>
+    <div class="af-page">
+      <img class="af-bg" src="${templateUrl}" alt="">
+      ${logoHtml}
+      ${fieldsHtml}
     </div>
-    ${section("অভিভাবক তথ্য", guardianRows)}
-    ${section("ঠিকানা", addressRows)}
-    ${section("শিক্ষা ও ফি", studyRows)}
-    ${section("ডকুমেন্ট", docRows)}
   `;
 
-  openPrintWindow(`ভর্তি ফরম - ${student.name || "শিক্ষার্থী"}`, body, targetWindow);
+  openRawPrintWindow(`ভর্তি ফরম - ${student.name || "শিক্ষার্থী"}`, ADMISSION_FORM_STYLES, body, targetWindow);
 }
 
 /**

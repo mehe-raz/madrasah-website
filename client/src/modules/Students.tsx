@@ -414,10 +414,11 @@ export function Students() {
         setViewing(result.data);
         setShowForm(false);
         setStep(0);
-        // Auto-generate the student's ID card the moment the account is
-        // created — same popup opened synchronously above (before the
-        // await), so the browser doesn't treat it as a blocked popup.
-        if (printWindow) printStudentIdCard(result.data, printWindow);
+        // New admission: print the official Admission Form the moment the
+        // account is created — same popup opened synchronously above
+        // (before the await), so the browser doesn't treat it as a blocked
+        // popup.
+        if (printWindow) printAdmissionForm(result.data, printWindow);
       }
     } catch (err) {
       if (printWindow && !printWindow.closed) printWindow.close();
