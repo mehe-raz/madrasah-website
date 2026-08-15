@@ -96,10 +96,23 @@ export function addClassTreeNode(
 }
 
 /** `path` is the full list of `en` slugs from root down to (and including)
- * the node being removed. */
+ * the node being removed. Deleting a node does NOT take its descendants
+ * with it — its direct children are spliced into its own former position
+ * instead, so e.g. removing a বিভাগ promotes its নেসাব/ক্লাস children to
+ * new top-level বিভাগ entries, and removing a নেসাব promotes its ক্লাস
+ * children to sit directly under its বিভাগ — nothing under the deleted
+ * node is ever lost, only its own single entry goes away. A leaf (no
+ * children) simply disappears, same as before. Any student already on one
+ * of the promoted descendants stays linked exactly as before (`en` values
+ * are untouched by a move) — only where it sits in the tree changes. */
 export function removeClassTreeNode(tree: ClassTreeNode[], path: string[]): ClassTreeNode[] {
   const [head, ...rest] = path;
-  if (rest.length === 0) return tree.filter((node) => node.en !== head);
+  if (rest.length === 0) {
+    const index = tree.findIndex((node) => node.en === head);
+    if (index === -1) return tree;
+    const promoted = tree[index].children || [];
+    return [...tree.slice(0, index), ...promoted, ...tree.slice(index + 1)];
+  }
   return tree.map((node) =>
     node.en === head ? { ...node, children: removeClassTreeNode(node.children, rest) } : node
   );

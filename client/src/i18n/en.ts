@@ -148,7 +148,9 @@ export const en = {
     classTreeParentLabel: "Will be added under",
     classTreeNodeAdded: "New entry added",
     classTreeNodeDeleted: "Entry deleted",
-    classTreeDeleteConfirm: "This entry (and everything under it) will be removed — any student already set to this entry keeps their existing text but it can no longer be re-selected. Continue?",
+    classTreeDeleteConfirm: "This entry will be removed — any student already set to this entry keeps their existing text but it can no longer be re-selected. Continue?",
+    classTreeDeletePromoteConfirm:
+      "This entry will be removed, but the entries under it will NOT be deleted — they'll move up to take its place (become direct children of its parent). Students already set to this entry or anything under it are unaffected. Continue?",
     classTreeEdit: "Edit",
     classTreeEditingLabel: "Editing",
     classTreeEditSave: "Save",

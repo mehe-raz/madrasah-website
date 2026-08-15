@@ -94,7 +94,7 @@ function ClassTreeRow({
   deleteLabel: string;
   onAddChild: (path: string[]) => void;
   onEdit: (path: string[], node: ClassTreeNode) => void;
-  onDelete: (path: string[]) => void;
+  onDelete: (path: string[], node: ClassTreeNode) => void;
 }) {
   return (
     <div className={`class-tree-row class-tree-row--depth-${Math.min(depth, 3)}`}>
@@ -109,7 +109,7 @@ function ClassTreeRow({
         <button type="button" onClick={() => onEdit(path, node)} className="btn-xs">
           {editLabel}
         </button>
-        <button type="button" onClick={() => onDelete(path)} className="btn-xs btn-xs--delete">
+        <button type="button" onClick={() => onDelete(path, node)} className="btn-xs btn-xs--delete">
           {deleteLabel}
         </button>
       </div>
@@ -704,9 +704,12 @@ export function Settings() {
     }
   };
 
-  const handleDeleteClassTreeNode = async (path: string[]) => {
+  const handleDeleteClassTreeNode = async (path: string[], node: ClassTreeNode) => {
     if (!isSuperAdmin) return;
-    if (!confirm(t.settings.classTreeDeleteConfirm)) return;
+    const confirmMsg = node.children.length
+      ? t.settings.classTreeDeletePromoteConfirm
+      : t.settings.classTreeDeleteConfirm;
+    if (!confirm(confirmMsg)) return;
     try {
       const next = removeClassTreeNode(classTree, path);
       await saveClassTree(next);
