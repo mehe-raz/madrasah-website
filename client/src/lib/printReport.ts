@@ -216,21 +216,25 @@ const ADMISSION_BORDER_MM = 12;
 const ADMISSION_FRAME_GAP_MM = 4;
 
 /** One repeating pointed-arch + diamond-flower motif, tiled along every edge. */
+/** One repeating flower-in-square medallion motif, chained edge-to-edge along every side (matching corner artwork). */
 const ADMISSION_BORDER_DEFS = `
   <pattern id="afArch" width="14" height="14" patternUnits="userSpaceOnUse">
     <rect width="14" height="14" fill="#1d6b41"/>
-    <rect x="0" y="0.2" width="14" height="0.45" fill="#0c2f1c"/>
-    <rect x="0" y="13.35" width="14" height="0.45" fill="#0c2f1c"/>
-    <path d="M0,11.5 C1.5,11.5 2,9 3.2,7.5 C4.6,5.7 5.8,5 7,2.6 C8.2,5 9.4,5.7 10.8,7.5 C12,9 12.5,11.5 14,11.5" stroke="#ffffff" stroke-width="0.5" fill="none"/>
-    <path d="M1.4,11.2 C2.2,10 2.6,9 2.4,7.8" stroke="#ffffff" stroke-width="0.3" fill="none"/>
-    <path d="M12.6,11.2 C11.8,10 11.4,9 11.6,7.8" stroke="#ffffff" stroke-width="0.3" fill="none"/>
-    <g transform="translate(7,4.2)">
-      <path d="M0,-1.5 C0.6,-0.9 0.6,0.9 0,1.5 C-0.6,0.9 -0.6,-0.9 0,-1.5 Z" fill="#ffffff"/>
-      <path d="M-1.5,0 C-0.9,-0.6 0.9,-0.6 1.5,0 C0.9,0.6 -0.9,0.6 -1.5,0 Z" fill="#ffffff"/>
-      <circle r="0.55" fill="#1d6b41"/>
+    <rect width="14" height="14" fill="none" stroke="#0c2f1c" stroke-width="0.45"/>
+    <rect x="1.3" y="1.3" width="11.4" height="11.4" fill="none" stroke="#ffffff" stroke-width="0.35"/>
+    <path d="M1.3,4.3 C2.6,4.3 2.6,1.3 4.3,1.3" stroke="#ffffff" stroke-width="0.35" fill="none"/>
+    <path d="M9.7,1.3 C11.4,1.3 11.4,4.3 12.7,4.3" stroke="#ffffff" stroke-width="0.35" fill="none"/>
+    <path d="M1.3,9.7 C2.6,9.7 2.6,12.7 4.3,12.7" stroke="#ffffff" stroke-width="0.35" fill="none"/>
+    <path d="M12.7,9.7 C11.4,9.7 11.4,12.7 9.7,12.7" stroke="#ffffff" stroke-width="0.35" fill="none"/>
+    <g transform="translate(7,7)">
+      <path d="M0,-2.6 C1,-1.5 1,1.5 0,2.6 C-1,1.5 -1,-1.5 0,-2.6 Z" fill="#ffffff"/>
+      <path d="M-2.6,0 C-1.5,-1 1.5,-1 2.6,0 C1.5,1 -1.5,1 -2.6,0 Z" fill="#ffffff"/>
+      <circle r="0.9" fill="#1d6b41"/>
+      <circle r="0.9" fill="none" stroke="#ffffff" stroke-width="0.22"/>
     </g>
   </pattern>
 `;
+
 
 /** Small flower-in-square medallion used at all four page corners. */
 const ADMISSION_CORNER_SVG = `
