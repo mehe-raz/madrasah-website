@@ -755,75 +755,74 @@ export function printStudentIdCard(student: IdCardOptions, targetWindow?: Window
 // as coded markup, same "print the browser's own HTML" approach as the
 // rest of this file (see file-top comment re: Bengali text shaping).
 //
-// Two cards per A4 page (exactly, via a fixed-height flex page — see
-// ADMIT_CARD_STYLES .ac-page/.ac-card), one page per pair of students, so
-// generating a whole class's admit cards in one click prints/PDFs cleanly
-// without manual cutting guesswork.
+// Two cards per A4 page, sized/spaced to match the reference admit-card
+// template's own proportions (measured from the uploaded PDF: card fills
+// ~edge-to-edge width, height ≈61% of width, small ~6mm gap between the
+// two cards, both sitting near the top of the page with the remainder left
+// blank below — not stretched to fill the full page). See ADMIT_CARD_STYLES
+// .ac-page/.ac-card.
 // ----------------------------------------------------------------------
 
 const ADMIT_CARD_STYLES = `
-  @page { size: A4; margin: 10mm; }
+  @page { size: A4; margin: 8mm 10mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
     color: #0f172a;
   }
   .ac-page {
-    height: 277mm;
     display: flex;
     flex-direction: column;
-    gap: 8mm;
+    gap: 7mm;
     page-break-after: always;
   }
   .ac-page:last-child { page-break-after: auto; }
   .ac-card {
-    flex: 1 1 0;
-    position: relative;
-    border: 2.6px solid #0f172a;
-    border-radius: 16px;
-    padding: 6mm 9mm 5mm;
-    background: #fffdf8;
-    overflow: hidden;
+    height: 116mm;
+    flex: 0 0 auto;
+    border: 1.6px solid #000;
+    border-radius: 14px;
+    padding: 2.6mm;
+    background: #fffff3;
+  }
+  .ac-card__inner {
+    height: 100%;
+    border: 1.8px dashed #000;
+    border-radius: 11px;
+    padding: 5mm 8mm 4mm;
     display: flex;
     flex-direction: column;
     justify-content: center;
   }
-  .ac-card::before, .ac-card::after {
-    content: ""; position: absolute; left: 9mm; right: 9mm; height: 2.6mm;
-    background-image: repeating-linear-gradient(135deg, #0f172a 0 2.2mm, transparent 2.2mm 4.4mm);
-    opacity: .85;
-  }
-  .ac-card::before { top: 2.4mm; }
-  .ac-card::after { bottom: 2.4mm; }
   .ac-head { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; }
   .ac-head img { height: 15mm; width: 15mm; object-fit: contain; flex-shrink: 0; }
-  .ac-head h1 { font-size: 15.5px; color: #0f5132; font-weight: 800; }
+  .ac-head h1 { font-size: 16px; color: #00563f; font-weight: 800; }
   .ac-head .addr { font-size: 9.5px; color: #334155; margin-top: 1.5px; }
-  .ac-rule { border-top: 1.4px dashed #b91c1c; margin: 5px 0 7px; position: relative; }
+  .ac-rule { border-top: 1.4px dashed #8b0000; margin: 5px 0 8px; position: relative; }
   .ac-rule::after {
     content: "◇"; position: absolute; left: 50%; top: -8px; transform: translateX(-50%);
-    background: #fffdf8; padding: 0 6px; color: #b91c1c; font-size: 11px;
+    background: #fffff3; padding: 0 6px; color: #8b0000; font-size: 11px;
   }
-  .ac-titleWrap { text-align: center; margin-bottom: 6px; }
+  .ac-titleWrap { text-align: center; margin-bottom: 7px; }
   .ac-title {
-    display: inline-block; border: 1.6px solid #0f172a; border-radius: 6px;
-    padding: 2px 22px; font-weight: 800; font-size: 14px; background: #eef2ff;
+    display: inline-block; border-radius: 4px; background: #203864; color: #fff;
+    padding: 3px 26px; font-weight: 800; font-size: 17px; text-decoration: underline;
   }
-  .ac-exam { text-align: center; font-weight: 700; font-size: 11.5px; margin-bottom: 9px; }
-  .ac-idrow { display: flex; gap: 10px; margin-bottom: 9px; }
-  .ac-idbox { flex: 1; border: 1.3px solid #0f172a; border-radius: 5px; padding: 3px 8px; font-size: 11px; font-weight: 700; }
+  .ac-exam { text-align: center; font-weight: 700; font-size: 12px; margin-bottom: 9px; }
+  .ac-idrow { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .ac-idbox { flex: 0 0 42%; border: 1.6px solid #203864; border-radius: 4px; padding: 3px 8px; font-size: 11.5px; font-weight: 700; background: #fff; }
   .ac-idbox b { font-weight: 800; margin-left: 3px; }
   .ac-line {
-    display: flex; align-items: baseline; gap: 4px; font-size: 11.5px; font-weight: 700;
-    margin: 5px 0; border-bottom: .8px solid #94a3b8; padding-bottom: 2px;
+    display: flex; align-items: baseline; gap: 4px; font-size: 12px; font-weight: 700;
+    margin: 6px 0; border-bottom: .8px solid #94a3b8; padding-bottom: 2px;
   }
   .ac-lab { flex-shrink: 0; }
   .ac-colon { flex-shrink: 0; }
   .ac-val { flex: 1; font-weight: 700; }
   .ac-line--split { justify-content: space-between; }
-  .ac-examdate { font-size: 10px; font-weight: 700; text-decoration: underline; white-space: nowrap; margin-left: 10px; }
+  .ac-examdate { font-size: 10.5px; font-weight: 700; text-decoration: underline; white-space: nowrap; margin-left: 10px; }
   .ac-sigrow { display: flex; justify-content: space-between; margin-top: 18px; padding-top: 6px; }
-  .ac-sig { text-align: center; font-size: 10px; font-weight: 700; border-top: 1px solid #0f172a; padding-top: 3px; min-width: 38mm; }
+  .ac-sig { text-align: center; font-size: 10.5px; font-weight: 700; border-top: 1px solid #000; padding-top: 3px; min-width: 38mm; }
 `;
 
 export interface AdmitCardStudentInput {
@@ -850,7 +849,7 @@ export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | 
   const settings = madrasaSettings();
 
   const cardHtml = (s: AdmitCardStudentInput) => `
-    <div class="ac-card">
+    <div class="ac-card"><div class="ac-card__inner">
       <div class="ac-head">
         ${settings.logo ? `<img src="${escapeHtml(settings.logo)}" alt="">` : ""}
         <div>
@@ -879,7 +878,7 @@ export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | 
         <div class="ac-sig">মুহতামিমের দস্তখত</div>
         <div class="ac-sig">নাজিমে ইমতিহানের দস্তখত</div>
       </div>
-    </div>
+    </div></div>
   `;
 
   const pages: string[] = [];
