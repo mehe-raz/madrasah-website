@@ -212,33 +212,27 @@ export function printDetailSheet({ title, subtitle, rows }: PrintDetailOptions) 
 // free-text field) is never split into house/ward/thana sub-fields.
 
 const ADMISSION_PAGE = { widthMm: 210, heightMm: 297 };
-const ADMISSION_BORDER_MM = 12;
 const ADMISSION_FRAME_GAP_MM = 4;
 
-/** One repeating pointed-arch + diamond-flower motif, tiled along every edge. */
-/** One repeating flower-in-square medallion motif, chained edge-to-edge along every side (matching corner artwork). */
-const ADMISSION_BORDER_DEFS = `
-  <pattern id="afArch" width="14" height="14" patternUnits="userSpaceOnUse">
-    <rect width="14" height="14" fill="#1d6b41"/>
-    <rect width="14" height="14" fill="none" stroke="#0c2f1c" stroke-width="0.45"/>
-    <rect x="1.3" y="1.3" width="11.4" height="11.4" fill="none" stroke="#ffffff" stroke-width="0.35"/>
-    <path d="M1.3,4.3 C2.6,4.3 2.6,1.3 4.3,1.3" stroke="#ffffff" stroke-width="0.35" fill="none"/>
-    <path d="M9.7,1.3 C11.4,1.3 11.4,4.3 12.7,4.3" stroke="#ffffff" stroke-width="0.35" fill="none"/>
-    <path d="M1.3,9.7 C2.6,9.7 2.6,12.7 4.3,12.7" stroke="#ffffff" stroke-width="0.35" fill="none"/>
-    <path d="M12.7,9.7 C11.4,9.7 11.4,12.7 9.7,12.7" stroke="#ffffff" stroke-width="0.35" fill="none"/>
-    <g transform="translate(7,7)">
-      <path d="M0,-2.6 C1,-1.5 1,1.5 0,2.6 C-1,1.5 -1,-1.5 0,-2.6 Z" fill="#ffffff"/>
-      <path d="M-2.6,0 C-1.5,-1 1.5,-1 2.6,0 C1.5,1 -1.5,1 -2.6,0 Z" fill="#ffffff"/>
-      <circle r="0.9" fill="#1d6b41"/>
-      <circle r="0.9" fill="none" stroke="#ffffff" stroke-width="0.22"/>
-    </g>
-  </pattern>
-`;
+// Border is a chain of small square medallions tiled edge-to-edge (not a
+// repeating SVG <pattern> fill) — Chromium's print/PDF pipeline rasterizes
+// <pattern> tiles at a low, screen-resolution snapshot and stretches that
+// raster to fill the shape, which prints/exports blurry even though it
+// looks crisp in a live browser tab. Discrete elements are each rendered
+// as real vector output, so they stay sharp in print and PDF export.
+//
+// Box count per edge is computed (not fixed) so the tiles always divide
+// the edge length exactly — no half-box ever gets cut off at a corner.
+const ADMISSION_BOX_TARGET_MM = 10;
+const ADMISSION_BOX_COUNT_H = Math.round(ADMISSION_PAGE.widthMm / ADMISSION_BOX_TARGET_MM);
+const ADMISSION_BOX_SIZE_H_MM = ADMISSION_PAGE.widthMm / ADMISSION_BOX_COUNT_H;
+const ADMISSION_AVAIL_V_MM = ADMISSION_PAGE.heightMm - ADMISSION_BOX_SIZE_H_MM * 2;
+const ADMISSION_BOX_COUNT_V = Math.round(ADMISSION_AVAIL_V_MM / ADMISSION_BOX_TARGET_MM);
+const ADMISSION_BOX_SIZE_V_MM = ADMISSION_AVAIL_V_MM / ADMISSION_BOX_COUNT_V;
 
-
-/** Small flower-in-square medallion used at all four page corners. */
-const ADMISSION_CORNER_SVG = `
-  <svg class="af-corner-art" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+/** Small flower-in-square medallion, tiled all the way around the page border. */
+const ADMISSION_BOX_SVG = `
+  <svg viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
     <rect width="14" height="14" fill="#1d6b41"/>
     <rect width="14" height="14" fill="none" stroke="#0c2f1c" stroke-width="0.45"/>
     <rect x="1.3" y="1.3" width="11.4" height="11.4" fill="none" stroke="#ffffff" stroke-width="0.35"/>
@@ -255,8 +249,10 @@ const ADMISSION_CORNER_SVG = `
   </svg>
 `;
 
-function afBorderStrip(edge: "top" | "bottom" | "left" | "right"): string {
-  return `<svg class="af-border af-border-${edge}" viewBox="0 0 200 14" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs>${ADMISSION_BORDER_DEFS}</defs><rect width="200" height="14" fill="url(#afArch)"/></svg>`;
+function afEdge(edge: "top" | "bottom" | "left" | "right"): string {
+  const count = edge === "left" || edge === "right" ? ADMISSION_BOX_COUNT_V : ADMISSION_BOX_COUNT_H;
+  const boxes = `<div class="af-box">${ADMISSION_BOX_SVG}</div>`.repeat(count);
+  return `<div class="af-edge af-edge-${edge}">${boxes}</div>`;
 }
 
 const ADMISSION_FORM_STYLES = `
@@ -272,26 +268,25 @@ const ADMISSION_FORM_STYLES = `
     overflow: hidden;
     page-break-after: avoid;
   }
-  .af-border { position: absolute; display: block; }
-  .af-border-top, .af-border-bottom { left: ${ADMISSION_BORDER_MM}mm; width: calc(100% - ${ADMISSION_BORDER_MM * 2}mm); height: ${ADMISSION_BORDER_MM}mm; }
-  .af-border-top { top: 0; }
-  .af-border-bottom { bottom: 0; }
-  .af-border-left, .af-border-right { top: ${ADMISSION_BORDER_MM}mm; width: calc(100% - ${ADMISSION_BORDER_MM * 2}mm); height: ${ADMISSION_BORDER_MM}mm; left: 0; }
-  .af-border-left { transform-origin: top left; transform: rotate(90deg) translateY(-100%); }
-  .af-border-right { left: auto; right: 0; transform-origin: top right; transform: rotate(-90deg) translateY(-100%); }
-  .af-corner { position: absolute; width: ${ADMISSION_BORDER_MM}mm; height: ${ADMISSION_BORDER_MM}mm; }
-  .af-corner-art { width: 100%; height: 100%; display: block; }
-  .af-corner-tl { top: 0; left: 0; }
-  .af-corner-tr { top: 0; right: 0; }
-  .af-corner-bl { bottom: 0; left: 0; }
-  .af-corner-br { bottom: 0; right: 0; }
+  .af-edge { position: absolute; display: flex; }
+  .af-edge-top, .af-edge-bottom { left: 0; width: 100%; height: ${ADMISSION_BOX_SIZE_H_MM}mm; flex-direction: row; }
+  .af-edge-top { top: 0; }
+  .af-edge-bottom { bottom: 0; }
+  .af-edge-left, .af-edge-right {
+    top: ${ADMISSION_BOX_SIZE_H_MM}mm; bottom: ${ADMISSION_BOX_SIZE_H_MM}mm;
+    width: ${ADMISSION_BOX_SIZE_V_MM}mm; flex-direction: column;
+  }
+  .af-edge-left { left: 0; }
+  .af-edge-right { right: 0; }
+  .af-box { flex: 1 1 0; min-width: 0; min-height: 0; }
+  .af-box svg { width: 100%; height: 100%; display: block; }
 
   .af-content {
     position: absolute;
-    top: ${ADMISSION_BORDER_MM + ADMISSION_FRAME_GAP_MM}mm;
-    left: ${ADMISSION_BORDER_MM + ADMISSION_FRAME_GAP_MM}mm;
-    right: ${ADMISSION_BORDER_MM + ADMISSION_FRAME_GAP_MM}mm;
-    bottom: ${ADMISSION_BORDER_MM + ADMISSION_FRAME_GAP_MM}mm;
+    top: ${ADMISSION_BOX_SIZE_H_MM + ADMISSION_FRAME_GAP_MM}mm;
+    left: ${ADMISSION_BOX_SIZE_H_MM + ADMISSION_FRAME_GAP_MM}mm;
+    right: ${ADMISSION_BOX_SIZE_H_MM + ADMISSION_FRAME_GAP_MM}mm;
+    bottom: ${ADMISSION_BOX_SIZE_H_MM + ADMISSION_FRAME_GAP_MM}mm;
     border: 0.6mm solid #1d6b41;
     outline: 0.25mm solid #1d6b41;
     outline-offset: 1mm;
@@ -390,14 +385,10 @@ export function printAdmissionForm(student: Student, targetWindow?: Window | nul
 
   const body = `
     <div class="af-page">
-      ${afBorderStrip("top")}
-      ${afBorderStrip("bottom")}
-      ${afBorderStrip("left")}
-      ${afBorderStrip("right")}
-      <div class="af-corner af-corner-tl">${ADMISSION_CORNER_SVG}</div>
-      <div class="af-corner af-corner-tr">${ADMISSION_CORNER_SVG}</div>
-      <div class="af-corner af-corner-bl">${ADMISSION_CORNER_SVG}</div>
-      <div class="af-corner af-corner-br">${ADMISSION_CORNER_SVG}</div>
+      ${afEdge("top")}
+      ${afEdge("bottom")}
+      ${afEdge("left")}
+      ${afEdge("right")}
 
       <div class="af-content">
         ${wmHtml}
