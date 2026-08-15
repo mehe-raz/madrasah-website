@@ -193,18 +193,17 @@ export function printDetailSheet({ title, subtitle, rows }: PrintDetailOptions) 
 }
 
 // ---------------------------------------------------------------------------
-// Admission Form — fixed reference-template print layout
+// Admission Form — fully coded (SVG + CSS) reference-style print layout
 // ---------------------------------------------------------------------------
 //
-// This renders the official admission form on top of a static background
-// artwork (client/public/admission-form-template.jpg — a cleaned scan of the
-// institution's paper admission form: border, ornaments, section badges and
-// dotted fill-in lines, with the original madrasa's watermark seal removed).
-// Only the institution logo (from Settings → settings.logo) and the
-// student's matching data are drawn dynamically on top, using
-// absolutely-positioned, millimeter-accurate coordinates measured from the
-// source artwork at 300dpi (2437×3258px → 206.33mm×275.84mm), so the layout
-// stays pixel-accurate regardless of viewport/print scaling.
+// This recreates the institution's paper admission form as real markup —
+// the decorative border/corner ornaments are inline SVG patterns, the green
+// section badges and dotted fill-in lines are CSS — rather than printing on
+// top of a scanned image. Only two things are dynamic: the institution's
+// name/logo (from Settings) and the student's matching data; the layout,
+// ornamentation and section structure are coded to match the reference
+// form's design (border, corner medallions, green pill section headers,
+// two-column ঠিকানা layout, dotted fill lines).
 //
 // Fields with no exact matching Student data source are intentionally left
 // blank rather than guessed (see docs/CURRENT_TASK.md admission-form task):
@@ -212,131 +211,150 @@ export function printDetailSheet({ title, subtitle, rows }: PrintDetailOptions) 
 // file and never mapped to "জাতীয় পরিচয়পত্র নং", and presentAddress (a single
 // free-text field) is never split into house/ward/thana sub-fields.
 
-const ADMISSION_TEMPLATE_PAGE = { widthMm: 206.33, heightMm: 275.84 };
+const ADMISSION_PAGE = { widthMm: 210, heightMm: 297 };
+const ADMISSION_BORDER_MM = 12;
+const ADMISSION_FRAME_GAP_MM = 4;
 
-/** cx/cy/diameter of the logo watermark zone (mm), centered like the original seal. */
-const ADMISSION_LOGO_ZONE = { cxMm: 92.71, cyMm: 130.81, diameterMm: 100 };
+/** One repeating pointed-arch + diamond-flower motif, tiled along every edge. */
+const ADMISSION_BORDER_DEFS = `
+  <pattern id="afArch" width="14" height="14" patternUnits="userSpaceOnUse">
+    <rect width="14" height="14" fill="#1d6b41"/>
+    <rect x="0" y="0.2" width="14" height="0.45" fill="#0c2f1c"/>
+    <rect x="0" y="13.35" width="14" height="0.45" fill="#0c2f1c"/>
+    <path d="M0,11.5 C1.5,11.5 2,9 3.2,7.5 C4.6,5.7 5.8,5 7,2.6 C8.2,5 9.4,5.7 10.8,7.5 C12,9 12.5,11.5 14,11.5" stroke="#ffffff" stroke-width="0.5" fill="none"/>
+    <path d="M1.4,11.2 C2.2,10 2.6,9 2.4,7.8" stroke="#ffffff" stroke-width="0.3" fill="none"/>
+    <path d="M12.6,11.2 C11.8,10 11.4,9 11.6,7.8" stroke="#ffffff" stroke-width="0.3" fill="none"/>
+    <g transform="translate(7,4.2)">
+      <path d="M0,-1.5 C0.6,-0.9 0.6,0.9 0,1.5 C-0.6,0.9 -0.6,-0.9 0,-1.5 Z" fill="#ffffff"/>
+      <path d="M-1.5,0 C-0.9,-0.6 0.9,-0.6 1.5,0 C0.9,0.6 -0.9,0.6 -1.5,0 Z" fill="#ffffff"/>
+      <circle r="0.55" fill="#1d6b41"/>
+    </g>
+  </pattern>
+`;
 
-interface AdmissionFieldPos {
-  /** y of the dashed fill-in line (mm from top) */
-  y: number;
-  /** x where the dash line starts, i.e. right after the label (mm from left) */
-  x: number;
-  /** x where the dash line ends (mm from left) — bounds the value's max width */
-  xEnd: number;
-}
+/** Small flower-in-square medallion used at all four page corners. */
+const ADMISSION_CORNER_SVG = `
+  <svg class="af-corner-art" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+    <rect width="14" height="14" fill="#1d6b41"/>
+    <rect width="14" height="14" fill="none" stroke="#0c2f1c" stroke-width="0.45"/>
+    <rect x="1.3" y="1.3" width="11.4" height="11.4" fill="none" stroke="#ffffff" stroke-width="0.35"/>
+    <path d="M1.3,4.3 C2.6,4.3 2.6,1.3 4.3,1.3" stroke="#ffffff" stroke-width="0.35" fill="none"/>
+    <path d="M9.7,1.3 C11.4,1.3 11.4,4.3 12.7,4.3" stroke="#ffffff" stroke-width="0.35" fill="none"/>
+    <path d="M1.3,9.7 C2.6,9.7 2.6,12.7 4.3,12.7" stroke="#ffffff" stroke-width="0.35" fill="none"/>
+    <path d="M12.7,9.7 C11.4,9.7 11.4,12.7 9.7,12.7" stroke="#ffffff" stroke-width="0.35" fill="none"/>
+    <g transform="translate(7,7)">
+      <path d="M0,-2.6 C1,-1.5 1,1.5 0,2.6 C-1,1.5 -1,-1.5 0,-2.6 Z" fill="#ffffff"/>
+      <path d="M-2.6,0 C-1.5,-1 1.5,-1 2.6,0 C1.5,1 -1.5,1 -2.6,0 Z" fill="#ffffff"/>
+      <circle r="0.9" fill="#1d6b41"/>
+      <circle r="0.9" fill="none" stroke="#ffffff" stroke-width="0.22"/>
+    </g>
+  </svg>
+`;
 
-/** Millimeter coordinates for every fillable line on the reference form. */
-const ADMISSION_FIELD_POS: Record<string, AdmissionFieldPos> = {
-  // শিক্ষার্থীর ব্যক্তিগত তথ্যাবলী
-  studentName: { y: 123.53, x: 27.52, xEnd: 97.28 },
-  nickname: { y: 123.53, x: 122.94, xEnd: 198.88 }, // no source — stays blank
-  dateOfBirth: { y: 129.62, x: 21.93, xEnd: 96.86 },
-  citizenship: { y: 129.62, x: 111.17, xEnd: 198.88 }, // no source — stays blank
-  identifyingMark: { y: 135.72, x: 21.51, xEnd: 97.11 }, // no source — stays blank
-  bloodGroup: { y: 135.72, x: 122.68, xEnd: 198.54 },
-  fatherName: { y: 141.73, x: 25.57, xEnd: 97.28 },
-  motherName: { y: 141.73, x: 115.23, xEnd: 198.88 },
-  birthRegistration: { y: 147.83, x: 21.93, xEnd: 198.88 },
-  // স্থায়ী ঠিকানা (permanent address)
-  permVillage: { y: 166.45, x: 25.23, xEnd: 97.28 },
-  permHouseNo: { y: 172.55, x: 26.5, xEnd: 97.28 }, // no source — stays blank
-  permPost: { y: 178.65, x: 21.84, xEnd: 97.28 },
-  permWard: { y: 184.74, x: 28.11, xEnd: 97.28 }, // no source — stays blank
-  permThana: { y: 190.84, x: 22.1, xEnd: 97.28 }, // no source — stays blank (upazila ≠ থানা)
-  permDistrict: { y: 196.93, x: 25.06, xEnd: 97.11 },
-  permMobile: { y: 202.95, x: 27.6, xEnd: 97.03 }, // no source — stays blank
-  // বর্তমান ঠিকানা (present address) — presentAddress is a single free-text
-  // field with no structured sub-fields, so per the no-guessing rule every
-  // line here stays blank rather than splitting it.
-  presVillage: { y: 166.45, x: 112.52, xEnd: 198.88 },
-  presHouseNo: { y: 172.55, x: 116.76, xEnd: 197.61 },
-  presPost: { y: 178.65, x: 112.1, xEnd: 198.88 },
-  presWard: { y: 184.74, x: 119.04, xEnd: 198.8 },
-  presThana: { y: 190.84, x: 113.71, xEnd: 195.58 },
-  presDistrict: { y: 196.93, x: 115.32, xEnd: 198.88 },
-  presMobile: { y: 202.95, x: 119.46, xEnd: 198.88 },
-  // অভিভাবকের তথ্য ও ঠিকানা
-  guardianName: { y: 227.41, x: 27.09, xEnd: 97.28 },
-  fatherOrHusband: { y: 227.41, x: 118.96, xEnd: 198.88 }, // no source — stays blank
-  guardianProfession: { y: 233.43, x: 31.33, xEnd: 198.88 }, // no source — stays blank
-  guardianNidNumber: { y: 239.44, x: 52.49, xEnd: 97.28 }, // documents.guardianNid is a file, not a number — stays blank
-  guardianRelation: { y: 239.44, x: 128.69, xEnd: 198.88 },
-  guardianContactAddress: { y: 245.53, x: 50.8, xEnd: 198.88 }, // no source — stays blank
-  guardianMobile: { y: 251.8, x: 56.73, xEnd: 97.28 },
-  guardianPersonalMobile: { y: 251.8, x: 127.0, xEnd: 198.37 }, // no source — stays blank
-};
-
-function admissionField(key: keyof typeof ADMISSION_FIELD_POS, value: string | number | null | undefined): string {
-  const v = value === null || value === undefined ? "" : String(value);
-  if (!v) return "";
-  const pos = ADMISSION_FIELD_POS[key];
-  const maxWidth = pos.xEnd - pos.x;
-  return `<div class="af-field" style="top:${pos.y}mm;left:${pos.x}mm;max-width:${maxWidth}mm;">${escapeHtml(v)}</div>`;
+function afBorderStrip(edge: "top" | "bottom" | "left" | "right"): string {
+  return `<svg class="af-border af-border-${edge}" viewBox="0 0 200 14" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs>${ADMISSION_BORDER_DEFS}</defs><rect width="200" height="14" fill="url(#afArch)"/></svg>`;
 }
 
 const ADMISSION_FORM_STYLES = `
-  @page { margin: 0; size: ${ADMISSION_TEMPLATE_PAGE.widthMm}mm ${ADMISSION_TEMPLATE_PAGE.heightMm}mm; }
+  @page { margin: 0; size: ${ADMISSION_PAGE.widthMm}mm ${ADMISSION_PAGE.heightMm}mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body { font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif; }
   .af-page {
     position: relative;
-    width: ${ADMISSION_TEMPLATE_PAGE.widthMm}mm;
-    height: ${ADMISSION_TEMPLATE_PAGE.heightMm}mm;
+    width: ${ADMISSION_PAGE.widthMm}mm;
+    height: ${ADMISSION_PAGE.heightMm}mm;
+    background: #eef5f3;
     overflow: hidden;
     page-break-after: avoid;
   }
-  .af-page .af-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
-  .af-logo {
+  .af-border { position: absolute; display: block; }
+  .af-border-top, .af-border-bottom { left: ${ADMISSION_BORDER_MM}mm; width: calc(100% - ${ADMISSION_BORDER_MM * 2}mm); height: ${ADMISSION_BORDER_MM}mm; }
+  .af-border-top { top: 0; }
+  .af-border-bottom { bottom: 0; }
+  .af-border-left, .af-border-right { top: ${ADMISSION_BORDER_MM}mm; width: calc(100% - ${ADMISSION_BORDER_MM * 2}mm); height: ${ADMISSION_BORDER_MM}mm; left: 0; }
+  .af-border-left { transform-origin: top left; transform: rotate(90deg) translateY(-100%); }
+  .af-border-right { left: auto; right: 0; transform-origin: top right; transform: rotate(-90deg) translateY(-100%); }
+  .af-corner { position: absolute; width: ${ADMISSION_BORDER_MM}mm; height: ${ADMISSION_BORDER_MM}mm; }
+  .af-corner-art { width: 100%; height: 100%; display: block; }
+  .af-corner-tl { top: 0; left: 0; }
+  .af-corner-tr { top: 0; right: 0; }
+  .af-corner-bl { bottom: 0; left: 0; }
+  .af-corner-br { bottom: 0; right: 0; }
+
+  .af-content {
     position: absolute;
-    left: ${ADMISSION_LOGO_ZONE.cxMm}mm;
-    top: ${ADMISSION_LOGO_ZONE.cyMm}mm;
-    width: ${ADMISSION_LOGO_ZONE.diameterMm}mm;
+    top: ${ADMISSION_BORDER_MM + ADMISSION_FRAME_GAP_MM}mm;
+    left: ${ADMISSION_BORDER_MM + ADMISSION_FRAME_GAP_MM}mm;
+    right: ${ADMISSION_BORDER_MM + ADMISSION_FRAME_GAP_MM}mm;
+    bottom: ${ADMISSION_BORDER_MM + ADMISSION_FRAME_GAP_MM}mm;
+    border: 0.6mm solid #1d6b41;
+    outline: 0.25mm solid #1d6b41;
+    outline-offset: 1mm;
+    padding: 6mm 8mm;
+    background: #eef5f3;
+  }
+  .af-content > * { position: relative; z-index: 1; }
+  .af-wm {
+    position: absolute !important;
+    left: 50%; top: 46%;
+    width: 60mm;
     transform: translate(-50%, -50%);
-    opacity: 0.16;
+    opacity: 0.14;
     object-fit: contain;
-    z-index: 1;
+    z-index: 0;
   }
-  .af-field {
-    position: absolute;
-    font-size: 3mm;
-    line-height: 1;
-    color: #111111;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transform: translateY(calc(-100% - 0.2mm));
-    z-index: 2;
+  .af-salutation { font-size: 3.4mm; line-height: 1.65; color: #14251c; }
+  .af-salutation .af-inst { font-weight: 700; }
+  .af-sigrow { display: flex; justify-content: space-between; margin-top: 9mm; font-size: 3mm; }
+  .af-sigline { width: 46mm; border-top: 0.3mm dashed #14251c; text-align: center; padding-top: 1.3mm; }
+  .af-badge {
+    margin: 7mm auto 4mm; width: fit-content; padding: 1.6mm 10mm;
+    background: linear-gradient(180deg, #2d8a57, #1d6b41);
+    color: #fff; font-weight: 700; font-size: 3.6mm; border-radius: 20mm;
+    text-align: center; letter-spacing: 0.3px;
   }
-  @media print {
-    html, body { width: ${ADMISSION_TEMPLATE_PAGE.widthMm}mm; }
+  .af-fields { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8mm; row-gap: 2.6mm; margin-top: 2mm; }
+  .af-fields.af-fields-full { grid-template-columns: 1fr; }
+  .af-line { display: flex; align-items: baseline; font-size: 3mm; white-space: nowrap; }
+  .af-line .af-lbl { color: #14251c; margin-right: 1.5mm; flex-shrink: 0; }
+  .af-line .af-fill {
+    flex: 1; border-bottom: 0.3mm dashed #14251c; min-height: 3.6mm;
+    padding-left: 1mm; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; color: #0a0a0a; font-weight: 600;
   }
+  .af-addr-heads { display: grid; grid-template-columns: 1fr 1fr; margin-top: 6mm; }
+  .af-addr-heads div { text-align: center; font-weight: 700; font-size: 3.4mm; color: #14251c; }
 `;
 
+function afLine(label: string, value: string | number | null | undefined): string {
+  const v = value === null || value === undefined ? "" : String(value);
+  return `<div class="af-line"><span class="af-lbl">${escapeHtml(label)}:</span><span class="af-fill">${escapeHtml(v)}</span></div>`;
+}
+
 /**
- * Prints the official Admission Form, matching the reference paper form's
- * design pixel-for-pixel via the static background artwork above. The only
- * dynamic visual elements are the institution's logo (from Settings) and the
- * student's matching data; everything else — border, ornaments, section
- * badges, dotted lines — comes from the template image itself.
+ * Prints the official Admission Form. The border ornaments, corner
+ * medallions, section badges and fill-in lines are all coded (SVG/CSS) to
+ * match the reference form's design — no scanned image is used. The only
+ * dynamic visual elements are the institution's name/logo (Settings) and the
+ * student's matching data.
  */
 export function printAdmissionForm(student: Student, targetWindow?: Window | null) {
   const settings = madrasaSettings();
+  const instName = settings.name || "মাদ্রাসা";
 
-  // Student model -> admission-form field mapping (kept separate from the
-  // visual template so the two can evolve independently). Fields with no
-  // exact matching source are left as "" per the strict no-guessing rule.
-  const formData = {
+  // Student model -> admission-form field mapping. Fields with no exact
+  // matching source are left as "" per the strict no-guessing rule.
+  const f = {
     studentName: student.name || "",
-    dateOfBirth: student.dateOfBirth || "",
-    identifyingMark: "",
-    fatherName: student.fatherName || "",
-    birthRegistration: student.birthRegistrationNumber || "",
     nickname: "",
+    dateOfBirth: student.dateOfBirth || "",
     citizenship: "",
+    identifyingMark: "",
     bloodGroup: student.blood || "",
+    fatherName: student.fatherName || "",
     motherName: student.motherName || "",
+    birthRegistration: student.birthRegistrationNumber || "",
 
     permVillage: student.village || "",
     permHouseNo: "",
@@ -362,19 +380,89 @@ export function printAdmissionForm(student: Student, targetWindow?: Window | nul
     guardianContactAddress: "",
     guardianMobile: student.guardianMobile || "",
     guardianPersonalMobile: "",
-  } as const;
+  };
 
-  const templateUrl = `${window.location.origin}/admission-form-template.jpg`;
-  const fieldsHtml = (Object.keys(formData) as (keyof typeof formData)[])
-    .map((key) => admissionField(key, formData[key]))
-    .join("");
-  const logoHtml = settings.logo ? `<img class="af-logo" src="${escapeHtml(settings.logo)}" alt="">` : "";
+  const wmHtml = settings.logo ? `<img class="af-wm" src="${escapeHtml(settings.logo)}" alt="">` : "";
 
   const body = `
     <div class="af-page">
-      <img class="af-bg" src="${templateUrl}" alt="">
-      ${logoHtml}
-      ${fieldsHtml}
+      ${afBorderStrip("top")}
+      ${afBorderStrip("bottom")}
+      ${afBorderStrip("left")}
+      ${afBorderStrip("right")}
+      <div class="af-corner af-corner-tl">${ADMISSION_CORNER_SVG}</div>
+      <div class="af-corner af-corner-tr">${ADMISSION_CORNER_SVG}</div>
+      <div class="af-corner af-corner-bl">${ADMISSION_CORNER_SVG}</div>
+      <div class="af-corner af-corner-br">${ADMISSION_CORNER_SVG}</div>
+
+      <div class="af-content">
+        ${wmHtml}
+        <div class="af-salutation">
+          বরাবর,<br/>
+          হযরত মুহতামিম সাহেব দামাত বারাকাতুহুম!<br/>
+          <span class="af-inst">${escapeHtml(instName)}</span><br/>
+          মুহতারাম,<br/>
+          যথাবিহীত সম্মান প্রদর্শন পূর্বক বিনীত নিবেদন এই যে, আমি ${escapeHtml(instName)} এর যাবতীয় বিধি বিধান ও নিয়ম কানুন মেনে চলার অঙ্গীকারাবদ্ধ হয়ে অত্র মাদরাসায় ভর্তি হওয়ার আবেদন পেশ করছি।<br/>
+          অতএব, মেহেরবানী পূর্বক আমার আবেদন মঞ্জুর করে ইলমে দ্বীন হাসিল করার সুযোগ দানে আপনার সুমর্জি কামনা করছি।
+        </div>
+        <div class="af-sigrow">
+          <div class="af-sigline">আবেদনকারীর স্বাক্ষর</div>
+          <div class="af-sigline">নাজিমে তালিমাত এর স্বাক্ষর</div>
+        </div>
+
+        <div class="af-badge">শিক্ষার্থীর ব্যক্তিগত তথ্যাবলী</div>
+        <div class="af-fields">
+          ${afLine("নাম", f.studentName)}
+          ${afLine("ডাক নাম", f.nickname)}
+          ${afLine("জন্ম তারিখ", f.dateOfBirth)}
+          ${afLine("নাগরিকতা", f.citizenship)}
+          ${afLine("শনাক্তকরণ চিহ্ন", f.identifyingMark)}
+          ${afLine("রক্তের গ্রুপ", f.bloodGroup)}
+          ${afLine("পিতার নাম", f.fatherName)}
+          ${afLine("মাতার নাম", f.motherName)}
+        </div>
+        <div class="af-fields af-fields-full">
+          ${afLine("জন্ম নিবন্ধন নং", f.birthRegistration)}
+        </div>
+
+        <div class="af-addr-heads"><div>স্থায়ী ঠিকানা</div><div>বর্তমান ঠিকানা</div></div>
+        <div class="af-fields">
+          ${afLine("গ্রাম/মহল্লা", f.permVillage)}
+          ${afLine("গ্রাম/মহল্লা", f.presVillage)}
+          ${afLine("বাড়ী নং", f.permHouseNo)}
+          ${afLine("বাড়ী নং", f.presHouseNo)}
+          ${afLine("পোস্ট", f.permPost)}
+          ${afLine("পোস্ট", f.presPost)}
+          ${afLine("ওয়ার্ড নং", f.permWard)}
+          ${afLine("ওয়ার্ড নং", f.presWard)}
+          ${afLine("থানা", f.permThana)}
+          ${afLine("থানা", f.presThana)}
+          ${afLine("জেলা", f.permDistrict)}
+          ${afLine("জেলা", f.presDistrict)}
+          ${afLine("মোবাইল", f.permMobile)}
+          ${afLine("মোবাইল", f.presMobile)}
+        </div>
+
+        <div class="af-badge">অভিভাবকের তথ্য ও ঠিকানা</div>
+        <div class="af-fields">
+          ${afLine("নাম", f.guardianName)}
+          ${afLine("পিতা/স্বামী", f.fatherOrHusband)}
+        </div>
+        <div class="af-fields af-fields-full">
+          ${afLine("পেশা", f.guardianProfession)}
+        </div>
+        <div class="af-fields">
+          ${afLine("জাতীয় পরিচয়পত্র নং", f.guardianNidNumber)}
+          ${afLine("সম্পর্ক", f.guardianRelation)}
+        </div>
+        <div class="af-fields af-fields-full">
+          ${afLine("যোগাযোগের ঠিকানা", f.guardianContactAddress)}
+        </div>
+        <div class="af-fields">
+          ${afLine("মোবাইল (বাসা/অফিস)", f.guardianMobile)}
+          ${afLine("ব্যক্তিগত", f.guardianPersonalMobile)}
+        </div>
+      </div>
     </div>
   `;
 
