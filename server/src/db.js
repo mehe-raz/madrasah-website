@@ -147,6 +147,20 @@ async function initDb() {
     await pg.run("INSERT INTO sms_wallets (balance_taka) VALUES (0)");
   }
 
+  // Same "insert once if missing, every boot" idiom as incomeCategories/
+  // sms_wallets above — the class/jamaat hierarchy's own seed (further up,
+  // inside the `if (count === 0)` block) only runs on a truly empty
+  // database, so an already-running madrasah with existing students never
+  // got classOptionsTree seeded and every classTreeLabel() lookup falls
+  // back to the raw en value everywhere instead of the বাংলা label. This
+  // backfills it for that case without touching a tree a Super Admin has
+  // already built (ON CONFLICT DO NOTHING never overwrites).
+  const { SETTINGS_KEY: CLASS_TREE_SETTINGS_KEY, DEFAULT_CLASS_TREE } = require("./lib/classTree");
+  await pg.run(
+    "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING",
+    [CLASS_TREE_SETTINGS_KEY, JSON.stringify(DEFAULT_CLASS_TREE)]
+  );
+
   const incomeCountRow = await pg.get("SELECT COUNT(*)::int AS c FROM income");
   const incomeCount = incomeCountRow?.c || 0;
   if (incomeCount === 0) {

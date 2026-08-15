@@ -74,7 +74,6 @@ const REQUIRED_FIELDS = [
 
 const ALLOWED = {
   type: ["Day", "Residential"],
-  dept: ["Hifz", "Nazera", "Kitab", "Nurani", "General"],
   // Madrasah-only product: gender is restricted to Male/Female and religion
   // is fixed to Islam (matching frontend change in Students.tsx). Existing
   // records saved before this change may still hold an older value (e.g.
@@ -84,6 +83,21 @@ const ALLOWED = {
   religion: ["Islam"],
   blood: ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
 };
+
+// `dept` used to be checked against a fixed 5-value list here too
+// (["Hifz","Nazera","Kitab","Nurani","General"]) — that predates the
+// class/jamaat hierarchy (server/src/lib/classTree.js) letting a Super
+// Admin add brand-new top-level departments from Settings. Once a custom
+// department exists, deptCodeFromTreeTopLevel() (client/src/lib/labels.ts)
+// deliberately falls through to that department's own raw `en` slug
+// instead of leaving dept blank — but the fixed list here had no way to
+// know about it, so every admission/edit under a custom department failed
+// with "dept is invalid" (400) and nothing saved. This instead accepts any
+// well-formed slug/code — same shape classTree.js's own EN_SLUG_RE already
+// requires for a department's `en` value — while still rejecting garbage
+// input. "Hifz" and the other legacy codes still pass this unchanged (see
+// hifz.js's `WHERE dept = 'Hifz'`, which depends on that exact string).
+const DEPT_CODE_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,58}$/;
 
 const DOCUMENT_KEYS = ["studentPhoto", "birthCertificate", "guardianNid", "previousCertificate"];
 const DATA_URL_RE = /^data:([^;]+);base64,([a-z0-9+/=\s]+)$/i;
@@ -203,6 +217,10 @@ function validateAdmission(admission, { partial = false } = {}) {
     if (admission[field] && !options.includes(admission[field])) {
       errors[field] = `${field} is invalid`;
     }
+  }
+
+  if (admission.dept && !DEPT_CODE_RE.test(admission.dept)) {
+    errors.dept = "dept is invalid";
   }
 
   if (admission.studentPhoto) {
