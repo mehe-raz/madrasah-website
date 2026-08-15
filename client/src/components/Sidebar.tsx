@@ -138,6 +138,34 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             reusing t.nav[item.key] here would show "হাজিরা" twice). No
             plan-lock: this is core to the attendance feature, not gated
             behind a separate plan feature. */}
+        {/* প্রবেশপত্র (Admit Cards) — reuses the "results" permission (same
+            Admin/Teacher audience as the Results screen above) but needs
+            its own nav LABEL, same reasoning as the two blocks below
+            (t.nav[item.key] would otherwise show "ফলাফল" twice). */}
+        {canAccess(role, "results") && (
+          <NavLink
+            to="/admit-cards"
+            onClick={onNavigate}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.admitCards : undefined}
+          >
+            <Icons.admitCards size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.admitCards}</span>}
+          </NavLink>
+        )}
         {canAccess(role, "attendance") && (
           <NavLink
             to="/attendance-devices"

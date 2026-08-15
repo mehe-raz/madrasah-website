@@ -29,6 +29,7 @@ const AttendanceDeviceGuide = lazy(() =>
 const AuditLogs = lazy(() => import("./modules/AuditLogs").then((m) => ({ default: m.AuditLogs })));
 const BulkSms = lazy(() => import("./modules/BulkSms").then((m) => ({ default: m.BulkSms })));
 const ClassPosts = lazy(() => import("./modules/ClassPosts").then((m) => ({ default: m.ClassPosts })));
+const AdmitCards = lazy(() => import("./modules/AdmitCards").then((m) => ({ default: m.AdmitCards })));
 const Dashboard = lazy(() => import("./modules/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Expenses = lazy(() => import("./modules/Expenses").then((m) => ({ default: m.Expenses })));
 const GuardianReminders = lazy(() => import("./modules/GuardianReminders").then((m) => ({ default: m.GuardianReminders })));
@@ -155,6 +156,7 @@ export default function App() {
                   }
                 />
                 <Route path="results" element={<Results />} />
+                <Route path="admit-cards" element={<AdmitCards />} />
                 <Route
                   path="assignments"
                   element={

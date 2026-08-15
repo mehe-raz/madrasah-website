@@ -58,6 +58,7 @@ import {
   Usb,
   Tv,
   Send,
+  IdCard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -69,6 +70,7 @@ export const Icons = {
   expenses: TrendingDown,
   hifz: BookOpen,
   results: FileEdit,
+  admitCards: IdCard,
   assignments: Megaphone,
   reports: BarChart3,
   website: Globe,

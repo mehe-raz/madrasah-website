@@ -93,6 +93,24 @@ router.get("/students", async (req, res) => {
   res.json(rows);
 });
 
+// Roster for প্রবেশপত্র (admit card) generation — same narrow, "results"-scoped
+// lookup as /students above, but also carries "admissionNumber" (দাখেলা নং)
+// and "fatherName", which the admit card prints alongside roll/name/class.
+// Kept as its own endpoint rather than widening /students above so that
+// route's response shape (used by the marks-entry screen) doesn't change.
+router.get("/admit-card-students", async (req, res) => {
+  const { class: className } = req.query;
+  if (!className) return res.json([]);
+  if (req.teacherClasses && !req.teacherClasses.includes(className)) {
+    return res.status(403).json({ error: OUT_OF_SCOPE_ERROR });
+  }
+  const rows = await db.all(
+    'SELECT id, name, roll, class, "admissionNumber", "fatherName" FROM students WHERE class = $1 ORDER BY roll',
+    [className]
+  );
+  res.json(rows);
+});
+
 router.get("/", async (req, res) => {
   const { class: className, examName, year } = req.query;
   if (req.teacherClasses) {

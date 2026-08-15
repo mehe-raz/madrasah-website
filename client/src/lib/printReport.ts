@@ -746,3 +746,147 @@ export function printStudentIdCard(student: IdCardOptions, targetWindow?: Window
     w.print();
   };
 }
+
+// ----------------------------------------------------------------------
+// Admit Card (প্রবেশপত্র) — reproduces the reference admit-card layout
+// (double dashed-corner border, centered institution header, প্রবেশপত্র
+// title badge, exam/session line, দাখেলা+রোল boxes, নাম/পিতার নাম/জামাত
+// lines with the exam start date on the জামাত line, two signature lines)
+// as coded markup, same "print the browser's own HTML" approach as the
+// rest of this file (see file-top comment re: Bengali text shaping).
+//
+// Two cards per A4 page (exactly, via a fixed-height flex page — see
+// ADMIT_CARD_STYLES .ac-page/.ac-card), one page per pair of students, so
+// generating a whole class's admit cards in one click prints/PDFs cleanly
+// without manual cutting guesswork.
+// ----------------------------------------------------------------------
+
+const ADMIT_CARD_STYLES = `
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
+    color: #0f172a;
+  }
+  .ac-page {
+    height: 277mm;
+    display: flex;
+    flex-direction: column;
+    gap: 8mm;
+    page-break-after: always;
+  }
+  .ac-page:last-child { page-break-after: auto; }
+  .ac-card {
+    flex: 1 1 0;
+    position: relative;
+    border: 2.6px solid #0f172a;
+    border-radius: 16px;
+    padding: 6mm 9mm 5mm;
+    background: #fffdf8;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .ac-card::before, .ac-card::after {
+    content: ""; position: absolute; left: 9mm; right: 9mm; height: 2.6mm;
+    background-image: repeating-linear-gradient(135deg, #0f172a 0 2.2mm, transparent 2.2mm 4.4mm);
+    opacity: .85;
+  }
+  .ac-card::before { top: 2.4mm; }
+  .ac-card::after { bottom: 2.4mm; }
+  .ac-head { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+  .ac-head img { height: 15mm; width: 15mm; object-fit: contain; flex-shrink: 0; }
+  .ac-head h1 { font-size: 15.5px; color: #0f5132; font-weight: 800; }
+  .ac-head .addr { font-size: 9.5px; color: #334155; margin-top: 1.5px; }
+  .ac-rule { border-top: 1.4px dashed #b91c1c; margin: 5px 0 7px; position: relative; }
+  .ac-rule::after {
+    content: "◇"; position: absolute; left: 50%; top: -8px; transform: translateX(-50%);
+    background: #fffdf8; padding: 0 6px; color: #b91c1c; font-size: 11px;
+  }
+  .ac-titleWrap { text-align: center; margin-bottom: 6px; }
+  .ac-title {
+    display: inline-block; border: 1.6px solid #0f172a; border-radius: 6px;
+    padding: 2px 22px; font-weight: 800; font-size: 14px; background: #eef2ff;
+  }
+  .ac-exam { text-align: center; font-weight: 700; font-size: 11.5px; margin-bottom: 9px; }
+  .ac-idrow { display: flex; gap: 10px; margin-bottom: 9px; }
+  .ac-idbox { flex: 1; border: 1.3px solid #0f172a; border-radius: 5px; padding: 3px 8px; font-size: 11px; font-weight: 700; }
+  .ac-idbox b { font-weight: 800; margin-left: 3px; }
+  .ac-line {
+    display: flex; align-items: baseline; gap: 4px; font-size: 11.5px; font-weight: 700;
+    margin: 5px 0; border-bottom: .8px solid #94a3b8; padding-bottom: 2px;
+  }
+  .ac-lab { flex-shrink: 0; }
+  .ac-colon { flex-shrink: 0; }
+  .ac-val { flex: 1; font-weight: 700; }
+  .ac-line--split { justify-content: space-between; }
+  .ac-examdate { font-size: 10px; font-weight: 700; text-decoration: underline; white-space: nowrap; margin-left: 10px; }
+  .ac-sigrow { display: flex; justify-content: space-between; margin-top: 18px; padding-top: 6px; }
+  .ac-sig { text-align: center; font-size: 10px; font-weight: 700; border-top: 1px solid #0f172a; padding-top: 3px; min-width: 38mm; }
+`;
+
+export interface AdmitCardStudentInput {
+  name: string;
+  fatherName?: string | null;
+  roll: string;
+  admissionNumber?: string | null;
+}
+
+export interface AdmitCardOptions {
+  /** পরীক্ষার ধরন display label (already localized — e.g. "সাময়িক পরীক্ষা" / "Periodic Test") */
+  examLabel: string;
+  /** শিক্ষাবর্ষ, as entered by the admin */
+  academicYear: string;
+  /** পরীক্ষা শুরুর তারিখ, already formatted for display */
+  examStartDate: string;
+  /** জামাত display label (the selected class, shown the same for every card in this batch) */
+  classLabel: string;
+  students: AdmitCardStudentInput[];
+}
+
+/** Print প্রবেশপত্র (admit cards) for a whole class's roster — two per A4 page. */
+export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | null) {
+  const settings = madrasaSettings();
+
+  const cardHtml = (s: AdmitCardStudentInput) => `
+    <div class="ac-card">
+      <div class="ac-head">
+        ${settings.logo ? `<img src="${escapeHtml(settings.logo)}" alt="">` : ""}
+        <div>
+          <h1>${escapeHtml(settings.name)}</h1>
+          ${settings.address ? `<div class="addr">${escapeHtml(settings.address)}</div>` : ""}
+        </div>
+      </div>
+      <div class="ac-rule"></div>
+      <div class="ac-titleWrap"><span class="ac-title">প্রবেশপত্র</span></div>
+      <div class="ac-exam">${escapeHtml(opts.examLabel)}${opts.academicYear ? ` - ${escapeHtml(opts.academicYear)} শিক্ষাবর্ষ` : ""}</div>
+      <div class="ac-idrow">
+        <div class="ac-idbox">দাখেলা নং :<b>${escapeHtml(s.admissionNumber || "")}</b></div>
+        <div class="ac-idbox">রোল নং :<b>${escapeHtml(s.roll)}</b></div>
+      </div>
+      <div class="ac-line">
+        <span class="ac-lab">পরীক্ষার্থীর নাম</span><span class="ac-colon">:</span><span class="ac-val">${escapeHtml(s.name)}</span>
+      </div>
+      <div class="ac-line">
+        <span class="ac-lab">পিতার নাম</span><span class="ac-colon">:</span><span class="ac-val">${escapeHtml(s.fatherName || "")}</span>
+      </div>
+      <div class="ac-line ac-line--split">
+        <span class="ac-lab">জামাত</span><span class="ac-colon">:</span><span class="ac-val">${escapeHtml(opts.classLabel)}</span>
+        ${opts.examStartDate ? `<span class="ac-examdate">পরীক্ষা শুরুর তারিখঃ ${escapeHtml(opts.examStartDate)}</span>` : ""}
+      </div>
+      <div class="ac-sigrow">
+        <div class="ac-sig">মুহতামিমের দস্তখত</div>
+        <div class="ac-sig">নাজিমে ইমতিহানের দস্তখত</div>
+      </div>
+    </div>
+  `;
+
+  const pages: string[] = [];
+  for (let i = 0; i < opts.students.length; i += 2) {
+    const pair = opts.students.slice(i, i + 2);
+    pages.push(`<div class="ac-page">${pair.map(cardHtml).join("")}</div>`);
+  }
+
+  openRawPrintWindow(`প্রবেশপত্র - ${opts.classLabel}`, ADMIT_CARD_STYLES, pages.join(""), targetWindow);
+}

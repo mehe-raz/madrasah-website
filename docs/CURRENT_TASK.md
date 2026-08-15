@@ -13,6 +13,55 @@ under a *different* phase. If it doesn't match a phase verbatim, name it
 something else ("Phase 8C follow-up", "ad-hoc", etc.) instead of borrowing
 the next sequential number.
 
+## Task: প্রবেশপত্র (Admit Card) জেনারেশন — ফলাফল ব্যবস্থাপনার মতো, ক্লাস
+নির্বাচন করে পুরো ক্লাসের সব শিক্ষার্থীর প্রবেশপত্র একসাথে তৈরি (ad-hoc)
+
+## Status: DONE (2026-08-15 — npm run check বাকি, ব্যবহারকারীর মেশিনে
+প্যাকেজড zip-এর CMD স্ক্রিপ্টের মাধ্যমে চলবে)
+
+নতুন মডিউল `client/src/modules/AdmitCards.tsx` (নেভিগেশনে "প্রবেশপত্র",
+"results" পারমিশন পুনর্ব্যবহার করে — Sidebar.tsx-এ GuardianReminders/
+AttendanceDevices-এর মতোই NAV_IDS-এর বাইরে আলাদা NavLink, কারণ লেবেল
+আলাদা হতে হবে)। ইনপুট: ক্লাস (dropdown, `results/classes`), পরীক্ষার ধরন
+(বিদ্যমান EXAM_TYPES ফিক্সড-লিস্ট), শিক্ষাবর্ষ (টেক্সট), পরীক্ষা শুরুর
+তারিখ (date input)। প্রতিষ্ঠানের নাম/লোগো/ঠিকানা আগে থেকেই Settings থেকে
+আসে (`madrasaSettings()`, printReport.ts-এ বিদ্যমান)। রোস্টার আসে নতুন
+সার্ভার এন্ডপয়েন্ট `GET /results/admit-card-students?class=` থেকে
+(results.js-এ যোগ করা হয়েছে, /students-এর পাশে — `id, name, roll, class,
+admissionNumber, fatherName`; বিদ্যমান /students এন্ডপয়েন্টের শেপ
+অপরিবর্তিত রাখতে আলাদা রুট রাখা হয়েছে)। দাখেলা নং ও রোল নং প্রতি
+শিক্ষার্থীর জন্য students টেবিল থেকেই অটোমেটিক আসে (`admissionNumber`
+কলাম আগে থেকেই ছিল) — কোনো নতুন সিকোয়েন্স/জেনারেশন লজিক লাগেনি।
+
+প্রিন্ট লজিক `printReport.ts`-এ `printAdmitCards()` — বিদ্যমান
+"ব্রাউজারের নিজস্ব print-to-PDF" প্যাটার্ন (printResultSheet/
+printStudentIdCard-এর মতোই, jsPDF না — বাংলা টেক্সট শেপিং সমস্যার কারণে)।
+রেফারেন্স প্রবেশপত্র ছবির সাথে মিলিয়ে: dashed-corner বর্ডার, কেন্দ্রীভূত
+হেডার (লোগো+নাম+ঠিকানা), "প্রবেশপত্র" ব্যাজ-টাইটেল, পরীক্ষা+শিক্ষাবর্ষ
+লাইন, দাখেলা নং/রোল নং বক্স, নাম/পিতার নাম/জামাত লাইন (জামাত লাইনেই ডানে
+আন্ডারলাইনড পরীক্ষা শুরুর তারিখ), নিচে দুটো স্বাক্ষর-লাইন (মুহতামিম +
+নাজিমে ইমতিহান)। A4 পেজে ঠিক দুইজন শিক্ষার্থী (`.ac-page { height:
+277mm }` ফিক্সড-হাইট ফ্লেক্স, প্রতি জোড়া আলাদা পেজ)। "সব প্রবেশপত্র তৈরি
+করুন" বাটনে পুরো ক্লাসের রোস্টার একবারে প্রিন্ট হয়; প্রতি সারিতে একটা
+ছোট "প্রিন্ট" বাটনও আছে এক শিক্ষার্থীর জন্য আলাদা রিপ্রিন্টের জন্য।
+
+কিছু বানানো/অনুমান করা হয়নি: প্রতিষ্ঠানের আরবি নাম (রেফারেন্স ছবিতে ছিল)
+Settings-এ কোনো ফিল্ড নেই বলে যোগ করা হয়নি — শুধু বাংলা নাম দেখায়, যেকোনো
+প্রতিষ্ঠানের জন্য জেনেরিক থাকতে।
+
+পরিবর্তিত/নতুন ফাইল: `server/src/routes/results.js` (নতুন রুট),
+`client/src/types/index.ts` (AdmitCardStudent type), `client/src/lib/api.ts`
+(getAdmitCardStudents), `client/src/lib/printReport.ts` (printAdmitCards),
+`client/src/modules/AdmitCards.tsx` (নতুন), `client/src/App.tsx` (route),
+`client/src/components/Sidebar.tsx` (nav), `client/src/lib/icons.ts`
+(admitCards আইকন), `client/src/i18n/bn.ts` + `en.ts` (admitCards সেকশন),
+`client/src/index.css` (marks-entry-list--admitcards মডিফায়ার)।
+
+**পরবর্তী এজেন্টের জন্য যা এখনো বাকি:** এই সেশনে sandbox-এ নেটওয়ার্ক
+বন্ধ থাকায় `npm install`/`npm run check` চালানো যায়নি — ব্যবহারকারীর
+নিজের মেশিনে zip এক্সট্র্যাক্ট করার পর CMD স্ক্রিপ্টেই এটা হবে। সেখানে
+কোনো TypeScript এরর এলে ঠিক করে দিতে হবে।
+
 ## Task: নিজের ফোন/SIM দিয়ে বাল্ক SMS (ম্যানুয়াল নাম+নম্বর কন্টাক্ট লিস্ট,
 পারসোনালাইজড `{নাম}` মেসেজ) — ৭ Phase-এ, পুরো পরিকল্পনা
 `docs/OWN_SIM_BULK_SMS_GATEWAY_PLAN.md`-এ (ad-hoc, বিদ্যমান BulkSMSBD-

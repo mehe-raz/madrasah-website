@@ -35,6 +35,7 @@ import type {
   PublicResult,
   PublicSettings,
   ResultStudentOption,
+  AdmitCardStudent,
   ResultSubjectBatchResponse,
   ResultSubjectMark,
   Settings,
@@ -508,6 +509,11 @@ export const api = {
   getResultClasses: () => request<string[]>("/results/classes"),
 
   getResultStudents: (className: string) => request<ResultStudentOption[]>(`/results/students?class=${encodeURIComponent(className)}`),
+
+  // Roster for প্রবেশপত্র (admit card) generation — same "results" permission
+  // scope as getResultStudents above, but includes admissionNumber/fatherName.
+  getAdmitCardStudents: (className: string) =>
+    request<AdmitCardStudent[]>(`/results/admit-card-students?class=${encodeURIComponent(className)}`),
 
   getResults: (params: { class?: string; examName?: string; year?: string } = {}) => {
     const qs = new URLSearchParams(params as Record<string, string>).toString();

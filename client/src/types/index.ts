@@ -459,6 +459,20 @@ export interface ResultStudentOption {
   class: string;
 }
 
+// Roster row for প্রবেশপত্র (admit card) generation — GET
+// /results/admit-card-students?class=... — same narrow "results"-scoped
+// shape as ResultStudentOption above, plus the two fields the admit card
+// prints that the marks-entry screen doesn't need (admissionNumber/
+// fatherName). See AdmitCards.tsx.
+export interface AdmitCardStudent {
+  id: number;
+  name: string;
+  roll: string;
+  class: string;
+  admissionNumber: string | null;
+  fatherName: string | null;
+}
+
 // Response of POST /results/subject-batch (bulk per-subject marks entry for
 // a whole class) — docs/CURRENT_TASK.md Part 3. `updated` mirrors the
 // per-student rows that were upserted; `skipped` lists studentIds that had
