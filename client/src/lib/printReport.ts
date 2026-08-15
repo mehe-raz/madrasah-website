@@ -765,7 +765,18 @@ export function printStudentIdCard(student: IdCardOptions, targetWindow?: Window
 
 const ADMIT_CARD_STYLES = `
   @page { size: A4; margin: 8mm 10mm; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * {
+    box-sizing: border-box; margin: 0; padding: 0;
+    /* Without this, Chrome/Android drop every background-color (the navy
+       প্রবেশপত্র badge, the white দাখেলা/রোল boxes, the cream card fill)
+       the moment you switch from the on-screen preview to Print/Save-as-PDF
+       — they render fine on screen but vanish or go flat/grey in the PDF.
+       This is the standard fix; none of this file's other print* functions
+       needed it because they're border/text-only, no solid fills. */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
   body {
     font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
     color: #0f172a;
@@ -793,6 +804,23 @@ const ADMIT_CARD_STYLES = `
     display: flex;
     flex-direction: column;
     justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .ac-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 70mm;
+    width: 70mm;
+    object-fit: contain;
+    opacity: 0.12;
+    z-index: 0;
+  }
+  .ac-card__inner > *:not(.ac-watermark) {
+    position: relative;
+    z-index: 1;
   }
   .ac-head { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; }
   .ac-head img { height: 15mm; width: 15mm; object-fit: contain; flex-shrink: 0; }
@@ -850,6 +878,7 @@ export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | 
 
   const cardHtml = (s: AdmitCardStudentInput) => `
     <div class="ac-card"><div class="ac-card__inner">
+      ${settings.logo ? `<img class="ac-watermark" src="${escapeHtml(settings.logo)}" alt="">` : ""}
       <div class="ac-head">
         ${settings.logo ? `<img src="${escapeHtml(settings.logo)}" alt="">` : ""}
         <div>
