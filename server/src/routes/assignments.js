@@ -1,27 +1,40 @@
 // ============================================================================
-// routes/assignments.js  (Class-Broadcast Model — Step 4)
+// routes/assignments.js  (Class-Broadcast Model — Step 4; multi-target
+// audience added ad-hoc, docs/CURRENT_TASK.md — sidebar "নোটিশ ও
+// অ্যাসাইনমেন্ট" <-> public site notices connector)
 // ============================================================================
 // Teacher/Admin/Super Admin side of class_posts. Mounted at
 // /api/assignments, after the staff requireAuth/rbac chain in index.js.
 // Uses the same attachTeacherClasses contract as attendance.js/results.js
 // (Step 3): a Teacher only ever sees/creates/deletes posts in their
-// assigned classes; Admin/Super Admin are unscoped. The guardian-facing
-// read side (feed, unread count, mark-read) lives in routes/guardianAuth.js
-// instead, since it needs a guardian session, not a staff one.
+// assigned classes; Admin/Super Admin are unscoped and are the only roles
+// who may use the extended audience fields (allClasses/publicSite/
+// guardianStudentIds/multi-class targetClasses) — see the `req.teacherClasses`
+// branch in the POST handler below. The guardian-facing read side (feed,
+// unread count, mark-read) lives in routes/guardianAuth.js instead, since
+// it needs a guardian session, not a staff one.
 // ============================================================================
 
 const express = require("express");
 const db = require("../db");
-const { requirePermission } = require("../middleware/rbac");
+const { requirePermission, canAccess } = require("../middleware/rbac");
 const { requirePlanFeature } = require("../middleware/planGate");
 const { attachTeacherClasses } = require("../lib/teacherScope");
 const { getClassOptions } = require("../lib/classOptions");
+const { getClassTree, flattenClassTree } = require("../lib/classTree");
 const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
 const { idempotent } = require("../middleware/idempotency");
 const { classPostCreateSchema } = require("../lib/classPostSchemas");
-const { createPost, listPosts, getPost, deletePost, resolveGuardiansForClass } = require("../lib/classPosts");
+const {
+  createPost,
+  listPosts,
+  getPost,
+  deletePost,
+  resolveGuardiansForAudience,
+} = require("../lib/classPosts");
 const { notifyGuardians } = require("../lib/guardianPush");
+const { addNoticeAndPublish } = require("../lib/siteContent");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -61,38 +74,115 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", validate(classPostCreateSchema), idempotent(async (req, res) => {
-  const { type, class: className, title, body, attachments } = req.body;
+  const {
+    type,
+    class: className,
+    title,
+    body,
+    attachments,
+    targetClasses: rawTargetClasses,
+    allClasses,
+    publicSite,
+    guardianStudentIds,
+  } = req.body;
+
+  // Fold the legacy single `class` field into targetClasses so every reader
+  // (listPosts/feedForGuardian/etc.) only ever needs to look at one array.
+  const requestedClasses = Array.from(new Set([...(className ? [className] : []), ...rawTargetClasses]));
 
   if (req.teacherClasses) {
-    if (!req.teacherClasses.includes(className)) {
+    // A Teacher may only ever post to exactly one of their own assigned
+    // classes — none of the extended audience options are available to
+    // them (the compose form never sends them for a Teacher, but this is
+    // the actual enforcement point, not the UI).
+    if (allClasses || publicSite || (guardianStudentIds && guardianStudentIds.length)) {
+      return res.status(403).json({ error: "এই ধরনের নোটিশ পাঠানোর অনুমতি শুধু অ্যাডমিন/সুপার অ্যাডমিনের রয়েছে" });
+    }
+    if (requestedClasses.length !== 1 || !req.teacherClasses.includes(requestedClasses[0])) {
       return res.status(403).json({ error: "আপনার নির্ধারিত ক্লাসের বাইরে পোস্ট করা যাবে না" });
     }
   } else {
-    // Admin/Super Admin aren't scoped to a fixed class list, but the value
-    // should still be a real class — otherwise a typo here creates a post
-    // no guardian's feed query (which matches on their children's actual
-    // `students.class` values) can ever surface.
-    const validSlugs = new Set((await getClassOptions()).map((o) => o.en));
-    if (!validSlugs.has(className)) {
-      return res.status(400).json({ error: "অজানা ক্লাস" });
+    // Admin/Super Admin aren't scoped to a fixed class list, but every
+    // requested class should still be real — otherwise a typo here creates
+    // a post no guardian's feed query (which matches on their children's
+    // actual `students.class` values) can ever surface. Validated against
+    // the class TREE's leaves (not the older flat classOptions list) since
+    // that's what the checkbox picker on ClassPosts.tsx is built from,
+    // including any "সকল বিভাগ" (whole-department) picks it already
+    // expanded to leaf classes before sending.
+    if (requestedClasses.length) {
+      const leaves = flattenClassTree(await getClassTree());
+      const validSlugs = new Set(leaves.map((l) => l.en));
+      // Legacy tenants that never migrated off the flat classOptions list
+      // still validate against it too, same fallback classPosts.js's
+      // caller-facing docs already assume elsewhere in this file.
+      for (const o of await getClassOptions()) validSlugs.add(o.en);
+      const unknown = requestedClasses.filter((c) => !validSlugs.has(c));
+      if (unknown.length) return res.status(400).json({ error: `অজানা ক্লাস: ${unknown.join(", ")}` });
+    }
+    if (publicSite && !canAccess(req.user.role, ["website", "websiteNotices"])) {
+      return res.status(403).json({ error: "পাবলিক সাইটে নোটিশ পাঠানোর অনুমতি নেই" });
+    }
+    if (!requestedClasses.length && !allClasses && !publicSite && (!guardianStudentIds || !guardianStudentIds.length)) {
+      return res.status(400).json({ error: "কমপক্ষে একটি গন্তব্য নির্বাচন করুন (ক্লাস, সকল ক্লাস, পাবলিক সাইট বা গার্ডিয়ান)" });
     }
   }
 
-  const post = await createPost({ type, class: className, title, body, attachments, teacherId: req.user.id });
+  // `class` (the legacy display/scoping column) keeps carrying the first
+  // targeted class for anything that still reads it directly (audit log
+  // labels, the Teacher out-of-scope checks above); the real audience for
+  // every reader going forward is targetClasses/allClasses/guardianStudentIds.
+  const primaryClass = requestedClasses[0] || "";
+
+  const post = await createPost({
+    type,
+    class: primaryClass,
+    title,
+    body,
+    attachments,
+    teacherId: req.user.id,
+    targetClasses: requestedClasses,
+    allClasses: !!allClasses,
+    publicSite: !!publicSite,
+    guardianStudentIds: guardianStudentIds || [],
+  });
+
+  if (publicSite) {
+    // Best-effort mirror to the public site — a failure here shouldn't
+    // undo the class_posts row already created above (same "additive,
+    // never blocks the primary write" philosophy as notifyGuardians below).
+    try {
+      await addNoticeAndPublish({ title, body });
+    } catch (err) {
+      console.error("addNoticeAndPublish failed:", err);
+    }
+  }
+
   await recordAudit({
     action: "class_post.created",
     actor: req.user,
     entityType: "class_post",
     entityId: post.id,
-    label: `Posted ${type} to ${className}: ${title}`,
-    details: { type, class: className, attachmentCount: (attachments || []).length },
+    label: `Posted ${type}${publicSite ? " (+public site)" : ""}: ${title}`,
+    details: {
+      type,
+      targetClasses: requestedClasses,
+      allClasses: !!allClasses,
+      publicSite: !!publicSite,
+      guardianStudentCount: (guardianStudentIds || []).length,
+      attachmentCount: (attachments || []).length,
+    },
   });
   // Push is purely additive on top of the class_posts row above —
   // notifyGuardians() never throws (lib/guardianPush.js), so a push
   // failure or missing VAPID config can never stop the post itself from
   // being created/returned. Same placement pattern as Phase 4's
   // guardianReminders.js dispatchReminder().
-  const guardianIds = await resolveGuardiansForClass(className);
+  const guardianIds = await resolveGuardiansForAudience({
+    targetClasses: requestedClasses,
+    allClasses: !!allClasses,
+    guardianStudentIds: guardianStudentIds || [],
+  });
   await notifyGuardians(guardianIds, { title, body, url: "/guardian/feed" });
   res.status(201).json(post);
 }));

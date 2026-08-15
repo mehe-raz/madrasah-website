@@ -604,6 +604,17 @@ export const bn = {
     noPosts: "এখনো কোনো পোস্ট পাঠানো হয়নি",
     delete: "মুছুন",
     deleteFailed: "মুছতে ব্যর্থ হয়েছে",
+    // সম্প্রসারিত গন্তব্য নির্বাচক (শুধু অ্যাডমিন/সুপার অ্যাডমিন) — এই
+    // মডিউলকে পাবলিক সাইটের নোটিশের সাথে সংযুক্ত করে, ad-hoc (docs/CURRENT_TASK.md)।
+    destinationLabel: "গন্তব্য",
+    selectDestinationFirst: "কমপক্ষে একটি গন্তব্য নির্বাচন করুন (ক্লাস, সকল ক্লাস, পাবলিক সাইট বা গার্ডিয়ান)",
+    targetAllClasses: "সকল ক্লাস",
+    targetClassesHint: "অথবা নিচে নির্দিষ্ট বিভাগ/ক্লাস চেক করুন",
+    noClassTree: "এখনো কোনো ক্লাস তালিকা তৈরি করা হয়নি",
+    targetPublicSite: "পাবলিক সাইট",
+    targetPublicSiteHint: "এটি সাথে সাথে পাবলিক /notices পেজেও প্রকাশ করবে",
+    targetGuardian: "নির্দিষ্ট গার্ডিয়ান",
+    targetGuardianPlaceholder: "শিক্ষার্থী খুঁজে তার গার্ডিয়ানকে যুক্ত করুন...",
   },
   guardianReminders: {
     title: "গার্ডিয়ান রিমাইন্ডার",

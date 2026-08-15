@@ -548,6 +548,13 @@ export interface ClassPost {
   attachments: ClassPostAttachment[];
   createdAt: string;
   read?: boolean;
+  // Multi-target audience (ad-hoc, docs/CURRENT_TASK.md) — Admin/Super Admin
+  // only; a plain Teacher post just has targetClasses: [class] and every
+  // other field at its default. See server/src/lib/classPosts.js.
+  targetClasses: string[];
+  allClasses: boolean;
+  publicSite: boolean;
+  guardianStudentIds: number[];
 }
 
 // Guardian Reminder Messenger (ad-hoc, docs/CURRENT_TASK.md) —

@@ -606,6 +606,17 @@ export const en = {
     noPosts: "No posts sent yet",
     delete: "Delete",
     deleteFailed: "Delete failed",
+    // Extended audience picker (Admin/Super Admin only) — connects this
+    // module to the public site's notices, ad-hoc (docs/CURRENT_TASK.md).
+    destinationLabel: "Destination",
+    selectDestinationFirst: "Select at least one destination (a class, all classes, the public site, or a guardian)",
+    targetAllClasses: "All classes",
+    targetClassesHint: "Or check specific departments/classes below",
+    noClassTree: "No class list has been set up yet",
+    targetPublicSite: "Public site",
+    targetPublicSiteHint: "Also publishes this notice on the public /notices page immediately",
+    targetGuardian: "Specific guardian",
+    targetGuardianPlaceholder: "Search a student to reach their guardian...",
   },
   guardianReminders: {
     title: "Guardian Reminders",

@@ -373,6 +373,24 @@ async function migrateLiveClassReferences(tx, oldEn, newEn) {
     migratedCount += result.rowCount || 0;
   }
 
+  // class_posts."targetClasses" (ad-hoc, docs/CURRENT_TASK.md) is a jsonb
+  // ARRAY of leaf `en` slugs, not a plain text column, so it can't go
+  // through the simple `column = $1 WHERE column = $2` UPDATE above —
+  // every post whose array happens to contain `oldEn` needs that one
+  // element replaced in place, leaving the rest of the array (any other
+  // classes that same post targets) untouched. Same "live reference, keep
+  // it working" reasoning as the `class` column itself.
+  const targetClassesResult = await tx.run(
+    `UPDATE class_posts
+     SET "targetClasses" = (
+       SELECT jsonb_agg(CASE WHEN elem = $1::text THEN $2::text ELSE elem END)
+       FROM jsonb_array_elements_text("targetClasses") AS elem
+     )
+     WHERE "targetClasses" ? $1`,
+    [oldEn, newEn]
+  );
+  migratedCount += targetClassesResult.rowCount || 0;
+
   return migratedCount;
 }
 

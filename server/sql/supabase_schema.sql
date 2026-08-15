@@ -500,7 +500,32 @@ create table if not exists class_posts (
   "createdAt" text not null
 );
 
+-- Multi-target audience (ad-hoc — sidebar "নোটিশ ও অ্যাসাইনমেন্ট" <-> public
+-- site notices connector, docs/CURRENT_TASK.md). `class` above stays exactly
+-- as it was (a Teacher's single-class post still only ever writes that one
+-- column, unchanged) — these are additive columns only Admin/Super Admin can
+-- populate (see routes/assignments.js), so old rows/queries against `class`
+-- keep working untouched.
+--   "targetClasses"     — jsonb array of leaf class `en` slugs. A "সকল বিভাগ"
+--                          (whole department) pick is expanded into its leaf
+--                          classes client-side before it ever reaches here,
+--                          so this table never needs to know about
+--                          department-level grouping itself.
+--   "allClasses"         — true means every active-linked guardian, regardless
+--                          of which class(es) targetClasses lists.
+--   "publicSite"          — true means this post was also mirrored onto the
+--                          public /notices page (content.notices) at creation
+--                          time — see lib/siteContent.js's addNoticeAndPublish.
+--   "guardianStudentIds"  — jsonb array of student ids, for "নির্দিষ্ট
+--                          গার্ডিয়ান": the guardian(s) of these specific
+--                          students, regardless of class.
+alter table class_posts add column if not exists "targetClasses" jsonb not null default '[]'::jsonb;
+alter table class_posts add column if not exists "allClasses" boolean not null default false;
+alter table class_posts add column if not exists "publicSite" boolean not null default false;
+alter table class_posts add column if not exists "guardianStudentIds" jsonb not null default '[]'::jsonb;
+
 create index if not exists class_posts_class_created_idx on class_posts (class, "createdAt" desc);
+create index if not exists class_posts_all_classes_idx on class_posts ("allClasses") where "allClasses" = true;
 
 -- Step 4: per-guardian read-tracking for the class-broadcast feed. The plan
 -- called for reusing the existing notifications/notification_reads tables

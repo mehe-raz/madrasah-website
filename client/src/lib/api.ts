@@ -563,8 +563,21 @@ export const api = {
     return request<ClassPost[]>(`/assignments${qs ? `?${qs}` : ""}`);
   },
 
-  createClassPost: (body: { type: ClassPost["type"]; class: string; title: string; body?: string }) =>
-    request<ClassPost>("/assignments", { method: "POST", body: JSON.stringify(body) }),
+  createClassPost: (body: {
+    type: ClassPost["type"];
+    class: string;
+    title: string;
+    body?: string;
+    // Multi-target audience (ad-hoc, docs/CURRENT_TASK.md) — Admin/Super
+    // Admin only; ClassPosts.tsx only ever sends these when the signed-in
+    // user can access the extended checkbox picker (see canAccess(role,
+    // "website"/"websiteNotices") there). Server re-enforces this — see
+    // routes/assignments.js's `req.teacherClasses` branch.
+    targetClasses?: string[];
+    allClasses?: boolean;
+    publicSite?: boolean;
+    guardianStudentIds?: number[];
+  }) => request<ClassPost>("/assignments", { method: "POST", body: JSON.stringify(body) }),
 
   deleteClassPost: (id: number) => request<{ ok: boolean }>(`/assignments/${id}`, { method: "DELETE" }),
 

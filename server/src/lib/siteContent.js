@@ -247,12 +247,35 @@ async function publishSiteContent() {
   return saveSiteContent(draft);
 }
 
+// Ad-hoc (docs/CURRENT_TASK.md) — sidebar "নোটিশ ও অ্যাসাইনমেন্ট" -> public
+// site connector: prepends a notice and makes it live immediately, WITHOUT
+// going through publishSiteContent()'s normal "copy the whole draft over
+// live" behavior. publishSiteContent() would also push out any other
+// section an admin might be mid-edit on in the Website module (e.g. an
+// unfinished "About" rewrite) — undesirable side effect for what's meant to
+// be a quick one-off notice broadcast. Instead this only ever touches the
+// `notices` field on both draft and live, leaving every other field's
+// draft/live divergence exactly as it was.
+async function addNoticeAndPublish({ title, body }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const notice = { title: cleanText(title, 140), date: today, body: cleanText(body, 600) };
+
+  const draft = await getDraftSiteContent();
+  const nextNotices = [notice, ...draft.notices].slice(0, MAX_NOTICES);
+  await saveDraftSiteContent({ ...draft, notices: nextNotices });
+
+  const live = await getSiteContent();
+  const publishedLive = await saveSiteContent({ ...live, notices: nextNotices });
+  return { notice, content: publishedLive };
+}
+
 module.exports = {
   getSiteContent,
   saveSiteContent,
   getDraftSiteContent,
   saveDraftSiteContent,
   publishSiteContent,
+  addNoticeAndPublish,
   sanitizeContent,
   DEFAULT_CONTENT,
 };
