@@ -54,6 +54,18 @@ export function classTreeLabel(tree: ClassTreeNode[], en: string): string {
   return path.map((node) => node.bn).join(" / ");
 }
 
+/** Just the leaf's own বাংলা name (e.g. "পঞ্চম শ্রেণী"), without the
+ * বিভাগ/নেসাব ancestors classTreeLabel prefixes it with — for flat
+ * "pick any class" dropdowns (Income, BulkSms, Results, ClassPosts) where
+ * every option is a leaf already and repeating its full ancestry on each
+ * one is just noise. Falls back to the raw value the same way
+ * classTreeLabel does when `en` isn't found in the tree. */
+export function classTreeLeafLabel(tree: ClassTreeNode[], en: string): string {
+  const path = findClassTreePath(tree, en);
+  if (!path || !path.length) return en;
+  return path[path.length - 1].bn;
+}
+
 // --- Settings tree-editor helpers -----------------------------------------
 // Pure, immutable tree edits used by Settings.tsx to build the next tree
 // before calling saveClassTree (the server re-sanitizes/re-dedupes

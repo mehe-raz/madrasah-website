@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SkeletonCardList } from "../components/Skeleton";
 import { api } from "../lib/api";
 import { useAppSettings } from "../context/AppSettingsContext";
-import { classTreeLabel } from "../lib/classTree";
+import { classTreeLabel, classTreeLeafLabel } from "../lib/classTree";
 import { C } from "../theme/colors";
 import { Button, Card, Field, Input, Select } from "../components/ui";
 import { EXAM_TYPES } from "../lib/examTypes";
@@ -242,7 +242,7 @@ export function Results() {
               <option value="">{t.results.selectClass}</option>
               {classes.map((c) => (
                 <option key={c} value={c}>
-                  {classTreeLabel(classTree, c)}
+                  {classTreeLeafLabel(classTree, c)}
                 </option>
               ))}
             </Select>

@@ -184,7 +184,6 @@ export function AdmissionApply() {
               <div style={{ display: "grid", gap: 16 }}>
                 {classTree.length ? (
                   <ClassCascadeSelect
-                    label="ক্লাস / জামাত"
                     tree={classTree}
                     value={form.className}
                     onChange={(en) => update({ className: en })}

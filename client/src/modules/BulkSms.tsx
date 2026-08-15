@@ -11,7 +11,7 @@ import { SkeletonCardList } from "../components/Skeleton";
 import { Button, Card, Field, Select, Textarea } from "../components/ui";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
-import { classTreeLabel } from "../lib/classTree";
+import { classTreeLeafLabel } from "../lib/classTree";
 import { Icons, type IconKey } from "../lib/icons";
 import type { SmsBroadcastStudent, SmsContact } from "../types";
 import { BulkSmsGateway } from "./BulkSmsGateway";
@@ -206,7 +206,7 @@ function ComposeSection() {
               <option value="">{c.composeClassPlaceholder}</option>
               {classes.map((cls) => (
                 <option key={cls} value={cls}>
-                  {classTreeLabel(classTree, cls)}
+                  {classTreeLeafLabel(classTree, cls)}
                 </option>
               ))}
             </Select>

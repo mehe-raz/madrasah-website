@@ -9,7 +9,7 @@ import { Button } from "../components/ui/Button";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
-import { classTreeLabel } from "../lib/classTree";
+import { classTreeLeafLabel } from "../lib/classTree";
 import { fmt } from "../lib/fmt";
 import { C } from "../theme/colors";
 import type { IncomeEntry, Payment, Student } from "../types";
@@ -426,7 +426,7 @@ export function Income() {
             style={{ ...fieldStyle, marginBottom: 12 }}
           >
             {classes.map((c) => (
-              <option key={c} value={c}>{classTreeLabel(classTree, c)}</option>
+              <option key={c} value={c}>{classTreeLeafLabel(classTree, c)}</option>
             ))}
           </select>
           <label style={{ fontSize: 12, color: C.muted }}>Student / শিক্ষার্থী</label>

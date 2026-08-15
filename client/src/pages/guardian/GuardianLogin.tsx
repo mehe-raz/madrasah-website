@@ -172,7 +172,6 @@ export function GuardianLogin() {
                   </Field>
                   {classTree.length ? (
                     <ClassCascadeSelect
-                      label="ক্লাস"
                       tree={classTree}
                       value={studentClass}
                       onChange={(en) => setStudentClass(en)}

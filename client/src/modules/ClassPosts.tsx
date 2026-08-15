@@ -3,7 +3,7 @@ import { SkeletonCardList } from "../components/Skeleton";
 import { Badge } from "../components/Badge";
 import { Button, Card, Field, Input, Select, Textarea } from "../components/ui";
 import { api } from "../lib/api";
-import { classTreeLabel } from "../lib/classTree";
+import { classTreeLabel, classTreeLeafLabel } from "../lib/classTree";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
 import type { ClassPost } from "../types";
@@ -114,7 +114,7 @@ export function ClassPosts() {
               <option value="">{t.classPosts.selectClass}</option>
               {classes.map((c) => (
                 <option key={c} value={c}>
-                  {classTreeLabel(classTree, c)}
+                  {classTreeLeafLabel(classTree, c)}
                 </option>
               ))}
             </Select>

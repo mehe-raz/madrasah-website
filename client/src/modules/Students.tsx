@@ -721,7 +721,6 @@ export function Students() {
                 {renderSelect(t.students.academicYear, "academicYear", academicYearOptions(String(form.academicYear || "")))}
                 {renderInput(t.students.session, "session")}
                 <ClassCascadeSelect
-                  label={t.students.classJamaat}
                   tree={classTree}
                   value={String(form.class || "")}
                   onChange={handleClassChange}

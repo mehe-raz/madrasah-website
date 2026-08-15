@@ -5,7 +5,6 @@ import { useLanguage } from "../../context/AppSettingsContext";
 import { Field, Select } from "./Field";
 
 interface ClassCascadeSelectProps {
-  label: string;
   tree: ClassTreeNode[];
   /** Currently stored leaf `en` value (what's saved on students.class), or "". */
   value: string;
@@ -17,12 +16,18 @@ interface ClassCascadeSelectProps {
   error?: boolean;
 }
 
-/** বিভাগ -> গ্রুপ/নেসাব -> জামাত, as many <Select> levels deep as the tree
- * goes at the branch currently being walked. Purely data-driven off `tree`
- * (server/src/lib/classTree.js) — doesn't hardcode "বিভাগ"/"গ্রুপ"/"নেসাব" as
- * separate concepts, so a future deeper/shallower branch (e.g. জেনারেল,
- * which is only one level) just works. */
-export function ClassCascadeSelect({ label, tree, value, onChange, error }: ClassCascadeSelectProps) {
+/** বিভাগ -> নেসাব -> ক্লাস, as many <Select> levels deep as the tree goes at
+ * the branch currently being walked. Each level gets its own label instead
+ * of one shared field label: the first level is always বিভাগ (a tree's
+ * top-level departments), the last level — whichever one that ends up being
+ * for the branch chosen, since branches aren't all the same depth — is
+ * always ক্লাস (the actual leaf/selectable class), and anything strictly
+ * between the two (only some branches have this, e.g. কিতাব বিভাগ's নেসাব
+ * groupings) is labeled নেসাব. Purely data-driven off `tree`
+ * (server/src/lib/classTree.js) — doesn't hardcode a fixed number of
+ * levels, so a 2-level বিভাগ (বিভাগ -> ক্লাস directly, no নেসাব) and a
+ * 3-level one (বিভাগ -> নেসাব -> ক্লাস) both label correctly. */
+export function ClassCascadeSelect({ tree, value, onChange, error }: ClassCascadeSelectProps) {
   const { t } = useLanguage();
   const [selections, setSelections] = useState<string[]>(() => {
     const path = findClassTreePath(tree, value);
@@ -66,24 +71,28 @@ export function ClassCascadeSelect({ label, tree, value, onChange, error }: Clas
   };
 
   return (
-    <Field label={label}>
-      <div className="row row--gap-8 row--wrap">
-        {levels.map((options, levelIndex) => (
-          <Select
-            key={levelIndex}
-            value={selections[levelIndex] || ""}
-            onChange={(event) => handleLevelChange(levelIndex, event.target.value)}
-            error={levelIndex === 0 ? error : undefined}
-          >
-            <option value="">{t.common.select}</option>
-            {options.map((node) => (
-              <option key={node.en} value={node.en}>
-                {node.bn}
-              </option>
-            ))}
-          </Select>
-        ))}
-      </div>
-    </Field>
+    <div className="row row--gap-8 row--wrap">
+      {levels.map((options, levelIndex) => {
+        const isFirst = levelIndex === 0;
+        const isLast = levelIndex === levels.length - 1;
+        const levelLabel = isFirst ? "বিভাগ" : isLast ? "ক্লাস" : "নেসাব";
+        return (
+          <Field key={levelIndex} label={levelLabel}>
+            <Select
+              value={selections[levelIndex] || ""}
+              onChange={(event) => handleLevelChange(levelIndex, event.target.value)}
+              error={isFirst ? error : undefined}
+            >
+              <option value="">{t.common.select}</option>
+              {options.map((node) => (
+                <option key={node.en} value={node.en}>
+                  {node.bn}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        );
+      })}
+    </div>
   );
 }
