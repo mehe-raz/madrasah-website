@@ -160,6 +160,8 @@ export const bn = {
     classTreeNodeEdited_plural: "এন্ট্রি সম্পাদনা করা হয়েছে — {count}টি সংযুক্ত রেকর্ড নতুন নামে আপডেট হয়েছে",
     classTreeNodeEditedLabelOnly: "এন্ট্রির নাম সম্পাদনা করা হয়েছে",
     classTreeCancel: "বাতিল",
+    classTreeExpand: "খুলুন",
+    classTreeCollapse: "বন্ধ করুন",
     classSuperAdminOnly: "শুধুমাত্র সুপার অ্যাডমিন ক্লাস/জামাত লিস্ট পরিবর্তন করতে পারবেন",
     name: "মাদ্রাসার নাম",
     address: "ঠিকানা",

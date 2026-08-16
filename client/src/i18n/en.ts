@@ -162,6 +162,8 @@ export const en = {
     classTreeNodeEdited_plural: "Entry updated — {count} connected records updated to the new value",
     classTreeNodeEditedLabelOnly: "Entry label updated",
     classTreeCancel: "Cancel",
+    classTreeExpand: "Expand",
+    classTreeCollapse: "Collapse",
     classSuperAdminOnly: "Only Super Admin can change the class/jamaat list",
     name: "Madrasa Name",
     address: "Address",

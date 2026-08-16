@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { HudSpinner } from "../components/HudSpinner";
 import { SkeletonRows } from "../components/Skeleton";
 import { Button, Input, Select } from "../components/ui";
@@ -71,10 +71,15 @@ function SectionHeader({ title, open, onToggle }: { title: string; open: boolean
   );
 }
 
-// Recursive row for the class-tree editor — one line per node, indented by
-// depth, with "+ add child" / "delete" actions. A plain nested list rather
-// than anything fancier since the tree is at most 4 levels deep (see
-// classTree.js's MAX_TREE_DEPTH) and Super Admin only visits this rarely.
+// Recursive row for the class-tree editor. Two things this fixes vs the
+// old flat version:
+//  1. Each node with children is its own collapsible accordion (closed by
+//     default) instead of the whole tree unfolding at once — opening one
+//     বিভাগ no longer dumps every other বিভাগ's classes on screen too.
+//  2. The add-child / edit form for a node renders inline right under that
+//     node's own row, not in one shared block pinned to the top of the
+//     panel — editing something 3 levels deep no longer means scrolling
+//     away from it to reach the form.
 function ClassTreeRow({
   node,
   path,
@@ -82,9 +87,15 @@ function ClassTreeRow({
   addLabel,
   editLabel,
   deleteLabel,
+  expandLabel,
+  collapseLabel,
+  activeAddPath,
+  activeEditPath,
   onAddChild,
   onEdit,
   onDelete,
+  renderAddForm,
+  renderEditForm,
 }: {
   node: ClassTreeNode;
   path: string[];
@@ -92,41 +103,86 @@ function ClassTreeRow({
   addLabel: string;
   editLabel: string;
   deleteLabel: string;
+  expandLabel: string;
+  collapseLabel: string;
+  activeAddPath: string[] | null;
+  activeEditPath: string[] | null;
   onAddChild: (path: string[]) => void;
   onEdit: (path: string[], node: ClassTreeNode) => void;
   onDelete: (path: string[], node: ClassTreeNode) => void;
+  renderAddForm: () => ReactNode;
+  renderEditForm: () => ReactNode;
 }) {
+  const hasChildren = node.children.length > 0;
+  // `open` is derived, not effect-driven: it's "the user manually toggled
+  // this row open" OR'd with "a child is currently being added here" (so
+  // composing a new entry shows it landing in place), with no useEffect
+  // needed to sync the two — the project's lint config flags setState
+  // calls from inside an effect body (see react-hooks/set-state-in-effect).
+  const [manuallyOpen, setManuallyOpen] = useState(false);
+  const pathKey = path.join("/");
+  const isAddTarget = activeAddPath !== null && activeAddPath.join("/") === pathKey;
+  const isEditTarget = activeEditPath !== null && activeEditPath.join("/") === pathKey;
+  const open = manuallyOpen || isAddTarget;
+
   return (
     <div className={`class-tree-row class-tree-row--depth-${Math.min(depth, 3)}`}>
-      <div className="user-row">
+      <div
+        className={`user-row class-tree-row__header ${hasChildren ? "class-tree-row__header--clickable" : ""}`}
+        onClick={hasChildren ? () => setManuallyOpen(!open) : undefined}
+      >
+        {hasChildren && (
+          <Icons.chevronDown
+            size={16}
+            aria-hidden="true"
+            className={open ? "class-tree-row__chevron class-tree-row__chevron--open" : "class-tree-row__chevron"}
+          />
+        )}
         <div className="user-info">
           <div className="user-name">{node.bn}</div>
           <div className="user-meta">{node.en}</div>
         </div>
-        <button type="button" onClick={() => onAddChild(path)} className="btn-xs btn-xs--cancel">
+        <button type="button" onClick={(e) => { e.stopPropagation(); onAddChild(path); }} className="btn-xs btn-xs--cancel">
           {addLabel}
         </button>
-        <button type="button" onClick={() => onEdit(path, node)} className="btn-xs">
+        <button type="button" onClick={(e) => { e.stopPropagation(); onEdit(path, node); }} className="btn-xs">
           {editLabel}
         </button>
-        <button type="button" onClick={() => onDelete(path, node)} className="btn-xs btn-xs--delete">
+        <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(path, node); }} className="btn-xs btn-xs--delete">
           {deleteLabel}
         </button>
+        {hasChildren && (
+          <span className="sr-only">{open ? collapseLabel : expandLabel}</span>
+        )}
       </div>
-      {node.children.map((child) => (
-        <ClassTreeRow
-          key={child.en}
-          node={child}
-          path={[...path, child.en]}
-          depth={depth + 1}
-          addLabel={addLabel}
-          editLabel={editLabel}
-          deleteLabel={deleteLabel}
-          onAddChild={onAddChild}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
-      ))}
+
+      {isEditTarget && renderEditForm()}
+      {isAddTarget && renderAddForm()}
+
+      {hasChildren && open && (
+        <div>
+          {node.children.map((child) => (
+            <ClassTreeRow
+              key={child.en}
+              node={child}
+              path={[...path, child.en]}
+              depth={depth + 1}
+              addLabel={addLabel}
+              editLabel={editLabel}
+              deleteLabel={deleteLabel}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+              activeAddPath={activeAddPath}
+              activeEditPath={activeEditPath}
+              onAddChild={onAddChild}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              renderAddForm={renderAddForm}
+              renderEditForm={renderEditForm}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1359,11 +1415,15 @@ export function Settings() {
                     {t.settings.classTreeAddTopLevel}
                   </Button>
 
-                  {classTreeAddTarget !== null && (
+                  {/* Only the "add a brand-new বিভাগ" form lives up here —
+                      it has no existing row to attach to. Add-child and
+                      edit forms for existing nodes render inline via
+                      renderAddForm/renderEditForm below, right next to the
+                      node they belong to. */}
+                  {classTreeAddTarget !== null && classTreeAddTarget.length === 0 && (
                     <div className="user-form-grid mb-10">
                       <div className="field-block__label class-tree-add-parent-label">
-                        {t.settings.classTreeParentLabel}:{" "}
-                        {classTreeAddTarget.length === 0 ? t.settings.classTreeAddTopLevel : classTreeAddTarget.join(" / ")}
+                        {t.settings.classTreeParentLabel}: {t.settings.classTreeAddTopLevel}
                       </div>
                       <Input
                         placeholder={t.settings.classBnLabel}
@@ -1387,33 +1447,6 @@ export function Settings() {
                     </div>
                   )}
 
-                  {classTreeEditTarget !== null && (
-                    <div className="user-form-grid mb-10">
-                      <div className="field-block__label class-tree-add-parent-label">
-                        {t.settings.classTreeEditingLabel}: {classTreeEditTarget.join(" / ")}
-                      </div>
-                      <Input
-                        placeholder={t.settings.classBnLabel}
-                        value={classTreeEditForm.bn}
-                        onChange={(e) => setClassTreeEditForm({ ...classTreeEditForm, bn: e.target.value })}
-                      />
-                      <div>
-                        <Input
-                          placeholder={t.settings.classEnLabel}
-                          value={classTreeEditForm.en}
-                          onChange={(e) => setClassTreeEditForm({ ...classTreeEditForm, en: e.target.value })}
-                        />
-                        <p className="field-block__label">{t.settings.classEnHint}</p>
-                      </div>
-                      <Button variant="teal" solid onClick={handleSaveClassTreeNodeEdit} disabled={classTreeEditSaving}>
-                        {classTreeEditSaving ? t.settings.classTreeEditSaving : t.settings.classTreeEditSave}
-                      </Button>
-                      <Button variant="rose" onClick={() => setClassTreeEditTarget(null)} disabled={classTreeEditSaving}>
-                        {t.settings.classTreeCancel}
-                      </Button>
-                    </div>
-                  )}
-
                   <div className="user-list">
                     {classTree.map((node) => (
                       <ClassTreeRow
@@ -1424,6 +1457,10 @@ export function Settings() {
                         addLabel={t.settings.classTreeAddChild}
                         editLabel={t.settings.classTreeEdit}
                         deleteLabel={t.common.delete}
+                        expandLabel={t.settings.classTreeExpand}
+                        collapseLabel={t.settings.classTreeCollapse}
+                        activeAddPath={classTreeAddTarget !== null && classTreeAddTarget.length > 0 ? classTreeAddTarget : null}
+                        activeEditPath={classTreeEditTarget}
                         onAddChild={(path) => {
                           setClassTreeEditTarget(null);
                           setClassTreeAddTarget(path);
@@ -1431,6 +1468,58 @@ export function Settings() {
                         }}
                         onEdit={handleStartEditClassTreeNode}
                         onDelete={handleDeleteClassTreeNode}
+                        renderAddForm={() => (
+                          <div className="user-form-grid mb-10 class-tree-inline-form">
+                            <div className="field-block__label class-tree-add-parent-label">
+                              {t.settings.classTreeParentLabel}: {classTreeAddTarget?.join(" / ")}
+                            </div>
+                            <Input
+                              placeholder={t.settings.classBnLabel}
+                              value={classTreeForm.bn}
+                              onChange={(e) => setClassTreeForm({ ...classTreeForm, bn: e.target.value })}
+                            />
+                            <div>
+                              <Input
+                                placeholder={t.settings.classEnLabel}
+                                value={classTreeForm.en}
+                                onChange={(e) => setClassTreeForm({ ...classTreeForm, en: e.target.value })}
+                              />
+                              <p className="field-block__label">{t.settings.classEnHint}</p>
+                            </div>
+                            <Button variant="teal" solid onClick={handleAddClassTreeNode}>
+                              {t.settings.addClass}
+                            </Button>
+                            <Button variant="rose" onClick={() => setClassTreeAddTarget(null)}>
+                              {t.settings.classTreeCancel}
+                            </Button>
+                          </div>
+                        )}
+                        renderEditForm={() => (
+                          <div className="user-form-grid mb-10 class-tree-inline-form">
+                            <div className="field-block__label class-tree-add-parent-label">
+                              {t.settings.classTreeEditingLabel}: {classTreeEditTarget?.join(" / ")}
+                            </div>
+                            <Input
+                              placeholder={t.settings.classBnLabel}
+                              value={classTreeEditForm.bn}
+                              onChange={(e) => setClassTreeEditForm({ ...classTreeEditForm, bn: e.target.value })}
+                            />
+                            <div>
+                              <Input
+                                placeholder={t.settings.classEnLabel}
+                                value={classTreeEditForm.en}
+                                onChange={(e) => setClassTreeEditForm({ ...classTreeEditForm, en: e.target.value })}
+                              />
+                              <p className="field-block__label">{t.settings.classEnHint}</p>
+                            </div>
+                            <Button variant="teal" solid onClick={handleSaveClassTreeNodeEdit} disabled={classTreeEditSaving}>
+                              {classTreeEditSaving ? t.settings.classTreeEditSaving : t.settings.classTreeEditSave}
+                            </Button>
+                            <Button variant="rose" onClick={() => setClassTreeEditTarget(null)} disabled={classTreeEditSaving}>
+                              {t.settings.classTreeCancel}
+                            </Button>
+                          </div>
+                        )}
                       />
                     ))}
                     {!classTree.length && <p className="field-block__label">{t.settings.classEmptyList}</p>}
