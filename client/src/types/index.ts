@@ -473,6 +473,19 @@ export interface AdmitCardStudent {
   fatherName: string | null;
 }
 
+// Roster row for পরীক্ষার খাতার প্রথম পেইজ (exam-cover-sheet) generation —
+// GET /results/exam-cover-students?class=... — same narrow "results"-scoped
+// shape as AdmitCardStudent above, plus `section` (শাখা), which the cover
+// sheet prints and admit cards don't. See ExamCoverSheets.tsx.
+export interface ExamCoverStudent {
+  id: number;
+  name: string;
+  roll: string;
+  class: string;
+  section: string | null;
+  admissionNumber: string | null;
+}
+
 // Response of POST /results/subject-batch (bulk per-subject marks entry for
 // a whole class) — docs/CURRENT_TASK.md Part 3. `updated` mirrors the
 // per-student rows that were upserted; `skipped` lists studentIds that had

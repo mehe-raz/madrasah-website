@@ -36,6 +36,7 @@ import type {
   PublicSettings,
   ResultStudentOption,
   AdmitCardStudent,
+  ExamCoverStudent,
   ResultSubjectBatchResponse,
   ResultSubjectMark,
   Settings,
@@ -514,6 +515,12 @@ export const api = {
   // scope as getResultStudents above, but includes admissionNumber/fatherName.
   getAdmitCardStudents: (className: string) =>
     request<AdmitCardStudent[]>(`/results/admit-card-students?class=${encodeURIComponent(className)}`),
+
+  // Roster for পরীক্ষার খাতার প্রথম পেইজ (exam cover sheet) generation — same
+  // "results" permission scope as getResultStudents above, but includes
+  // section/admissionNumber. See ExamCoverSheets.tsx.
+  getExamCoverStudents: (className: string) =>
+    request<ExamCoverStudent[]>(`/results/exam-cover-students?class=${encodeURIComponent(className)}`),
 
   getResults: (params: { class?: string; examName?: string; year?: string } = {}) => {
     const qs = new URLSearchParams(params as Record<string, string>).toString();

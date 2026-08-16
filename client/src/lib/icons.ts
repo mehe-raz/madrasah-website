@@ -71,6 +71,7 @@ export const Icons = {
   hifz: BookOpen,
   results: FileEdit,
   admitCards: IdCard,
+  examCoverSheets: ClipboardList,
   assignments: Megaphone,
   reports: BarChart3,
   website: Globe,

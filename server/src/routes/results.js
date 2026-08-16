@@ -111,6 +111,25 @@ router.get("/admit-card-students", async (req, res) => {
   res.json(rows);
 });
 
+// Roster for পরীক্ষার খাতার প্রথম পেইজ (exam cover sheet) generation — same
+// narrow, "results"-scoped lookup as /admit-card-students above, but carries
+// "section" (শাখা) instead of "fatherName", since the cover sheet prints
+// শ্রেণী/শাখা/শিক্ষার্থীর আইডি, not the father's name. Kept as its own
+// endpoint for the same reason /admit-card-students is: existing response
+// shapes shouldn't change under other callers.
+router.get("/exam-cover-students", async (req, res) => {
+  const { class: className } = req.query;
+  if (!className) return res.json([]);
+  if (req.teacherClasses && !req.teacherClasses.includes(className)) {
+    return res.status(403).json({ error: OUT_OF_SCOPE_ERROR });
+  }
+  const rows = await db.all(
+    'SELECT id, name, roll, class, section, "admissionNumber" FROM students WHERE class = $1 ORDER BY roll',
+    [className]
+  );
+  res.json(rows);
+});
+
 router.get("/", async (req, res) => {
   const { class: className, examName, year } = req.query;
   if (req.teacherClasses) {

@@ -909,3 +909,124 @@ export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | 
 
   openRawPrintWindow(`প্রবেশপত্র - ${opts.classLabel}`, ADMIT_CARD_STYLES, pages.join(""), targetWindow);
 }
+
+// ----------------------------------------------------------------------
+// Exam Cover Sheet (পরীক্ষার খাতার প্রথম পেইজ) — reproduces the reference
+// design supplied for this feature: centered institution logo/name/address,
+// an underline-blank + "পরিক্ষা" title line, a dashed info box (সিট নং,
+// শ্রেণী, শাখা, শিক্ষার্থীর আইডি, মাধ্যম, বিষয়, তারিখ) with the
+// institution's own emblem as a light watermark behind it, a ১৪-row
+// লিখিত/মৌখিক/মোট নাম্বার/মন্তব্য marks table plus two total rows, and
+// three rounded signature boxes (পরিদর্শক/পরীক্ষক/অভিভাবক).
+//
+// Per the same strict no-guessing rule as printAdmissionForm: শ্রেণী, শাখা
+// and শিক্ষার্থীর আইডি are auto-filled from the student record (class,
+// section, admissionNumber) and সিট নং from the student's roll (rolls
+// double as exam seat numbers in this institution's own admit-card
+// template above). বিষয় and তারিখ are filled from the batch's own inputs.
+// মাধ্যম has no matching Student field anywhere in this codebase, so it is
+// left blank for the invigilator to fill in by hand, same as unmapped
+// fields on the admission form.
+// ----------------------------------------------------------------------
+
+const EXAM_COVER_STYLES = `
+  @page { size: A4; margin: 12mm 14mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
+    color: #0f172a;
+  }
+  .ecs-page { page-break-after: always; }
+  .ecs-page:last-child { page-break-after: auto; }
+  .ecs-header { text-align: center; margin-bottom: 6px; }
+  .ecs-header img { height: 60px; width: 60px; object-fit: contain; margin: 0 auto 6px; display: block; }
+  .ecs-header h1 { font-size: 22px; font-weight: 800; }
+  .ecs-header .addr { font-size: 11px; color: #334155; margin-top: 2px; }
+  .ecs-title { text-align: center; font-size: 16px; font-weight: 700; margin: 14px 0 12px; }
+  .ecs-title .blank { display: inline-block; min-width: 120px; border-bottom: 1.4px solid #000; margin-right: 6px; }
+  .ecs-box {
+    position: relative; border: 1.6px dashed #000; border-radius: 4px;
+    padding: 10px 16px 14px; overflow: hidden;
+  }
+  .ecs-wm {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    height: 46mm; width: 46mm; object-fit: contain; opacity: 0.16; z-index: 0;
+  }
+  .ecs-box > * { position: relative; z-index: 1; }
+  .ecs-row { display: flex; gap: 22px; font-size: 13px; font-weight: 600; margin: 9px 0; }
+  .ecs-row .field { display: flex; align-items: baseline; flex: 1; gap: 4px; }
+  .ecs-row .field .lbl { flex-shrink: 0; }
+  .ecs-row .field .val { flex: 1; border-bottom: 1px dotted #334155; min-height: 16px; padding-left: 2px; font-weight: 700; }
+  table.ecs-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 16px; }
+  .ecs-table th, .ecs-table td { border: 1px solid #000; padding: 5px 8px; text-align: center; height: 17px; }
+  .ecs-table th { background: #f1f5f9; font-weight: 800; }
+  .ecs-table td.ecs-idx { width: 32px; }
+  .ecs-table tfoot td { text-align: left; font-weight: 700; }
+  .ecs-sigrow { display: flex; justify-content: space-between; margin-top: 34px; gap: 10px; }
+  .ecs-sig {
+    flex: 1; text-align: center; font-size: 11.5px; font-weight: 700; color: #15803d;
+    border: 1.4px solid #16a34a; border-radius: 28px; padding: 12px 6px;
+  }
+`;
+
+export interface ExamCoverStudentInput {
+  name: string;
+  roll: string;
+  section?: string | null;
+  admissionNumber?: string | null;
+}
+
+export interface ExamCoverSheetOptions {
+  /** টেক্সট যা "____ পরিক্ষা" শিরোনামের ফাঁকা স্থানে বসবে (যেমন: "বার্ষিক", "মাসিক") */
+  examName: string;
+  subject: string;
+  /** already formatted for display, e.g. DD/MM/YYYY */
+  examDate: string;
+  classLabel: string;
+  students: ExamCoverStudentInput[];
+}
+
+function ecsField(label: string, value: string | number | null | undefined): string {
+  const v = value === null || value === undefined ? "" : String(value);
+  return `<div class="field"><span class="lbl">${escapeHtml(label)}:</span><span class="val">${escapeHtml(v)}</span></div>`;
+}
+
+/** Print পরীক্ষার খাতার প্রথম পেইজ (exam cover sheet) — one page per student. */
+export function printExamCoverSheets(opts: ExamCoverSheetOptions, targetWindow?: Window | null) {
+  const settings = madrasaSettings();
+  const markRows = Array.from({ length: 14 }, (_, i) => `<tr><td class="ecs-idx">${i + 1}</td><td></td><td></td><td></td><td></td></tr>`).join("");
+
+  const pageHtml = (s: ExamCoverStudentInput) => `
+    <div class="ecs-page">
+      <div class="ecs-header">
+        ${settings.logo ? `<img src="${escapeHtml(settings.logo)}" alt="">` : ""}
+        <h1>${escapeHtml(settings.name)}</h1>
+        ${settings.address ? `<div class="addr">${escapeHtml(settings.address)}</div>` : ""}
+      </div>
+      <div class="ecs-title"><span class="blank">${escapeHtml(opts.examName)}</span>পরিক্ষা</div>
+      <div class="ecs-box">
+        ${settings.logo ? `<img class="ecs-wm" src="${escapeHtml(settings.logo)}" alt="">` : ""}
+        <div class="ecs-row">${ecsField("সিট নং", s.roll)}</div>
+        <div class="ecs-row">${ecsField("শ্রেণী", opts.classLabel)}${ecsField("শাখা", s.section)}</div>
+        <div class="ecs-row">${ecsField("শিক্ষার্থীর আইডি", s.admissionNumber)}${ecsField("মাধ্যম", "")}</div>
+        <div class="ecs-row">${ecsField("বিষয়", opts.subject)}${ecsField("তারিখ", opts.examDate)}</div>
+      </div>
+      <table class="ecs-table">
+        <thead><tr><th>ক্র. নং</th><th>লিখিত</th><th>মৌখিক</th><th>মোট নাম্বার</th><th>মন্তব্য</th></tr></thead>
+        <tbody>${markRows}</tbody>
+        <tfoot>
+          <tr><td colspan="3">মোট প্রাপ্ত নাম্বার</td><td></td><td></td></tr>
+          <tr><td colspan="3">মোট নাম্বার</td><td></td><td></td></tr>
+        </tfoot>
+      </table>
+      <div class="ecs-sigrow">
+        <div class="ecs-sig">পরিদর্শকের স্বাক্ষর</div>
+        <div class="ecs-sig">পরীক্ষকের স্বাক্ষর</div>
+        <div class="ecs-sig">অভিভাবকের স্বাক্ষর</div>
+      </div>
+    </div>
+  `;
+
+  const html = opts.students.map(pageHtml).join("");
+  openRawPrintWindow(`পরীক্ষার খাতা - ${opts.classLabel}`, EXAM_COVER_STYLES, html, targetWindow);
+}

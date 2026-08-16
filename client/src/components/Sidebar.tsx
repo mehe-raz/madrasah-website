@@ -166,6 +166,33 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.admitCards}</span>}
           </NavLink>
         )}
+        {/* পরীক্ষার খাতার প্রথম পেইজ (Exam Cover Sheets) — reuses the
+            "results" permission, same reasoning as প্রবেশপত্র above; needs
+            its own nav LABEL for the same reason. */}
+        {canAccess(role, "results") && (
+          <NavLink
+            to="/exam-cover-sheets"
+            onClick={onNavigate}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.examCoverSheets : undefined}
+          >
+            <Icons.examCoverSheets size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.examCoverSheets}</span>}
+          </NavLink>
+        )}
         {canAccess(role, "attendance") && (
           <NavLink
             to="/attendance-devices"
