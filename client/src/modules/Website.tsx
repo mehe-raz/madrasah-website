@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
 import { Icons, type IconKey } from "../lib/icons";
+import type { Dict } from "../i18n/bn";
 
 type WebsiteSectionId = "hero" | "about" | "highlights" | "departments" | "classes" | "notices" | "gallery" | "admissions" | "admissionContent";
 
@@ -24,117 +25,126 @@ interface SectionGroup {
   sections: WebsiteSectionCard[];
 }
 
-const GROUPS: SectionGroup[] = [
-  {
-    id: "homepage",
-    label: "হোমপেজ",
-    hint: "ভিজিটর প্রথম যা দেখেন",
-    accent: C.sky,
-    accentSoft: C.skyL,
-    sections: [
-      {
-        id: "hero",
-        title: "হিরো সেকশন",
-        subtitle: "হোমপেজের শুরু অংশ",
-        summary: "ব্যাজ, মূল বর্ণনা এবং প্রথম ইমপ্রেশন তৈরি করা কন্টেন্ট।",
-        route: "/website/hero",
-        icon: "dashboard",
-      },
-      {
-        id: "highlights",
-        title: "হাইলাইটস",
-        subtitle: "হোমপেজের ছোট বৈশিষ্ট্য",
-        summary: "শিশু-বন্ধু, শিক্ষক, নিরাপত্তা, পরিবেশ—এই ধরনের ছোট হাইলাইট।",
-        route: "/website/highlights",
-        icon: "sparkles",
-      },
-    ],
-  },
-  {
-    id: "pages",
-    label: "পাবলিক পেজসমূহ",
-    hint: "প্রতিষ্ঠানের পরিচিতি ও কার্যক্রম",
-    accent: C.emerald,
-    accentSoft: C.emeraldL,
-    sections: [
-      {
-        id: "about",
-        title: "এবাউট পেজ",
-        subtitle: "আমাদের পরিচিতি ও লক্ষ্য",
-        summary: "পাবলিক About পেজে দেখানো পরিচিতি ও মিশন টেক্সট।",
-        route: "/website/about",
-        icon: "hifz",
-      },
-      {
-        id: "departments",
-        title: "বিভাগসমূহ",
-        subtitle: "পাবলিক প্রোগ্রাম লিস্ট",
-        summary: "হিফজ, নাজেরা, কিতাব, জেনারেলসহ প্রতিষ্ঠানের বিভাগসমূহ।",
-        route: "/website/departments",
-        icon: "brand",
-      },
-      {
-        id: "classes",
-        title: "ক্লাস ও কোর্স",
-        subtitle: "ভর্তি ও ক্লাস পেজ",
-        summary: "ভর্তির পেজ এবং ক্লাস/কোর্স তালিকায় দেখানো আইটেমগুলো।",
-        route: "/website/classes",
-        icon: "students",
-      },
-      {
-        id: "admissionContent",
-        title: "ভর্তি পেজের কন্টেন্ট",
-        subtitle: "পাবলিক ভর্তি পেজের হিরো ও ধাপসমূহ",
-        summary: "ব্যাজ, শিরোনাম, বর্ণনা এবং \"কীভাবে কাজ করে\" ধাপগুলো এখান থেকে সম্পাদনা করুন।",
-        route: "/website/admission",
-        icon: "results",
-      },
-    ],
-  },
-  {
-    id: "content",
-    label: "কন্টেন্ট ও আবেদন",
-    hint: "নিয়মিত আপডেট হওয়া তথ্য",
-    accent: C.amber,
-    accentSoft: C.amberL,
-    sections: [
-      {
-        id: "notices",
-        title: "নোটিশ",
-        subtitle: "পাবলিক নোটিশ লিস্ট",
-        summary: "সর্বশেষ ঘোষণা ও নোটিশগুলো যা ভিজিটররা দেখবে।",
-        route: "/website/notices",
-        icon: "assignments",
-      },
-      {
-        id: "gallery",
-        title: "গ্যালারি",
-        subtitle: "পাবলিক গ্যালারি পেজ",
-        summary: "ক্যাম্পাসের ছবি আপলোড করুন যা পাবলিক গ্যালারি পেজে দেখা যাবে।",
-        route: "/website/gallery",
-        icon: "gallery",
-      },
-      {
-        id: "admissions",
-        title: "ভর্তির আবেদনসমূহ",
-        subtitle: "পাবলিক ফর্ম থেকে আসা আবেদন",
-        summary: "ভর্তি ফর্ম থেকে জমা হওয়া আবেদন দেখুন ও স্ট্যাটাস আপডেট করুন।",
-        route: "/admissions",
-        icon: "inbox",
-      },
-    ],
-  },
-];
+// Titles/subtitles/summaries come from the current language's dictionary
+// (see i18n/bn.ts / i18n/en.ts -> websiteMgmt.*) so the cards switch with
+// the rest of the UI instead of staying fixed in one language.
+function buildGroups(t: Dict): SectionGroup[] {
+  return [
+    {
+      id: "homepage",
+      label: t.websiteMgmt.groupHomepageLabel,
+      hint: t.websiteMgmt.groupHomepageHint,
+      accent: C.sky,
+      accentSoft: C.skyL,
+      sections: [
+        {
+          id: "hero",
+          title: t.websiteMgmt.heroTitle,
+          subtitle: t.websiteMgmt.heroSubtitle,
+          summary: t.websiteMgmt.heroSummary,
+          route: "/website/hero",
+          icon: "dashboard",
+        },
+        {
+          id: "highlights",
+          title: t.websiteMgmt.highlightsTitle,
+          subtitle: t.websiteMgmt.highlightsSubtitle,
+          summary: t.websiteMgmt.highlightsSummary,
+          route: "/website/highlights",
+          icon: "sparkles",
+        },
+      ],
+    },
+    {
+      id: "pages",
+      label: t.websiteMgmt.groupPagesLabel,
+      hint: t.websiteMgmt.groupPagesHint,
+      accent: C.emerald,
+      accentSoft: C.emeraldL,
+      sections: [
+        {
+          id: "about",
+          title: t.websiteMgmt.aboutTitle,
+          subtitle: t.websiteMgmt.aboutSubtitle,
+          summary: t.websiteMgmt.aboutSummary,
+          route: "/website/about",
+          icon: "hifz",
+        },
+        {
+          id: "departments",
+          title: t.websiteMgmt.departmentsTitle,
+          subtitle: t.websiteMgmt.departmentsSubtitle,
+          summary: t.websiteMgmt.departmentsSummary,
+          route: "/website/departments",
+          icon: "brand",
+        },
+        {
+          id: "classes",
+          title: t.websiteMgmt.classesTitle,
+          subtitle: t.websiteMgmt.classesSubtitle,
+          summary: t.websiteMgmt.classesSummary,
+          route: "/website/classes",
+          icon: "students",
+        },
+        {
+          id: "admissionContent",
+          title: t.websiteMgmt.admissionContentTitle,
+          subtitle: t.websiteMgmt.admissionContentSubtitle,
+          summary: t.websiteMgmt.admissionContentSummary,
+          route: "/website/admission",
+          icon: "results",
+        },
+      ],
+    },
+    {
+      id: "content",
+      label: t.websiteMgmt.groupContentLabel,
+      hint: t.websiteMgmt.groupContentHint,
+      accent: C.amber,
+      accentSoft: C.amberL,
+      sections: [
+        {
+          id: "notices",
+          title: t.websiteMgmt.noticesTitle,
+          subtitle: t.websiteMgmt.noticesSubtitle,
+          summary: t.websiteMgmt.noticesSummary,
+          route: "/website/notices",
+          icon: "assignments",
+        },
+        {
+          id: "gallery",
+          title: t.websiteMgmt.galleryTitle,
+          subtitle: t.websiteMgmt.gallerySubtitle,
+          summary: t.websiteMgmt.gallerySummary,
+          route: "/website/gallery",
+          icon: "gallery",
+        },
+        {
+          id: "admissions",
+          title: t.websiteMgmt.admissionsTitle,
+          subtitle: t.websiteMgmt.admissionsSubtitle,
+          summary: t.websiteMgmt.admissionsSummary,
+          route: "/admissions",
+          icon: "inbox",
+        },
+      ],
+    },
+  ];
+}
 
 function SectionCard({
   section,
   accent,
   accentSoft,
+  editHint,
+  editButtonLabel,
   onEdit,
 }: {
   section: WebsiteSectionCard;
   accent: string;
   accentSoft: string;
+  editHint: string;
+  editButtonLabel: string;
   onEdit: () => void;
 }) {
   return (
@@ -204,7 +214,7 @@ function SectionCard({
           position: "relative",
         }}
       >
-        <span style={{ fontSize: 12, color: C.muted, fontWeight: 700 }}>এক ক্লিকেই এডিট পেজ খুলবে</span>
+        <span style={{ fontSize: 12, color: C.muted, fontWeight: 700 }}>{editHint}</span>
         <button
           type="button"
           onClick={(e) => {
@@ -224,7 +234,7 @@ function SectionCard({
             flexShrink: 0,
           }}
         >
-          এডিট করুন →
+          {editButtonLabel}
         </button>
       </div>
     </div>
@@ -235,12 +245,13 @@ export function Website() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [activeGroup, setActiveGroup] = useState<string | "all">("all");
+  const GROUPS = useMemo(() => buildGroups(t), [t]);
 
   const groups = useMemo(
     () => (activeGroup === "all" ? GROUPS : GROUPS.filter((g) => g.id === activeGroup)),
-    [activeGroup]
+    [activeGroup, GROUPS]
   );
-  const totalSections = useMemo(() => GROUPS.reduce((sum, g) => sum + g.sections.length, 0), []);
+  const totalSections = useMemo(() => GROUPS.reduce((sum, g) => sum + g.sections.length, 0), [GROUPS]);
 
   return (
     <div>
@@ -284,12 +295,11 @@ export function Website() {
               marginBottom: 10,
             }}
           >
-            <Icons.website size={13} aria-hidden="true" /> পাবলিক ওয়েবসাইট নিয়ন্ত্রণ
+            <Icons.website size={13} aria-hidden="true" /> {t.websiteMgmt.badge}
           </div>
-          <h2 style={{ fontSize: 23, fontWeight: 900, color: C.text, margin: 0 }}>ওয়েবসাইট ম্যানেজমেন্ট</h2>
+          <h2 style={{ fontSize: 23, fontWeight: 900, color: C.text, margin: 0 }}>{t.websiteMgmt.heading}</h2>
           <p style={{ fontSize: 13, color: C.muted, margin: "6px 0 0", lineHeight: 1.7, maxWidth: 620 }}>
-            আপনার প্রতিষ্ঠানের পাবলিক ওয়েবসাইটের প্রতিটি সেকশন এখান থেকে নিয়ন্ত্রণ করুন — মোট {totalSections}টি সেকশন, ৩টি ভাগে সাজানো।
-            কার্ডে ক্লিক করলেই সংশ্লিষ্ট এডিট পেজ খুলবে।
+            {t.websiteMgmt.intro.replace("{count}", String(totalSections)).replace("{groups}", String(GROUPS.length))}
           </p>
         </div>
         <a
@@ -310,7 +320,7 @@ export function Website() {
             flexShrink: 0,
           }}
         >
-          প্রিভিউ দেখুন ↗
+          {t.websiteMgmt.previewLink}
         </a>
       </div>
 
@@ -329,7 +339,7 @@ export function Website() {
             cursor: "pointer",
           }}
         >
-          সব সেকশন
+          {t.websiteMgmt.allSections}
         </button>
         {GROUPS.map((g) => (
           <button
@@ -380,6 +390,8 @@ export function Website() {
                 section={section}
                 accent={group.accent}
                 accentSoft={group.accentSoft}
+                editHint={t.websiteMgmt.editPage}
+                editButtonLabel={t.websiteMgmt.editButton}
                 onEdit={() => navigate(section.route)}
               />
             ))}
@@ -396,7 +408,7 @@ export function Website() {
           lineHeight: 1.7,
         }}
       >
-        <Icons.sparkles size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{t.common.edit} করার সময় সংশ্লিষ্ট পেজে গিয়ে সেভ দিলে সেটি সাথে সাথে পাবলিক সাইটে আপডেট হয়ে যাবে।
+        <Icons.sparkles size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{t.websiteMgmt.footerNote}
       </div>
     </div>
   );

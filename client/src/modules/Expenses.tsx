@@ -8,13 +8,18 @@ import { Icons, type IconKey } from "../lib/icons";
 import { C } from "../theme/colors";
 import type { Expense } from "../types";
 
+// `value` is the canonical Bengali string — this is what's stored in and
+// read from the database (existing rows already use these values), so it
+// must never change. `labelKey` looks up the display label in the current
+// language's dictionary (see i18n/bn.ts and i18n/en.ts -> expenses.*), the
+// same pattern lib/examTypes.ts uses for exam type names.
 const EXPENSE_CATEGORIES = [
-  "শিক্ষক বেতন",
-  "খাবার খরচ",
-  "বিদ্যুৎ বিল",
-  "রক্ষণাবেক্ষণ",
-  "স্টেশনারি",
-  "অন্যান্য",
+  { value: "শিক্ষক বেতন", labelKey: "teacherSalary" },
+  { value: "খাবার খরচ", labelKey: "foodCost" },
+  { value: "বিদ্যুৎ বিল", labelKey: "electricityBill" },
+  { value: "রক্ষণাবেক্ষণ", labelKey: "maintenance" },
+  { value: "স্টেশনারি", labelKey: "stationery" },
+  { value: "অন্যান্য", labelKey: "other" },
 ] as const;
 
 const QUICK_ICONS: Record<string, IconKey> = {
@@ -28,6 +33,10 @@ const QUICK_ICONS: Record<string, IconKey> = {
 
 export function Expenses() {
   const { t } = useLanguage();
+  const categoryLabel = (value: string) => {
+    const found = EXPENSE_CATEGORIES.find((c) => c.value === value);
+    return found ? t.expenses[found.labelKey] : value;
+  };
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ cat: "", amount: "", note: "" });
@@ -80,7 +89,7 @@ export function Expenses() {
 
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {};
-    EXPENSE_CATEGORIES.forEach((c) => (map[c] = 0));
+    EXPENSE_CATEGORIES.forEach((c) => (map[c.value] = 0));
     summaryByCategory.forEach((r) => {
       map[r.cat] = r.total;
     });
@@ -96,7 +105,7 @@ export function Expenses() {
   const handleAdd = async () => {
     if (!form.cat || !form.amount) return;
     if (!Number.isInteger(Number(form.amount))) {
-      setError("পরিমাণ পূর্ণ সংখ্যা হতে হবে (দশমিক ছাড়া)");
+      setError(t.expenses.amountMustBeInteger);
       return;
     }
     setSaving(true);
@@ -125,7 +134,7 @@ export function Expenses() {
     try {
       const res = await api.deleteExpense(id);
       if (res.pendingApproval) {
-        alert("Delete request sent for Admin approval.");
+        alert(t.expenses.deleteApprovalSent);
         return;
       }
       // Re-fetch the current page + summary now that the server confirmed
@@ -155,9 +164,9 @@ export function Expenses() {
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         {EXPENSE_CATEGORIES.map((cat) => (
           <button
-            key={cat}
+            key={cat.value}
             type="button"
-            onClick={() => openAdd(cat)}
+            onClick={() => openAdd(cat.value)}
             style={{
               border: `1px solid ${C.border}`,
               background: C.card,
@@ -171,17 +180,17 @@ export function Expenses() {
               gap: 6,
             }}
           >
-            {(() => { const QuickIcon = Icons[QUICK_ICONS[cat]]; return <QuickIcon size={14} aria-hidden="true" />; })()}
-            <span>{cat}</span>
+            {(() => { const QuickIcon = Icons[QUICK_ICONS[cat.value]]; return <QuickIcon size={14} aria-hidden="true" />; })()}
+            <span>{t.expenses[cat.labelKey]}</span>
           </button>
         ))}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 24 }}>
         <StatCard label={t.expenses.total} value={fmt(total)} icon="expenses" color={C.amber} />
-        <StatCard label="শিক্ষক বেতন" value={fmt(byCategory["শিক্ষক বেতন"])} icon="teacherSalary" color={C.teal} />
-        <StatCard label="খাবার খরচ" value={fmt(byCategory["খাবার খরচ"])} icon="food" color={C.emerald} />
-        <StatCard label="অন্যান্য" value={fmt(byCategory["অন্যান্য"] + byCategory["স্টেশনারি"] + byCategory["রক্ষণাবেক্ষণ"] + byCategory["বিদ্যুৎ বিল"])} icon="otherExpense" color={C.violet} />
+        <StatCard label={t.expenses.teacherSalary} value={fmt(byCategory["শিক্ষক বেতন"])} icon="teacherSalary" color={C.teal} />
+        <StatCard label={t.expenses.foodCost} value={fmt(byCategory["খাবার খরচ"])} icon="food" color={C.emerald} />
+        <StatCard label={t.expenses.other} value={fmt(byCategory["অন্যান্য"] + byCategory["স্টেশনারি"] + byCategory["রক্ষণাবেক্ষণ"] + byCategory["বিদ্যুৎ বিল"])} icon="otherExpense" color={C.violet} />
       </div>
 
       {showAdd && (
@@ -197,7 +206,7 @@ export function Expenses() {
               >
                 <option value="">—</option>
                 {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c.value} value={c.value}>{t.expenses[c.labelKey]}</option>
                 ))}
               </select>
             </div>
@@ -231,7 +240,7 @@ export function Expenses() {
             {expenses.map((e, i) => (
               <tr key={e.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.card : "var(--row-alt)" }}>
                 <td style={{ padding: "10px 14px", color: C.muted }}>{(page - 1) * pageSize + i + 1}</td>
-                <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text }}>{e.cat}</td>
+                <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text }}>{categoryLabel(e.cat)}</td>
                 <td style={{ padding: "10px 14px", fontWeight: 700, color: C.rose }}>{fmt(e.amount)}</td>
                 <td style={{ padding: "10px 14px", color: C.muted }}>{e.date}</td>
                 <td style={{ padding: "10px 14px", color: C.muted }}>{e.note}</td>

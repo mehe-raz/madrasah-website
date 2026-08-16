@@ -6,6 +6,7 @@ import { Icons } from "../../lib/icons";
 import { api } from "../../lib/api";
 import { exportReport, ReportRangeRequiredError } from "../../lib/exportReports";
 import { PopupBlockedError } from "../../lib/printReport";
+import { useLanguage } from "../../context/AppSettingsContext";
 import type { Student } from "../../types";
 
 // Reports > "কল লিস্ট" ফিচার (docs/CALL_LIST_PLAN.md, Phase 2).
@@ -31,17 +32,17 @@ function cleanPhone(phone: string): string {
   return phone.trim().replace(/[^\d+]/g, "");
 }
 
-const TITLES: Record<CallListKind, string> = {
-  students: "কল লিস্ট — শিক্ষার্থী তালিকা",
-  due: "কল লিস্ট — বকেয়া তালিকা",
-  risk: "কল লিস্ট — রিস্ক জোন (২+ মাস বকেয়া)",
-};
-
 export function CallListView() {
+  const { t } = useLanguage();
   const { kind: kindParam } = useParams<{ kind: string }>();
   const navigate = useNavigate();
   const kind: CallListKind = kindParam === "due" ? "due" : kindParam === "risk" ? "risk" : "students";
   const month = useMemo(() => currentMonth(), []);
+  const TITLES: Record<CallListKind, string> = {
+    students: t.reports.callListTitleStudents,
+    due: t.reports.callListTitleDue,
+    risk: t.reports.callListTitleRisk,
+  };
 
   const [students, setStudents] = useState<Student[]>([]);
   const [calledIds, setCalledIds] = useState<Set<number>>(new Set());
@@ -70,7 +71,7 @@ export function CallListView() {
         setCalledIds(new Set(callLog.map((c) => c.studentId)));
       })
       .catch(() => {
-        if (!cancelled) setError("তালিকা লোড করা যায়নি। সার্ভার চালু আছে কিনা দেখুন।");
+        if (!cancelled) setError(t.reports.callListLoadFailed);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -78,6 +79,7 @@ export function CallListView() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` intentionally excluded: switching language mid-load shouldn't re-fetch
   }, [kind, month]);
 
   useEffect(() => {
@@ -108,7 +110,7 @@ export function CallListView() {
         setCalledIds((prev) => new Set(prev).add(student.id));
       }
     } catch {
-      setError("কল-স্ট্যাটাস আপডেট করা যায়নি। আবার চেষ্টা করুন।");
+      setError(t.reports.callListStatusUpdateFailed);
     } finally {
       setTogglingId(null);
     }
@@ -123,11 +125,11 @@ export function CallListView() {
       await exportReport(kind, format);
     } catch (err) {
       if (err instanceof ReportRangeRequiredError) {
-        setError("তারিখ পরিসীমা প্রয়োজন।");
+        setError(t.reports.callListRangeRequired);
       } else if (err instanceof PopupBlockedError) {
-        setError("ব্রাউজারের পপ-আপ ব্লকারের কারণে প্রিন্ট উইন্ডো খোলা যায়নি। ঠিকানা বারে পপ-আপ অনুমতি চালু করে আবার চেষ্টা করুন।");
+        setError(t.reports.popupBlocked);
       } else {
-        setError("এক্সপোর্ট করা যায়নি।");
+        setError(t.reports.callListExportFailed);
       }
     } finally {
       setExporting(null);
@@ -140,13 +142,13 @@ export function CallListView() {
     <div>
       <div className="call-list-topbar">
         <Button variant="outline" onClick={() => navigate("/reports")}>
-          <Icons.chevronLeft size={16} aria-hidden="true" /> ফিরে যান
+          <Icons.chevronLeft size={16} aria-hidden="true" /> {t.reports.callListBack}
         </Button>
         <div className="call-list-topbar__actions">
           <Button variant="teal" onClick={() => handleExport("print")} disabled={exporting !== null || loading}>
             {exporting === "print" ? "…" : (
               <>
-                <Icons.printer size={14} aria-hidden="true" /> প্রিন্ট
+                <Icons.printer size={14} aria-hidden="true" /> {t.common.print}
               </>
             )}
           </Button>
@@ -157,7 +159,7 @@ export function CallListView() {
       </div>
 
       <h2 className="page-title">{TITLES[kind]}</h2>
-      <p className="page-subtitle">মাস: {month} — কাকে কল দেওয়া হয়েছে তা নিচে মার্ক করুন</p>
+      <p className="page-subtitle">{t.reports.callListMonth.replace("{month}", month)}</p>
 
       {error && <div className="alert alert--rose">{error}</div>}
 
@@ -166,18 +168,21 @@ export function CallListView() {
       ) : (
         <>
           <div className="call-list-summary">
-            মোট {students.length} জন · কল হয়েছে {calledCount} জন · বাকি {students.length - calledCount} জন
+            {t.reports.callListSummary
+              .replace("{total}", String(students.length))
+              .replace("{called}", String(calledCount))
+              .replace("{remaining}", String(students.length - calledCount))}
           </div>
 
           <Card className="table-card call-list-card">
             <div className="call-list">
               <div className="call-list-header">
-                <span className="call-list-row__roll">রোল</span>
-                <span className="call-list-row__name">নাম</span>
-                <span className="call-list-row__meta">ক্লাস</span>
-                {(kind === "due" || kind === "risk") && <span className="call-list-row__meta">বকেয়া</span>}
-                {kind === "risk" && <span className="call-list-row__meta">কত মাস বকেয়া</span>}
-                <span className="call-list-row__actions">কল / স্ট্যাটাস</span>
+                <span className="call-list-row__roll">{t.reports.callListRoll}</span>
+                <span className="call-list-row__name">{t.reports.callListName}</span>
+                <span className="call-list-row__meta">{t.reports.callListClass}</span>
+                {(kind === "due" || kind === "risk") && <span className="call-list-row__meta">{t.reports.callListDue}</span>}
+                {kind === "risk" && <span className="call-list-row__meta">{t.reports.callListMonthsUnpaid}</span>}
+                <span className="call-list-row__actions">{t.reports.callListCallStatus}</span>
               </div>
 
               {students.map((s) => {
@@ -196,8 +201,8 @@ export function CallListView() {
                         className="call-list-row__call-btn"
                         href={hasPhone ? `tel:${cleanedPhone}` : undefined}
                         aria-disabled={!hasPhone}
-                        aria-label={hasPhone ? `${s.name}-কে কল করুন` : "নম্বর নেই"}
-                        title={hasPhone ? s.phone : "নম্বর নেই"}
+                        aria-label={hasPhone ? t.reports.callListCallStudent.replace("{name}", s.name) : t.reports.callListNoNumber}
+                        title={hasPhone ? s.phone : t.reports.callListNoNumber}
                       >
                         <Icons.phone size={16} aria-hidden="true" />
                       </a>
@@ -208,8 +213,8 @@ export function CallListView() {
                         }`}
                         onClick={() => toggleCalled(s)}
                         disabled={togglingId === s.id}
-                        aria-label={called ? "কল দেওয়া হয়েছে — আনমার্ক করতে ক্লিক করুন" : "কল দেওয়া হয়নি — মার্ক করতে ক্লিক করুন"}
-                        title={called ? "কল দেওয়া হয়েছে" : "কল দেওয়া হয়নি"}
+                        aria-label={called ? t.reports.callListCalledUnmark : t.reports.callListNotCalledMark}
+                        title={called ? t.reports.callListCalled : t.reports.callListNotCalled}
                       >
                         {togglingId === s.id ? (
                           "…"
@@ -224,7 +229,7 @@ export function CallListView() {
                 );
               })}
 
-              {students.length === 0 && <p className="page-subtitle">কোনো শিক্ষার্থী পাওয়া যায়নি।</p>}
+              {students.length === 0 && <p className="page-subtitle">{t.reports.callListNoStudents}</p>}
             </div>
           </Card>
         </>

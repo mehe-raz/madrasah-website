@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ReportDateFilter } from "../components/ReportDateFilter";
 import { defaultReportRange, type ReportRange } from "../lib/reportRange";
@@ -6,10 +6,12 @@ import type { ReportKind } from "../lib/exportReports";
 import { ReportRangeRequiredError } from "../lib/exportReports";
 import { PopupBlockedError } from "../lib/printReport";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/AppSettingsContext";
 import { canAccess, type Permission } from "../lib/permissions";
 import { C } from "../theme/colors";
 import { Card } from "../components/ui";
 import { Icons, type IconKey } from "../lib/icons";
+import type { Dict } from "../i18n/bn";
 
 // Each report's underlying data comes from a different API resource, and
 // that resource enforces its own permission — it isn't covered just because
@@ -28,15 +30,20 @@ const REPORT_PERMISSION: Record<ReportKind, Permission> = {
   hifz: "hifz",
 };
 
-const reports: { title: string; kind: ReportKind; icon: IconKey; desc: string; color: string }[] = [
-  { title: "শিক্ষার্থী তালিকা", kind: "students", icon: "students", desc: "সকল শিক্ষার্থীর বিস্তারিত তালিকা", color: C.teal },
-  { title: "বকেয়া তালিকা", kind: "due", icon: "alertTriangle", desc: "যেসব শিক্ষার্থীর বেতন বাকি আছে", color: C.rose },
-  { title: "রিস্ক জোন", kind: "risk", icon: "alertTriangle", desc: "২+ মাস বেতন বকেয়া শিক্ষার্থী", color: C.rose },
-  { title: "হাজিরা রিপোর্ট", kind: "attendance", icon: "attendance", desc: "নির্বাচিত তারিখের হাজিরা", color: C.amber },
-  { title: "আয় রিপোর্ট", kind: "income", icon: "income", desc: "নির্বাচিত সময়ের আয়", color: C.emerald },
-  { title: "ব্যয় রিপোর্ট", kind: "expenses", icon: "expenses", desc: "নির্বাচিত সময়ের ব্যয়", color: C.violet },
-  { title: "হিফজ রিপোর্ট", kind: "hifz", icon: "hifz", desc: "শিক্ষার্থীদের হিফজ অগ্রগতি", color: C.sky },
-];
+// Titles/descriptions come from the current language's dictionary (see
+// i18n/bn.ts / i18n/en.ts -> reports.*) so the cards switch with the rest
+// of the UI instead of staying fixed in one language.
+function buildReports(t: Dict): { title: string; kind: ReportKind; icon: IconKey; desc: string; color: string }[] {
+  return [
+    { title: t.reports.studentsTitle, kind: "students", icon: "students", desc: t.reports.studentsDesc, color: C.teal },
+    { title: t.reports.dueTitle, kind: "due", icon: "alertTriangle", desc: t.reports.dueDesc, color: C.rose },
+    { title: t.reports.riskTitle, kind: "risk", icon: "alertTriangle", desc: t.reports.riskDesc, color: C.rose },
+    { title: t.reports.attendanceTitle, kind: "attendance", icon: "attendance", desc: t.reports.attendanceDesc, color: C.amber },
+    { title: t.reports.incomeTitle, kind: "income", icon: "income", desc: t.reports.incomeDesc, color: C.emerald },
+    { title: t.reports.expensesTitle, kind: "expenses", icon: "expenses", desc: t.reports.expensesDesc, color: C.violet },
+    { title: t.reports.hifzTitle, kind: "hifz", icon: "hifz", desc: t.reports.hifzDesc, color: C.sky },
+  ];
+}
 
 // Reports > "কল লিস্ট" ফিচার (docs/CALL_LIST_PLAN.md) + "রিস্ক জোন"
 // (docs/RISK_ZONE_PLAN.md Phase 2): these report kinds no longer export
@@ -48,11 +55,13 @@ const CALL_LIST_KINDS: ReportKind[] = ["students", "due", "risk"];
 
 export function Reports() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const role = user?.role || "";
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<ReportRange>(defaultReportRange());
+  const reports = useMemo(() => buildReports(t), [t]);
 
   const handleExport = async (kind: ReportKind, format: "print" | "excel") => {
     const key = `${kind}-${format}`;
@@ -63,13 +72,13 @@ export function Reports() {
       await exportReport(kind, format, { from: range.from, to: range.to });
     } catch (err) {
       if (err instanceof ReportRangeRequiredError) {
-        setError("তারিখ পরিসীমা (from / to) সিলেক্ট করুন — এই রিপোর্টের জন্য দুটোই আবশ্যক।");
+        setError(t.reports.rangeRequired);
       } else if (err instanceof PopupBlockedError) {
-        setError("ব্রাউজারের পপ-আপ ব্লকারের কারণে প্রিন্ট উইন্ডো খোলা যায়নি। ঠিকানা বারে পপ-আপ অনুমতি চালু করে আবার চেষ্টা করুন।");
+        setError(t.reports.popupBlocked);
       } else if (err instanceof Error && (err.message === "Access denied" || err.message === "UNAUTHORIZED")) {
-        setError("এই রিপোর্ট দেখার অনুমতি আপনার নেই। প্রয়োজনে অ্যাডমিনের সাথে যোগাযোগ করুন।");
+        setError(t.reports.permissionDenied);
       } else {
-        setError("রিপোর্ট তৈরি করা যায়নি। সার্ভার চালু আছে কিনা দেখুন।");
+        setError(t.reports.genericFailed);
       }
     } finally {
       setLoading(null);
@@ -78,8 +87,8 @@ export function Reports() {
 
   return (
     <div>
-      <h2 className="page-title">রিপোর্ট ও এক্সপোর্ট</h2>
-      <p className="page-subtitle">মাস বা তারিখ সিলেক্ট করে প্রিন্ট বা CSV ডাউনলোড করুন।</p>
+      <h2 className="page-title">{t.reports.title}</h2>
+      <p className="page-subtitle">{t.reports.subtitle}</p>
 
       <ReportDateFilter value={range} onChange={setRange} />
 
@@ -94,7 +103,7 @@ export function Reports() {
             <Card key={r.title} className="report-card" style={{ opacity: allowed ? 1 : 0.55 }}>
               <div className="report-card__icon">{(() => { const RIcon = Icons[r.icon]; return <RIcon size={32} aria-hidden="true" />; })()}</div>
               <h3 className="report-card__title">{r.title}</h3>
-              <p className="report-card__desc">{allowed ? r.desc : "এই রিপোর্ট দেখার অনুমতি আপনার নেই"}</p>
+              <p className="report-card__desc">{allowed ? r.desc : t.reports.noPermissionDesc}</p>
               <div className="report-card__actions">
                 {/* Each report kind has its own accent color (r.color) —
                     per-instance data, so it can't be a static CSS class.
@@ -103,31 +112,31 @@ export function Reports() {
                   <button
                     type="button"
                     disabled={!allowed}
-                    title={allowed ? undefined : "অনুমতি নেই"}
+                    title={allowed ? undefined : t.reports.noPermissionTitle}
                     onClick={() => navigate(`/reports/call-list/${r.kind}`)}
                     className="report-card__btn"
                     // eslint-disable-next-line no-restricted-syntax -- dynamic per-report accent color, see comment above
                     style={{ background: r.color + "18", color: r.color, border: `1px solid ${r.color}40` }}
                   >
-                    কল লিস্ট দেখুন
+                    {t.reports.viewCallList}
                   </button>
                 ) : (
                   <>
                     <button
                       type="button"
                       disabled={disabled}
-                      title={allowed ? undefined : "অনুমতি নেই"}
+                      title={allowed ? undefined : t.reports.noPermissionTitle}
                       onClick={() => handleExport(r.kind, "print")}
                       className="report-card__btn"
                       // eslint-disable-next-line no-restricted-syntax -- dynamic per-report accent color, see comment above
                       style={{ background: r.color + "18", color: r.color, border: `1px solid ${r.color}40` }}
                     >
-                      {loading === `${r.kind}-print` ? "…" : (<><Icons.printer size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />প্রিন্ট</>)}
+                      {loading === `${r.kind}-print` ? "…" : (<><Icons.printer size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{t.common.print}</>)}
                     </button>
                     <button
                       type="button"
                       disabled={disabled}
-                      title={allowed ? undefined : "অনুমতি নেই"}
+                      title={allowed ? undefined : t.reports.noPermissionTitle}
                       onClick={() => handleExport(r.kind, "excel")}
                       className="report-card__btn report-card__btn--csv"
                     >
