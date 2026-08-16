@@ -10,6 +10,69 @@ const { withRestoreLock, RestoreLockError } = require("../lib/restoreLock");
 const { recordBackupEvent } = require("../lib/backupAudit");
 const { recordAudit } = require("../lib/auditLog");
 const tenantResolve = require("../middleware/tenantResolve");
+const registryDb = require("../registryDb");
+const { createNotification } = require("../lib/notifications");
+const adminPush = require("../lib/adminPush");
+
+// Fires the moment an automatic backup genuinely fails — never for the
+// normal "no data changed, skipped Drive upload" case (see
+// driveUploadSkipped below), only for real failures the owner would
+// otherwise have no way of finding out about short of opening Settings
+// themselves. Writes an in-app notification-bell entry AND sends a real
+// browser/phone push (best-effort, silently no-ops if push isn't
+// configured — see lib/adminPush.js) to every Super Admin. Never throws —
+// an alerting failure must not make the underlying backup failure worse.
+async function alertBackupFailure(reason) {
+  try {
+    await createNotification({
+      type: "backup_failed",
+      title: "স্বয়ংক্রিয় ব্যাকআপ ব্যর্থ হয়েছে",
+      body: reason,
+      targetRoles: ["Super Admin"],
+      link: "/settings",
+    });
+  } catch (e) {
+    console.error("alertBackupFailure: in-app notification write failed:", e.message);
+  }
+  try {
+    await adminPush.notifyByRole("Super Admin", {
+      title: "⚠️ ব্যাকআপ ব্যর্থ হয়েছে",
+      body: reason,
+      url: "/settings",
+    });
+  } catch (e) {
+    console.error("alertBackupFailure: push notification failed:", e.message);
+  }
+}
+
+// Companion to alertBackupFailure above, fired after a scheduled backup
+// actually completes — same in-app-notification + push shape, just the
+// happy-path message. Only called from runDueBackupCheck (i.e. only for
+// automatic/scheduled runs), never for a manual "Backup now" click or the
+// safety backup taken right before a restore — those already show their
+// result directly in the UI, so a push for them would just be noise.
+async function alertBackupSuccess(reason) {
+  try {
+    await createNotification({
+      type: "backup_success",
+      title: "স্বয়ংক্রিয় ব্যাকআপ সম্পন্ন হয়েছে",
+      body: reason,
+      targetRoles: ["Super Admin"],
+      link: "/settings",
+    });
+  } catch (e) {
+    console.error("alertBackupSuccess: in-app notification write failed:", e.message);
+  }
+  try {
+    await adminPush.notifyByRole("Super Admin", {
+      title: "✅ ব্যাকআপ সম্পন্ন হয়েছে",
+      body: reason,
+      url: "/settings",
+    });
+  } catch (e) {
+    console.error("alertBackupSuccess: push notification failed:", e.message);
+  }
+}
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -394,6 +457,7 @@ async function createBackup(config = null) {
   }
 
   let tempEncPath = null;
+  let driveUploadError = null;
   if (!driveUploadSkipped) {
     try {
       let uploadPath = localPath;
@@ -423,6 +487,11 @@ async function createBackup(config = null) {
       // Google Drive upload is best-effort, same as the local folder destinations above:
       // a failed upload should never block the backup itself from completing.
       console.warn("Google Drive backup upload failed:", err.message);
+      // ...but the owner still needs to know their off-site copy didn't
+      // land — this used to be silent (console.warn only), which is
+      // exactly why weeks of failed uploads could go unnoticed.
+      driveUploadError = err.message;
+      await alertBackupFailure(`Google Drive-এ ব্যাকআপ আপলোড করা যায়নি: ${err.message}`);
     } finally {
       if (tempEncPath && fs.existsSync(tempEncPath)) fs.unlinkSync(tempEncPath);
     }
@@ -439,7 +508,7 @@ async function createBackup(config = null) {
     // comparison is against this run either way.
     lastBackupHash: dataHash || activeConfig.lastBackupHash,
   });
-  return { filename, localPath, format: "json", config: saved, driveUploadSkipped };
+  return { filename, localPath, format: "json", config: saved, driveUploadSkipped, driveUploadError };
 }
 
 // `options.selectedTables`, when given, narrows a restore down to only those
@@ -925,17 +994,108 @@ router.get("/restores", async (req, res) => {
   }
 });
 
+// Runs one due-check-and-backup cycle for whichever tenant the current DB
+// connection is already pointed at (single-tenant deployments) or for the
+// institution `withTenantByCode` has already switched into (multi-tenant —
+// see runCronBackupForAllTenants below). Shared by both the setInterval
+// fallback and the /cron-run endpoint so "is it due" and "alert on failure"
+// logic lives in exactly one place.
+async function runDueBackupCheck() {
+  const config = await getConfig();
+  if (!config.enabled) return { ran: false, reason: "disabled" };
+  const last = config.lastRunAt ? new Date(config.lastRunAt).getTime() : 0;
+  const dueMs = (Number(config.intervalHours) || 24) * 60 * 60 * 1000;
+  if (Date.now() - last < dueMs) return { ran: false, reason: "not_due" };
+  const result = await createBackup(config);
+  // A Drive-upload failure inside createBackup() already fired
+  // alertBackupFailure for this exact run — sending a "success" push right
+  // after would be confusing (and wrong: the off-site copy didn't land).
+  if (!result.driveUploadError) {
+    const message = result.driveUploadSkipped
+      ? `${result.filename} — গতকাল থেকে ডেটাতে কোনো নতুন পরিবর্তন নেই, তাই Google Drive-এ নতুন কপি আপলোড করা হয়নি (লোকাল কপি নেওয়া হয়েছে)।`
+      : `${result.filename} — সফলভাবে সেভ হয়েছে এবং Google Drive-এ আপলোড হয়েছে।`;
+    await alertBackupSuccess(message);
+  }
+  return { ran: true };
+}
+
+// Best-effort fallback for whenever the process happens to already be
+// warm/running continuously (a VPS, PM2, or a Cloud Run instance that's
+// staying alive due to steady traffic). On Cloud Run specifically, an idle
+// instance scales to zero and this interval simply stops firing — which is
+// exactly why /cron-run below exists as the *reliable* trigger. Left in
+// place as a harmless second layer, not a replacement for it.
 setInterval(() => {
-  getConfig()
-    .then((config) => {
-      if (!config.enabled) return;
-      const last = config.lastRunAt ? new Date(config.lastRunAt).getTime() : 0;
-      const dueMs = (Number(config.intervalHours) || 24) * 60 * 60 * 1000;
-      if (Date.now() - last < dueMs) return;
-      return createBackup(config);
-    })
-    .catch((e) => console.error("Auto backup failed:", e.message));
+  runDueBackupCheck().catch(async (e) => {
+    console.error("Auto backup failed:", e.message);
+    await alertBackupFailure(`ব্যাকআপ প্রসেস চালানো যায়নি: ${e.message}`);
+  });
 }, 15 * 60 * 1000);
+
+// ---------------------------------------------------------------------------
+// /cron-run — the reliable trigger, meant to be called by an external
+// scheduler (Google Cloud Scheduler's free tier — 3 jobs/month per billing
+// account at no cost — instead of paying for an always-on `--min-instances`
+// Cloud Run instance). Cloud Scheduler wakes the Cloud Run service up with
+// one HTTP request on whatever cron schedule you set (e.g. daily at 2am);
+// the service handles that single request and is then free to scale back
+// to zero again, so this costs nothing beyond what Cloud Scheduler's free
+// tier already covers.
+//
+// Mounted directly on the app in index.js, BEFORE the global
+// requireAuth/rbac chain (same reason as googleCallbackHandler above) —
+// Cloud Scheduler can't carry a browser session cookie. Authenticated
+// instead with a shared secret (BACKUP_CRON_SECRET) that only Cloud
+// Scheduler and this server know, checked with a constant-time comparison
+// so response-time can't leak how many characters matched.
+// ---------------------------------------------------------------------------
+
+function verifyCronSecret(req) {
+  const expected = process.env.BACKUP_CRON_SECRET || "";
+  if (!expected) return false; // unset = the endpoint refuses every request, not just unauthenticated ones
+  const provided = String(req.get("x-cron-secret") || "");
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+async function runCronBackupForAllTenants() {
+  if (process.env.MULTI_TENANT_MODE !== "true") {
+    return [{ institutionCode: null, ...(await runDueBackupCheck()) }];
+  }
+  const institutions = await registryDb.listInstitutions({ status: "active" });
+  const results = [];
+  for (const inst of institutions) {
+    try {
+      const result = await tenantResolve.withTenantByCode(inst.code, () => runDueBackupCheck());
+      results.push({ institutionCode: inst.code, ...result });
+    } catch (e) {
+      results.push({ institutionCode: inst.code, ran: false, error: e.message });
+      // Best-effort per tenant: one institution's DB hiccup must never stop
+      // the rest of the tenants in this run from getting checked too.
+      await tenantResolve
+        .withTenantByCode(inst.code, () => alertBackupFailure(`ব্যাকআপ প্রসেস চালানো যায়নি: ${e.message}`))
+        .catch(() => {});
+    }
+  }
+  return results;
+}
+
+async function cronRunHandler(req, res) {
+  if (!verifyCronSecret(req)) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  try {
+    const results = await runCronBackupForAllTenants();
+    res.json({ ok: true, results });
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Cron backup run failed" });
+  }
+}
+
+router.post("/cron-run", cronRunHandler);
+router.cronRunHandler = cronRunHandler;
 
 // Test-only hook: exposes the core backup/restore functions so
 // scripts/backup-restore.test.js can exercise them directly against a

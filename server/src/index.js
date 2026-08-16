@@ -428,6 +428,16 @@ app.get("/api/public/results", resultLookupLimiter, async (req, res) => {
 // full explanation and the identity re-verification logic.
 app.get("/api/backup/google/callback", require("./routes/backup").googleCallbackHandler);
 
+// Google Cloud Scheduler's trigger for the daily automatic backup (see the
+// big comment above cronRunHandler in routes/backup.js for why this exists
+// and why it's free). It calls in from outside with a shared secret, never
+// a browser session, so it's registered here — before requireAuth — same
+// reasoning as the Google OAuth callback just above. It authenticates
+// itself (BACKUP_CRON_SECRET) and, for multi-tenant deployments, resolves
+// every tenant internally, so it's also excluded from the automatic
+// per-request tenant resolution in tenantResolve.js's isSkippedPath().
+app.post("/api/backup/cron-run", require("./routes/backup").cronRunHandler);
+
 app.use("/api", apiLimiter, requireAuth, verifyCsrfToken, rbacMiddleware);
 
 app.use("/api/students", require("./routes/students"));

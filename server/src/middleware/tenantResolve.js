@@ -43,6 +43,13 @@ function isSkippedPath(path) {
   // below), using the institution code embedded in the signed `state` param
   // it received back from Google.
   if (path === "/api/backup/google/callback") return true;
+  // Cloud Scheduler's daily trigger (routes/backup.js's cronRunHandler) —
+  // one fixed URL with no tenant subdomain of its own, same as the two
+  // paths above. It resolves every tenant itself internally via
+  // withTenantByCode, so Host-based lookup here would only ever get in
+  // the way (and 404, since Cloud Scheduler doesn't hit a *.tenant.
+  // example.com host).
+  if (path === "/api/backup/cron-run") return true;
   return false;
 }
 

@@ -766,6 +766,22 @@ export const api = {
 
   markAllNotificationsRead: () => request<{ ok: boolean }>("/notifications/read-all", { method: "POST" }),
 
+  // Staff push notifications (Super Admin backup-failure alerts — see
+  // AdminPushSetup.tsx and routes/backup.js's alertBackupFailure).
+  getPushVapidPublicKey: () => request<{ publicKey: string | null }>("/notifications/push/vapid-public-key"),
+
+  subscribePush: (subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    request<{ ok: boolean }>("/notifications/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify(subscription),
+    }),
+
+  unsubscribePush: (endpoint: string) =>
+    request<{ ok: boolean }>("/notifications/push/subscribe", {
+      method: "DELETE",
+      body: JSON.stringify({ endpoint }),
+    }),
+
   getUsers: () => request<User[]>("/users"),
 
   getPendingGuardianApprovals: () =>

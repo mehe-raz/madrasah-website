@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
+import { AdminPushSetup } from "./AdminPushSetup";
 import { OfflineStatusBar } from "./OfflineStatusBar";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -73,6 +74,7 @@ export function Layout() {
         overflow: isMobile ? "auto" : "hidden",
       }}
     >
+      <AdminPushSetup />
       <Sidebar
         open={sidebarOpen}
         user={user}
