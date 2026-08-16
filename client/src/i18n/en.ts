@@ -662,6 +662,10 @@ export const en = {
     // Extended audience picker (Admin/Super Admin only) — connects this
     // module to the public site's notices, ad-hoc (docs/CURRENT_TASK.md).
     destinationLabel: "Destination",
+    destinationSummaryEmpty: "No destination selected — click to select",
+    destinationSummarySelected: "{count} destination(s) selected",
+    destinationToggleExpand: "Open destination picker",
+    destinationToggleCollapse: "Close destination picker",
     selectDestinationFirst: "Select at least one destination (a class, all classes, the public site, or a guardian)",
     targetAllClasses: "All classes",
     targetClassesHint: "Or check specific departments/classes below",

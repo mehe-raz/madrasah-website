@@ -844,12 +844,57 @@ img {
 }
 
 /* Class posts: extended audience picker (Admin/Super Admin — connects this
-   module to public site notices; see docs/CURRENT_TASK.md) */
+   module to public site notices; see docs/CURRENT_TASK.md). Collapsed by
+   default (see class-post-destination__toggle) so it doesn't dominate the
+   form on first render, especially on mobile. */
 .class-post-destination {
-  padding: 14px;
+  padding: 0;
   margin-top: 12px;
+  overflow: hidden;
+}
+
+.class-post-destination__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.class-post-destination__toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.class-post-destination__summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.class-post-destination__chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.class-post-destination__chevron--open {
+  transform: rotate(180deg);
+}
+
+.class-post-destination__body {
   display: grid;
   gap: 12px;
+  padding: 0 14px 14px;
 }
 
 .class-post-destination__label {
@@ -956,6 +1001,31 @@ img {
   font-weight: 900;
   line-height: 1;
   padding: 0;
+}
+
+@media (max-width: 640px) {
+  .class-post-destination__toggle {
+    padding: 12px;
+  }
+
+  .class-post-destination__body {
+    padding: 0 12px 12px;
+  }
+
+  /* The class tree can be several levels deep — on a narrow screen the
+     18px-per-level indent from ClassTreeCheckboxNode's inline style eats
+     too much width, so trim it and let row text wrap instead of clipping. */
+  .class-post-tree__panel [style*="margin-left"] {
+    margin-left: 10px !important;
+  }
+
+  .class-post-tree__row {
+    white-space: normal;
+  }
+
+  .class-post-tree__panel {
+    max-height: 200px;
+  }
 }
 
 /* Guardian Reminder Messenger — admin module (client/src/modules/GuardianReminders.tsx) */

@@ -660,6 +660,10 @@ export const bn = {
     // সম্প্রসারিত গন্তব্য নির্বাচক (শুধু অ্যাডমিন/সুপার অ্যাডমিন) — এই
     // মডিউলকে পাবলিক সাইটের নোটিশের সাথে সংযুক্ত করে, ad-hoc (docs/CURRENT_TASK.md)।
     destinationLabel: "গন্তব্য",
+    destinationSummaryEmpty: "গন্তব্য নির্বাচন করা হয়নি — নির্বাচন করতে ক্লিক করুন",
+    destinationSummarySelected: "{count}টি গন্তব্য নির্বাচিত",
+    destinationToggleExpand: "গন্তব্য নির্বাচক খুলুন",
+    destinationToggleCollapse: "গন্তব্য নির্বাচক বন্ধ করুন",
     selectDestinationFirst: "কমপক্ষে একটি গন্তব্য নির্বাচন করুন (ক্লাস, সকল ক্লাস, পাবলিক সাইট বা গার্ডিয়ান)",
     targetAllClasses: "সকল ক্লাস",
     targetClassesHint: "অথবা নিচে নির্দিষ্ট বিভাগ/ক্লাস চেক করুন",

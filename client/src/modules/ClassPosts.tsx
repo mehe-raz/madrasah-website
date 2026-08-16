@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SkeletonCardList } from "../components/Skeleton";
 import { Badge } from "../components/Badge";
 import { StudentPicker } from "../components/StudentPicker";
@@ -9,6 +9,7 @@ import { canAccess } from "../lib/permissions";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { C } from "../theme/colors";
+import { Icons } from "../lib/icons";
 import type { ClassPost, ClassTreeNode, Student } from "../types";
 
 const TYPE_COLOR: Record<ClassPost["type"], string> = {
@@ -115,6 +116,12 @@ export function ClassPosts() {
   const [publicSite, setPublicSite] = useState(false);
   const [guardianStudents, setGuardianStudents] = useState<Student[]>([]);
   const [guardianPickerValue, setGuardianPickerValue] = useState<Student | null>(null);
+  // Closed by default — the picker (class tree + public site + guardian
+  // search) is tall, so leaving it expanded on every visit pushed the rest
+  // of the form down and looked unfinished, especially on mobile. Opens on
+  // demand, or automatically if the user tries to send with nothing picked
+  // (see send() below).
+  const [destinationOpen, setDestinationOpen] = useState(false);
 
   const [type, setType] = useState<ClassPost["type"]>("notice");
   const [title, setTitle] = useState("");
@@ -175,6 +182,7 @@ export function ClassPosts() {
     setPublicSite(false);
     setGuardianStudents([]);
     setGuardianPickerValue(null);
+    setDestinationOpen(false);
   };
 
   const send = async () => {
@@ -198,6 +206,7 @@ export function ClassPosts() {
       const targetClasses = Array.from(selectedClasses);
       if (!targetClasses.length && !allClasses && !publicSite && !guardianStudents.length) {
         setComposeError(t.classPosts.selectDestinationFirst);
+        setDestinationOpen(true);
         return;
       }
       payload = {
@@ -258,6 +267,14 @@ export function ClassPosts() {
     return "";
   };
 
+  // Selected-destination count for the collapsed picker's summary line —
+  // "all classes" and "public site" each count as one, plus one per
+  // specific class checked and per guardian added.
+  const destinationCount = useMemo(
+    () => (allClasses ? 1 : selectedClasses.size) + (publicSite ? 1 : 0) + guardianStudents.length,
+    [allClasses, selectedClasses, publicSite, guardianStudents]
+  );
+
   return (
     <div>
       <h2 className="page-title">{t.classPosts.title}</h2>
@@ -293,53 +310,77 @@ export function ClassPosts() {
           </Field>
         </div>
 
-        {canTargetExtended && (
-          <div className="soft-panel class-post-destination">
-            <div className="class-post-destination__label">{t.classPosts.destinationLabel}</div>
-
-            <label className="class-post-checkbox-row">
-              <input type="checkbox" className="class-post-tree__checkbox" checked={allClasses} onChange={(e) => setAllClasses(e.target.checked)} />
-              <span className="class-post-checkbox-row__text">{t.classPosts.targetAllClasses}</span>
-            </label>
-
-            <div className={allClasses ? "class-post-classes-group class-post-classes-group--disabled" : "class-post-classes-group"}>
-              <div className="class-post-hint">{t.classPosts.targetClassesHint}</div>
-              <div className="soft-panel class-post-tree__panel">
-                {classTree.length === 0 && <div className="class-post-hint class-post-hint--empty">{t.classPosts.noClassTree}</div>}
-                {classTree.map((node) => (
-                  <ClassTreeCheckboxNode key={node.en} node={node} depth={0} selected={selectedClasses} onToggle={toggleClassNode} />
-                ))}
-              </div>
-            </div>
-
-            <label className="class-post-checkbox-row">
-              <input type="checkbox" className="class-post-tree__checkbox" checked={publicSite} onChange={(e) => setPublicSite(e.target.checked)} />
-              <span className="class-post-checkbox-row__text">{t.classPosts.targetPublicSite}</span>
-            </label>
-            <div className="class-post-hint class-post-hint--tight">{t.classPosts.targetPublicSiteHint}</div>
-
-            <div>
-              <div className="class-post-destination__sublabel">{t.classPosts.targetGuardian}</div>
-              <StudentPicker value={guardianPickerValue} onSelect={addGuardianStudent} placeholder={t.classPosts.targetGuardianPlaceholder} />
-              {guardianStudents.length > 0 && (
-                <div className="class-post-chips">
-                  {guardianStudents.map((s) => (
-                    <span key={s.id} className="pill class-post-chip">
-                      {s.name}
-                      <button type="button" onClick={() => removeGuardianStudent(s.id)} className="class-post-chip__remove" aria-label={t.classPosts.delete}>
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         <Field label={t.classPosts.body}>
           <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} />
         </Field>
+
+        {canTargetExtended && (
+          <div className="soft-panel class-post-destination">
+            <button
+              type="button"
+              className="class-post-destination__toggle"
+              onClick={() => setDestinationOpen((v) => !v)}
+              aria-expanded={destinationOpen}
+              aria-label={destinationOpen ? t.classPosts.destinationToggleCollapse : t.classPosts.destinationToggleExpand}
+            >
+              <span className="class-post-destination__toggle-text">
+                <span className="class-post-destination__label">{t.classPosts.destinationLabel}</span>
+                <span className="class-post-destination__summary">
+                  {destinationCount === 0
+                    ? t.classPosts.destinationSummaryEmpty
+                    : t.classPosts.destinationSummarySelected.replace("{count}", String(destinationCount))}
+                </span>
+              </span>
+              <Icons.chevronDown
+                size={18}
+                aria-hidden="true"
+                className={destinationOpen ? "class-post-destination__chevron class-post-destination__chevron--open" : "class-post-destination__chevron"}
+              />
+            </button>
+
+            {destinationOpen && (
+              <div className="class-post-destination__body">
+                <label className="class-post-checkbox-row">
+                  <input type="checkbox" className="class-post-tree__checkbox" checked={allClasses} onChange={(e) => setAllClasses(e.target.checked)} />
+                  <span className="class-post-checkbox-row__text">{t.classPosts.targetAllClasses}</span>
+                </label>
+
+                <div className={allClasses ? "class-post-classes-group class-post-classes-group--disabled" : "class-post-classes-group"}>
+                  <div className="class-post-hint">{t.classPosts.targetClassesHint}</div>
+                  <div className="soft-panel class-post-tree__panel">
+                    {classTree.length === 0 && <div className="class-post-hint class-post-hint--empty">{t.classPosts.noClassTree}</div>}
+                    {classTree.map((node) => (
+                      <ClassTreeCheckboxNode key={node.en} node={node} depth={0} selected={selectedClasses} onToggle={toggleClassNode} />
+                    ))}
+                  </div>
+                </div>
+
+                <label className="class-post-checkbox-row">
+                  <input type="checkbox" className="class-post-tree__checkbox" checked={publicSite} onChange={(e) => setPublicSite(e.target.checked)} />
+                  <span className="class-post-checkbox-row__text">{t.classPosts.targetPublicSite}</span>
+                </label>
+                <div className="class-post-hint class-post-hint--tight">{t.classPosts.targetPublicSiteHint}</div>
+
+                <div>
+                  <div className="class-post-destination__sublabel">{t.classPosts.targetGuardian}</div>
+                  <StudentPicker value={guardianPickerValue} onSelect={addGuardianStudent} placeholder={t.classPosts.targetGuardianPlaceholder} />
+                  {guardianStudents.length > 0 && (
+                    <div className="class-post-chips">
+                      {guardianStudents.map((s) => (
+                        <span key={s.id} className="pill class-post-chip">
+                          {s.name}
+                          <button type="button" onClick={() => removeGuardianStudent(s.id)} className="class-post-chip__remove" aria-label={t.classPosts.delete}>
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <Button variant={sent ? "emerald" : "sky"} solid onClick={send} disabled={sending}>
           {sending ? t.classPosts.sending : sent ? t.classPosts.sent : t.classPosts.send}
