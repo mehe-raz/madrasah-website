@@ -41,6 +41,7 @@ const MAX_CHILDREN_PER_NODE = 60;
 const MAX_TREE_DEPTH = 4; // root departments (1) + up to 3 nested levels
 const BN_MAX_LEN = 80;
 const EN_MAX_LEN = 60;
+const MAX_SUBJECTS_PER_LEAF = 30;
 
 // Same rule as classOptions.js: the English data-label is a plain identifier
 // stored on student records / used in exports & filters, so only
@@ -54,6 +55,28 @@ const EN_SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 
 function cleanText(value, maxLen) {
   return String(value ?? "").trim().slice(0, maxLen);
+}
+
+// Subjects (বিষয়) live only on leaf nodes (জামাত/ক্লাস) — a department or
+// নেসাব/গ্রুপ groups other nodes, it isn't itself a class students sit in,
+// so it never carries its own subject list. `en` is deduped only WITHIN one
+// leaf's own subject list (not globally like class `en` values), since
+// nothing outside this node currently reads a subject's `en` — it's just a
+// stable per-subject identifier for this leaf's own list (edit/delete by
+// value, future marks-entry keying), not a cross-tree slug.
+function sanitizeSubjects(input) {
+  if (!Array.isArray(input)) return [];
+  const seenEn = new Set();
+  const out = [];
+  for (const raw of input.slice(0, MAX_SUBJECTS_PER_LEAF)) {
+    const bn = cleanText(raw?.bn, BN_MAX_LEN);
+    const en = cleanText(raw?.en, EN_MAX_LEN).toLowerCase();
+    if (!bn || !en || !EN_SLUG_RE.test(en)) continue;
+    if (seenEn.has(en)) continue;
+    seenEn.add(en);
+    out.push({ id: cleanText(raw?.id, EN_MAX_LEN) || en, bn, en });
+  }
+  return out;
 }
 
 // Walks the whole tree once to sanitize every node and collect leaves, so
@@ -77,12 +100,14 @@ function sanitizeClassTree(input) {
       seenEn.add(en);
 
       const children = sanitizeLevel(raw?.children, depth + 1);
+      const leaf = children.length === 0;
       out.push({
         id: cleanText(raw?.id, EN_MAX_LEN) || en,
         bn,
         en,
-        leaf: children.length === 0,
+        leaf,
         children,
+        subjects: leaf ? sanitizeSubjects(raw?.subjects) : [],
       });
     }
     return out;

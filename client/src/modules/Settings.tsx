@@ -5,10 +5,10 @@ import { Button, Input, Select } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
-import { addClassTreeNode, removeClassTreeNode, flattenClassTree } from "../lib/classTree";
+import { addClassTreeNode, removeClassTreeNode, addSubject, editSubject, removeSubject, flattenClassTree } from "../lib/classTree";
 import { canBackup, canManageDomain, canManageUsers } from "../lib/permissions";
 import { Icons } from "../lib/icons";
-import { USER_ROLES, type BackupConfig, type ClassTreeNode, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
+import { USER_ROLES, type BackupConfig, type ClassTreeNode, type ClassTreeSubject, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
 
 type GuardianApprovalData = Awaited<ReturnType<typeof api.getPendingGuardianApprovals>>;
 
@@ -71,7 +71,39 @@ function SectionHeader({ title, open, onToggle }: { title: string; open: boolean
   );
 }
 
-// Recursive row for the class-tree editor. Two things this fixes vs the
+// One বিষয় (subject) line under a leaf class — its own edit/delete
+// buttons, same `.btn-xs` styling as ClassTreeRow's node actions so the
+// two levels read as one consistent list rather than two different widgets.
+function SubjectRow({
+  subject,
+  editLabel,
+  deleteLabel,
+  onEdit,
+  onDelete,
+}: {
+  subject: ClassTreeSubject;
+  editLabel: string;
+  deleteLabel: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="user-row class-tree-subject-row">
+      <div className="user-info">
+        <div className="user-name">{subject.bn}</div>
+        <div className="user-meta">{subject.en}</div>
+      </div>
+      <button type="button" onClick={onEdit} className="btn-xs">
+        {editLabel}
+      </button>
+      <button type="button" onClick={onDelete} className="btn-xs btn-xs--delete">
+        {deleteLabel}
+      </button>
+    </div>
+  );
+}
+
+// Recursive row for the class-tree editor. Three things this fixes vs the
 // old flat version:
 //  1. Each node with children is its own collapsible accordion (closed by
 //     default) instead of the whole tree unfolding at once — opening one
@@ -80,6 +112,10 @@ function SectionHeader({ title, open, onToggle }: { title: string; open: boolean
 //     node's own row, not in one shared block pinned to the top of the
 //     panel — editing something 3 levels deep no longer means scrolling
 //     away from it to reach the form.
+//  3. A leaf (জামাত/ক্লাস — no children) is expandable too, revealing its
+//     own বিষয় (subject) list with the same add/edit/delete/inline-form
+//     pattern as the class tree itself, instead of subjects having nowhere
+//     to live.
 function ClassTreeRow({
   node,
   path,
@@ -96,6 +132,17 @@ function ClassTreeRow({
   onDelete,
   renderAddForm,
   renderEditForm,
+  subjectsLabel,
+  subjectsEmptyLabel,
+  subjectAddLabel,
+  subjectEditLabel,
+  activeSubjectAddPath,
+  activeSubjectEditTarget,
+  onAddSubject,
+  onEditSubject,
+  onDeleteSubject,
+  renderSubjectAddForm,
+  renderSubjectEditForm,
 }: {
   node: ClassTreeNode;
   path: string[];
@@ -112,54 +159,68 @@ function ClassTreeRow({
   onDelete: (path: string[], node: ClassTreeNode) => void;
   renderAddForm: () => ReactNode;
   renderEditForm: () => ReactNode;
+  subjectsLabel: string;
+  subjectsEmptyLabel: string;
+  subjectAddLabel: string;
+  subjectEditLabel: string;
+  activeSubjectAddPath: string[] | null;
+  activeSubjectEditTarget: { path: string[]; en: string } | null;
+  onAddSubject: (leafPath: string[]) => void;
+  onEditSubject: (leafPath: string[], subject: ClassTreeSubject) => void;
+  onDeleteSubject: (leafPath: string[], subject: ClassTreeSubject) => void;
+  renderSubjectAddForm: () => ReactNode;
+  renderSubjectEditForm: (subject: ClassTreeSubject) => ReactNode;
 }) {
   const hasChildren = node.children.length > 0;
+  const isLeaf = !hasChildren;
   // `open` is derived, not effect-driven: it's "the user manually toggled
-  // this row open" OR'd with "a child is currently being added here" (so
-  // composing a new entry shows it landing in place), with no useEffect
-  // needed to sync the two — the project's lint config flags setState
-  // calls from inside an effect body (see react-hooks/set-state-in-effect).
+  // this row open" OR'd with "something is currently being added/edited
+  // inside it" (a child class, or — for a leaf — a subject), with no
+  // useEffect needed to sync the two — the project's lint config flags
+  // setState calls from inside an effect body (see
+  // react-hooks/set-state-in-effect).
   const [manuallyOpen, setManuallyOpen] = useState(false);
   const pathKey = path.join("/");
   const isAddTarget = activeAddPath !== null && activeAddPath.join("/") === pathKey;
   const isEditTarget = activeEditPath !== null && activeEditPath.join("/") === pathKey;
-  const open = manuallyOpen || isAddTarget;
+  const isSubjectAddTarget = isLeaf && activeSubjectAddPath !== null && activeSubjectAddPath.join("/") === pathKey;
+  const isSubjectEditTargetHere =
+    isLeaf && activeSubjectEditTarget !== null && activeSubjectEditTarget.path.join("/") === pathKey;
+  const open = manuallyOpen || isAddTarget || isSubjectAddTarget || isSubjectEditTargetHere;
 
   return (
     <div className={`class-tree-row class-tree-row--depth-${Math.min(depth, 3)}`}>
       <div
-        className={`user-row class-tree-row__header ${hasChildren ? "class-tree-row__header--clickable" : ""}`}
-        onClick={hasChildren ? () => setManuallyOpen(!open) : undefined}
+        className="user-row class-tree-row__header class-tree-row__header--clickable"
+        onClick={() => setManuallyOpen(!open)}
       >
-        {hasChildren && (
-          <Icons.chevronDown
-            size={16}
-            aria-hidden="true"
-            className={open ? "class-tree-row__chevron class-tree-row__chevron--open" : "class-tree-row__chevron"}
-          />
-        )}
+        <Icons.chevronDown
+          size={16}
+          aria-hidden="true"
+          className={open ? "class-tree-row__chevron class-tree-row__chevron--open" : "class-tree-row__chevron"}
+        />
         <div className="user-info">
           <div className="user-name">{node.bn}</div>
           <div className="user-meta">{node.en}</div>
         </div>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onAddChild(path); }} className="btn-xs btn-xs--cancel">
-          {addLabel}
-        </button>
+        {hasChildren && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); onAddChild(path); }} className="btn-xs btn-xs--cancel">
+            {addLabel}
+          </button>
+        )}
         <button type="button" onClick={(e) => { e.stopPropagation(); onEdit(path, node); }} className="btn-xs">
           {editLabel}
         </button>
         <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(path, node); }} className="btn-xs btn-xs--delete">
           {deleteLabel}
         </button>
-        {hasChildren && (
-          <span className="sr-only">{open ? collapseLabel : expandLabel}</span>
-        )}
+        <span className="sr-only">{open ? collapseLabel : expandLabel}</span>
       </div>
 
       {isEditTarget && renderEditForm()}
       {isAddTarget && renderAddForm()}
 
-      {hasChildren && open && (
+      {open && hasChildren && (
         <div>
           {node.children.map((child) => (
             <ClassTreeRow
@@ -179,8 +240,59 @@ function ClassTreeRow({
               onDelete={onDelete}
               renderAddForm={renderAddForm}
               renderEditForm={renderEditForm}
+              subjectsLabel={subjectsLabel}
+              subjectsEmptyLabel={subjectsEmptyLabel}
+              subjectAddLabel={subjectAddLabel}
+              subjectEditLabel={subjectEditLabel}
+              activeSubjectAddPath={activeSubjectAddPath}
+              activeSubjectEditTarget={activeSubjectEditTarget}
+              onAddSubject={onAddSubject}
+              onEditSubject={onEditSubject}
+              onDeleteSubject={onDeleteSubject}
+              renderSubjectAddForm={renderSubjectAddForm}
+              renderSubjectEditForm={renderSubjectEditForm}
             />
           ))}
+        </div>
+      )}
+
+      {open && isLeaf && (
+        <div className="class-tree-subjects">
+          <div className="class-tree-subjects__head">
+            <span className="class-tree-subjects__label">{subjectsLabel}</span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onAddSubject(path); }}
+              className="btn-xs btn-xs--cancel"
+            >
+              {subjectAddLabel}
+            </button>
+          </div>
+
+          {isSubjectAddTarget && renderSubjectAddForm()}
+
+          {(node.subjects || []).length === 0 && !isSubjectAddTarget && (
+            <p className="field-block__label class-tree-subjects__empty">{subjectsEmptyLabel}</p>
+          )}
+
+          {(node.subjects || []).map((subject) => {
+            const isThisSubjectEditTarget =
+              activeSubjectEditTarget !== null &&
+              activeSubjectEditTarget.path.join("/") === pathKey &&
+              activeSubjectEditTarget.en === subject.en;
+            return (
+              <div key={subject.en}>
+                <SubjectRow
+                  subject={subject}
+                  editLabel={subjectEditLabel}
+                  deleteLabel={deleteLabel}
+                  onEdit={() => onEditSubject(path, subject)}
+                  onDelete={() => onDeleteSubject(path, subject)}
+                />
+                {isThisSubjectEditTarget && renderSubjectEditForm(subject)}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -259,6 +371,13 @@ export function Settings() {
   const [classTreeEditTarget, setClassTreeEditTarget] = useState<string[] | null>(null);
   const [classTreeEditForm, setClassTreeEditForm] = useState({ bn: "", en: "" });
   const [classTreeEditSaving, setClassTreeEditSaving] = useState(false);
+  // Subject (বিষয়) editor state — same null/[]/[...path] shape as the
+  // class-tree add/edit state above, just scoped to one leaf's own
+  // subjects array. See lib/classTree.ts's addSubject/editSubject/removeSubject.
+  const [subjectAddTarget, setSubjectAddTarget] = useState<string[] | null>(null);
+  const [subjectForm, setSubjectForm] = useState({ bn: "", en: "" });
+  const [subjectEditTarget, setSubjectEditTarget] = useState<{ path: string[]; en: string } | null>(null);
+  const [subjectEditForm, setSubjectEditForm] = useState({ bn: "", en: "" });
   const isSuperAdmin = authUser?.role === "Super Admin";
   const manageUsers = authUser ? canManageUsers(authUser.role) : false;
   const allowBackup = authUser ? canBackup(authUser.role) : false;
@@ -780,6 +899,8 @@ export function Settings() {
     setClassTreeAddTarget(null);
     setClassTreeEditTarget(path);
     setClassTreeEditForm({ bn: node.bn, en: node.en });
+    setSubjectAddTarget(null);
+    setSubjectEditTarget(null);
   };
 
   const handleSaveClassTreeNodeEdit = async () => {
@@ -803,6 +924,57 @@ export function Settings() {
       setMsg(e instanceof Error ? e.message : "Failed");
     } finally {
       setClassTreeEditSaving(false);
+    }
+  };
+
+  const handleAddSubject = async () => {
+    if (!isSuperAdmin || !subjectAddTarget) return;
+    const bnValue = subjectForm.bn.trim();
+    const enValue = subjectForm.en.trim().toLowerCase();
+    if (!bnValue || !enValue || !CLASS_EN_SLUG_RE.test(enValue)) return;
+    try {
+      const next = addSubject(classTree, subjectAddTarget, { bn: bnValue, en: enValue });
+      await saveClassTree(next);
+      setSubjectForm({ bn: "", en: "" });
+      setSubjectAddTarget(null);
+      setMsg(t.settings.subjectAdded);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const handleStartEditSubject = (path: string[], subject: ClassTreeSubject) => {
+    if (!isSuperAdmin) return;
+    setSubjectAddTarget(null);
+    setSubjectEditTarget({ path, en: subject.en });
+    setSubjectEditForm({ bn: subject.bn, en: subject.en });
+  };
+
+  const handleSaveSubjectEdit = async () => {
+    if (!isSuperAdmin || !subjectEditTarget) return;
+    const bnValue = subjectEditForm.bn.trim();
+    const enValue = subjectEditForm.en.trim().toLowerCase();
+    if (!bnValue || !enValue || !CLASS_EN_SLUG_RE.test(enValue)) return;
+    try {
+      const next = editSubject(classTree, subjectEditTarget.path, subjectEditTarget.en, { bn: bnValue, en: enValue });
+      await saveClassTree(next);
+      setSubjectEditTarget(null);
+      setSubjectEditForm({ bn: "", en: "" });
+      setMsg(t.settings.subjectEdited);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const handleDeleteSubject = async (path: string[], subject: ClassTreeSubject) => {
+    if (!isSuperAdmin) return;
+    if (!confirm(t.settings.subjectDeleteConfirm)) return;
+    try {
+      const next = removeSubject(classTree, path, subject.en);
+      await saveClassTree(next);
+      setMsg(t.settings.subjectDeleted);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Failed");
     }
   };
 
@@ -1465,6 +1637,8 @@ export function Settings() {
                           setClassTreeEditTarget(null);
                           setClassTreeAddTarget(path);
                           setClassTreeForm({ bn: "", en: "" });
+                          setSubjectAddTarget(null);
+                          setSubjectEditTarget(null);
                         }}
                         onEdit={handleStartEditClassTreeNode}
                         onDelete={handleDeleteClassTreeNode}
@@ -1516,6 +1690,78 @@ export function Settings() {
                               {classTreeEditSaving ? t.settings.classTreeEditSaving : t.settings.classTreeEditSave}
                             </Button>
                             <Button variant="rose" onClick={() => setClassTreeEditTarget(null)} disabled={classTreeEditSaving}>
+                              {t.settings.classTreeCancel}
+                            </Button>
+                          </div>
+                        )}
+                        subjectsLabel={t.settings.subjectsLabel}
+                        subjectsEmptyLabel={t.settings.subjectsEmpty}
+                        subjectAddLabel={t.settings.subjectAdd}
+                        subjectEditLabel={t.settings.subjectEdit}
+                        activeSubjectAddPath={subjectAddTarget}
+                        activeSubjectEditTarget={subjectEditTarget}
+                        onAddSubject={(path) => {
+                          setClassTreeAddTarget(null);
+                          setClassTreeEditTarget(null);
+                          setSubjectEditTarget(null);
+                          setSubjectAddTarget(path);
+                          setSubjectForm({ bn: "", en: "" });
+                        }}
+                        onEditSubject={(path, subject) => {
+                          setClassTreeAddTarget(null);
+                          setClassTreeEditTarget(null);
+                          setSubjectAddTarget(null);
+                          handleStartEditSubject(path, subject);
+                        }}
+                        onDeleteSubject={handleDeleteSubject}
+                        renderSubjectAddForm={() => (
+                          <div className="user-form-grid mb-10 class-tree-inline-form">
+                            <div className="field-block__label class-tree-add-parent-label">
+                              {t.settings.subjectParentLabel}: {subjectAddTarget?.join(" / ")}
+                            </div>
+                            <Input
+                              placeholder={t.settings.subjectBnLabel}
+                              value={subjectForm.bn}
+                              onChange={(e) => setSubjectForm({ ...subjectForm, bn: e.target.value })}
+                            />
+                            <div>
+                              <Input
+                                placeholder={t.settings.subjectEnLabel}
+                                value={subjectForm.en}
+                                onChange={(e) => setSubjectForm({ ...subjectForm, en: e.target.value })}
+                              />
+                              <p className="field-block__label">{t.settings.subjectEnHint}</p>
+                            </div>
+                            <Button variant="teal" solid onClick={handleAddSubject}>
+                              {t.settings.addClass}
+                            </Button>
+                            <Button variant="rose" onClick={() => setSubjectAddTarget(null)}>
+                              {t.settings.classTreeCancel}
+                            </Button>
+                          </div>
+                        )}
+                        renderSubjectEditForm={() => (
+                          <div className="user-form-grid mb-10 class-tree-inline-form">
+                            <div className="field-block__label class-tree-add-parent-label">
+                              {t.settings.subjectEditingLabel}: {subjectEditForm.bn}
+                            </div>
+                            <Input
+                              placeholder={t.settings.subjectBnLabel}
+                              value={subjectEditForm.bn}
+                              onChange={(e) => setSubjectEditForm({ ...subjectEditForm, bn: e.target.value })}
+                            />
+                            <div>
+                              <Input
+                                placeholder={t.settings.subjectEnLabel}
+                                value={subjectEditForm.en}
+                                onChange={(e) => setSubjectEditForm({ ...subjectEditForm, en: e.target.value })}
+                              />
+                              <p className="field-block__label">{t.settings.subjectEnHint}</p>
+                            </div>
+                            <Button variant="teal" solid onClick={handleSaveSubjectEdit}>
+                              {t.settings.classTreeEditSave}
+                            </Button>
+                            <Button variant="rose" onClick={() => setSubjectEditTarget(null)}>
                               {t.settings.classTreeCancel}
                             </Button>
                           </div>

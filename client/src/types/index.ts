@@ -190,13 +190,26 @@ export interface ClassOption {
 // ClassOption's flat list — see server/src/lib/classTree.js for the exact
 // shape/rules (leaf.en is what's stored on students.class). `leaf` is only
 // true on selectable nodes (no children); non-leaf nodes exist purely to
-// group the cascading dropdowns.
+// group the cascading dropdowns. `subjects` is only ever populated on leaf
+// nodes — the classes/jamaats subjects are actually taught in.
+
+// A single বিষয় (subject) taught within one leaf class/জামাত — see
+// ClassTreeNode.subjects below. `en` is only unique within its own leaf's
+// subject list, not across the whole tree (unlike a leaf's own `en`, which
+// is a global data-label written to students.class).
+export interface ClassTreeSubject {
+  id: string;
+  bn: string;
+  en: string;
+}
+
 export interface ClassTreeNode {
   id: string;
   bn: string;
   en: string;
   leaf: boolean;
   children: ClassTreeNode[];
+  subjects?: ClassTreeSubject[];
 }
 
 export interface SiteHighlight {

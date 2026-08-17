@@ -1,4 +1,4 @@
-import type { ClassTreeNode } from "../types";
+import type { ClassTreeNode, ClassTreeSubject } from "../types";
 
 // Client-side counterpart to server/src/lib/classTree.js's flattenClassTree
 // — same shape, same " / " path separator — so the cascading picker
@@ -116,4 +116,51 @@ export function removeClassTreeNode(tree: ClassTreeNode[], path: string[]): Clas
   return tree.map((node) =>
     node.en === head ? { ...node, children: removeClassTreeNode(node.children, rest) } : node
   );
+}
+
+// --- Subject helpers (Part 2) ----------------------------------------------
+// Subjects live only on leaf nodes (see ClassTreeNode.subjects in
+// types/index.ts). All three walk down to the leaf at `leafPath` the same
+// way addClassTreeNode/removeClassTreeNode walk to a class node, then edit
+// just that leaf's own `subjects` array — same "build a well-formed
+// candidate, let the server's sanitizeClassTree re-check it" division of
+// labor as the class-node helpers above.
+
+function walkToLeaf(
+  nodes: ClassTreeNode[],
+  remaining: string[],
+  editSubjects: (subjects: ClassTreeSubject[]) => ClassTreeSubject[]
+): ClassTreeNode[] {
+  const [head, ...rest] = remaining;
+  return nodes.map((node) => {
+    if (node.en !== head) return node;
+    if (rest.length === 0) {
+      return { ...node, subjects: editSubjects(node.subjects || []) };
+    }
+    return { ...node, children: walkToLeaf(node.children, rest, editSubjects) };
+  });
+}
+
+export function addSubject(
+  tree: ClassTreeNode[],
+  leafPath: string[],
+  subject: { bn: string; en: string }
+): ClassTreeNode[] {
+  const newSubject: ClassTreeSubject = { id: subject.en, bn: subject.bn, en: subject.en };
+  return walkToLeaf(tree, leafPath, (subjects) => [...subjects, newSubject]);
+}
+
+export function editSubject(
+  tree: ClassTreeNode[],
+  leafPath: string[],
+  subjectEn: string,
+  updates: { bn: string; en: string }
+): ClassTreeNode[] {
+  return walkToLeaf(tree, leafPath, (subjects) =>
+    subjects.map((s) => (s.en === subjectEn ? { id: updates.en, bn: updates.bn, en: updates.en } : s))
+  );
+}
+
+export function removeSubject(tree: ClassTreeNode[], leafPath: string[], subjectEn: string): ClassTreeNode[] {
+  return walkToLeaf(tree, leafPath, (subjects) => subjects.filter((s) => s.en !== subjectEn));
 }

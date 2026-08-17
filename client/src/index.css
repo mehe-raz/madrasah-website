@@ -2302,6 +2302,37 @@ img {
   padding-left: 12px;
 }
 
+/* Part 2: per-leaf বিষয় (subject) list, nested inside a leaf class row. */
+.class-tree-subjects {
+  margin-left: 24px;
+  padding: 10px 0 4px 12px;
+  border-left: 2px dashed var(--border, #e2e8f0);
+}
+
+.class-tree-subjects__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.class-tree-subjects__label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.class-tree-subjects__empty {
+  margin: 4px 0 8px;
+}
+
+.class-tree-subject-row {
+  padding-left: 4px;
+}
+
 @media (max-width: 640px) {
   .class-tree-row--depth-1 {
     margin-left: 10px;
@@ -2316,6 +2347,11 @@ img {
   }
 
   .class-tree-inline-form {
+    margin-left: 10px;
+    padding-left: 8px;
+  }
+
+  .class-tree-subjects {
     margin-left: 10px;
     padding-left: 8px;
   }
