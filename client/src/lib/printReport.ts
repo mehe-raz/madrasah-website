@@ -739,110 +739,22 @@ export function printStudentIdCard(student: IdCardOptions, targetWindow?: Window
 }
 
 // ----------------------------------------------------------------------
-// Admit Card (প্রবেশপত্র) — reproduces the reference admit-card layout
-// (double dashed-corner border, centered institution header, প্রবেশপত্র
-// title badge, exam/session line, দাখেলা+রোল boxes, নাম/পিতার নাম/জামাত
-// lines with the exam start date on the জামাত line, two signature lines)
-// as coded markup, same "print the browser's own HTML" approach as the
-// rest of this file (see file-top comment re: Bengali text shaping).
+// Admit Card (প্রবেশপত্র) — printed on top of the reference admit-card
+// artwork itself (client/public/admit-card-bg.jpg — a high-resolution
+// (600dpi) capture of the institution's actual admit-card design, with
+// only the tenant-specific parts — institution name, address, logo,
+// watermark, exam session line, exam date, and the fill-in values —
+// removed so they can be drawn dynamically on top). This follows the
+// same reasoning as the admission form: reusing the institution's real
+// artwork guarantees an exact match to their design; only the dynamic
+// text is coded.
 //
-// Two cards per A4 page, sized/spaced to match the reference admit-card
-// template's own proportions (measured from the uploaded PDF: card fills
-// ~edge-to-edge width, height ≈61% of width, small ~6mm gap between the
-// two cards, both sitting near the top of the page with the remainder left
-// blank below — not stretched to fill the full page). See ADMIT_CARD_STYLES
-// .ac-page/.ac-card.
+// Card is sized to the reference artwork's own proportions
+// (158.33mm × 99.74mm, measured from the source PDF), two per A4 page,
+// matching the original template's own two-cards-per-page layout.
 // ----------------------------------------------------------------------
 
-const ADMIT_CARD_STYLES = `
-  @page { size: A4; margin: 8mm 10mm; }
-  * {
-    box-sizing: border-box; margin: 0; padding: 0;
-    /* Without this, Chrome/Android drop every background-color (the navy
-       প্রবেশপত্র badge, the white দাখেলা/রোল boxes, the cream card fill)
-       the moment you switch from the on-screen preview to Print/Save-as-PDF
-       — they render fine on screen but vanish or go flat/grey in the PDF.
-       This is the standard fix; none of this file's other print* functions
-       needed it because they're border/text-only, no solid fills. */
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
-  body {
-    font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
-    color: #0f172a;
-  }
-  .ac-page {
-    display: flex;
-    flex-direction: column;
-    gap: 7mm;
-    page-break-after: always;
-  }
-  .ac-page:last-child { page-break-after: auto; }
-  .ac-card {
-    height: 116mm;
-    flex: 0 0 auto;
-    border: 1.6px solid #000;
-    border-radius: 14px;
-    padding: 2.6mm;
-    background: #fffff3;
-  }
-  .ac-card__inner {
-    height: 100%;
-    border: 1.8px dashed #000;
-    border-radius: 11px;
-    padding: 5mm 8mm 4mm;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-  }
-  .ac-watermark {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    height: 70mm;
-    width: 70mm;
-    object-fit: contain;
-    opacity: 0.12;
-    z-index: 0;
-  }
-  .ac-card__inner > *:not(.ac-watermark) {
-    position: relative;
-    z-index: 1;
-  }
-  .ac-head { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; }
-  .ac-head img { height: 15mm; width: 15mm; object-fit: contain; flex-shrink: 0; }
-  .ac-head h1 { font-size: 16px; color: #00563f; font-weight: 800; }
-  .ac-head .addr { font-size: 9.5px; color: #334155; margin-top: 1.5px; }
-  .ac-rule { border-top: 1.4px dashed #8b0000; margin: 5px 0 8px; position: relative; }
-  .ac-rule::after {
-    content: "◇"; position: absolute; left: 50%; top: -8px; transform: translateX(-50%);
-    background: #fffff3; padding: 0 6px; color: #8b0000; font-size: 11px;
-  }
-  .ac-titleWrap { text-align: center; margin-bottom: 7px; }
-  .ac-title {
-    display: inline-block; border-radius: 4px; background: #203864; color: #fff;
-    padding: 3px 26px; font-weight: 800; font-size: 17px; text-decoration: underline;
-  }
-  .ac-exam { text-align: center; font-weight: 700; font-size: 12px; margin-bottom: 9px; }
-  .ac-idrow { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-  .ac-idbox { flex: 0 0 42%; border: 1.6px solid #203864; border-radius: 4px; padding: 3px 8px; font-size: 11.5px; font-weight: 700; background: #fff; }
-  .ac-idbox b { font-weight: 800; margin-left: 3px; }
-  .ac-line {
-    display: flex; align-items: baseline; gap: 4px; font-size: 12px; font-weight: 700;
-    margin: 6px 0; border-bottom: .8px solid #94a3b8; padding-bottom: 2px;
-  }
-  .ac-lab { flex-shrink: 0; }
-  .ac-colon { flex-shrink: 0; }
-  .ac-val { flex: 1; font-weight: 700; }
-  .ac-line--split { justify-content: space-between; }
-  .ac-examdate { font-size: 10.5px; font-weight: 700; text-decoration: underline; white-space: nowrap; margin-left: 10px; }
-  .ac-sigrow { display: flex; justify-content: space-between; margin-top: 18px; padding-top: 6px; }
-  .ac-sig { text-align: center; font-size: 10.5px; font-weight: 700; border-top: 1px solid #000; padding-top: 3px; min-width: 38mm; }
-`;
+const ADMIT_CARD_SIZE = { widthMm: 158.33, heightMm: 99.74 };
 
 export interface AdmitCardStudentInput {
   name: string;
@@ -863,42 +775,97 @@ export interface AdmitCardOptions {
   students: AdmitCardStudentInput[];
 }
 
+const ADMIT_CARD_STYLES = `
+  @page { size: A4; margin: 8mm 10mm; }
+  * {
+    box-sizing: border-box; margin: 0; padding: 0;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  body {
+    font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
+    color: #0f172a;
+  }
+  .ac-page {
+    display: flex;
+    flex-direction: column;
+    gap: 7mm;
+    page-break-after: always;
+  }
+  .ac-page:last-child { page-break-after: auto; }
+  .ac-card {
+    position: relative;
+    width: ${ADMIT_CARD_SIZE.widthMm}mm;
+    height: ${ADMIT_CARD_SIZE.heightMm}mm;
+    flex: 0 0 auto;
+    overflow: hidden;
+  }
+  .ac-card .ac-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+  .ac-logo {
+    position: absolute !important;
+    left: 6mm; top: 7mm; width: 30mm; height: 28mm;
+    object-fit: contain; z-index: 2;
+  }
+  .ac-wm {
+    position: absolute !important;
+    left: 50%; top: 52%; width: 60mm;
+    transform: translate(-50%, -50%);
+    opacity: 0.13; object-fit: contain; z-index: 1;
+  }
+  .ac-fld {
+    position: absolute; z-index: 2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: #111; font-weight: 700;
+  }
+  .ac-instname { font-size: 6.2mm; color: #00563f; font-weight: 800; transform: translateY(-100%); }
+  .ac-addr { font-size: 2.6mm; color: #334155; font-weight: 600; transform: translateY(-100%); }
+  .ac-examline { font-size: 3.4mm; font-weight: 700; transform: translateY(-100%); text-align: center; }
+  .ac-val { font-size: 3.4mm; transform: translateY(-100%); }
+  .ac-examdate { font-size: 2.9mm; text-decoration: underline; transform: translateY(-100%); }
+`;
+
+/** Millimeter coordinates (from card top-left) for every dynamic field, measured from the reference artwork. */
+const AC_POS = {
+  logo: { left: 6, top: 7, width: 30, height: 28 },
+  instName: { left: 37.59, top: 18.37, maxWidth: 101.25 },
+  address: { left: 43.24, top: 22.75, maxWidth: 89.6 },
+  examLine: { left: 18.89, top: 40.6, width: 119.95 },
+  dakhola: { left: 31.95, top: 48.39, maxWidth: 43.4 },
+  roll: { left: 111.68, top: 48.39, maxWidth: 39.5 },
+  name: { left: 39.0, top: 58.1, maxWidth: 95.6 },
+  father: { left: 39.0, top: 65.24, maxWidth: 95.6 },
+  jamat: { left: 39.0, top: 72.38, maxWidth: 59.27 },
+  examDate: { left: 131.08, top: 71.89, maxWidth: 16.58 },
+};
+
 /** Print প্রবেশপত্র (admit cards) for a whole class's roster — two per A4 page. */
 export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | null) {
   const settings = madrasaSettings();
+  const bgUrl = `${window.location.origin}/admit-card-bg.jpg`;
+  const examSessionText = `${opts.examLabel}${opts.academicYear ? ` - ${opts.academicYear} শিক্ষাবর্ষ` : ""}`;
+
+  const fld = (key: keyof typeof AC_POS, cls: string, value: string, extraStyle = "") => {
+    const p = AC_POS[key];
+    const width = "width" in p ? `width:${p.width}mm;` : `max-width:${(p as { maxWidth: number }).maxWidth}mm;`;
+    return `<div class="ac-fld ${cls}" style="left:${p.left}mm;top:${p.top}mm;${width}${extraStyle}">${escapeHtml(value)}</div>`;
+  };
 
   const cardHtml = (s: AdmitCardStudentInput) => `
-    <div class="ac-card"><div class="ac-card__inner">
-      ${settings.logo ? `<img class="ac-watermark" src="${escapeHtml(settings.logo)}" alt="">` : ""}
-      <div class="ac-head">
-        ${settings.logo ? `<img src="${escapeHtml(settings.logo)}" alt="">` : ""}
-        <div>
-          <h1>${escapeHtml(settings.name)}</h1>
-          ${settings.address ? `<div class="addr">${escapeHtml(settings.address)}</div>` : ""}
-        </div>
-      </div>
-      <div class="ac-rule"></div>
-      <div class="ac-titleWrap"><span class="ac-title">প্রবেশপত্র</span></div>
-      <div class="ac-exam">${escapeHtml(opts.examLabel)}${opts.academicYear ? ` - ${escapeHtml(opts.academicYear)} শিক্ষাবর্ষ` : ""}</div>
-      <div class="ac-idrow">
-        <div class="ac-idbox">দাখেলা নং :<b>${escapeHtml(s.admissionNumber || "")}</b></div>
-        <div class="ac-idbox">রোল নং :<b>${escapeHtml(s.roll)}</b></div>
-      </div>
-      <div class="ac-line">
-        <span class="ac-lab">পরীক্ষার্থীর নাম</span><span class="ac-colon">:</span><span class="ac-val">${escapeHtml(s.name)}</span>
-      </div>
-      <div class="ac-line">
-        <span class="ac-lab">পিতার নাম</span><span class="ac-colon">:</span><span class="ac-val">${escapeHtml(s.fatherName || "")}</span>
-      </div>
-      <div class="ac-line ac-line--split">
-        <span class="ac-lab">জামাত</span><span class="ac-colon">:</span><span class="ac-val">${escapeHtml(opts.classLabel)}</span>
-        ${opts.examStartDate ? `<span class="ac-examdate">পরীক্ষা শুরুর তারিখঃ ${escapeHtml(opts.examStartDate)}</span>` : ""}
-      </div>
-      <div class="ac-sigrow">
-        <div class="ac-sig">মুহতামিমের দস্তখত</div>
-        <div class="ac-sig">নাজিমে ইমতিহানের দস্তখত</div>
-      </div>
-    </div></div>
+    <div class="ac-card">
+      <img class="ac-bg" src="${bgUrl}" alt="">
+      ${settings.logo ? `<img class="ac-wm" src="${escapeHtml(settings.logo)}" alt="">` : ""}
+      ${settings.logo ? `<img class="ac-logo" src="${escapeHtml(settings.logo)}" alt="">` : ""}
+      ${fld("instName", "ac-instname", settings.name)}
+      ${settings.address ? fld("address", "ac-addr", settings.address) : ""}
+      ${fld("examLine", "ac-examline", examSessionText)}
+      ${fld("dakhola", "ac-val", s.admissionNumber || "")}
+      ${fld("roll", "ac-val", s.roll)}
+      ${fld("name", "ac-val", s.name)}
+      ${fld("father", "ac-val", s.fatherName || "")}
+      ${fld("jamat", "ac-val", opts.classLabel)}
+      ${opts.examStartDate ? fld("examDate", "ac-examdate", opts.examStartDate) : ""}
+    </div>
   `;
 
   const pages: string[] = [];
