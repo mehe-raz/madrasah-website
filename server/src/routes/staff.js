@@ -22,7 +22,7 @@ const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 router.use(requirePermission("staff"));
 
-const COLUMNS = 'id, name, phone, designation, class, "joiningDate", photo, status, "userId", note, "fingerprintId", "cardUid", "createdAt"';
+const COLUMNS = 'id, name, phone, designation, class, "joiningDate", photo, status, "userId", note, "fingerprintId", "cardUid", "shiftId", "createdAt"';
 
 function publicStaff(row) {
   return row;
@@ -68,6 +68,19 @@ async function assertUserExists(userId) {
   const user = await db.get("SELECT id FROM users WHERE id = $1", [userId]);
   if (!user) {
     const err = new Error("নির্বাচিত ব্যবহারকারী পাওয়া যায়নি");
+    err.status = 400;
+    throw err;
+  }
+}
+
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 3 — same "check first, insert
+// second" pattern as assertUserExists above, so an unknown shiftId
+// surfaces as a clean 400 instead of an FK-violation 500.
+async function assertShiftExists(shiftId) {
+  if (shiftId == null) return;
+  const shift = await db.get("SELECT id FROM shifts WHERE id = $1", [shiftId]);
+  if (!shift) {
+    const err = new Error("নির্বাচিত শিফট পাওয়া যায়নি");
     err.status = 400;
     throw err;
   }
@@ -119,10 +132,11 @@ async function assertDeviceIdentifiersFree({ fingerprintId, cardUid, excludeId }
 }
 
 router.post("/", validate(staffCreateSchema), async (req, res) => {
-  const { name, phone, designation, class: cls, joiningDate, note, userId, fingerprintId, cardUid } = req.body;
+  const { name, phone, designation, class: cls, joiningDate, note, userId, fingerprintId, cardUid, shiftId } = req.body;
 
   try {
     await assertUserExists(userId ?? null);
+    await assertShiftExists(shiftId ?? null);
     await assertDeviceIdentifiersFree({ fingerprintId, cardUid });
   } catch (e) {
     if (e.status === 400 || e.status === 409) return res.status(e.status).json({ error: e.message });
@@ -130,9 +144,9 @@ router.post("/", validate(staffCreateSchema), async (req, res) => {
   }
 
   const result = await db.run(
-    `INSERT INTO staff (name, phone, designation, class, "joiningDate", note, "userId", "fingerprintId", "cardUid", status, "createdAt")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Active', $10) RETURNING id`,
-    [name, phone || "", designation, cls || "", joiningDate || "", note || "", userId ?? null, fingerprintId || null, cardUid || null, new Date().toISOString()]
+    `INSERT INTO staff (name, phone, designation, class, "joiningDate", note, "userId", "fingerprintId", "cardUid", "shiftId", status, "createdAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Active', $11) RETURNING id`,
+    [name, phone || "", designation, cls || "", joiningDate || "", note || "", userId ?? null, fingerprintId || null, cardUid || null, shiftId ?? null, new Date().toISOString()]
   );
   const row = await db.get(`SELECT ${COLUMNS} FROM staff WHERE id = $1`, [result.insertId]);
   await recordAudit({
@@ -151,11 +165,20 @@ router.patch("/:id", validate(staffUpdateSchema), async (req, res) => {
   const existing = await db.get("SELECT * FROM staff WHERE id = $1", [id]);
   if (!existing) return res.status(404).json({ error: "স্টাফ পাওয়া যায়নি" });
 
-  const { name, phone, designation, class: cls, joiningDate, note, userId, status, fingerprintId, cardUid } = req.body;
+  const { name, phone, designation, class: cls, joiningDate, note, userId, status, fingerprintId, cardUid, shiftId } = req.body;
 
   if (userId !== undefined) {
     try {
       await assertUserExists(userId);
+    } catch (e) {
+      if (e.status === 400) return res.status(400).json({ error: e.message });
+      throw e;
+    }
+  }
+
+  if (shiftId !== undefined) {
+    try {
+      await assertShiftExists(shiftId);
     } catch (e) {
       if (e.status === 400) return res.status(400).json({ error: e.message });
       throw e;
@@ -188,6 +211,7 @@ router.patch("/:id", validate(staffUpdateSchema), async (req, res) => {
   if (status !== undefined) set("status", status);
   if (fingerprintId !== undefined) set('"fingerprintId"', fingerprintId || null);
   if (cardUid !== undefined) set('"cardUid"', cardUid || null);
+  if (shiftId !== undefined) set('"shiftId"', shiftId);
 
   if (sets.length > 0) {
     params.push(id);

@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: শিফট/সিডিউল সিস্টেম + স্বয়ংক্রিয় দেরি-শনাক্তকরণ (৯ Phase-এ, পুরো
 পরিকল্পনা `docs/SHIFT_SCHEDULE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2 থেকে চালিয়ে যেতে হবে)
+## Status: IN_PROGRESS (Phase 1–3 ও 5 সম্পন্ন — Phase 4 থেকে চালিয়ে যেতে হবে)
 
 Started: 2026-08-18
 
@@ -70,14 +70,33 @@ Started: 2026-08-18
     `initSchema()`-এর প্যাটার্নে)।
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] **Phase 2** — `server/src/lib/shiftSchemas.js` (Zod) +
-  `server/src/routes/shifts.js` (CRUD, `requirePermission("shifts")`) +
-  `index.js`-এ `/api/shifts` মাউন্ট। বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`
-  Phase 2।
-- [ ] Phase 3–9 — বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`-এ (ক্লাস/স্টাফ↔শিফট
-  বরাদ্দ, অটো-লেট লজিক `devicePunch.js`-এ, RBAC, ফ্রন্টএন্ড শিফট ম্যানেজমেন্ট
-  + হাজিরা ভিউ, রিপোর্ট, টেস্ট/ডকুমেন্টেশন)। প্রতি Phase-এর পর `npm run check`
-  পাস করলেই পরের Phase-এ যাওয়া, না পাস করলে থেমে যাওয়া (AGENTS.md rule 2)।
+- [x] **Phase 2 (Shift CRUD ব্যাকএন্ড)** — `server/src/lib/shiftSchemas.js`
+  (নতুন: `shiftCreateSchema`, `shiftUpdateSchema`, `classShiftMapSchema`)
+  + `server/src/routes/shifts.js` (নতুন: `GET/POST/PATCH`,
+  `requirePermission("shifts")`, `recordAudit`, হার্ড DELETE নেই —
+  `routes/staff.js`-এর প্যাটার্নে শুধু active টগল) + `index.js`-এ
+  `/api/shifts` মাউন্ট।
+- [x] **Phase 3 (ক্লাস↔শিফট ও স্টাফ↔শিফট বরাদ্দ)** —
+  `server/src/routes/classShifts.js` (নতুন: `GET`/`PUT` বাল্ক রিপ্লেস,
+  `lib/classOptions.js`-এর "পুরো লিস্ট পাঠাও/সেভ করো" প্যাটার্নে, শিফট-আইডি
+  আগে থেকে যাচাই করে ৪০০ রিটার্ন, `db.withTransaction` দিয়ে
+  delete+re-insert) + `index.js`-এ `/api/class-shifts` মাউন্ট;
+  `staffSchemas.js`/`routes/staff.js`-এ `shiftId` (nullable, `assertShiftExists`
+  চেকসহ) যোগ — বিদ্যমান PATCH রুটই ব্যবহার হয়েছে, নতুন এন্ডপয়েন্ট লাগেনি।
+- [x] **Phase 5 (RBAC, protected path)** — `server/src/config/roles.js`-এ
+  নতুন `"shifts"` পারমিশন-কী, শুধু Admin/Super Admin (§৬ প্রশ্ন ২-এর ডিফল্ট
+  অনুযায়ী)। `ROUTE_PERMISSION`-এ `/api/shifts`, `/api/class-shifts` যোগ।
+  `npm run check` `roles.generated.ts` রিজেনারেট করবে — হাতে এডিট করা হয়নি।
+  (নোট: Phase-নম্বর ক্রমানুসারে ৪ বাদ পড়েনি — RBAC আসলে মূল প্ল্যানের
+  Phase 5, ৪ নম্বর হলো অটো-লেট লজিক যেটা এখনো বাকি, নিচে দেখুন।)
+- [ ] **Phase 4 (স্বয়ংক্রিয় দেরি-গণনা)** — `lib/attendanceSchedule.js` +
+  `lib/devicePunch.js`-এ ইন্টিগ্রেশন — এখনো শুরু হয়নি, পরের ধাপ।
+- [ ] Phase 6–9 — বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`-এ (ফ্রন্টএন্ড শিফট
+  ম্যানেজমেন্ট + হাজিরা ভিউ, রিপোর্ট, টেস্ট/ডকুমেন্টেশন)। sandbox-এ
+  `npm run check` চালানো সম্ভব হয়নি (network/node_modules নেই) —
+  `node --check` দিয়ে সবগুলো নতুন/পরিবর্তিত `.js` ফাইলের syntax যাচাই করা
+  হয়েছে (সব পাস)। আসল `npm run check` (lint/typecheck/build/sync:roles)
+  প্রথম চলবে আপনার প্যাকেজড CMD-তে।
 
 ### নোট
 এই মুহূর্তে অন্য একাধিক IN_PROGRESS/PLANNED টাস্ক (নিচে) আছে — সেগুলোর

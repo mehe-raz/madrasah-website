@@ -26,6 +26,10 @@ const staffCreateSchema = z.object({
   // lookup, same reasoning as the userId comment above).
   fingerprintId: z.string().trim().max(120).optional().default(""),
   cardUid: z.string().trim().max(120).optional().default(""),
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 3 — optional shift assignment.
+  // Existence checked in the route handler (needs a DB lookup), same
+  // split as userId above.
+  shiftId: z.coerce.number().int().positive().optional().nullable(),
 });
 
 // PATCH: every field optional (partial update), including the status
@@ -41,6 +45,7 @@ const staffUpdateSchema = z.object({
   status: z.enum(STAFF_STATUSES, { errorMap: () => ({ message: "Active অথবা Inactive হতে হবে" }) }).optional(),
   fingerprintId: z.string().trim().max(120).optional(),
   cardUid: z.string().trim().max(120).optional(),
+  shiftId: z.coerce.number().int().positive().optional().nullable(),
 });
 
 module.exports = { staffCreateSchema, staffUpdateSchema, STAFF_STATUSES };

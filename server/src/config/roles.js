@@ -24,7 +24,12 @@ const ROLE_PERMISSIONS = {
   // so a future narrower role could get one without the other; today
   // only Admin/Super Admin hold either (plan doc §6, open question 1
   // defaulted to no Hostel Manager access for staffAttendance).
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "websiteGallery", "websiteNotices", "results", "assignments", "staff", "staffAttendance"],
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 5 — shift/schedule master data
+  // (routes/shifts.js) and class->shift assignment (routes/classShifts.js)
+  // share this one key; staff.shiftId itself is edited through the
+  // existing "staff" permission (routes/staff.js's PATCH), not this one.
+  // Plan §6 open question 2 defaulted to Admin/Super Admin only.
+  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "websiteGallery", "websiteNotices", "results", "assignments", "staff", "staffAttendance", "shifts"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
   Teacher: ["attendance", "hifz", "results", "assignments"],
   "Hostel Manager": ["dashboard", "students", "attendance"],
@@ -55,6 +60,11 @@ const ROUTE_PERMISSION = {
   // "settings" or merged with each other.
   "/api/staff": "staff",
   "/api/staff-attendance": "staffAttendance",
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 5 — shift master data + class->shift
+  // assignment, same "shifts" key for both (see ROLE_PERMISSIONS comment
+  // above for why they aren't folded into "settings").
+  "/api/shifts": "shifts",
+  "/api/class-shifts": "shifts",
   "/api/users": "settings",
   "/api/backup": "settings",
   "/api/reports": "reports",

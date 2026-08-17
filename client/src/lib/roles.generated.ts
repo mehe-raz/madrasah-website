@@ -21,7 +21,8 @@ export const ROLE_PERMISSIONS = {
     "results",
     "assignments",
     "staff",
-    "staffAttendance"
+    "staffAttendance",
+    "shifts"
   ],
   "Accountant": [
     "dashboard",
@@ -57,6 +58,8 @@ export const ROUTE_PERMISSION = {
   "/api/settings": "settings",
   "/api/staff": "staff",
   "/api/staff-attendance": "staffAttendance",
+  "/api/shifts": "shifts",
+  "/api/class-shifts": "shifts",
   "/api/users": "settings",
   "/api/backup": "settings",
   "/api/reports": "reports",

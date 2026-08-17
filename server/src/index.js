@@ -463,6 +463,9 @@ app.use("/api/users", require("./routes/users"));
 // sub-route of users.js.
 app.use("/api/staff", require("./routes/staff"));
 app.use("/api/staff-attendance", require("./routes/staffAttendance"));
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 2-3
+app.use("/api/shifts", require("./routes/shifts"));
+app.use("/api/class-shifts", require("./routes/classShifts"));
 app.use("/api/guardian-approvals", require("./routes/guardianApprovals"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/delete-requests", require("./routes/deleteRequests"));

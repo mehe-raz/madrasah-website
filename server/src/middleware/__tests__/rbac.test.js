@@ -48,6 +48,11 @@ const EXPECTED_ALLOWED = {
   // in config/roles.js.
   "/api/staff": ["Admin", "Super Admin"],
   "/api/staff-attendance": ["Admin", "Super Admin"],
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 5 — shift master data + class->shift
+  // assignment, same "shifts" key for both. Admin/Super Admin only (plan
+  // §6 open question 2) — see ROLE_PERMISSIONS comment in config/roles.js.
+  "/api/shifts": ["Admin", "Super Admin"],
+  "/api/class-shifts": ["Admin", "Super Admin"],
 };
 
 describe("ROUTE_PERMISSION table sanity", () => {
