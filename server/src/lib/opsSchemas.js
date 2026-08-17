@@ -34,6 +34,22 @@ const attendanceSaveSchema = z.object({
   records: z.array(attendanceRecordSchema).max(5000, "একবারে সর্বোচ্চ ৫০০০ রেকর্ড পাঠানো যাবে"),
 });
 
+// docs/STAFF_ATTENDANCE_PLAN.md, Phase 3 — same 3-state vocabulary as
+// student attendance (plan doc §6, open question 3 defaulted to "no
+// separate Leave status for now"), just keyed by staffId instead of
+// studentId. A much smaller cap than the 5000-record student version is
+// enough here — an institution's staff count is a handful to a few dozen,
+// never thousands.
+const staffAttendanceRecordSchema = z.object({
+  staffId: z.coerce.number().int().positive(),
+  status: z.enum(ATTENDANCE_STATUSES),
+});
+
+const staffAttendanceSaveSchema = z.object({
+  date: z.string().trim().min(1).max(10).optional(),
+  records: z.array(staffAttendanceRecordSchema).max(500, "একবারে সর্বোচ্চ ৫০০ রেকর্ড পাঠানো যাবে"),
+});
+
 const hifzParaSchema = z.object({
   para: z.coerce.number().int().min(0).max(30, "পারা ০-৩০ এর মধ্যে হতে হবে"),
 });
@@ -76,6 +92,8 @@ const attendanceDeviceUpdateSchema = z.object({
 module.exports = {
   expenseCreateSchema,
   attendanceSaveSchema,
+  staffAttendanceSaveSchema,
+  ATTENDANCE_STATUSES,
   hifzParaSchema,
   hifzSabaqSchema,
   devicePunchSchema,

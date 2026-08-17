@@ -14,7 +14,9 @@ export type Permission =
   | "reports"
   | "settings"
   | "website"
-  | "assignments";
+  | "assignments"
+  | "staff"
+  | "staffAttendance";
 
 const ROLE_PERMISSIONS_MAP: Record<string, readonly string[]> = ROLE_PERMISSIONS;
 

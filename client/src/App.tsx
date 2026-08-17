@@ -23,6 +23,9 @@ const Kiosk = lazy(() => import("./pages/kiosk/Kiosk").then((m) => ({ default: m
 const Attendance = lazy(() => import("./modules/Attendance").then((m) => ({ default: m.Attendance })));
 const AdmissionsReview = lazy(() => import("./modules/AdmissionsReview").then((m) => ({ default: m.AdmissionsReview })));
 const AttendanceDevices = lazy(() => import("./modules/AttendanceDevices").then((m) => ({ default: m.AttendanceDevices })));
+// docs/STAFF_ATTENDANCE_PLAN.md, Phase 5/6
+const Staff = lazy(() => import("./modules/Staff").then((m) => ({ default: m.Staff })));
+const StaffAttendance = lazy(() => import("./modules/StaffAttendance").then((m) => ({ default: m.StaffAttendance })));
 const AttendanceDeviceGuide = lazy(() =>
   import("./modules/AttendanceDeviceGuide").then((m) => ({ default: m.AttendanceDeviceGuide }))
 );
@@ -200,6 +203,9 @@ export default function App() {
                     device-management page above (nested under it, not a
                     separate nav/permission bucket). */}
                 <Route path="attendance-devices/guide" element={<AttendanceDeviceGuide />} />
+                {/* docs/STAFF_ATTENDANCE_PLAN.md, Phase 5/6 */}
+                <Route path="staff" element={<Staff />} />
+                <Route path="staff-attendance" element={<StaffAttendance />} />
                 <Route path="settings" element={<Settings />} />
                 {/* Institution self-service platform-subscription billing
                     (ad-hoc, docs/CURRENT_TASK.md) — no PlanFeatureGate: every

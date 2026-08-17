@@ -41,6 +41,8 @@ import type {
   ResultSubjectMark,
   Settings,
   SiteContent,
+  Staff,
+  StaffAttendanceResponse,
   BkashCheckoutStart,
   OwnSmsGatewayStatus,
   PaymentGatewayStatus,
@@ -355,6 +357,18 @@ export const api = {
 
   saveAttendance: (records: { studentId: number; status: string }[], date?: string) =>
     requestOrQueue<{ ok: boolean; date?: string }>("/attendance", "POST", { date, records }),
+
+  // docs/STAFF_ATTENDANCE_PLAN.md, Phase 6 — daily staff attendance,
+  // structurally identical to getAttendance/saveAttendance above (same
+  // ON CONFLICT-safe upsert on the server, so reusing requestOrQueue's
+  // offline outbox here is safe the same way it is for student attendance).
+  getStaffAttendance: (date?: string) => {
+    const qs = date ? `?date=${encodeURIComponent(date)}` : "";
+    return request<StaffAttendanceResponse>(`/staff-attendance${qs}`);
+  },
+
+  saveStaffAttendance: (records: { staffId: number; status: string }[], date?: string) =>
+    requestOrQueue<{ ok: boolean; date?: string }>("/staff-attendance", "POST", { date, records }),
 
   getPayments: () => request<Payment[]>("/payments"),
 
@@ -846,6 +860,26 @@ export const api = {
 
   deleteUser: (id: number) =>
     request<{ ok: boolean; pendingApproval?: boolean; request?: DeleteRequest }>(`/users/${id}`, { method: "DELETE" }),
+
+  // docs/STAFF_ATTENDANCE_PLAN.md, Phase 5 — staff registry CRUD. Separate
+  // from getUsers/createUser/etc. above (software login accounts) — see
+  // types/index.ts's Staff comment for why.
+  getStaffList: (params?: { status?: string; designation?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.designation) qs.set("designation", params.designation);
+    if (params?.search) qs.set("search", params.search);
+    const q = qs.toString();
+    return request<Staff[]>(`/staff${q ? `?${q}` : ""}`);
+  },
+
+  createStaff: (body: { name: string; phone?: string; designation: string; class?: string; joiningDate?: string; note?: string; userId?: number | null }) =>
+    request<Staff>("/staff", { method: "POST", body: JSON.stringify(body) }),
+
+  updateStaff: (
+    id: number,
+    body: Partial<{ name: string; phone: string; designation: string; class: string; joiningDate: string; note: string; userId: number | null; status: "Active" | "Inactive" }>
+  ) => request<Staff>(`/staff/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 
   downloadBackup: async () => {
     const res = await fetch(`${API}/backup`, {

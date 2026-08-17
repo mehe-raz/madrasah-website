@@ -357,6 +357,48 @@ export interface User {
   assignedClasses?: string[];
 }
 
+// docs/STAFF_ATTENDANCE_PLAN.md, Phase 5 — staff registry (separate from
+// User above, which is a software login account). userId is the optional
+// link to a User for staff who also have a login.
+export interface Staff {
+  id: number;
+  name: string;
+  phone: string;
+  designation: string;
+  class: string;
+  joiningDate: string;
+  photo: string;
+  status: "Active" | "Inactive";
+  userId: number | null;
+  note: string;
+  createdAt: string;
+}
+
+export const STAFF_DESIGNATIONS = [
+  "শিক্ষক",
+  "হিসাবরক্ষক",
+  "পিয়ন",
+  "দারোয়ান",
+  "আয়া",
+  "অন্যান্য",
+] as const;
+
+// docs/STAFF_ATTENDANCE_PLAN.md, Phase 6 — daily staff attendance response
+// shape, mirrors AttendanceResponse (students) below with a "staff" row
+// per active staff member.
+export interface StaffAttendanceRow {
+  id: number;
+  name: string;
+  designation: string;
+  class: string;
+  att: string;
+}
+
+export interface StaffAttendanceResponse {
+  date: string;
+  staff: StaffAttendanceRow[];
+}
+
 export const USER_ROLES = [
   "Super Admin",
   "Admin",

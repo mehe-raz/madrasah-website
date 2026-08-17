@@ -42,6 +42,12 @@ const EXPECTED_ALLOWED = {
   "/api/own-sms-gateway": ["Admin", "Super Admin"], // OWN_SIM_BULK_SMS_GATEWAY_PLAN Phase 2 — same tier as /api/payment-gateway
   "/api/sms-contacts": ["Admin", "Super Admin"], // OWN_SIM_BULK_SMS_GATEWAY_PLAN Phase 3 — same tier as /api/own-sms-gateway
   "/api/institution-billing": ["Admin", "Super Admin"], // Institution self-service platform-subscription billing (ad-hoc) — same "settings" tier as /api/payment-gateway above
+  // docs/STAFF_ATTENDANCE_PLAN.md, Phase 4 — staff registry + staff
+  // attendance. Only Admin/Super Admin today (plan doc §6, open question 1
+  // defaulted to no Hostel Manager access) — see ROLE_PERMISSIONS comment
+  // in config/roles.js.
+  "/api/staff": ["Admin", "Super Admin"],
+  "/api/staff-attendance": ["Admin", "Super Admin"],
 };
 
 describe("ROUTE_PERMISSION table sanity", () => {

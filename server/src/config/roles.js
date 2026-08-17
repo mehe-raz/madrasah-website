@@ -19,7 +19,12 @@ const ROLE_PERMISSIONS = {
   // notice/assignment/message feed. Admin can post/manage for any class;
   // Teacher can too, but scoped to their teacher_class_assignments rows via
   // lib/teacherScope.js (same row-level layer as "attendance"/"results").
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "websiteGallery", "websiteNotices", "results", "assignments"],
+  // docs/STAFF_ATTENDANCE_PLAN.md, Phase 4 — staff registry + staff
+  // attendance. Kept as two separate keys (not folded into "settings")
+  // so a future narrower role could get one without the other; today
+  // only Admin/Super Admin hold either (plan doc §6, open question 1
+  // defaulted to no Hostel Manager access for staffAttendance).
+  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "websiteGallery", "websiteNotices", "results", "assignments", "staff", "staffAttendance"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
   Teacher: ["attendance", "hifz", "results", "assignments"],
   "Hostel Manager": ["dashboard", "students", "attendance"],
@@ -43,6 +48,13 @@ const ROUTE_PERMISSION = {
   "/api/results": "results",
   "/api/assignments": "assignments",
   "/api/settings": "settings",
+  // docs/STAFF_ATTENDANCE_PLAN.md, Phase 4 — staff registry (name/phone/
+  // designation/joining date, optionally linked to a users login) and its
+  // separate daily attendance. Two distinct permission keys — see the
+  // ROLE_PERMISSIONS comment above for why they aren't folded into
+  // "settings" or merged with each other.
+  "/api/staff": "staff",
+  "/api/staff-attendance": "staffAttendance",
   "/api/users": "settings",
   "/api/backup": "settings",
   "/api/reports": "reports",

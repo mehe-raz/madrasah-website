@@ -61,6 +61,7 @@ import {
   IdCard,
   Layers,
   BookMarked,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
 
@@ -74,6 +75,12 @@ export const Icons = {
   results: FileEdit,
   admitCards: IdCard,
   examCoverSheets: ClipboardList,
+  // docs/STAFF_ATTENDANCE_PLAN.md, Phase 5/6 — staff registry gets its own
+  // icon (UserCog, distinct from `students`/GraduationCap and
+  // `teacherSalary`/Users above); staff attendance reuses Calendar, same
+  // as guardianAttendance above reusing it for a different nav key.
+  staff: UserCog,
+  staffAttendance: Calendar,
   assignments: Megaphone,
   reports: BarChart3,
   website: Globe,

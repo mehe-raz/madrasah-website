@@ -19,7 +19,9 @@ export const ROLE_PERMISSIONS = {
     "websiteGallery",
     "websiteNotices",
     "results",
-    "assignments"
+    "assignments",
+    "staff",
+    "staffAttendance"
   ],
   "Accountant": [
     "dashboard",
@@ -53,6 +55,8 @@ export const ROUTE_PERMISSION = {
   "/api/results": "results",
   "/api/assignments": "assignments",
   "/api/settings": "settings",
+  "/api/staff": "staff",
+  "/api/staff-attendance": "staffAttendance",
   "/api/users": "settings",
   "/api/backup": "settings",
   "/api/reports": "reports",

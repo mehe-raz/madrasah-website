@@ -457,6 +457,12 @@ app.use("/api/plan", require("./routes/plan"));
 app.use("/api/class-options", require("./routes/classOptions"));
 app.use("/api/class-tree", require("./routes/classTree"));
 app.use("/api/users", require("./routes/users"));
+// docs/STAFF_ATTENDANCE_PLAN.md, Phase 2/3 — staff registry + staff
+// attendance. Mounted near /api/users since staff.userId optionally links
+// to a users row, but this is a separate router/permission, not a
+// sub-route of users.js.
+app.use("/api/staff", require("./routes/staff"));
+app.use("/api/staff-attendance", require("./routes/staffAttendance"));
 app.use("/api/guardian-approvals", require("./routes/guardianApprovals"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/delete-requests", require("./routes/deleteRequests"));

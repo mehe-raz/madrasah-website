@@ -217,6 +217,58 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
             {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.attendanceDevices}</span>}
           </NavLink>
         )}
+        {/* docs/STAFF_ATTENDANCE_PLAN.md, Phase 5/6 — staff registry and
+            staff attendance. Two separate permission keys ("staff",
+            "staffAttendance"), each with its own nav item, same pattern as
+            the admit-cards/attendance-devices blocks above. */}
+        {canAccess(role, "staff") && (
+          <NavLink
+            to="/staff"
+            onClick={onNavigate}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.staff : undefined}
+          >
+            <Icons.staff size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.staff}</span>}
+          </NavLink>
+        )}
+        {canAccess(role, "staffAttendance") && (
+          <NavLink
+            to="/staff-attendance"
+            onClick={onNavigate}
+            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: open ? "11px 12px" : "11px 10px",
+              textDecoration: "none",
+              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
+              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+              fontSize: 13,
+              fontWeight: 800,
+              justifyContent: open ? "flex-start" : "center",
+            })}
+            title={!open ? t.nav.staffAttendance : undefined}
+          >
+            <Icons.staffAttendance size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.staffAttendance}</span>}
+          </NavLink>
+        )}
         {canAccess(role, "settings") && (
           <NavLink
             to="/guardian-reminders"
