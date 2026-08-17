@@ -930,42 +930,42 @@ export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | 
 // ----------------------------------------------------------------------
 
 const EXAM_COVER_STYLES = `
-  @page { size: A4; margin: 12mm 14mm; }
+  @page { size: A4; margin: 10mm 14mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: "Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif;
+    font-family: "Noto Sans Bengali", "Nirmala UI", "Noto Sans", "Segoe UI", Arial, sans-serif;
     color: #0f172a;
   }
-  .ecs-page { page-break-after: always; }
+  .ecs-page { page-break-after: always; position: relative; }
   .ecs-page:last-child { page-break-after: auto; }
-  .ecs-header { text-align: center; margin-bottom: 6px; }
-  .ecs-header img { height: 60px; width: 60px; object-fit: contain; margin: 0 auto 6px; display: block; }
-  .ecs-header h1 { font-size: 22px; font-weight: 800; }
-  .ecs-header .addr { font-size: 11px; color: #334155; margin-top: 2px; }
-  .ecs-title { text-align: center; font-size: 16px; font-weight: 700; margin: 14px 0 12px; }
-  .ecs-title .blank { display: inline-block; min-width: 120px; border-bottom: 1.4px solid #000; margin-right: 6px; }
-  .ecs-box {
-    position: relative; border: 1.6px dashed #000; border-radius: 4px;
-    padding: 10px 16px 14px; overflow: hidden;
-  }
   .ecs-wm {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    height: 46mm; width: 46mm; object-fit: contain; opacity: 0.16; z-index: 0;
+    height: 90mm; width: 90mm; object-fit: contain; opacity: 0.12; z-index: 0;
   }
-  .ecs-box > * { position: relative; z-index: 1; }
-  .ecs-row { display: flex; gap: 22px; font-size: 13px; font-weight: 600; margin: 9px 0; }
-  .ecs-row .field { display: flex; align-items: baseline; flex: 1; gap: 4px; }
+  .ecs-content { position: relative; z-index: 1; }
+  .ecs-header { text-align: center; margin-bottom: 3mm; }
+  .ecs-header img { height: 20mm; width: 20mm; object-fit: contain; margin: 0 auto 2mm; display: block; }
+  .ecs-header h1 { font-size: 27px; font-weight: 800; }
+  .ecs-header .addr { font-size: 12.5px; color: #334155; margin-top: 1.5mm; }
+  .ecs-title { text-align: center; font-size: 20px; font-weight: 700; margin: 5mm 0 6mm; }
+  .ecs-title .blank { display: inline-block; min-width: 42mm; border-bottom: 1.4px solid #000; margin-right: 3mm; }
+  .ecs-box {
+    border: 1.6px dashed #000; border-radius: 3mm;
+    padding: 5mm 8mm 6mm;
+  }
+  .ecs-row { display: flex; gap: 12mm; font-size: 13.5px; font-weight: 600; margin: 5mm 0; }
+  .ecs-row .field { display: flex; align-items: baseline; flex: 1; gap: 2mm; }
   .ecs-row .field .lbl { flex-shrink: 0; }
-  .ecs-row .field .val { flex: 1; border-bottom: 1px dotted #334155; min-height: 16px; padding-left: 2px; font-weight: 700; }
-  table.ecs-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 16px; }
-  .ecs-table th, .ecs-table td { border: 1px solid #000; padding: 5px 8px; text-align: center; height: 17px; }
+  .ecs-row .field .val { flex: 1; border-bottom: 1px solid #000; min-height: 5mm; padding-left: 1mm; font-weight: 700; }
+  table.ecs-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 5mm; }
+  .ecs-table th, .ecs-table td { border: 1px solid #000; padding: 1mm 2.5mm; text-align: center; height: 6mm; }
   .ecs-table th { background: #f1f5f9; font-weight: 800; }
-  .ecs-table td.ecs-idx { width: 32px; }
+  .ecs-table td.ecs-idx { width: 12mm; }
   .ecs-table tfoot td { text-align: left; font-weight: 700; }
-  .ecs-sigrow { display: flex; justify-content: space-between; margin-top: 34px; gap: 10px; }
+  .ecs-sigrow { display: flex; justify-content: space-between; margin-top: 6mm; gap: 6mm; }
   .ecs-sig {
-    flex: 1; text-align: center; font-size: 11.5px; font-weight: 700; color: #15803d;
-    border: 1.4px solid #16a34a; border-radius: 28px; padding: 12px 6px;
+    flex: 1; text-align: center; font-size: 12px; font-weight: 700; color: #15803d;
+    border: 1.4px solid #16a34a; border-radius: 10mm; padding: 3mm 2mm;
   }
 `;
 
@@ -998,31 +998,33 @@ export function printExamCoverSheets(opts: ExamCoverSheetOptions, targetWindow?:
 
   const pageHtml = (s: ExamCoverStudentInput) => `
     <div class="ecs-page">
-      <div class="ecs-header">
-        ${settings.logo ? `<img src="${escapeHtml(settings.logo)}" alt="">` : ""}
-        <h1>${escapeHtml(settings.name)}</h1>
-        ${settings.address ? `<div class="addr">${escapeHtml(settings.address)}</div>` : ""}
-      </div>
-      <div class="ecs-title"><span class="blank">${escapeHtml(opts.examName)}</span>পরিক্ষা</div>
-      <div class="ecs-box">
-        ${settings.logo ? `<img class="ecs-wm" src="${escapeHtml(settings.logo)}" alt="">` : ""}
-        <div class="ecs-row">${ecsField("সিট নং", s.roll)}</div>
-        <div class="ecs-row">${ecsField("শ্রেণী", opts.classLabel)}${ecsField("শাখা", s.section)}</div>
-        <div class="ecs-row">${ecsField("শিক্ষার্থীর আইডি", s.admissionNumber)}${ecsField("মাধ্যম", "")}</div>
-        <div class="ecs-row">${ecsField("বিষয়", opts.subject)}${ecsField("তারিখ", opts.examDate)}</div>
-      </div>
-      <table class="ecs-table">
-        <thead><tr><th>ক্র. নং</th><th>লিখিত</th><th>মৌখিক</th><th>মোট নাম্বার</th><th>মন্তব্য</th></tr></thead>
-        <tbody>${markRows}</tbody>
-        <tfoot>
-          <tr><td colspan="3">মোট প্রাপ্ত নাম্বার</td><td></td><td></td></tr>
-          <tr><td colspan="3">মোট নাম্বার</td><td></td><td></td></tr>
-        </tfoot>
-      </table>
-      <div class="ecs-sigrow">
-        <div class="ecs-sig">পরিদর্শকের স্বাক্ষর</div>
-        <div class="ecs-sig">পরীক্ষকের স্বাক্ষর</div>
-        <div class="ecs-sig">অভিভাবকের স্বাক্ষর</div>
+      ${settings.logo ? `<img class="ecs-wm" src="${escapeHtml(settings.logo)}" alt="">` : ""}
+      <div class="ecs-content">
+        <div class="ecs-header">
+          ${settings.logo ? `<img src="${escapeHtml(settings.logo)}" alt="">` : ""}
+          <h1>${escapeHtml(settings.name)}</h1>
+          ${settings.address ? `<div class="addr">${escapeHtml(settings.address)}</div>` : ""}
+        </div>
+        <div class="ecs-title"><span class="blank">${escapeHtml(opts.examName)}</span>পরিক্ষা</div>
+        <div class="ecs-box">
+          <div class="ecs-row">${ecsField("সিট নং", s.roll)}</div>
+          <div class="ecs-row">${ecsField("শ্রেণী", opts.classLabel)}${ecsField("শাখা", s.section)}</div>
+          <div class="ecs-row">${ecsField("শিক্ষার্থীর আইডি", s.admissionNumber)}${ecsField("মাধ্যম", "")}</div>
+          <div class="ecs-row">${ecsField("বিষয়", opts.subject)}${ecsField("তারিখ", opts.examDate)}</div>
+        </div>
+        <table class="ecs-table">
+          <thead><tr><th>ক্র. নং</th><th>লিখিত</th><th>মৌখিক</th><th>মোট নাম্বার</th><th>মন্তব্য</th></tr></thead>
+          <tbody>${markRows}</tbody>
+          <tfoot>
+            <tr><td colspan="3">মোট প্রাপ্ত নাম্বার</td><td></td><td></td></tr>
+            <tr><td colspan="3">মোট নাম্বার</td><td></td><td></td></tr>
+          </tfoot>
+        </table>
+        <div class="ecs-sigrow">
+          <div class="ecs-sig">পরিদর্শকের স্বাক্ষর</div>
+          <div class="ecs-sig">পরীক্ষকের স্বাক্ষর</div>
+          <div class="ecs-sig">অভিভাবকের স্বাক্ষর</div>
+        </div>
       </div>
     </div>
   `;
