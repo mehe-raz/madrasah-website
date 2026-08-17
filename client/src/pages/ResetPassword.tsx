@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { useSeoMeta } from "../hooks/useSeoMeta";
 import { C } from "../theme/colors";
 import { Icons } from "../lib/icons";
+import { PasswordInput } from "../components/ui/PasswordInput";
 
 const inputStyle: CSSProperties = {
   width: "100%",
@@ -70,9 +71,8 @@ export function ResetPassword() {
             onChange={(e) => setToken(e.target.value.replace(/\D/g, "").slice(0, 6))}
             style={{ ...inputStyle, textAlign: "center", fontSize: 22, fontWeight: 800, letterSpacing: 10, fontFamily: "monospace" }}
           />
-          <input
+          <PasswordInput
             required
-            type="password"
             placeholder="New password (min 8 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

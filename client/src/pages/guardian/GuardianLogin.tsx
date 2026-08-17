@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useGuardianAuth } from "../../context/GuardianAuthContext";
 import { useMadrasaBranding } from "../../hooks/useMadrasaBranding";
 import { api } from "../../lib/api";
-import { Button, Field, Input, Select, ClassCascadeSelect } from "../../components/ui";
+import { Button, Field, Input, Select, ClassCascadeSelect, PasswordInput } from "../../components/ui";
 import type { ClassOption, ClassTreeNode } from "../../types";
 import { Icons } from "../../lib/icons";
 
@@ -124,7 +124,7 @@ export function GuardianLogin() {
               <Input required value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="01XXXXXXXXX" />
             </Field>
             <Field label="পাসওয়ার্ড">
-              <Input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput required value={password} onChange={(e) => setPassword(e.target.value)} />
             </Field>
             {error && <p className="guardian-error-text">{error}</p>}
             {info && <p className="guardian-info-text">{info}</p>}
@@ -154,7 +154,7 @@ export function GuardianLogin() {
             </div>
             <p className="guardian-field-note">মোবাইল অথবা ইমেইলের অন্তত একটি দিন — এটি দিয়েই পরে লগইন করবেন।</p>
             <Field label="নতুন পাসওয়ার্ড">
-              <Input required type="password" minLength={8} value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} />
+              <PasswordInput required minLength={8} value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} />
             </Field>
 
             <div className="guardian-auth-divider">

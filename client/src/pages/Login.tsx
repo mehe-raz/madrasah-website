@@ -6,6 +6,7 @@ import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { api } from "../lib/api";
 import { C } from "../theme/colors";
 import { Icons } from "../lib/icons";
+import { PasswordInput } from "../components/ui/PasswordInput";
 
 type Mode = "login" | "register" | "forgot" | "reset";
 
@@ -116,7 +117,7 @@ export function Login() {
             />
           )}
           {(mode === "login" || mode === "register" || mode === "reset") && (
-            <input required type="password" placeholder={t.auth.passwordMin} value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} minLength={8} />
+            <PasswordInput required placeholder={t.auth.passwordMin} value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} minLength={8} />
           )}
           {error && <p style={{ color: C.rose, fontSize: 13, margin: 0 }}>{error}</p>}
           {info && <p style={{ color: C.teal, fontSize: 13, margin: 0 }}>{info}</p>}
