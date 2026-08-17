@@ -16,10 +16,15 @@ the next sequential number.
 ## Task: শিফট/সিডিউল সিস্টেম + স্বয়ংক্রিয় দেরি-শনাক্তকরণ (৯ Phase-এ, পুরো
 পরিকল্পনা `docs/SHIFT_SCHEDULE_PLAN.md`-এ)
 
-## Status: PLANNED (কোনো Phase শুরু হয়নি — এই সেশনে শুধু প্ল্যান লেখা হয়েছে,
-ব্যবহারকারীর কনফার্মেশনের অপেক্ষায়)
+## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2 থেকে চালিয়ে যেতে হবে)
 
-Started: 2026-08-18 (প্ল্যান লেখার তারিখ)
+Started: 2026-08-18
+
+ব্যবহারকারী "শুরু কর" বলেছেন, `docs/SHIFT_SCHEDULE_PLAN.md`-এর §৬-এর ৪টা
+খোলা প্রশ্নের কোনো নির্দিষ্ট উত্তর দেননি — তাই প্ল্যানের ডিফল্ট প্রস্তাবগুলো
+ধরে এগোনো হচ্ছে (দিনে একটাই entry+exit; স্টাফ শিফট ঐচ্ছিক; দেরিতে আলাদা SMS
+নেই; গ্রেস-মিনিট প্রতি-শিফটে আলাদা)। কোনোটা ভুল মনে হলে পরে বদলানো যাবে,
+এখনো কোনো UI/লজিক এই অ্যাসাম্পশনের উপর নির্ভরশীল হয়ে যায়নি (শুধু স্কিমা)।
 
 ছাত্র/শিক্ষক/স্টাফ কে সঠিক সময়ে প্রবেশ করেছে, কে দেরি করেছে তা স্বয়ংক্রিয়ভাবে
 বোঝার কোনো ব্যবস্থা ছিল না — কোনো শিফট/সময়সূচি টেবিলই প্রজেক্টে নেই, এবং
@@ -38,12 +43,41 @@ Started: 2026-08-18 (প্ল্যান লেখার তারিখ)
 ### সম্পন্ন
 - [x] পূর্ণাঙ্গ প্ল্যান ডকুমেন্ট লেখা হয়েছে, ব্যবহারকারীকে চ্যাটে জানানো
   হয়েছে।
+- [x] **Phase 1 (DB স্কিমা)** — `server/sql/supabase_schema.sql`-এ
+  (protected path — AGENTS.md রুল ৪ অনুযায়ী, এই কাজেরই অংশ বলে প্ল্যান
+  ফাইলে আগেই ফ্ল্যাগ করা হয়েছিল, সরাসরি এগোনো হয়েছে) `staff_attendance`
+  টেবিলের ঠিক নিচে যোগ হয়েছে:
+  - নতুন `shifts` টেবিল (`name`, `nameEn`, `startTime`, `endTime`
+    'HH:MM', `graceMinutes` default 0, `active`, `createdAt`)।
+  - নতুন `class_shifts` টেবিল (`class` primary key text, `shiftId` fk →
+    shifts cascade) — ক্লাসের নিজস্ব কোনো টেবিল নেই (settings-এ JSON
+    ব্লব) বলে class-slug কে সরাসরি key ধরা হয়েছে, সত্যিকারের FK না —
+    orphan-mapping ঝুঁকি প্ল্যান ডকে নোট করা আছে, ক্ষতিকর না।
+  - `staff`-এ `alter table ... add column if not exists "shiftId"
+    integer references shifts(id) on delete set null` — nullable,
+    বিদ্যমান স্টাফ রেকর্ড অপরিবর্তিত থাকবে।
+  - `attendance` ও `staff_attendance`-এ `"entryTime"`, `"exitTime"` text
+    কলাম যোগ (বাকি সব সময়-জাতীয় কলামের মতোই `text`, নতুন কোনো টাইপ
+    কনভেনশন না)।
+  - Python দিয়ে bracket/parenthesis ব্যালান্স চেক করা হয়েছে (সমান
+    পাওয়া গেছে, 255/255) — আসল Postgres-এ প্রথম চলবে আপনার প্যাকেজড
+    CMD-তে, sandbox-এ যাচাই সম্ভব না, আগের সব নতুন টেবিলের মতোই।
+  - **মাল্টি-টেন্যান্ট রিমাইন্ডার:** আগে থেকে প্রোভিশন করা যেকোনো
+    টেন্যান্টের জন্য এই ৩টা `create table if not exists` +
+    `alter table ... add column if not exists` স্টেটমেন্ট Super-Admin-এর
+    "run SQL on all tenants" টুল দিয়ে ম্যানুয়ালি একবার চালাতে হবে
+    (single-tenant মোডে পরের সার্ভার রিস্টার্টে এমনিতেই হয়ে যাবে,
+    `initSchema()`-এর প্যাটার্নে)।
 
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] ব্যবহারকারী "শুরু কর" বললে/অথবা §৬-এর খোলা প্রশ্নের উত্তর পেলে:
-  Phase 1 (DB স্কিমা — protected path, `server/sql/supabase_schema.sql`)
-  দিয়ে শুরু করা, প্রতি Phase-এর পর `npm run check`।
-- [ ] Phase 2–9 — বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`-এ।
+- [ ] **Phase 2** — `server/src/lib/shiftSchemas.js` (Zod) +
+  `server/src/routes/shifts.js` (CRUD, `requirePermission("shifts")`) +
+  `index.js`-এ `/api/shifts` মাউন্ট। বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`
+  Phase 2।
+- [ ] Phase 3–9 — বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`-এ (ক্লাস/স্টাফ↔শিফট
+  বরাদ্দ, অটো-লেট লজিক `devicePunch.js`-এ, RBAC, ফ্রন্টএন্ড শিফট ম্যানেজমেন্ট
+  + হাজিরা ভিউ, রিপোর্ট, টেস্ট/ডকুমেন্টেশন)। প্রতি Phase-এর পর `npm run check`
+  পাস করলেই পরের Phase-এ যাওয়া, না পাস করলে থেমে যাওয়া (AGENTS.md rule 2)।
 
 ### নোট
 এই মুহূর্তে অন্য একাধিক IN_PROGRESS/PLANNED টাস্ক (নিচে) আছে — সেগুলোর
