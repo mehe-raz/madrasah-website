@@ -71,10 +71,19 @@ function SectionHeader({ title, open, onToggle }: { title: string; open: boolean
   );
 }
 
-// One বিষয় (subject) line under a leaf class — its own edit/delete
-// buttons, same `.btn-xs` styling as ClassTreeRow's node actions so the
-// two levels read as one consistent list rather than two different widgets.
-function SubjectRow({
+// Total leaf (জামাত/ক্লাস) count under a node, for the count badge next to
+// a বিভাগ/নেসাব's name — lets Super Admin gauge a department's size without
+// expanding it first.
+function countLeaves(node: ClassTreeNode): number {
+  if (node.children.length === 0) return 1;
+  return node.children.reduce((sum, child) => sum + countLeaves(child), 0);
+}
+
+// One বিষয় (subject) chip under a leaf class — compact pill (name + small
+// edit/× actions) rather than a full-width row, so a class with a dozen
+// subjects reads as a tag cloud instead of a long stacked list. Same
+// remove-button convention as ClassPosts.tsx's guardian chips.
+function SubjectChip({
   subject,
   editLabel,
   deleteLabel,
@@ -88,18 +97,15 @@ function SubjectRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="user-row class-tree-subject-row">
-      <div className="user-info">
-        <div className="user-name">{subject.bn}</div>
-        <div className="user-meta">{subject.en}</div>
-      </div>
-      <button type="button" onClick={onEdit} className="btn-xs">
-        {editLabel}
+    <span className="pill class-tree-subject-chip">
+      {subject.bn}
+      <button type="button" onClick={onEdit} className="class-tree-subject-chip__edit" title={editLabel} aria-label={editLabel}>
+        <Icons.pencil size={12} aria-hidden="true" />
       </button>
-      <button type="button" onClick={onDelete} className="btn-xs btn-xs--delete">
-        {deleteLabel}
+      <button type="button" onClick={onDelete} className="class-tree-subject-chip__remove" aria-label={deleteLabel}>
+        ×
       </button>
-    </div>
+    </span>
   );
 }
 
@@ -189,7 +195,7 @@ function ClassTreeRow({
   const open = manuallyOpen || isAddTarget || isSubjectAddTarget || isSubjectEditTargetHere;
 
   return (
-    <div className={`class-tree-row class-tree-row--depth-${Math.min(depth, 3)}`}>
+    <div className={`class-tree-row class-tree-row--depth-${Math.min(depth, 3)} ${depth === 0 ? "class-tree-row--top" : ""}`}>
       <div
         className="user-row class-tree-row__header class-tree-row__header--clickable"
         onClick={() => setManuallyOpen(!open)}
@@ -199,8 +205,19 @@ function ClassTreeRow({
           aria-hidden="true"
           className={open ? "class-tree-row__chevron class-tree-row__chevron--open" : "class-tree-row__chevron"}
         />
+        {hasChildren ? (
+          <Icons.classGroup size={depth === 0 ? 18 : 15} aria-hidden="true" className="class-tree-row__icon" />
+        ) : (
+          <Icons.classLeaf size={15} aria-hidden="true" className="class-tree-row__icon" />
+        )}
         <div className="user-info">
-          <div className="user-name">{node.bn}</div>
+          <div className="user-name">
+            {node.bn}
+            {hasChildren && <span className="class-tree-row__count">{countLeaves(node)}</span>}
+            {isLeaf && (node.subjects || []).length > 0 && (
+              <span className="class-tree-row__count class-tree-row__count--subjects">{(node.subjects || []).length}</span>
+            )}
+          </div>
           <div className="user-meta">{node.en}</div>
         </div>
         {hasChildren && (
@@ -259,7 +276,10 @@ function ClassTreeRow({
       {open && isLeaf && (
         <div className="class-tree-subjects">
           <div className="class-tree-subjects__head">
-            <span className="class-tree-subjects__label">{subjectsLabel}</span>
+            <span className="class-tree-subjects__label">
+              <Icons.subjectIcon size={13} aria-hidden="true" />
+              {subjectsLabel}
+            </span>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onAddSubject(path); }}
@@ -275,24 +295,26 @@ function ClassTreeRow({
             <p className="field-block__label class-tree-subjects__empty">{subjectsEmptyLabel}</p>
           )}
 
-          {(node.subjects || []).map((subject) => {
-            const isThisSubjectEditTarget =
-              activeSubjectEditTarget !== null &&
-              activeSubjectEditTarget.path.join("/") === pathKey &&
-              activeSubjectEditTarget.en === subject.en;
-            return (
-              <div key={subject.en}>
-                <SubjectRow
+          {(node.subjects || []).length > 0 && (
+            <div className="class-tree-subjects__chips">
+              {(node.subjects || []).map((subject) => (
+                <SubjectChip
+                  key={subject.en}
                   subject={subject}
                   editLabel={subjectEditLabel}
                   deleteLabel={deleteLabel}
                   onEdit={() => onEditSubject(path, subject)}
                   onDelete={() => onDeleteSubject(path, subject)}
                 />
-                {isThisSubjectEditTarget && renderSubjectEditForm(subject)}
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          )}
+
+          {activeSubjectEditTarget !== null &&
+            activeSubjectEditTarget.path.join("/") === pathKey &&
+            renderSubjectEditForm(
+              (node.subjects || []).find((s) => s.en === activeSubjectEditTarget.en) || { id: "", bn: "", en: "" }
+            )}
         </div>
       )}
     </div>

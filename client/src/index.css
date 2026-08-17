@@ -2246,14 +2246,41 @@ img {
 
 .class-tree-row--depth-1 {
   margin-left: 16px;
+  border-left: 2px solid #ccfbf1;
+  padding-left: 10px;
 }
 
 .class-tree-row--depth-2 {
   margin-left: 32px;
+  border-left: 2px solid #dcfce7;
+  padding-left: 10px;
 }
 
 .class-tree-row--depth-3 {
   margin-left: 48px;
+  border-left: 2px solid #fef3c7;
+  padding-left: 10px;
+}
+
+/* Top-level বিভাগ rows get a distinct card treatment — background, border,
+   rounded corners, a bit of breathing room — so the department list reads
+   as a set of cards rather than blending into the flat rows nested under
+   each one. */
+.class-tree-row--top {
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.class-tree-row--top > .class-tree-row__header {
+  padding: 12px 14px;
+}
+
+.class-tree-row--top > .class-tree-row__header .user-name {
+  font-size: 14.5px;
+  font-weight: 800;
 }
 
 .class-tree-warning {
@@ -2296,16 +2323,42 @@ img {
   transform: rotate(180deg);
 }
 
+.class-tree-row__icon {
+  flex-shrink: 0;
+  color: #0f766e;
+}
+
+.class-tree-row__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  margin-left: 8px;
+  border-radius: 999px;
+  background: #ccfbf1;
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+.class-tree-row__count--subjects {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
 .class-tree-inline-form {
   margin-left: 24px;
   border-left: 2px solid var(--border, #e2e8f0);
   padding-left: 12px;
 }
 
-/* Part 2: per-leaf বিষয় (subject) list, nested inside a leaf class row. */
+/* Part 2/3: per-leaf বিষয় (subject) list, nested inside a leaf class row. */
 .class-tree-subjects {
   margin-left: 24px;
-  padding: 10px 0 4px 12px;
+  padding: 10px 12px 12px;
   border-left: 2px dashed var(--border, #e2e8f0);
 }
 
@@ -2314,10 +2367,13 @@ img {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .class-tree-subjects__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   font-weight: 800;
   color: var(--muted);
@@ -2329,8 +2385,50 @@ img {
   margin: 4px 0 8px;
 }
 
-.class-tree-subject-row {
-  padding-left: 4px;
+.class-tree-subjects__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.class-tree-subject-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 6px 5px 10px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.class-tree-subject-chip__edit {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  display: inline-flex;
+  padding: 2px;
+}
+
+.class-tree-subject-chip__edit:hover {
+  opacity: 1;
+}
+
+.class-tree-subject-chip__remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.class-tree-subject-chip__remove:hover {
+  opacity: 1;
 }
 
 @media (max-width: 640px) {

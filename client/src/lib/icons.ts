@@ -59,6 +59,8 @@ import {
   Tv,
   Send,
   IdCard,
+  Layers,
+  BookMarked,
   type LucideIcon,
 } from "lucide-react";
 
@@ -133,6 +135,12 @@ export const Icons = {
   // existing `sms` (paid-reseller wallet) icon since these are two separate
   // nav entries.
   bulkSms: Send,
+  // Settings.tsx's class-tree editor (Part 1/2/3) — visually distinguishes
+  // a বিভাগ/নেসাব (grouping node) from a জামাত/ক্লাস (leaf, where students
+  // actually sit) and from a leaf's own বিষয় (subject) entries.
+  classGroup: Layers,
+  classLeaf: GraduationCap,
+  subjectIcon: BookMarked,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof Icons;
