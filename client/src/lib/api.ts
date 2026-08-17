@@ -873,12 +873,12 @@ export const api = {
     return request<Staff[]>(`/staff${q ? `?${q}` : ""}`);
   },
 
-  createStaff: (body: { name: string; phone?: string; designation: string; class?: string; joiningDate?: string; note?: string; userId?: number | null }) =>
+  createStaff: (body: { name: string; phone?: string; designation: string; class?: string; joiningDate?: string; note?: string; userId?: number | null; fingerprintId?: string; cardUid?: string }) =>
     request<Staff>("/staff", { method: "POST", body: JSON.stringify(body) }),
 
   updateStaff: (
     id: number,
-    body: Partial<{ name: string; phone: string; designation: string; class: string; joiningDate: string; note: string; userId: number | null; status: "Active" | "Inactive" }>
+    body: Partial<{ name: string; phone: string; designation: string; class: string; joiningDate: string; note: string; userId: number | null; status: "Active" | "Inactive"; fingerprintId: string; cardUid: string }>
   ) => request<Staff>(`/staff/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 
   downloadBackup: async () => {

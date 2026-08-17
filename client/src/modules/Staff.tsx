@@ -12,6 +12,7 @@
 // (plan doc §2).
 import { useEffect, useState } from "react";
 import { Badge } from "../components/Badge";
+import { ScanEnrollButton } from "../components/ScanEnrollModal";
 import { SkeletonCardList } from "../components/Skeleton";
 import { Button, Card, Field, Input, Select } from "../components/ui";
 import { useLanguage } from "../context/AppSettingsContext";
@@ -38,6 +39,8 @@ interface FormState {
   joiningDate: string;
   note: string;
   userId: number | null;
+  fingerprintId: string;
+  cardUid: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -49,6 +52,8 @@ const EMPTY_FORM: FormState = {
   joiningDate: "",
   note: "",
   userId: null,
+  fingerprintId: "",
+  cardUid: "",
 };
 
 export function Staff() {
@@ -110,6 +115,8 @@ export function Staff() {
       joiningDate: row.joiningDate,
       note: row.note,
       userId: row.userId,
+      fingerprintId: row.fingerprintId || "",
+      cardUid: row.cardUid || "",
     });
     setEditingId(row.id);
     setSaveError("");
@@ -136,6 +143,8 @@ export function Staff() {
       joiningDate: form.joiningDate.trim(),
       note: form.note.trim(),
       userId: form.userId,
+      fingerprintId: form.fingerprintId.trim(),
+      cardUid: form.cardUid.trim(),
     };
     try {
       if (editingId != null) {
@@ -212,6 +221,21 @@ export function Staff() {
           <Field label={c.joiningDateLabel}>
             <Input type="date" value={form.joiningDate} onChange={(e) => setForm({ ...form, joiningDate: e.target.value })} />
           </Field>
+          {/* docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — device-punch
+              enrollment, same field-with-action + ScanEnrollButton pattern
+              Students.tsx already uses for these two columns. */}
+          <div className="field-with-action">
+            <Field label={`${c.fingerprintId} (${c.optional})`}>
+              <Input value={form.fingerprintId} onChange={(e) => setForm({ ...form, fingerprintId: e.target.value })} />
+            </Field>
+            <ScanEnrollButton onCaptured={(value) => setForm((f) => ({ ...f, fingerprintId: value }))} />
+          </div>
+          <div className="field-with-action">
+            <Field label={`${c.cardUid} (${c.optional})`}>
+              <Input value={form.cardUid} onChange={(e) => setForm({ ...form, cardUid: e.target.value })} />
+            </Field>
+            <ScanEnrollButton onCaptured={(value) => setForm((f) => ({ ...f, cardUid: value }))} />
+          </div>
           <Field label={c.linkedUserLabel}>
             <Select
               value={form.userId == null ? "" : String(form.userId)}

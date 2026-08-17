@@ -126,7 +126,7 @@ export function Kiosk() {
     <div className="kiosk">
       {punch ? (
         <div className="kiosk__punch" key={punch.punchAt}>
-          {punch.matched && punch.student ? (
+          {punch.matched && punch.type === "student" && punch.student ? (
             <>
               {punch.student.photo ? (
                 <img
@@ -143,11 +143,22 @@ export function Kiosk() {
               </p>
               <p className="kiosk__punch-time">{formatPunchTime(punch.punchAt)}-এ প্রবেশ করেছে</p>
             </>
+          ) : punch.matched && punch.type === "staff" && punch.staff ? (
+            // docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — same layout as the
+            // student branch above, minus a photo (staff photo upload isn't
+            // wired up yet, see types/index.ts's Staff comment) and roll
+            // number (staff have no roll).
+            <>
+              <div className="kiosk__photo kiosk__photo--placeholder">{punch.staff.name.charAt(0)}</div>
+              <p className="kiosk__name">{punch.staff.name}</p>
+              <p className="kiosk__meta">{[punch.staff.designation, classTreeLabel(classTree, punch.staff.class)].filter(Boolean).join(" - ")}</p>
+              <p className="kiosk__punch-time">{formatPunchTime(punch.punchAt)}-এ প্রবেশ করেছে</p>
+            </>
           ) : (
             <>
               <div className="kiosk__photo kiosk__photo--unmatched">?</div>
-              <p className="kiosk__name">শিক্ষার্থী খুঁজে পাওয়া যায়নি</p>
-              <p className="kiosk__meta">এই ফিঙ্গারপ্রিন্ট/কার্ড কোনো শিক্ষার্থীর সাথে যুক্ত নেই</p>
+              <p className="kiosk__name">খুঁজে পাওয়া যায়নি</p>
+              <p className="kiosk__meta">এই ফিঙ্গারপ্রিন্ট/কার্ড কোনো শিক্ষার্থী বা স্টাফের সাথে যুক্ত নেই</p>
             </>
           )}
         </div>

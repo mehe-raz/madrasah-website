@@ -22,7 +22,7 @@ const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 router.use(requirePermission("staff"));
 
-const COLUMNS = 'id, name, phone, designation, class, "joiningDate", photo, status, "userId", note, "createdAt"';
+const COLUMNS = 'id, name, phone, designation, class, "joiningDate", photo, status, "userId", note, "fingerprintId", "cardUid", "createdAt"';
 
 function publicStaff(row) {
   return row;
@@ -73,20 +73,66 @@ async function assertUserExists(userId) {
   }
 }
 
+// docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — fingerprintId/cardUid must be
+// unique not just among staff (staff_fingerprint_id_unique/
+// staff_card_uid_unique) but also against `students` — the same device
+// punch is looked up by identifier alone (lib/devicePunch.js tries
+// students first, then staff), so a value reused across both tables
+// would make the staff enrollment silently unreachable rather than erroring
+// loudly. Same "check both tables" reasoning applies to fingerprintId and
+// cardUid independently.
+async function assertDeviceIdentifiersFree({ fingerprintId, cardUid, excludeId }) {
+  if (fingerprintId) {
+    const inStaff = await db.get(
+      `SELECT id FROM staff WHERE "fingerprintId" = $1 AND ($2::int IS NULL OR id <> $2)`,
+      [fingerprintId, excludeId ?? null]
+    );
+    if (inStaff) {
+      const err = new Error("এই ফিঙ্গারপ্রিন্ট আইডি ইতিমধ্যে অন্য স্টাফের সাথে যুক্ত আছে");
+      err.status = 409;
+      throw err;
+    }
+    const inStudents = await db.get(`SELECT id FROM students WHERE "fingerprintId" = $1`, [fingerprintId]);
+    if (inStudents) {
+      const err = new Error("এই ফিঙ্গারপ্রিন্ট আইডি ইতিমধ্যে একজন শিক্ষার্থীর সাথে যুক্ত আছে");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (cardUid) {
+    const inStaff = await db.get(
+      `SELECT id FROM staff WHERE "cardUid" = $1 AND ($2::int IS NULL OR id <> $2)`,
+      [cardUid, excludeId ?? null]
+    );
+    if (inStaff) {
+      const err = new Error("এই কার্ড UID ইতিমধ্যে অন্য স্টাফের সাথে যুক্ত আছে");
+      err.status = 409;
+      throw err;
+    }
+    const inStudents = await db.get(`SELECT id FROM students WHERE "cardUid" = $1`, [cardUid]);
+    if (inStudents) {
+      const err = new Error("এই কার্ড UID ইতিমধ্যে একজন শিক্ষার্থীর সাথে যুক্ত আছে");
+      err.status = 409;
+      throw err;
+    }
+  }
+}
+
 router.post("/", validate(staffCreateSchema), async (req, res) => {
-  const { name, phone, designation, class: cls, joiningDate, note, userId } = req.body;
+  const { name, phone, designation, class: cls, joiningDate, note, userId, fingerprintId, cardUid } = req.body;
 
   try {
     await assertUserExists(userId ?? null);
+    await assertDeviceIdentifiersFree({ fingerprintId, cardUid });
   } catch (e) {
-    if (e.status === 400) return res.status(400).json({ error: e.message });
+    if (e.status === 400 || e.status === 409) return res.status(e.status).json({ error: e.message });
     throw e;
   }
 
   const result = await db.run(
-    `INSERT INTO staff (name, phone, designation, class, "joiningDate", note, "userId", status, "createdAt")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 'Active', $8) RETURNING id`,
-    [name, phone || "", designation, cls || "", joiningDate || "", note || "", userId ?? null, new Date().toISOString()]
+    `INSERT INTO staff (name, phone, designation, class, "joiningDate", note, "userId", "fingerprintId", "cardUid", status, "createdAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Active', $10) RETURNING id`,
+    [name, phone || "", designation, cls || "", joiningDate || "", note || "", userId ?? null, fingerprintId || null, cardUid || null, new Date().toISOString()]
   );
   const row = await db.get(`SELECT ${COLUMNS} FROM staff WHERE id = $1`, [result.insertId]);
   await recordAudit({
@@ -105,13 +151,22 @@ router.patch("/:id", validate(staffUpdateSchema), async (req, res) => {
   const existing = await db.get("SELECT * FROM staff WHERE id = $1", [id]);
   if (!existing) return res.status(404).json({ error: "স্টাফ পাওয়া যায়নি" });
 
-  const { name, phone, designation, class: cls, joiningDate, note, userId, status } = req.body;
+  const { name, phone, designation, class: cls, joiningDate, note, userId, status, fingerprintId, cardUid } = req.body;
 
   if (userId !== undefined) {
     try {
       await assertUserExists(userId);
     } catch (e) {
       if (e.status === 400) return res.status(400).json({ error: e.message });
+      throw e;
+    }
+  }
+
+  if (fingerprintId !== undefined || cardUid !== undefined) {
+    try {
+      await assertDeviceIdentifiersFree({ fingerprintId, cardUid, excludeId: id });
+    } catch (e) {
+      if (e.status === 409) return res.status(409).json({ error: e.message });
       throw e;
     }
   }
@@ -131,6 +186,8 @@ router.patch("/:id", validate(staffUpdateSchema), async (req, res) => {
   if (note !== undefined) set("note", note);
   if (userId !== undefined) set('"userId"', userId);
   if (status !== undefined) set("status", status);
+  if (fingerprintId !== undefined) set('"fingerprintId"', fingerprintId || null);
+  if (cardUid !== undefined) set('"cardUid"', cardUid || null);
 
   if (sets.length > 0) {
     params.push(id);

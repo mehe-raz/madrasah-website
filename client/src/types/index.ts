@@ -371,6 +371,10 @@ export interface Staff {
   status: "Active" | "Inactive";
   userId: number | null;
   note: string;
+  // docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — device-punch enrollment,
+  // same optional shape as students.fingerprintId/cardUid.
+  fingerprintId: string;
+  cardUid: string;
   createdAt: string;
 }
 
@@ -795,13 +799,25 @@ export interface KioskPunchStudent {
   photo?: string;
 }
 
+// docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — staff counterpart to
+// KioskPunchStudent above.
+export interface KioskPunchStaff {
+  name: string;
+  designation: string;
+  class: string;
+}
+
 export interface KioskPunch {
   punchAt: string;
   // false for an unmatched fingerprint/card scan (added 2026-08-12, see
-  // deviceAttendance.js's POST /punch) — student is null in that case, not
-  // omitted, so callers can't forget to check this before reading it.
+  // deviceAttendance.js's POST /punch) — student/staff are both null in
+  // that case, not omitted, so callers can't forget to check this before
+  // reading them.
   matched: boolean;
+  // "student" | "staff" | null (null only when matched is false).
+  type: "student" | "staff" | null;
   student: KioskPunchStudent | null;
+  staff: KioskPunchStaff | null;
 }
 
 export interface KioskLatestPunchResponse {

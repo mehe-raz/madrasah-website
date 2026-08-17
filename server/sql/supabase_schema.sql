@@ -519,6 +519,39 @@ create table if not exists staff (
 
 create index if not exists staff_user_idx on staff ("userId");
 
+-- docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — fingerprint/card device support
+-- for staff, same pattern as students.fingerprintId/cardUid above (Phase
+-- 1). Manually entered by an admin (or captured via the same "স্ক্যান করে
+-- বসান" flow Students.tsx already uses — see lib/devicePunch.js's staff
+-- lookup fallback for how a punch is matched back to a staff row via
+-- these two columns).
+alter table staff add column if not exists "fingerprintId" text;
+alter table staff add column if not exists "cardUid" text;
+
+-- Same partial-unique pattern as students_fingerprint_id_unique/
+-- students_card_uid_unique — only enforced when actually set, so a staff
+-- member with no device enrolled yet keeps a null value, which never
+-- collides.
+create unique index if not exists staff_fingerprint_id_unique
+on staff ("fingerprintId")
+where "fingerprintId" is not null and "fingerprintId" <> '';
+
+create unique index if not exists staff_card_uid_unique
+on staff ("cardUid")
+where "cardUid" is not null and "cardUid" <> '';
+
+-- docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — lets a device punch attribute
+-- to a staff row instead of a student one. Added here (after `staff`
+-- exists) rather than alongside attendance_logs' own create table above,
+-- since the FK needs `staff` to already exist. Nullable + on delete set
+-- null, same reasoning as "studentId" above: exactly one of studentId/
+-- staffId is set on a matched row (or neither, on an unmatched scan —
+-- see lib/devicePunch.js).
+alter table attendance_logs add column if not exists "staffId" integer references staff(id) on delete cascade;
+
+create index if not exists attendance_logs_staff_punch_idx
+on attendance_logs ("staffId", "punchAt");
+
 -- Same shape as `attendance` above (studentId -> staffId), including the
 -- same ON CONFLICT-safe unique index pattern (see the "Retroactive fix"
 -- comment on `attendance` above for why the index is separate from an

@@ -32,7 +32,7 @@ const { devicePunchSchema } = require("../lib/opsSchemas");
 // routes/deviceIngest.js so the two device-facing entry points can never
 // disagree on how a punch is recorded. This file keeps its own device auth
 // and JSON response shape — only the DB work in between moved out.
-const { recordDevicePunch, toStudentPayload } = require("../lib/devicePunch");
+const { recordDevicePunch, toStudentPayload, toStaffPayload } = require("../lib/devicePunch");
 
 const router = express.Router();
 
@@ -82,15 +82,29 @@ router.post("/punch", devicePunchLimiter, validate(devicePunchSchema), async (re
   const result = await recordDevicePunch({ device, identifier, identifierType });
 
   if (!result.matched) {
-    // Logged (studentId null, matched false, done inside recordDevicePunch)
-    // instead of just returning the error, so the kiosk's latest-punch
-    // poll (Phase 4) has a row to find and can show "শিক্ষার্থী খুঁজে পাওয়া
-    // যায়নি" for a real failed scan.
-    return res.status(404).json({ error: "শিক্ষার্থী খুঁজে পাওয়া যায়নি" });
+    // Logged (studentId/staffId null, matched false, done inside
+    // recordDevicePunch) instead of just returning the error, so the
+    // kiosk's latest-punch poll (Phase 4) has a row to find and can show
+    // "খুঁজে পাওয়া যায়নি" for a real failed scan.
+    return res.status(404).json({ error: "খুঁজে পাওয়া যায়নি" });
+  }
+
+  // docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — result.type distinguishes a
+  // student match from a staff match; only one of student/staff is ever
+  // present on the response.
+  if (result.type === "staff") {
+    return res.json({
+      ok: true,
+      type: "staff",
+      staff: toStaffPayload(result.staff),
+      punchAt: result.punchAt,
+      firstToday: result.firstToday,
+    });
   }
 
   res.json({
     ok: true,
+    type: "student",
     student: toStudentPayload(result.student),
     punchAt: result.punchAt,
     firstToday: result.firstToday,
@@ -104,14 +118,17 @@ router.get("/latest-punch/:deviceId", deviceLatestLimiter, async (req, res) => {
   );
   if (!device) return res.status(404).json({ error: "ডিভাইস খুঁজে পাওয়া যায়নি" });
 
-  // LEFT JOIN (not JOIN) so an unmatched attempt — studentId null, matched
-  // false, see the insert in POST /punch above — still comes back instead
-  // of being silently dropped from this query; the kiosk (Phase 4) tells
-  // the two cases apart via "matched".
+  // LEFT JOIN (not JOIN) so an unmatched attempt — studentId/staffId both
+  // null, matched false, see the insert in POST /punch above — still comes
+  // back instead of being silently dropped from this query; the kiosk
+  // (Phase 4) tells the cases apart via "matched" and "type".
   const log = await db.get(
-    `SELECT al."punchAt", al.matched, s.name, s.class, s.section, s.roll, s."studentPhoto"
+    `SELECT al."punchAt", al.matched, al."studentId", al."staffId",
+            s.name AS "studentName", s.class AS "studentClass", s.section, s.roll, s."studentPhoto",
+            st.name AS "staffName", st.designation AS "staffDesignation", st.class AS "staffClass"
      FROM attendance_logs al
      LEFT JOIN students s ON s.id = al."studentId"
+     LEFT JOIN staff st ON st.id = al."staffId"
      WHERE al."deviceId" = $1
      ORDER BY al."punchAt" DESC
      LIMIT 1`,
@@ -119,17 +136,28 @@ router.get("/latest-punch/:deviceId", deviceLatestLimiter, async (req, res) => {
   );
   if (!log) return res.json({ punch: null });
 
+  const isStaff = log.matched && log.staffId != null;
+  const isStudent = log.matched && log.studentId != null;
+
   res.json({
     punch: {
       punchAt: log.punchAt,
       matched: log.matched,
-      student: log.matched
+      type: isStaff ? "staff" : isStudent ? "student" : null,
+      student: isStudent
         ? {
-            name: log.name,
-            class: log.class,
+            name: log.studentName,
+            class: log.studentClass,
             section: log.section,
             roll: log.roll,
             photo: log.studentPhoto,
+          }
+        : null,
+      staff: isStaff
+        ? {
+            name: log.staffName,
+            designation: log.staffDesignation,
+            class: log.staffClass,
           }
         : null,
     },

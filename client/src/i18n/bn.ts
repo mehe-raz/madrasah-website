@@ -339,6 +339,11 @@ export const bn = {
     designationOtherPlaceholder: "পদবি লিখুন",
     classLabel: "ক্লাস/জামাত (শুধু শিক্ষকদের জন্য)",
     joiningDateLabel: "যোগদানের তারিখ",
+    // docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — device-punch enrollment,
+    // same field labels students.fingerprintId/cardUid use.
+    fingerprintId: "ফিঙ্গারপ্রিন্ট আইডি",
+    cardUid: "কার্ড UID",
+    optional: "ঐচ্ছিক",
     noteLabel: "নোট",
     linkedUserLabel: "সফটওয়্যার লগইন যুক্ত করুন (ঐচ্ছিক)",
     linkedUserNone: "কোনো লগইন যুক্ত নেই",

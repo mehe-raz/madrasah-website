@@ -19,6 +19,13 @@ const staffCreateSchema = z.object({
   // Optional link to an existing software-login account (server/src/routes/
   // users.js) — validated for existence in the route handler, not here.
   userId: z.coerce.number().int().positive().optional().nullable(),
+  // docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — device-punch enrollment,
+  // same optional fingerprintId/cardUid pattern as students (see
+  // routes/students.js's admissionSchema). Cross-table + cross-row
+  // uniqueness is checked in the route handler, not here (needs a DB
+  // lookup, same reasoning as the userId comment above).
+  fingerprintId: z.string().trim().max(120).optional().default(""),
+  cardUid: z.string().trim().max(120).optional().default(""),
 });
 
 // PATCH: every field optional (partial update), including the status
@@ -32,6 +39,8 @@ const staffUpdateSchema = z.object({
   note: z.string().trim().max(500).optional(),
   userId: z.coerce.number().int().positive().optional().nullable(),
   status: z.enum(STAFF_STATUSES, { errorMap: () => ({ message: "Active অথবা Inactive হতে হবে" }) }).optional(),
+  fingerprintId: z.string().trim().max(120).optional(),
+  cardUid: z.string().trim().max(120).optional(),
 });
 
 module.exports = { staffCreateSchema, staffUpdateSchema, STAFF_STATUSES };
