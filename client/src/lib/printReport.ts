@@ -951,21 +951,22 @@ const EXAM_COVER_STYLES = `
   .ecs-title .blank { display: inline-block; min-width: 42mm; border-bottom: 1.4px solid #000; margin-right: 3mm; }
   .ecs-box {
     border: 1.6px dashed #000; border-radius: 3mm;
-    padding: 5mm 8mm 6mm;
+    padding: 4mm 8mm 4mm;
   }
-  .ecs-row { display: flex; gap: 12mm; font-size: 13.5px; font-weight: 600; margin: 5mm 0; }
+  .ecs-row { display: flex; gap: 12mm; font-size: 13.5px; font-weight: 600; margin: 4mm 0; }
   .ecs-row .field { display: flex; align-items: baseline; flex: 1; gap: 2mm; }
   .ecs-row .field .lbl { flex-shrink: 0; }
   .ecs-row .field .val { flex: 1; border-bottom: 1px solid #000; min-height: 5mm; padding-left: 1mm; font-weight: 700; }
-  table.ecs-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 5mm; }
-  .ecs-table th, .ecs-table td { border: 1px solid #000; padding: 1mm 2.5mm; text-align: center; height: 6mm; }
+  table.ecs-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4mm; }
+  .ecs-table th, .ecs-table td { border: 1px solid #000; padding: 0.8mm 2.5mm; text-align: center; height: 5.5mm; }
   .ecs-table th { background: #f1f5f9; font-weight: 800; }
   .ecs-table td.ecs-idx { width: 12mm; }
   .ecs-table tfoot td { text-align: left; font-weight: 700; }
-  .ecs-sigrow { display: flex; justify-content: space-between; margin-top: 6mm; gap: 6mm; }
+  .ecs-sigrow { display: flex; justify-content: space-between; margin-top: 5mm; gap: 6mm; }
   .ecs-sig {
-    flex: 1; text-align: center; font-size: 12px; font-weight: 700; color: #15803d;
-    border: 1.4px solid #16a34a; border-radius: 10mm; padding: 3mm 2mm;
+    flex: 1; display: flex; align-items: flex-end; justify-content: center;
+    min-height: 22mm; text-align: center; font-size: 12px; font-weight: 700; color: #15803d;
+    border: 2px solid #16a34a; border-radius: 10mm; padding: 2mm 2mm 3mm;
   }
 `;
 
