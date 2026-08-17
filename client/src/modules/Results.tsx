@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SkeletonCardList } from "../components/Skeleton";
 import { api } from "../lib/api";
 import { useAppSettings } from "../context/AppSettingsContext";
-import { classTreeLabel, classTreeLeafLabel } from "../lib/classTree";
+import { classTreeLabel, classTreeLeafLabel, findClassTreePath } from "../lib/classTree";
 import { C } from "../theme/colors";
 import { Button, Card, Field, Input, Select } from "../components/ui";
 import { EXAM_TYPES } from "../lib/examTypes";
 import { printResultSheet } from "../lib/printReport";
 import type { ResultStudentOption, StudentResult } from "../types";
+
+const CUSTOM_SUBJECT = "__custom__";
 
 export function Results() {
   const { t, lang, classTree } = useAppSettings();
@@ -19,6 +21,7 @@ export function Results() {
   const [examType, setExamType] = useState("");
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [subjectName, setSubjectName] = useState("");
+  const [useCustomSubject, setUseCustomSubject] = useState(false);
   const [subjectFullMarks, setSubjectFullMarks] = useState("100");
   const [marksById, setMarksById] = useState<Record<number, string>>({});
 
@@ -61,8 +64,23 @@ export function Results() {
     setSelectedIds(new Set());
     // eslint-disable-next-line react-hooks/set-state-in-effect -- an exam drilled into for the previous class doesn't exist in the new class's list
     setOpenExamKey(null);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the previously chosen/typed subject belonged to the old class's subject list and may not exist (or make sense) for the new one
+    setSubjectName("");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above; also drop back to the dropdown so a class that does have a subject list isn't stuck showing the free-text box from a previous class that didn't
+    setUseCustomSubject(false);
     refreshList(selectedClass);
   }, [selectedClass]);
+
+  // The selected class's own বিষয় (subject) list from Settings' class-tree
+  // editor — see lib/classTree.ts's ClassTreeSubject. Only leaf nodes carry
+  // subjects, and `selectedClass` is always a leaf `en` slug already, so
+  // the last node on its path (if found) is the one to read.
+  const availableSubjects = useMemo(() => {
+    if (!selectedClass) return [];
+    const path = findClassTreePath(classTree, selectedClass);
+    if (!path || !path.length) return [];
+    return path[path.length - 1].subjects || [];
+  }, [classTree, selectedClass]);
 
   // Groups the flat savedResults list (all exams for this class, all mixed
   // together) into one card per (examName, year) — সাজানো ক্লাস → পরীক্ষা →
@@ -264,7 +282,44 @@ export function Results() {
           </Field>
 
           <Field label={t.results.subjectName}>
-            <Input value={subjectName} onChange={(e) => setSubjectName(e.target.value)} placeholder={t.results.subjectName} />
+            {availableSubjects.length > 0 && !useCustomSubject ? (
+              <Select
+                value={subjectName}
+                onChange={(e) => {
+                  if (e.target.value === CUSTOM_SUBJECT) {
+                    setUseCustomSubject(true);
+                    setSubjectName("");
+                  } else {
+                    setSubjectName(e.target.value);
+                  }
+                }}
+              >
+                <option value="">{t.results.subjectSelectPlaceholder}</option>
+                {availableSubjects.map((s) => (
+                  <option key={s.en} value={s.bn}>
+                    {s.bn}
+                  </option>
+                ))}
+                <option value={CUSTOM_SUBJECT}>{t.results.subjectCustomOption}</option>
+              </Select>
+            ) : (
+              <div style={{ display: "flex", gap: 6 }}>
+                <Input value={subjectName} onChange={(e) => setSubjectName(e.target.value)} placeholder={t.results.subjectName} />
+                {availableSubjects.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseCustomSubject(false);
+                      setSubjectName("");
+                    }}
+                    className="btn-xs"
+                    style={{ flexShrink: 0 }}
+                  >
+                    {t.results.subjectCustomBack}
+                  </button>
+                )}
+              </div>
+            )}
           </Field>
 
           <Field label={t.results.subjectFullMarks}>
