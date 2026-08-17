@@ -58,15 +58,10 @@ export function Results() {
       return;
     }
     api.getResultStudents(selectedClass).then(setStudents).catch(() => setStudents([]));
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- switching class means the previous roster's marks-in-progress no longer apply, so the input map must reset alongside the fetch below
     setMarksById({});
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- a checkbox selection made against the previous class's saved-results list has no meaning once the class changes
     setSelectedIds(new Set());
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- an exam drilled into for the previous class doesn't exist in the new class's list
     setOpenExamKey(null);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the previously chosen/typed subject belonged to the old class's subject list and may not exist (or make sense) for the new one
     setSubjectName("");
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above; also drop back to the dropdown so a class that does have a subject list isn't stuck showing the free-text box from a previous class that didn't
     setUseCustomSubject(false);
     refreshList(selectedClass);
   }, [selectedClass]);
@@ -303,7 +298,7 @@ export function Results() {
                 <option value={CUSTOM_SUBJECT}>{t.results.subjectCustomOption}</option>
               </Select>
             ) : (
-              <div style={{ display: "flex", gap: 6 }}>
+              <div className="subject-picker-row">
                 <Input value={subjectName} onChange={(e) => setSubjectName(e.target.value)} placeholder={t.results.subjectName} />
                 {availableSubjects.length > 0 && (
                   <button
@@ -312,8 +307,7 @@ export function Results() {
                       setUseCustomSubject(false);
                       setSubjectName("");
                     }}
-                    className="btn-xs"
-                    style={{ flexShrink: 0 }}
+                    className="btn-xs subject-picker-row__back"
                   >
                     {t.results.subjectCustomBack}
                   </button>

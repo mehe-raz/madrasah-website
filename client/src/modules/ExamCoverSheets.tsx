@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useAppSettings } from "../context/AppSettingsContext";
-import { classTreeLeafLabel } from "../lib/classTree";
+import { classTreeLeafLabel, findClassTreePath } from "../lib/classTree";
 import { Button, Card, Field, Input, Select } from "../components/ui";
 import { EXAM_TYPES } from "../lib/examTypes";
 import { printExamCoverSheets, PopupBlockedError } from "../lib/printReport";
 import type { ExamCoverStudent } from "../types";
+
+const CUSTOM_SUBJECT = "__custom__";
 
 // পরীক্ষার খাতার প্রথম পেইজ (exam cover sheet) generation — same
 // "results"-scoped roster lookup as AdmitCards.tsx, but its own roster
@@ -23,6 +25,7 @@ export function ExamCoverSheets() {
 
   const [examType, setExamType] = useState("");
   const [subject, setSubject] = useState("");
+  const [useCustomSubject, setUseCustomSubject] = useState(false);
   const [examDate, setExamDate] = useState("");
 
   const [generating, setGenerating] = useState(false);
@@ -45,7 +48,20 @@ export function ExamCoverSheets() {
       .then(setStudents)
       .catch(() => setStudents([]))
       .finally(() => setLoadingStudents(false));
+    setSubject("");
+    setUseCustomSubject(false);
   }, [selectedClass]);
+
+  // The selected class's own বিষয় (subject) list from Settings' class-tree
+  // editor — see lib/classTree.ts's ClassTreeSubject. Only leaf nodes carry
+  // subjects, and `selectedClass` is always a leaf `en` slug already, so
+  // the last node on its path (if found) is the one to read.
+  const availableSubjects = useMemo(() => {
+    if (!selectedClass) return [];
+    const path = findClassTreePath(classTree, selectedClass);
+    if (!path || !path.length) return [];
+    return path[path.length - 1].subjects || [];
+  }, [classTree, selectedClass]);
 
   const examTypeLabel = (value: string) => {
     const found = EXAM_TYPES.find((et) => et.value === value);
@@ -156,7 +172,43 @@ export function ExamCoverSheets() {
           </Field>
 
           <Field label={t.examCoverSheets.subject}>
-            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t.examCoverSheets.subjectPlaceholder} />
+            {availableSubjects.length > 0 && !useCustomSubject ? (
+              <Select
+                value={subject}
+                onChange={(e) => {
+                  if (e.target.value === CUSTOM_SUBJECT) {
+                    setUseCustomSubject(true);
+                    setSubject("");
+                  } else {
+                    setSubject(e.target.value);
+                  }
+                }}
+              >
+                <option value="">{t.examCoverSheets.subjectSelectPlaceholder}</option>
+                {availableSubjects.map((s) => (
+                  <option key={s.en} value={s.bn}>
+                    {s.bn}
+                  </option>
+                ))}
+                <option value={CUSTOM_SUBJECT}>{t.examCoverSheets.subjectCustomOption}</option>
+              </Select>
+            ) : (
+              <div className="subject-picker-row">
+                <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t.examCoverSheets.subjectPlaceholder} />
+                {availableSubjects.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseCustomSubject(false);
+                      setSubject("");
+                    }}
+                    className="btn-xs subject-picker-row__back"
+                  >
+                    {t.examCoverSheets.subjectCustomBack}
+                  </button>
+                )}
+              </div>
+            )}
           </Field>
 
           <Field label={t.examCoverSheets.examDate}>

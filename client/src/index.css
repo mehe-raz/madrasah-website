@@ -2517,6 +2517,19 @@ img {
   color: #fb7185; /* C.rose */
 }
 
+/* Free-text-with-a-back-to-dropdown-button row used where a Select is
+   swapped for an Input (e.g. ExamCoverSheets.tsx / Results.tsx's subject
+   picker "+ other subject" fallback) — see AGENTS.md "Design System
+   (mandatory)": native elements can't take a raw style prop. */
+.subject-picker-row {
+  display: flex;
+  gap: 6px;
+}
+
+.subject-picker-row__back {
+  flex-shrink: 0;
+}
+
 .save-settings-btn {
   margin-top: 20px;
   border: none;
