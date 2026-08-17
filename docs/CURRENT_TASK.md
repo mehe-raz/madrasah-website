@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: শিফট/সিডিউল সিস্টেম + স্বয়ংক্রিয় দেরি-শনাক্তকরণ (৯ Phase-এ, পুরো
 পরিকল্পনা `docs/SHIFT_SCHEDULE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1–3 ও 5 সম্পন্ন — Phase 4 থেকে চালিয়ে যেতে হবে)
+## Status: IN_PROGRESS (Phase 1–5 সম্পন্ন — Phase 6 থেকে চালিয়ে যেতে হবে)
 
 Started: 2026-08-18
 
@@ -89,8 +89,35 @@ Started: 2026-08-18
   `npm run check` `roles.generated.ts` রিজেনারেট করবে — হাতে এডিট করা হয়নি।
   (নোট: Phase-নম্বর ক্রমানুসারে ৪ বাদ পড়েনি — RBAC আসলে মূল প্ল্যানের
   Phase 5, ৪ নম্বর হলো অটো-লেট লজিক যেটা এখনো বাকি, নিচে দেখুন।)
-- [ ] **Phase 4 (স্বয়ংক্রিয় দেরি-গণনা)** — `lib/attendanceSchedule.js` +
-  `lib/devicePunch.js`-এ ইন্টিগ্রেশন — এখনো শুরু হয়নি, পরের ধাপ।
+- [x] **Phase 4 (স্বয়ংক্রিয় দেরি-গণনা) সম্পন্ন** — প্ল্যান ডকের §Phase 4-এ যা
+  লেখা আছে সেভাবে:
+  - নতুন `server/src/lib/attendanceSchedule.js` — `resolveShiftForClass(className)`
+    (`class_shifts`↔`shifts` জয়েন, না পেলে `null`), `resolveShiftForStaff(staffRow)`
+    (`staff.shiftId` সরাসরি, নাল হলে `null`), `computeEntryStatus(punchTimeIso, shift)`
+    (শিফট নাল বা inactive হলে `'উপস্থিত'` ফলব্যাক; নাহলে `startTime +
+    graceMinutes`-এর সাথে তুলনা করে `'উপস্থিত'`/`'দেরিতে'`)।
+  - `server/src/lib/devicePunch.js` — `recordStudentPunch`/`recordStaffPunch`
+    এখন দিনের প্রথম পাঞ্চে শিফট রেজলভ করে `computeEntryStatus()` কল করে,
+    `status` + `entryTime` একসাথে upsert করে (আগের হার্ডকোড করা `'উপস্থিত'`-এর
+    বদলে); একই দিনের পরের পাঞ্চে শুধু `exitTime` আপডেট করে, status/entryTime
+    অপরিবর্তিত থাকে। শিফট রেজলভ না হলে (ক্লাস/স্টাফের শিফট বরাদ্দ নেই) status
+    আগের মতোই সবসময় `'উপস্থিত'` — বিদ্যমান আচরণ ভাঙেনি। staff-এর SELECT-এ
+    `"shiftId"` কলাম যোগ হয়েছে (আগে সিলেক্ট হতো না)।
+  - `server/src/lib/opsSchemas.js` — `attendanceRecordSchema`/
+    `staffAttendanceRecordSchema`-তে ঐচ্ছিক `entryTime`/`exitTime` স্ট্রিং
+    ফিল্ড যোগ (প্ল্যানের নির্দেশ অনুযায়ী প্রি-এমপ্টিভ — Phase 8-এর UI
+    এগুলো পাঠানো শুরু করার আগে ভ্যালিডেশনে জায়গা রাখা)। `routes/attendance.js`
+    ও `routes/staffAttendance.js`-এর ম্যানুয়াল-সেভ SQL **অপরিবর্তিত** রাখা
+    হয়েছে (প্ল্যান অনুযায়ী) — এই দুই ফিল্ড এখনো কোথাও ইনসার্ট হয় না, শুধু
+    স্কিমা-লেভেলে গ্রহণযোগ্য।
+  - পুরনো ম্যানুয়াল "দেরিতে" রেকর্ড রেট্রোঅ্যাকটিভলি রিক্যালকুলেট করা হয়নি
+    (§৫ স্কোপের বাইরে অনুযায়ী) — নতুন লজিক শুধু নতুন ডিভাইস-পাঞ্চ থেকে
+    কার্যকর।
+  - পরিবর্তিত/নতুন তিনটা `.js` ফাইলই `node --check` পাস করেছে। **পুরো
+    `npm run check` + একটা টেস্ট-পাঞ্চ (গ্রেস-টাইমের আগে ও পরে দুইবার) পাঠিয়ে
+    status/entryTime/exitTime ঠিকভাবে বসছে কিনা — sandbox-এ network/node_modules
+    না থাকায় চালানো যায়নি, আপনার প্যাকেজড CMD-তেই প্রথম যাচাই হবে (আগের সব
+    Phase-এর প্যাটার্নে)।**
 - [ ] Phase 6–9 — বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`-এ (ফ্রন্টএন্ড শিফট
   ম্যানেজমেন্ট + হাজিরা ভিউ, রিপোর্ট, টেস্ট/ডকুমেন্টেশন)। sandbox-এ
   `npm run check` চালানো সম্ভব হয়নি (network/node_modules নেই) —

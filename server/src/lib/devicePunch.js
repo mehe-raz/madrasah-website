@@ -24,6 +24,12 @@
 const db = require("../db");
 const { recordAudit } = require("./auditLog");
 const { sendGuardianSms } = require("./guardianSms");
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 4 — turns the day's first punch into
+// an automatic 'উপস্থিত'/'দেরিতে' status instead of the old hardcoded
+// 'উপস্থিত'. No shift resolved (class/staff not assigned one) => same
+// 'উপস্থিত' as before, so this is additive, not a behavior change for
+// anyone without a shift set up.
+const { resolveShiftForClass, resolveShiftForStaff, computeEntryStatus } = require("./attendanceSchedule");
 
 function toStudentPayload(student) {
   return {
@@ -74,7 +80,7 @@ async function recordDevicePunch({ device, identifier, identifierType }) {
   }
 
   const staff = await db.get(
-    `SELECT id, name, designation, class, status FROM staff WHERE ${column} = $1`,
+    `SELECT id, name, designation, class, status, "shiftId" FROM staff WHERE ${column} = $1`,
     [identifier]
   );
 
@@ -114,15 +120,29 @@ async function recordStudentPunch({ device, student, identifier, identifierType 
     [student.id, device.id, punchAt, identifierType, identifier]
   );
 
-  // Reuses the exact upsert routes/attendance.js's manual save already
-  // uses, so a device punch and a teacher's manual mark can never disagree
-  // about which unique index they're conflicting on.
-  await db.run(
-    `INSERT INTO attendance ("studentId", date, status)
-     VALUES ($1, $2, 'উপস্থিত')
-     ON CONFLICT ("studentId", date) DO UPDATE SET status = EXCLUDED.status`,
-    [student.id, today]
-  );
+  if (isFirstPunchToday) {
+    // Phase 4 — first punch of the day sets status (from the shift
+    // comparison) and entryTime together; reuses the exact unique index
+    // routes/attendance.js's manual save already conflicts on, so a device
+    // punch and a teacher's manual mark can never disagree about which row
+    // they're both writing.
+    const shift = await resolveShiftForClass(student.class);
+    const status = computeEntryStatus(punchAt, shift);
+    await db.run(
+      `INSERT INTO attendance ("studentId", date, status, "entryTime")
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT ("studentId", date) DO UPDATE SET status = EXCLUDED.status, "entryTime" = EXCLUDED."entryTime"`,
+      [student.id, today, status, punchAt]
+    );
+  } else {
+    // Later punches the same day only move exitTime — status/entryTime set
+    // by the first punch above stay as-is (§৩ "exit-টাইম status বদলাবে
+    // না").
+    await db.run(
+      `UPDATE attendance SET "exitTime" = $3 WHERE "studentId" = $1 AND date = $2`,
+      [student.id, today, punchAt]
+    );
+  }
 
   await recordAudit({
     action: "attendance.devicePunch",
@@ -170,12 +190,24 @@ async function recordStaffPunch({ device, staff, identifier, identifierType }) {
     [staff.id, device.id, punchAt, identifierType, identifier]
   );
 
-  await db.run(
-    `INSERT INTO staff_attendance ("staffId", date, status)
-     VALUES ($1, $2, 'উপস্থিত')
-     ON CONFLICT ("staffId", date) DO UPDATE SET status = EXCLUDED.status`,
-    [staff.id, today]
-  );
+  if (isFirstPunchToday) {
+    // Phase 4 — same first-punch status+entryTime logic as
+    // recordStudentPunch above, resolved from staff.shiftId directly
+    // instead of a class lookup.
+    const shift = await resolveShiftForStaff(staff);
+    const status = computeEntryStatus(punchAt, shift);
+    await db.run(
+      `INSERT INTO staff_attendance ("staffId", date, status, "entryTime")
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT ("staffId", date) DO UPDATE SET status = EXCLUDED.status, "entryTime" = EXCLUDED."entryTime"`,
+      [staff.id, today, status, punchAt]
+    );
+  } else {
+    await db.run(
+      `UPDATE staff_attendance SET "exitTime" = $3 WHERE "staffId" = $1 AND date = $2`,
+      [staff.id, today, punchAt]
+    );
+  }
 
   await recordAudit({
     action: "staffAttendance.devicePunch",

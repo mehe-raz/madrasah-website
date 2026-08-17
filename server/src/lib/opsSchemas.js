@@ -24,9 +24,15 @@ const expenseCreateSchema = z.object({
 
 const ATTENDANCE_STATUSES = ["উপস্থিত", "অনুপস্থিত", "দেরিতে"];
 
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 4 — entryTime/exitTime accepted here
+// now (optional, unused by routes/attendance.js yet) so the field exists
+// ahead of the Phase 8 UI that will actually send it; omitting it keeps
+// today's manual-save behavior identical.
 const attendanceRecordSchema = z.object({
   studentId: z.coerce.number().int().positive(),
   status: z.enum(ATTENDANCE_STATUSES),
+  entryTime: z.string().trim().max(40).optional(),
+  exitTime: z.string().trim().max(40).optional(),
 });
 
 const attendanceSaveSchema = z.object({
@@ -40,9 +46,13 @@ const attendanceSaveSchema = z.object({
 // studentId. A much smaller cap than the 5000-record student version is
 // enough here — an institution's staff count is a handful to a few dozen,
 // never thousands.
+// Phase 4 — same optional entryTime/exitTime prep as attendanceRecordSchema
+// above.
 const staffAttendanceRecordSchema = z.object({
   staffId: z.coerce.number().int().positive(),
   status: z.enum(ATTENDANCE_STATUSES),
+  entryTime: z.string().trim().max(40).optional(),
+  exitTime: z.string().trim().max(40).optional(),
 });
 
 const staffAttendanceSaveSchema = z.object({
