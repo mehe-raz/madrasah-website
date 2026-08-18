@@ -861,7 +861,7 @@ const ADMIT_CARD_STYLES = `
   .ac-examline { font-size: 3.9mm; font-weight: 700; transform: translateY(-100%); text-align: center; }
   .ac-val { font-size: 4mm; transform: translateY(-100%); }
   .ac-examdate { font-size: 3.3mm; text-decoration: underline; transform: translateY(-100%); }
-  .ac-line { position: absolute !important; z-index: 2; top: 23.75mm; }
+  .ac-line { position: absolute !important; z-index: 2; top: 23.6mm; }
 `;
 
 /** Millimeter coordinates (from card top-left) for every dynamic field, measured from the reference artwork. */
@@ -886,16 +886,19 @@ function fitFontSizeMm(text: string, startMm: number, minMm: number, maxWidthMm:
   return Math.max(size, minMm);
 }
 
-/** Builds the dynamic maroon underline + centered chevron notch, sized to bracket `widthMm` of content, centered on the card. */
+/** Builds the dynamic maroon underline + centered chevron notch, sized to
+ *  bracket the institution name, centered on the card.
+ *  Notch depth 1.2mm keeps the tip well clear of the navy "প্রবেশপত্র" box
+ *  (which starts at 26.1mm — this tip lands at ≈24.8mm, ~1.3mm above it). */
 function admitCardLineSvg(widthMm: number): string {
   const w = Math.max(widthMm, 1);
-  const notchHalf = 2.6;
-  const notchDepth = 3.2;
+  const notchHalf = 1.6;
+  const notchDepth = 1.2;
   const midX = w / 2;
   const points = `0,0 ${midX - notchHalf},0 ${midX},${notchDepth} ${midX + notchHalf},0 ${w},0`;
   return `
-    <svg class="ac-line" style="left:${ADMIT_CARD_CENTER_X - w / 2}mm;width:${w}mm;height:${notchDepth + 1}mm;" viewBox="0 0 ${w} ${notchDepth + 1}" xmlns="http://www.w3.org/2000/svg">
-      <polyline points="${points}" fill="none" stroke="${ADMIT_CARD_LINE_COLOR}" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round" />
+    <svg class="ac-line" style="left:${ADMIT_CARD_CENTER_X - w / 2}mm;width:${w}mm;height:${notchDepth + 0.4}mm;" viewBox="0 0 ${w} ${notchDepth + 0.4}" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="${points}" fill="none" stroke="${ADMIT_CARD_LINE_COLOR}" stroke-width="0.75" stroke-linejoin="round" stroke-linecap="round" />
     </svg>
   `;
 }
@@ -915,11 +918,12 @@ export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | 
   const addrFontMm = settings.address ? fitFontSizeMm(settings.address, ADDR_FONT_START, ADDR_FONT_MIN, ADMIT_CARD_TEXT_BOX.width, "600") : 0;
   const fontFamily = `"Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif`;
   const nameWidthMm = measureTextWidthMm(settings.name, nameFontMm, "800", fontFamily);
-  const addrWidthMm = settings.address ? measureTextWidthMm(settings.address, addrFontMm, "600", fontFamily) : 0;
-  // Underline brackets whichever of name/address measured wider, plus
-  // padding, clamped so it never looks cramped on a very short name nor
-  // spill past the card's own margins on a long one.
-  const lineWidthMm = Math.min(Math.max(Math.max(nameWidthMm, addrWidthMm) + 16, 50), ADMIT_CARD_TEXT_BOX.width);
+  // The decorative underline brackets the institution NAME only — not the
+  // address. The address fills the full text box by design (shrink-to-fit);
+  // sizing the line to the address would make it nearly as wide as the card
+  // for any institution with a long address, which looks wrong. The line
+  // is a divider under the name heading, so its width follows the name.
+  const lineWidthMm = Math.min(Math.max(nameWidthMm + 14, 40), ADMIT_CARD_TEXT_BOX.width * 0.72);
 
   const textField = (cls: string, value: string, fontMm: number, topMm: number) =>
     `<div class="ac-fld ${cls}" style="left:${ADMIT_CARD_TEXT_BOX.left}mm;top:${topMm}mm;width:${ADMIT_CARD_TEXT_BOX.width}mm;font-size:${fontMm}mm;">${escapeHtml(value)}</div>`;
