@@ -52,6 +52,12 @@ export interface Student {
   fingerprintId?: string;
   cardUid?: string;
   att?: string;
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — populated only by
+  // GET /api/attendance (not the general student record), same "present
+  // only on the attendance list response" shape as `att` above.
+  entryTime?: string;
+  exitTime?: string;
+  lateMinutes?: number | null;
   attendanceSummary?: {
     total: number;
     present: number;
@@ -423,6 +429,11 @@ export interface StaffAttendanceRow {
   designation: string;
   class: string;
   att: string;
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — same shape as Student's
+  // entryTime/exitTime/lateMinutes above, staff-side.
+  entryTime?: string;
+  exitTime?: string;
+  lateMinutes?: number | null;
 }
 
 export interface StaffAttendanceResponse {
@@ -824,6 +835,11 @@ export interface KioskPunchStudent {
   section?: string;
   roll: string;
   photo?: string;
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 (kiosk, optional/nice-to-have) —
+  // today's already-computed attendance status ('উপস্থিত'/'দেরিতে'), if a
+  // shift is assigned; undefined when no shift resolved (same "skip,
+  // don't guess" fallback as computeEntryStatus/lateMinutesFor elsewhere).
+  status?: string;
 }
 
 // docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — staff counterpart to
@@ -832,6 +848,9 @@ export interface KioskPunchStaff {
   name: string;
   designation: string;
   class: string;
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 (kiosk) — same as
+  // KioskPunchStudent.status above.
+  status?: string;
 }
 
 export interface KioskPunch {

@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: শিফট/সিডিউল সিস্টেম + স্বয়ংক্রিয় দেরি-শনাক্তকরণ (৯ Phase-এ, পুরো
 পরিকল্পনা `docs/SHIFT_SCHEDULE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1–6 সম্পন্ন — Phase 7 থেকে চালিয়ে যেতে হবে)
+## Status: IN_PROGRESS (Phase 1–7 সম্পন্ন — Phase 8–9 বাকি)
 
 Started: 2026-08-18
 
@@ -155,8 +155,74 @@ Started: 2026-08-18
     key-parity ম্যানুয়ালি গোনা হয়েছে (সব পাস)। আসল `npm run check`
     আপনার প্যাকেজড CMD-তেই প্রথম চলবে — সেখানে TS টাইপ-এরর/lint-এরর
     ধরা পড়লে থেমে যাবে, push হবে না (আগের সব Phase-এর প্যাটার্নে)।
-- [ ] Phase 7–9 — বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`-এ (হাজিরা ভিউতে
-  শিফট/entryTime/exitTime দেখানো, রিপোর্ট, টেস্ট/ডকুমেন্টেশন)।
+- [x] **Phase 7 (ফ্রন্টএন্ড হাজিরা ভিউ — সময় ও দেরি দেখানো) সম্পন্ন**:
+  - `server/src/lib/attendanceSchedule.js` — নতুন `lateMinutesFor(entryTimeIso,
+    shift)`: `computeEntryStatus()`-এর মতোই deadline-গণনা, কিন্তু status
+    স্ট্রিং না দিয়ে সরাসরি কত মিনিট দেরি (সংখ্যা) রিটার্ন করে — entryTime না
+    থাকলে/শিফট নাল বা inactive হলে/সময়মতো হলে `null` (ব্যাজ না দেখানোর
+    সিগন্যাল)।
+  - `server/src/routes/attendance.js` (`GET /`) — প্রতি ছাত্রের রেসপন্সে
+    `entryTime`/`exitTime`/`lateMinutes` যোগ; একই পেজের ছাত্রদের জন্য
+    per-class শিফট-রেজলভ ক্যাশ (Map) ব্যবহার করে যাতে ৪০ জনের ক্লাসে ৪০ বার
+    ডিবি কল না হয়। (`POST /`) — এখন `entryTime`/`exitTime` ঐচ্ছিক গ্রহণ করে,
+    `COALESCE(EXCLUDED.x, attendance.x)` দিয়ে — ম্যানুয়াল সেভ যদি সময় না
+    পাঠায় তাহলে ডিভাইস-পাঞ্চের বসানো মান মুছে যাবে না।
+  - `server/src/routes/staffAttendance.js` — ঠিক একই প্যাটার্ন, স্টাফের
+    জন্য (per-shiftId ক্যাশ, `staff.shiftId` দিয়ে রেজলভ)।
+  - `client/src/lib/attendanceTime.ts` (নতুন) — `isoToTimeInput`/
+    `timeInputToIso` হেল্পার, ISO টাইমস্ট্যাম্প ↔ `<input type="time">`-এর
+    "HH:MM" ফরম্যাটের মধ্যে রূপান্তর (attendance sheet-এর `date` state
+    ব্যবহার করে, সবসময় আজকের তারিখ ধরে না)।
+  - `client/src/modules/Attendance.tsx` — প্রতি সারিতে entry/exit
+    time-input যোগ (লোডে সার্ভারের মান দিয়ে প্রি-ফিল, সেভে `attendanceTime.ts`
+    দিয়ে ISO-তে রূপান্তরিত হয়ে যায়), status-বাটনগুলোর পাশে
+    `lateMinutes > 0` হলে "X মিনিট দেরি" ব্যাজ।
+  - `client/src/modules/StaffAttendance.tsx` — একই যোগ, স্টাফ-সাইডে
+    (এই ফাইলে আগে থেকেই কোনো raw `style={{` ছিল না, design-system
+    `Field`/`Input` দিয়েই যোগ হয়েছে, patterns অক্ষুণ্ন রাখা হয়েছে)।
+  - `client/src/pages/kiosk/Kiosk.tsx` + `server/src/routes/deviceAttendance.js`
+    (ঐচ্ছিক/নাইস-টু-হ্যাভ, প্ল্যানেও তাই লেখা ছিল) — কিয়স্কের
+    `GET /latest-punch/:deviceId` এখন `attendance`/`staff_attendance` টেবিল
+    (পাঞ্চের নিজের তারিখ দিয়ে জয়েন) থেকে সেদিনের status-ও পাঠায়; কিয়স্ক UI
+    `status === 'দেরিতে'` হলে একটা "দেরিতে" ব্যাজ দেখায় (নতুন
+    `.kiosk__late-badge` CSS ক্লাস, `.alert--amber`-এর রঙের প্যাটার্নে)।
+    শিফট না থাকলে/সময়মতো হলে কিছুই অতিরিক্ত দেখায় না।
+  - `client/src/types/index.ts` — `Student`/`StaffAttendanceRow`-এ ঐচ্ছিক
+    `entryTime`/`exitTime`/`lateMinutes`; `KioskPunchStudent`/
+    `KioskPunchStaff`-এ ঐচ্ছিক `status`।
+  - `client/src/lib/api.ts` — `saveAttendance`/`saveStaffAttendance`-এর
+    records-টাইপে ঐচ্ছিক `entryTime`/`exitTime` যোগ।
+  - `client/src/i18n/bn.ts` ও `en.ts` — `attendance.entryTimeLabel`/
+    `exitTimeLabel`/`lateByMinutes` এবং `staffAttendance.entryTimeLabel`/
+    `exitTimeLabel`/`lateByMinutes` দুই ফাইলেই যোগ, key-parity স্ক্রিপ্ট
+    দিয়ে যাচাই করা হয়েছে (৯৩৬টা কী দুই ফাইলে সমান)।
+  - **⚠️ গুরুত্বপূর্ণ নোট — একটা ভুল এড়ানো হয়েছে এই সেশনে:** ব্যবহারকারী এই
+    সেশনে দুটো জিপ দিয়েছিলেন — একটা এই রিপোর মূল অবস্থা (Phase 1–6 সহ),
+    আরেকটা আগের এজেন্টের Phase 7-এর আংশিক কাজ। দ্বিতীয় জিপটা আসলে Phase 6
+    ক্লায়েন্ট-সাইড কাজ যোগ হওয়ার **আগের** একটা বেসলাইন থেকে তৈরি হয়েছিল —
+    তাই ওটার `types/index.ts`/`lib/api.ts`/`i18n/en.ts`/`i18n/bn.ts` ভার্সন
+    সরাসরি বসিয়ে দিলে Phase 6-এর `Shift`/`ClassShiftAssignment` টাইপ,
+    `api.shifts`/`api.classShifts`, `staff.shiftId`, এবং শিফট-ব্যবস্থাপনার
+    সব i18n কী **মুছে যেত** — নীরবে একটা রিগ্রেশন হতো। এই চারটা ফাইল তাই
+    সরাসরি কপি না করে হাতে মার্জ করা হয়েছে (Phase 6-এর অংশ অক্ষত রেখে শুধু
+    Phase 7-এর নতুন সংযোজন যোগ করা হয়েছে)। বাকি ফাইলগুলো (routes/lib/নতুন
+    ফাইল) কনফ্লিক্ট-মুক্ত ছিল, সরাসরি প্রয়োগ করা হয়েছে।
+  - sandbox-এ network/node_modules না থাকায় আসল `npm run check`/`tsc`/`eslint`
+    চালানো যায়নি — বদলে প্রতিটা পরিবর্তিত/নতুন `.js` ফাইল `node --check`
+    দিয়ে (সব পাস) এবং প্রতিটা `.ts`/`.tsx`/`.css` ফাইল bracket-balance
+    (`{}`/`()`/`[]`) স্ক্রিপ্ট দিয়ে (সব পাস) যাচাই হয়েছে, এবং পুরো ট্রি
+    বেসলাইনের সাথে ফাইল-বাই-ফাইল diff করে নিশ্চিত করা হয়েছে যে ঠিক যে
+    ফাইলগুলো ইচ্ছাকৃতভাবে বদলানো হয়েছে সেগুলোই বদলেছে, অন্য কিছু না। আসল
+    `npm run check` আপনার প্যাকেজড CMD-তেই প্রথম চলবে — সেখানে
+    TS টাইপ-এরর/lint-এরর ধরা পড়লে থেমে যাবে, push হবে না।
+- [ ] **Phase 8 (রিপোর্ট)** — Reports মডিউলে "দেরিতে আসা"-র তালিকা
+  (তারিখ-রেঞ্জ, ছাত্র/স্টাফ আলাদা ট্যাব), বিদ্যমান
+  `exportReports.ts`/`printReport.ts` রিইউজ করে এক্সপোর্ট/প্রিন্ট।
+- [ ] **Phase 9 (যাচাই ও ডকুমেন্টেশন)** — ব্যবহারকারীর মেশিনে আসল
+  `npm run check`, ম্যানুয়াল স্মোক-টেস্ট (শিফট তৈরি → ক্লাসে বরাদ্দ →
+  গ্রেস-টাইমের আগে/পরে টেস্ট-পাঞ্চ → status ঠিক হচ্ছে কিনা → স্টাফের জন্য
+  একই → ম্যানুয়াল এন্ট্রি রিগ্রেশন চেক → রিপোর্টে সঠিক তালিকা), তারপর
+  `docs/PROJECT_MAP.md`-এ ছোট factual সংযোজন এবং এই এন্ট্রি DONE করা।
 
 ### নোট
 এই মুহূর্তে অন্য একাধিক IN_PROGRESS/PLANNED টাস্ক (নিচে) আছে — সেগুলোর

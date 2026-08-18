@@ -142,6 +142,10 @@ export function Kiosk() {
                 {[classTreeLabel(classTree, punch.student.class), punch.student.section].filter(Boolean).join(" - ")} · রোল {punch.student.roll}
               </p>
               <p className="kiosk__punch-time">{formatPunchTime(punch.punchAt)}-এ প্রবেশ করেছে</p>
+              {/* docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 (kiosk, optional) —
+                  only shown when a shift resolved দেরিতে for this punch;
+                  no shift assigned or on-time both render nothing extra. */}
+              {punch.student.status === "দেরিতে" && <p className="kiosk__late-badge">দেরিতে</p>}
             </>
           ) : punch.matched && punch.type === "staff" && punch.staff ? (
             // docs/STAFF_ATTENDANCE_PLAN.md, Phase 7 — same layout as the
@@ -153,6 +157,7 @@ export function Kiosk() {
               <p className="kiosk__name">{punch.staff.name}</p>
               <p className="kiosk__meta">{[punch.staff.designation, classTreeLabel(classTree, punch.staff.class)].filter(Boolean).join(" - ")}</p>
               <p className="kiosk__punch-time">{formatPunchTime(punch.punchAt)}-এ প্রবেশ করেছে</p>
+              {punch.staff.status === "দেরিতে" && <p className="kiosk__late-badge">দেরিতে</p>}
             </>
           ) : (
             <>

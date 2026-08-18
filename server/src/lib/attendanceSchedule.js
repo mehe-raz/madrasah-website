@@ -53,4 +53,25 @@ function computeEntryStatus(punchTimeIso, shift) {
   return punchDate > deadline ? "দেরিতে" : "উপস্থিত";
 }
 
-module.exports = { resolveShiftForClass, resolveShiftForStaff, computeEntryStatus };
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — same deadline math as
+// computeEntryStatus above, but returns the actual minutes-late number
+// (for the "X মিনিট দেরি" badge in Attendance.tsx/StaffAttendance.tsx)
+// instead of just a status string. Returns null when there's nothing to
+// show a badge for: no entry time recorded yet, no shift resolved/active,
+// or the entry was on time — the UI only renders the badge for a positive
+// number, so null and 0-or-less both mean "don't show it".
+function lateMinutesFor(entryTimeIso, shift) {
+  if (!entryTimeIso || !shift || !shift.active) return null;
+
+  const entryDate = new Date(entryTimeIso);
+  const [startH, startM] = shift.startTime.split(":").map(Number);
+  const graceMinutes = shift.graceMinutes || 0;
+
+  const deadline = new Date(entryDate);
+  deadline.setHours(startH, startM + graceMinutes, 0, 0);
+
+  const diffMinutes = Math.round((entryDate.getTime() - deadline.getTime()) / 60000);
+  return diffMinutes > 0 ? diffMinutes : null;
+}
+
+module.exports = { resolveShiftForClass, resolveShiftForStaff, computeEntryStatus, lateMinutesFor };

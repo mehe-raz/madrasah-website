@@ -357,7 +357,7 @@ export const api = {
     return request<AttendanceResponse>(`/attendance${q ? `?${q}` : ""}`);
   },
 
-  saveAttendance: (records: { studentId: number; status: string }[], date?: string) =>
+  saveAttendance: (records: { studentId: number; status: string; entryTime?: string; exitTime?: string }[], date?: string) =>
     requestOrQueue<{ ok: boolean; date?: string }>("/attendance", "POST", { date, records }),
 
   // docs/STAFF_ATTENDANCE_PLAN.md, Phase 6 — daily staff attendance,
@@ -369,7 +369,7 @@ export const api = {
     return request<StaffAttendanceResponse>(`/staff-attendance${qs}`);
   },
 
-  saveStaffAttendance: (records: { staffId: number; status: string }[], date?: string) =>
+  saveStaffAttendance: (records: { staffId: number; status: string; entryTime?: string; exitTime?: string }[], date?: string) =>
     requestOrQueue<{ ok: boolean; date?: string }>("/staff-attendance", "POST", { date, records }),
 
   getPayments: () => request<Payment[]>("/payments"),

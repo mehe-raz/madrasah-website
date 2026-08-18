@@ -352,6 +352,11 @@ export const bn = {
     sendingReminder: "পাঠানো হচ্ছে...",
     reminderSent: "✓ পাঠানো হয়েছে",
     reminderSendFailed: "পাঠাতে ব্যর্থ হয়েছে",
+    // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — manual entry/exit time inputs
+    // + minutes-late badge (lib/attendanceSchedule.js's lateMinutesFor).
+    entryTimeLabel: "প্রবেশের সময়",
+    exitTimeLabel: "প্রস্থানের সময়",
+    lateByMinutes: "{count} মিনিট দেরি",
   },
   // docs/STAFF_ATTENDANCE_PLAN.md, Phase 5 — staff registry, separate
   // section from `attendance` above (that one is student attendance).
@@ -426,6 +431,11 @@ export const bn = {
     queued: "অফলাইন — সংযোগ ফিরলে পাঠানো হবে",
     loadFailed: "লোড করতে ব্যর্থ হয়েছে",
     noStaff: "কোনো সক্রিয় স্টাফ পাওয়া যায়নি",
+    // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — see attendance.entryTimeLabel/
+    // exitTimeLabel/lateByMinutes above, staff-side.
+    entryTimeLabel: "প্রবেশের সময়",
+    exitTimeLabel: "প্রস্থানের সময়",
+    lateByMinutes: "{count} মিনিট দেরি",
   },
   expenses: {
     title: "ব্যয় ব্যবস্থাপনা",

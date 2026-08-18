@@ -351,6 +351,10 @@ export const en = {
     sendingReminder: "Sending...",
     reminderSent: "✓ Sent",
     reminderSendFailed: "Failed to send",
+    // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — see bn.ts's comment.
+    entryTimeLabel: "Entry Time",
+    exitTimeLabel: "Exit Time",
+    lateByMinutes: "{count} min late",
   },
   // docs/STAFF_ATTENDANCE_PLAN.md, Phase 5 — staff registry.
   staff: {
@@ -417,6 +421,12 @@ export const en = {
     queued: "Offline — will send when connection returns",
     loadFailed: "Failed to load",
     noStaff: "No active staff found",
+    // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — same entry/exit time inputs +
+    // minutes-late badge as attendance.entryTimeLabel/exitTimeLabel/
+    // lateByMinutes above, staff-side.
+    entryTimeLabel: "Entry Time",
+    exitTimeLabel: "Exit Time",
+    lateByMinutes: "{count} min late",
   },
   expenses: {
     title: "Expense Management",

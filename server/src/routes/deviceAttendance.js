@@ -122,13 +122,24 @@ router.get("/latest-punch/:deviceId", deviceLatestLimiter, async (req, res) => {
   // null, matched false, see the insert in POST /punch above — still comes
   // back instead of being silently dropped from this query; the kiosk
   // (Phase 4) tells the cases apart via "matched" and "type".
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 (kiosk, optional/nice-to-have) —
+  // LEFT JOIN attendance/staff_attendance on the punch's own date (not
+  // today's date — a punch is always "today" when it's live, but this
+  // keeps the join correct if it's ever looked at after midnight) to show
+  // the already-computed 'উপস্থিত'/'দেরিতে' status alongside the punch.
+  // No shift assigned => both joins miss => status stays undefined =>
+  // Kiosk.tsx shows nothing extra, same fallback as everywhere else in
+  // this feature.
   const log = await db.get(
     `SELECT al."punchAt", al.matched, al."studentId", al."staffId",
             s.name AS "studentName", s.class AS "studentClass", s.section, s.roll, s."studentPhoto",
-            st.name AS "staffName", st.designation AS "staffDesignation", st.class AS "staffClass"
+            st.name AS "staffName", st.designation AS "staffDesignation", st.class AS "staffClass",
+            a.status AS "studentAttStatus", sa.status AS "staffAttStatus"
      FROM attendance_logs al
      LEFT JOIN students s ON s.id = al."studentId"
      LEFT JOIN staff st ON st.id = al."staffId"
+     LEFT JOIN attendance a ON a."studentId" = al."studentId" AND a.date = LEFT(al."punchAt", 10)
+     LEFT JOIN staff_attendance sa ON sa."staffId" = al."staffId" AND sa.date = LEFT(al."punchAt", 10)
      WHERE al."deviceId" = $1
      ORDER BY al."punchAt" DESC
      LIMIT 1`,
@@ -151,6 +162,7 @@ router.get("/latest-punch/:deviceId", deviceLatestLimiter, async (req, res) => {
             section: log.section,
             roll: log.roll,
             photo: log.studentPhoto,
+            status: log.studentAttStatus || undefined,
           }
         : null,
       staff: isStaff
@@ -158,6 +170,7 @@ router.get("/latest-punch/:deviceId", deviceLatestLimiter, async (req, res) => {
             name: log.staffName,
             designation: log.staffDesignation,
             class: log.staffClass,
+            status: log.staffAttStatus || undefined,
           }
         : null,
     },

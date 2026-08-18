@@ -6,6 +6,11 @@ const { recordAudit } = require("../lib/auditLog");
 const { validate } = require("../middleware/validate");
 const { attendanceSaveSchema } = require("../lib/opsSchemas");
 const { idempotent } = require("../middleware/idempotency");
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — computes the "X মিনিট দেরি" badge
+// value shown per row; resolveShiftForClass reused here rather than a raw
+// join so the "no shift assigned" fallback stays defined in exactly one
+// place (attendanceSchedule.js), same as Phase 4's devicePunch.js usage.
+const { resolveShiftForClass, lateMinutesFor } = require("../lib/attendanceSchedule");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
@@ -31,7 +36,7 @@ router.get("/", async (req, res) => {
     return res.json({ date, dept: dept || "সব", students: [] });
   }
 
-  let sql = `SELECT s.*, COALESCE(a.status, 'উপস্থিত') as att
+  let sql = `SELECT s.*, COALESCE(a.status, 'উপস্থিত') as att, a."entryTime", a."exitTime"
        FROM students s
        LEFT JOIN attendance a ON a."studentId" = s.id AND a.date = $1
        WHERE s.status = 'Active'`;
@@ -46,7 +51,22 @@ router.get("/", async (req, res) => {
   }
   sql += " ORDER BY s.roll";
   const rows = await db.all(sql, params);
-  res.json({ date, dept: dept || "সব", students: rows });
+
+  // One resolveShiftForClass() call per distinct class in this page's
+  // results, not per student — a class of 40 students shares one shift
+  // lookup instead of 40.
+  const shiftByClass = new Map();
+  for (const row of rows) {
+    if (!shiftByClass.has(row.class)) {
+      shiftByClass.set(row.class, await resolveShiftForClass(row.class));
+    }
+  }
+  const students = rows.map((row) => ({
+    ...row,
+    lateMinutes: lateMinutesFor(row.entryTime, shiftByClass.get(row.class)),
+  }));
+
+  res.json({ date, dept: dept || "সব", students });
 });
 
 // The 5000-record cap on a single save is enforced in the zod schema
@@ -74,18 +94,25 @@ router.post("/", validate(attendanceSaveSchema), idempotent(async (req, res) => 
   // few hundred students this turns Save from N sequential DB calls into
   // one, which matters most on hosted DBs (Render/Neon/Supabase) where
   // each round trip carries real network latency.
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — entryTime/exitTime are optional
+  // (opsSchemas.js, Phase 4); a manual save that doesn't touch them must
+  // NOT null out a value a device punch already set today, hence
+  // COALESCE(EXCLUDED.x, attendance.x) rather than a plain overwrite.
   const valuePlaceholders = [];
   const params = [];
   records.forEach((r, i) => {
-    const base = i * 3;
-    valuePlaceholders.push(`($${base + 1}, $${base + 2}, $${base + 3})`);
-    params.push(r.studentId, date, r.status);
+    const base = i * 5;
+    valuePlaceholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
+    params.push(r.studentId, date, r.status, r.entryTime || null, r.exitTime || null);
   });
 
   await db.run(
-    `INSERT INTO attendance ("studentId", date, status)
+    `INSERT INTO attendance ("studentId", date, status, "entryTime", "exitTime")
      VALUES ${valuePlaceholders.join(", ")}
-     ON CONFLICT ("studentId", date) DO UPDATE SET status = EXCLUDED.status`,
+     ON CONFLICT ("studentId", date) DO UPDATE SET
+       status = EXCLUDED.status,
+       "entryTime" = COALESCE(EXCLUDED."entryTime", attendance."entryTime"),
+       "exitTime" = COALESCE(EXCLUDED."exitTime", attendance."exitTime")`,
     params
   );
   // One summary entry per save, not one per student record — a single

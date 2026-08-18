@@ -4046,6 +4046,19 @@ img {
   background: var(--slate-l);
 }
 
+/* docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 (kiosk, optional) — same
+   amber-on-light pattern as .alert--amber, sized for the kiosk's large
+   idle/punch typography rather than a normal alert box. */
+.kiosk__late-badge {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 10px;
+  padding: 8px 24px;
+  border-radius: var(--radius-pill);
+  color: #b45309; /* C.amberD */
+  background: #fef3c7; /* C.amberL */
+}
+
 .kiosk--error {
   flex-direction: column;
   gap: 10px;

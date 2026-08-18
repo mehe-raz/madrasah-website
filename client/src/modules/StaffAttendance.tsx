@@ -13,6 +13,7 @@ import { SkeletonCardList } from "../components/Skeleton";
 import { Button, Card, Field, Input } from "../components/ui";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
+import { isoToTimeInput, timeInputToIso } from "../lib/attendanceTime";
 import type { StaffAttendanceRow } from "../types";
 import { C } from "../theme/colors";
 
@@ -35,6 +36,11 @@ export function StaffAttendance() {
   const [saveError, setSaveError] = useState("");
   const [saved, setSaved] = useState(false);
   const [queued, setQueued] = useState(false);
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — manual entry/exit time inputs,
+  // keyed by staffId. Same "separate from the ISO strings on the row"
+  // reasoning as modules/Attendance.tsx — see that file's comment.
+  const [entryInputs, setEntryInputs] = useState<Record<number, string>>({});
+  const [exitInputs, setExitInputs] = useState<Record<number, string>>({});
 
   const load = useCallback(() => {
     setLoading(true);
@@ -44,6 +50,14 @@ export function StaffAttendance() {
       .then((res) => {
         setRows(res.staff);
         setDate(res.date);
+        const entries: Record<number, string> = {};
+        const exits: Record<number, string> = {};
+        res.staff.forEach((r) => {
+          entries[r.id] = isoToTimeInput(r.entryTime);
+          exits[r.id] = isoToTimeInput(r.exitTime);
+        });
+        setEntryInputs(entries);
+        setExitInputs(exits);
       })
       .catch((err) => setError(err instanceof Error ? err.message : c.loadFailed))
       .finally(() => setLoading(false));
@@ -64,7 +78,12 @@ export function StaffAttendance() {
     setSaveError("");
     try {
       const result = await api.saveStaffAttendance(
-        rows.map((r) => ({ staffId: r.id, status: r.att || PRESENT })),
+        rows.map((r) => ({
+          staffId: r.id,
+          status: r.att || PRESENT,
+          entryTime: timeInputToIso(date, entryInputs[r.id] || ""),
+          exitTime: timeInputToIso(date, exitInputs[r.id] || ""),
+        })),
         date
       );
       if (result.queued) {
@@ -134,6 +153,13 @@ export function StaffAttendance() {
               <div className="class-post__head">
                 <Badge label={row.designation} color={C.sky} />
                 {row.class && <span className="class-post__meta">{row.class}</span>}
+                {/* docs/SHIFT_SCHEDULE_PLAN.md, Phase 7 — server-computed
+                    minutes-late badge (routes/staffAttendance.js's
+                    lateMinutesFor); only rendered when positive, same
+                    reasoning as modules/Attendance.tsx's badge. */}
+                {!!row.lateMinutes && row.lateMinutes > 0 && (
+                  <Badge label={c.lateByMinutes.replace("{count}", String(row.lateMinutes))} color={C.amber} />
+                )}
               </div>
               <div className="class-post__title">{row.name}</div>
               <div className="class-post__actions">
@@ -146,6 +172,22 @@ export function StaffAttendance() {
                 <Button variant={statusVariant(row, ABSENT)} onClick={() => setStatus(row.id, ABSENT)}>
                   {c.absent}
                 </Button>
+              </div>
+              <div className="form-grid">
+                <Field label={c.entryTimeLabel}>
+                  <Input
+                    type="time"
+                    value={entryInputs[row.id] || ""}
+                    onChange={(e) => setEntryInputs({ ...entryInputs, [row.id]: e.target.value })}
+                  />
+                </Field>
+                <Field label={c.exitTimeLabel}>
+                  <Input
+                    type="time"
+                    value={exitInputs[row.id] || ""}
+                    onChange={(e) => setExitInputs({ ...exitInputs, [row.id]: e.target.value })}
+                  />
+                </Field>
               </div>
             </Card>
           ))}
