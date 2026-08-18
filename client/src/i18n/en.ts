@@ -654,6 +654,11 @@ export const en = {
     expensesDesc: "Expenses for selected period",
     hifzTitle: "Hifz Report",
     hifzDesc: "Students' Hifz progress",
+    // docs/SHIFT_SCHEDULE_PLAN.md, Phase 8
+    lateArrivalsStudentsTitle: "Late Arrivals — Students",
+    lateArrivalsStudentsDesc: "Students who arrived late in the selected period",
+    lateArrivalsStaffTitle: "Late Arrivals — Staff",
+    lateArrivalsStaffDesc: "Staff who arrived late in the selected period",
     noPermissionDesc: "You don't have permission to view this report",
     noPermissionTitle: "No permission",
     rangeRequired: "Select a date range (from / to) — both are required for this report.",

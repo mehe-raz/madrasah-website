@@ -492,6 +492,27 @@ export const api = {
       `/reports/attendance?from=${from}&to=${to}`
     ),
 
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 8 — "দেরিতে আসা" report, student and
+  // staff share one endpoint distinguished by ?type= (see routes/reports.js).
+  getReportLateArrivals: (from: string, to: string, type: "student" | "staff") =>
+    request<{
+      from: string;
+      to: string;
+      type: "student" | "staff";
+      rows: {
+        date: string;
+        entryTime: string | null;
+        lateMinutes: number | null;
+        name: string;
+        studentId?: number;
+        roll?: string;
+        class?: string;
+        dept?: string;
+        staffId?: number;
+        designation?: string;
+      }[];
+    }>(`/reports/late-arrivals?from=${from}&to=${to}&type=${type}`),
+
   createExpense: (body: { cat: string; amount: number; note?: string }) =>
     request<Expense>("/expenses", { method: "POST", body: JSON.stringify(body) }),
 

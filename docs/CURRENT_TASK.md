@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: শিফট/সিডিউল সিস্টেম + স্বয়ংক্রিয় দেরি-শনাক্তকরণ (৯ Phase-এ, পুরো
 পরিকল্পনা `docs/SHIFT_SCHEDULE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1–7 সম্পন্ন — Phase 8–9 বাকি)
+## Status: IN_PROGRESS (Phase 1–8 সম্পন্ন — Phase 9 বাকি)
 
 Started: 2026-08-18
 
@@ -215,9 +215,48 @@ Started: 2026-08-18
     ফাইলগুলো ইচ্ছাকৃতভাবে বদলানো হয়েছে সেগুলোই বদলেছে, অন্য কিছু না। আসল
     `npm run check` আপনার প্যাকেজড CMD-তেই প্রথম চলবে — সেখানে
     TS টাইপ-এরর/lint-এরর ধরা পড়লে থেমে যাবে, push হবে না।
-- [ ] **Phase 8 (রিপোর্ট)** — Reports মডিউলে "দেরিতে আসা"-র তালিকা
-  (তারিখ-রেঞ্জ, ছাত্র/স্টাফ আলাদা ট্যাব), বিদ্যমান
-  `exportReports.ts`/`printReport.ts` রিইউজ করে এক্সপোর্ট/প্রিন্ট।
+- [x] **Phase 8 (রিপোর্ট) সম্পন্ন**:
+  - `server/src/routes/reports.js` — নতুন `GET /api/reports/late-arrivals?from&to&type=student|staff`।
+    লেটনেস নতুন করে গণনা করা হয়নি — `attendance`/`staff_attendance`-এর
+    বিদ্যমান `status = 'দেরিতে'` কলামেই ফিল্টার (Phase 4-এ ইতিমধ্যে
+    devicePunch.js/ম্যানুয়াল সেভে ঠিকভাবে বসে); `entryTime`/`lateMinutes`
+    শুধু প্রদর্শনের জন্য যোগ, `lateMinutesFor()`/`resolveShiftForClass()`/
+    `resolveShiftForStaff()` (Phase 4/7) রিইউজ করে, `attendance.js`-এর
+    per-page শিফট-ক্যাশ প্যাটার্নে। `type=staff` শাখায় রাউটার-লেভেল
+    `"reports"` চেকের উপরে অতিরিক্ত `"staffAttendance"` পারমিশন চেক যোগ
+    (staff_attendance ডেটা নিজের আলাদা পারমিশনের পেছনে থাকে,
+    `routes/staffAttendance.js`-এর মতোই) — `canAccess` ইম্পোর্ট করে ইনলাইনে।
+  - **ডিজাইন সিদ্ধান্ত (প্ল্যান ডকের "ছাত্র/স্টাফ আলাদা ট্যাব" শব্দগুচ্ছের
+    ব্যাখ্যা):** Reports.tsx-এর বিদ্যমান আর্কিটেকচারে প্রতিটা রিপোর্ট-কাইন্ড =
+    একটা কার্ড = নিজস্ব প্রিন্ট/CSV বাটন (কোনো ইন-কার্ড ট্যাব কম্পোনেন্ট নেই,
+    শুধু "কল লিস্ট" ৩টা কাইন্ডের জন্য আলাদা ফুল-পেজ ভিউ আছে যেটা এখানে
+    দরকার নেই)। তাই একটা নতুন ট্যাব-UI কম্পোনেন্ট না বানিয়ে দুটো আলাদা
+    `ReportKind` যোগ করা হয়েছে — `lateArrivalsStudents` ও
+    `lateArrivalsStaff` — প্রতিটা নিজের কার্ড, নিজের তারিখ-রেঞ্জ-ফিল্টার্ড
+    প্রিন্ট/CSV, বিদ্যমান "এক কাইন্ড = এক কার্ড" প্যাটার্নে (AGENTS.md রুল ১,
+    ন্যূনতম diff)। ভুল মনে হলে পরে সত্যিকারের ট্যাব-UI-তে বদলানো যাবে।
+  - `client/src/lib/exportReports.ts` — `ReportKind` ইউনিয়নে দুটো নতুন মান,
+    `REPORT_TITLES`/`RANGE_FILTERED`-এ এন্ট্রি, `lateArrivalsStudentRows`/
+    `lateArrivalsStaffRows` (নতুন) + `exportReport()`-এ দুটো নতুন ব্রাঞ্চ —
+    বিদ্যমান `attendance`/`income` ব্রাঞ্চের প্যাটার্নে (`printReportTable`/
+    `exportExcelSheet` রিইউজ, নতুন এক্সপোর্ট-লজিক লেখা হয়নি)।
+  - `client/src/lib/api.ts` — নতুন `api.getReportLateArrivals(from, to, type)`,
+    `getReportAttendance`-এর ঠিক পাশে, একই `request<...>()` প্যাটার্নে।
+  - `client/src/modules/Reports.tsx` — দুটো নতুন কার্ড (`clock` আইকন,
+    students-এর জন্য `C.amberD`, staff-এর জন্য `C.slate`); `REPORT_PERMISSION`
+    ম্যাপে `lateArrivalsStudents: "reports"` যোগ; `lateArrivalsStaff`-এর জন্য
+    নতুন `isReportAllowed()` হেল্পার যোগ হয়েছে কারণ ওটার `"reports"` **এবং**
+    `"staffAttendance"` দুটোই লাগে (AND), কিন্তু `canAccess()` একটা তালিকায়
+    শুধু OR করে — তাই এক `REPORT_PERMISSION[kind]` লুকআপে প্রকাশ করা যায়নি।
+  - `client/src/i18n/bn.ts` ও `en.ts` — `reports.lateArrivalsStudentsTitle/Desc`,
+    `reports.lateArrivalsStaffTitle/Desc` দুই ফাইলেই যোগ, key-parity স্ক্রিপ্ট
+    দিয়ে যাচাই (reports ব্লক: ৫৫টা কী দুই ফাইলে সমান)।
+  - sandbox-এ network/node_modules না থাকায় আসল `npm run check` চালানো
+    যায়নি — বদলে: পরিবর্তিত `.js` ফাইল `node --check` দিয়ে (পাস),
+    পরিবর্তিত প্রতিটা `.ts`/`.tsx` ফাইল bracket-balance স্ক্রিপ্ট দিয়ে (সব
+    পাস), এবং bn.ts/en.ts-এর `reports` ব্লকের key-parity স্ক্রিপ্ট দিয়ে
+    (সমান)। আসল `npm run check` আপনার প্যাকেজড CMD-তেই প্রথম চলবে —
+    TS টাইপ-এরর/lint-এরর ধরা পড়লে থেমে যাবে, push হবে না।
 - [ ] **Phase 9 (যাচাই ও ডকুমেন্টেশন)** — ব্যবহারকারীর মেশিনে আসল
   `npm run check`, ম্যানুয়াল স্মোক-টেস্ট (শিফট তৈরি → ক্লাসে বরাদ্দ →
   গ্রেস-টাইমের আগে/পরে টেস্ট-পাঞ্চ → status ঠিক হচ্ছে কিনা → স্টাফের জন্য

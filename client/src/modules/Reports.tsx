@@ -28,7 +28,24 @@ const REPORT_PERMISSION: Record<ReportKind, Permission> = {
   income: "income",
   expenses: "expenses",
   hifz: "hifz",
+  lateArrivalsStudents: "reports",
+  // Not actually read for this key (see isReportAllowed below, which
+  // additionally requires "staffAttendance") — kept here only so this map
+  // stays total over ReportKind.
+  lateArrivalsStaff: "staffAttendance",
 };
+
+// lateArrivalsStaff needs BOTH "reports" (to be on this page at all) AND
+// "staffAttendance" (staff_attendance is its own permission — see
+// routes/staffAttendance.js and routes/reports.js's late-arrivals staff
+// branch) — canAccess() only does OR across a permission list, so this
+// case can't be expressed as a single REPORT_PERMISSION[kind] lookup.
+function isReportAllowed(role: string, kind: ReportKind) {
+  if (kind === "lateArrivalsStaff") {
+    return canAccess(role, "reports") && canAccess(role, "staffAttendance");
+  }
+  return canAccess(role, REPORT_PERMISSION[kind]);
+}
 
 // Titles/descriptions come from the current language's dictionary (see
 // i18n/bn.ts / i18n/en.ts -> reports.*) so the cards switch with the rest
@@ -42,6 +59,8 @@ function buildReports(t: Dict): { title: string; kind: ReportKind; icon: IconKey
     { title: t.reports.incomeTitle, kind: "income", icon: "income", desc: t.reports.incomeDesc, color: C.emerald },
     { title: t.reports.expensesTitle, kind: "expenses", icon: "expenses", desc: t.reports.expensesDesc, color: C.violet },
     { title: t.reports.hifzTitle, kind: "hifz", icon: "hifz", desc: t.reports.hifzDesc, color: C.sky },
+    { title: t.reports.lateArrivalsStudentsTitle, kind: "lateArrivalsStudents", icon: "clock", desc: t.reports.lateArrivalsStudentsDesc, color: C.amberD },
+    { title: t.reports.lateArrivalsStaffTitle, kind: "lateArrivalsStaff", icon: "clock", desc: t.reports.lateArrivalsStaffDesc, color: C.slate },
   ];
 }
 
@@ -96,7 +115,7 @@ export function Reports() {
 
       <div className="reports-grid">
         {reports.map((r) => {
-          const allowed = canAccess(role, REPORT_PERMISSION[r.kind]);
+          const allowed = isReportAllowed(role, r.kind);
           const disabled = loading !== null || !allowed;
           const isCallList = CALL_LIST_KINDS.includes(r.kind);
           return (

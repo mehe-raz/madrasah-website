@@ -663,6 +663,11 @@ export const bn = {
     expensesDesc: "নির্বাচিত সময়ের ব্যয়",
     hifzTitle: "হিফজ রিপোর্ট",
     hifzDesc: "শিক্ষার্থীদের হিফজ অগ্রগতি",
+    // docs/SHIFT_SCHEDULE_PLAN.md, Phase 8
+    lateArrivalsStudentsTitle: "দেরিতে আসা — শিক্ষার্থী",
+    lateArrivalsStudentsDesc: "নির্বাচিত সময়ে দেরিতে প্রবেশ করা শিক্ষার্থীদের তালিকা",
+    lateArrivalsStaffTitle: "দেরিতে আসা — স্টাফ",
+    lateArrivalsStaffDesc: "নির্বাচিত সময়ে দেরিতে প্রবেশ করা স্টাফদের তালিকা",
     noPermissionDesc: "এই রিপোর্ট দেখার অনুমতি আপনার নেই",
     noPermissionTitle: "অনুমতি নেই",
     rangeRequired: "তারিখ পরিসীমা (from / to) সিলেক্ট করুন — এই রিপোর্টের জন্য দুটোই আবশ্যক।",

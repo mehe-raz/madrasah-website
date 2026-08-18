@@ -9,7 +9,13 @@ export type ReportKind =
   | "attendance"
   | "income"
   | "expenses"
-  | "hifz";
+  | "hifz"
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 8 — "দেরিতে আসা" list, student and
+  // staff as two separate kinds/cards (their own date-filtered CSV/print
+  // each) rather than one kind with an in-card tab, matching how every
+  // other report kind here is already one card = one export.
+  | "lateArrivalsStudents"
+  | "lateArrivalsStaff";
 
 const REPORT_TITLES: Record<ReportKind, string> = {
   students: "Student List",
@@ -19,6 +25,8 @@ const REPORT_TITLES: Record<ReportKind, string> = {
   income: "Income Report",
   expenses: "Expense Report",
   hifz: "Hifz Progress Report",
+  lateArrivalsStudents: "Late Arrivals — Students",
+  lateArrivalsStaff: "Late Arrivals — Staff",
 };
 
 function stamp() {
@@ -54,6 +62,8 @@ const RANGE_FILTERED: Record<ReportKind, boolean> = {
   income: true,
   expenses: true,
   hifz: false,
+  lateArrivalsStudents: true,
+  lateArrivalsStaff: true,
 };
 
 function csvName(kind: ReportKind, range?: ReportRangeOpts) {
@@ -122,6 +132,24 @@ function expenseRows(expenses: Expense[]) {
 function hifzRows(students: Student[]) {
   const header = ["Roll", "Name", "Class", "Paras Done", "Status"];
   const body = students.map((s) => [s.roll, s.nameEn || s.name, s.class, s.para, s.status]);
+  return { header, body };
+}
+
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 8. lateMinutes/entryTime can be null
+// (shift not resolved, e.g. reassigned/removed after the punch — see
+// lib/attendanceSchedule.js's fallback) — shown as "—" rather than blank so
+// it reads as "unknown", not "zero minutes late" or a missing cell.
+type LateArrivalRow = { date: string; entryTime: string | null; lateMinutes: number | null; name: string; roll?: string; class?: string; dept?: string; designation?: string };
+
+function lateArrivalsStudentRows(rows: LateArrivalRow[]) {
+  const header = ["Date", "Roll", "Name", "Class", "Dept", "Entry Time", "Minutes Late"];
+  const body = rows.map((r) => [r.date, r.roll ?? "", r.name, r.class ?? "", r.dept ?? "", r.entryTime ?? "—", r.lateMinutes ?? "—"]);
+  return { header, body };
+}
+
+function lateArrivalsStaffRows(rows: LateArrivalRow[]) {
+  const header = ["Date", "Name", "Designation", "Entry Time", "Minutes Late"];
+  const body = rows.map((r) => [r.date, r.name, r.designation ?? "", r.entryTime ?? "—", r.lateMinutes ?? "—"]);
   return { header, body };
 }
 
@@ -199,5 +227,21 @@ export async function exportReport(kind: ReportKind, format: "print" | "excel", 
     const { header, body } = hifzRows(students);
     if (format === "excel") exportExcelSheet([header, ...body], csvName(kind, range));
     else printReportTable({ title: title + period, headers: header, rows: body });
+    return;
+  }
+
+  if (kind === "lateArrivalsStudents" && range?.from && range?.to) {
+    const { rows } = await api.getReportLateArrivals(range.from, range.to, "student");
+    const { header, body } = lateArrivalsStudentRows(rows);
+    if (format === "excel") exportExcelSheet([header, ...body], csvName(kind, range));
+    else printReportTable({ title: `${title}${period}`, headers: header, rows: body });
+    return;
+  }
+
+  if (kind === "lateArrivalsStaff" && range?.from && range?.to) {
+    const { rows } = await api.getReportLateArrivals(range.from, range.to, "staff");
+    const { header, body } = lateArrivalsStaffRows(rows);
+    if (format === "excel") exportExcelSheet([header, ...body], csvName(kind, range));
+    else printReportTable({ title: `${title}${period}`, headers: header, rows: body });
   }
 }
