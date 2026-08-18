@@ -979,6 +979,16 @@ create table if not exists camera_bridges (
   "createdAt" text not null
 );
 
+-- docs/CCTV_INTEGRATION_PLAN.md Phase 4 — the live-view stream-url route
+-- needs to know where this bridge's MediaMTX HLS server is reachable from
+-- the internet (Cloudflare Tunnel / Tailscale hostname per §৩), but no
+-- column existed for it after Phase 1 — added here rather than deferred,
+-- same "protected path, pre-flagged for this feature" reasoning as Phase 1
+-- above (AGENTS.md rule 4). Nullable/default '': a bridge can be registered
+-- (Phase 2) before its tunnel is set up; the stream-url route (Phase 4)
+-- rejects with a clear error if this is empty rather than assuming one.
+alter table camera_bridges add column if not exists "tunnelUrl" text default '';
+
 create unique index if not exists camera_bridges_device_id_unique
 on camera_bridges ("deviceId");
 

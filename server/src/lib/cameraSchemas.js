@@ -30,6 +30,21 @@ const cameraBridgeCreateSchema = z.object({
     ),
   name: z.string().trim().min(1, "নাম আবশ্যক").max(100),
   location: z.string().trim().max(200).optional().default(""),
+  // docs/CCTV_INTEGRATION_PLAN.md Phase 4 — where this bridge's MediaMTX
+  // HLS server is reachable from the internet (a Cloudflare Tunnel or
+  // Tailscale URL per §৩), e.g. "https://bridge-abc.trycloudflare.com".
+  // Optional here: a bridge can be registered before its tunnel exists;
+  // the stream-url route rejects with a clear error if this is still
+  // empty when someone tries to view that bridge's cameras.
+  tunnelUrl: z
+    .string()
+    .trim()
+    .max(300)
+    .refine((v) => v === "" || /^https?:\/\/.+/.test(v), {
+      message: "Tunnel URL অবশ্যই http:// বা https:// দিয়ে শুরু হতে হবে",
+    })
+    .optional()
+    .default(""),
 });
 
 // PATCH: every field optional (partial update) + active toggle.
@@ -40,6 +55,14 @@ const cameraBridgeUpdateSchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
   location: z.string().trim().max(200).optional(),
   active: z.boolean().optional(),
+  tunnelUrl: z
+    .string()
+    .trim()
+    .max(300)
+    .refine((v) => v === "" || /^https?:\/\/.+/.test(v), {
+      message: "Tunnel URL অবশ্যই http:// বা https:// দিয়ে শুরু হতে হবে",
+    })
+    .optional(),
 });
 
 // ── Cameras ──────────────────────────────────────────────────────────────────

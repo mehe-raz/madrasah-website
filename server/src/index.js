@@ -205,6 +205,14 @@ app.use("/api/device", require("./routes/deviceAttendance"));
 // resolved the normal Host-based way, same as /api/device.
 app.use("/api/camera-bridge", require("./routes/cameraEvents"));
 
+// Live-view stream proxy (docs/CCTV_INTEGRATION_PLAN.md, Phase 4) — same
+// reasoning as /api/camera-bridge just above for why this sits outside the
+// staff requireAuth/rbac chain, except the caller here is a <video>/hls.js
+// element (not the bridge machine), authenticating with its own short-lived
+// signed token instead of a deviceId+secretKey pair. See
+// routes/cameraStream.js's header comment for the full picture.
+app.use("/api/camera-stream", require("./routes/cameraStream"));
+
 // Bridge-free ADMS attendance-device ingestion
 // (docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 2) — mounted
 // at the bare top-level /iclock path (not /api), matching the fixed path

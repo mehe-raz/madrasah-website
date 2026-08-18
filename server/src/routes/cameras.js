@@ -26,16 +26,19 @@
 
 const express = require("express");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const db = require("../db");
 const { requirePermission } = require("../middleware/rbac");
 const { validate } = require("../middleware/validate");
 const { recordAudit } = require("../lib/auditLog");
+const { JWT_SECRET } = require("../middleware/auth");
 const {
   cameraBridgeCreateSchema,
   cameraBridgeUpdateSchema,
   cameraCreateSchema,
   cameraUpdateSchema,
 } = require("../lib/cameraSchemas");
+const { STREAM_TOKEN_PURPOSE, STREAM_TOKEN_TTL } = require("../lib/cameraStreamAuth");
 
 const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js
@@ -51,8 +54,12 @@ function generateSecret() {
 
 // Columns returned from camera_bridges on every list/detail call.
 // secretKey intentionally excluded — only returned at creation or regen.
+// tunnelUrl IS included here (Phase 4) — unlike secretKey it isn't a
+// credential by itself (viewing it needs the same "cameras" permission as
+// everything else in this router), just the address the stream-url route
+// below reads to build a proxied link.
 const BRIDGE_COLS =
-  'id, "deviceId", name, location, active, "createdAt"';
+  'id, "deviceId", name, location, "tunnelUrl", active, "createdAt"';
 
 // Columns returned from cameras on every list/detail call.
 const CAMERA_COLS =
@@ -87,16 +94,16 @@ router.get("/bridges", async (req, res) => {
 
 // POST /bridges — create a new bridge; secretKey returned once here only
 router.post("/bridges", validate(cameraBridgeCreateSchema), async (req, res) => {
-  const { deviceId, name, location } = req.body;
+  const { deviceId, name, location, tunnelUrl } = req.body;
   const secretKey = generateSecret();
 
   let row;
   try {
     row = await db.get(
-      `INSERT INTO camera_bridges ("deviceId", "secretKey", name, location, active, "createdAt")
-       VALUES ($1, $2, $3, $4, true, $5)
+      `INSERT INTO camera_bridges ("deviceId", "secretKey", name, location, "tunnelUrl", active, "createdAt")
+       VALUES ($1, $2, $3, $4, $5, true, $6)
        RETURNING ${BRIDGE_COLS}`,
-      [deviceId, secretKey, name, location || "", new Date().toISOString()]
+      [deviceId, secretKey, name, location || "", tunnelUrl || "", new Date().toISOString()]
     );
   } catch (e) {
     // Unique violation on deviceId
@@ -136,7 +143,7 @@ router.patch(
       return res.status(404).json({ error: "Camera bridge পাওয়া যায়নি" });
     }
 
-    const { name, location, active } = req.body;
+    const { name, location, active, tunnelUrl } = req.body;
     const sets = [];
     const params = [];
     function set(col, value) {
@@ -147,6 +154,7 @@ router.patch(
     if (name !== undefined) set("name", name);
     if (location !== undefined) set("location", location);
     if (active !== undefined) set("active", active);
+    if (tunnelUrl !== undefined) set('"tunnelUrl"', tunnelUrl);
 
     if (sets.length > 0) {
       params.push(id);
@@ -305,6 +313,66 @@ router.patch("/:id", validate(cameraUpdateSchema), async (req, res) => {
     details: { fields: Object.keys(req.body) },
   });
   res.json(row);
+});
+
+// GET /:id/stream-url — docs/CCTV_INTEGRATION_PLAN.md Phase 4.
+// Looks up this camera's bridge tunnel URL + streamPath and returns a
+// short-lived signed URL pointing at the proxy route in
+// routes/cameraStream.js (mounted publicly at /api/camera-stream), NOT the
+// bridge's actual tunnel URL — a client with "cameras" permission never
+// sees the real bridge address, only this app's own domain.
+//
+// The token is self-contained (verified independently of the staff login
+// cookie) rather than relying on requireAuth on the proxy route itself,
+// because the consumer is a <video>/hls.js element, and hls.js does not
+// send cookies by default (its XHR wrapper needs an explicit
+// `xhrSetup`/`withCredentials` override to do that) — a bearer token in
+// the URL works with zero extra client-side config, same principle as an
+// S3/CloudFront presigned URL.
+router.get("/:id/stream-url", async (req, res) => {
+  const id = Number(req.params.id);
+  const camera = await db.get(
+    `SELECT id, "bridgeDeviceId", "streamPath" FROM cameras WHERE id = $1 AND active = true`,
+    [id]
+  );
+  if (!camera) {
+    return res.status(404).json({ error: "ক্যামেরা পাওয়া যায়নি" });
+  }
+  if (!camera.streamPath) {
+    return res
+      .status(400)
+      .json({ error: "এই ক্যামেরার স্ট্রিম পাথ সেট করা নেই" });
+  }
+
+  const bridge = camera.bridgeDeviceId
+    ? await db.get(
+        `SELECT "tunnelUrl" FROM camera_bridges WHERE "deviceId" = $1 AND active = true`,
+        [camera.bridgeDeviceId]
+      )
+    : null;
+  if (!bridge) {
+    return res
+      .status(400)
+      .json({ error: "এই ক্যামেরার bridge সংযুক্ত নেই বা নিষ্ক্রিয়" });
+  }
+  if (!bridge.tunnelUrl) {
+    return res.status(400).json({
+      error: "এই bridge-এর Tunnel URL এখনও সেট করা হয়নি — আগে সেট করুন",
+    });
+  }
+
+  const token = jwt.sign(
+    { cameraId: camera.id, purpose: STREAM_TOKEN_PURPOSE },
+    JWT_SECRET,
+    { expiresIn: STREAM_TOKEN_TTL }
+  );
+
+  // Relative path — same origin as the rest of the API, works behind
+  // whatever domain/tunnel this app itself is already served from.
+  res.json({
+    streamUrl: `/api/camera-stream/${camera.id}/index.m3u8?token=${token}`,
+    expiresIn: STREAM_TOKEN_TTL,
+  });
 });
 
 module.exports = router;

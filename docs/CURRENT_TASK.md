@@ -3529,14 +3529,15 @@ Phase 1 (payments cascade fix) finished 2026-08-05:
 ---
 
 ## Task: CCTV ইন্টিগ্রেশন — Phase 1 (DB স্কিমা) + Phase 2 (Camera/Bridge
-ম্যানেজমেন্ট API) + Phase 3 (ইভেন্ট ইনজেশন API), পুরো পরিকল্পনা
-`docs/CCTV_INTEGRATION_PLAN.md`-এ
+ম্যানেজমেন্ট API) + Phase 3 (ইভেন্ট ইনজেশন API) + Phase 4 (লাইভ-ভিউ স্ট্রিম
+প্রক্সি), পুরো পরিকল্পনা `docs/CCTV_INTEGRATION_PLAN.md`-এ
 
-## Status: DONE (Phase 1–3 সম্পন্ন — Phase 4-৮ শুরু হয়নি)
+## Status: DONE (Phase 1–4 সম্পন্ন — Phase 5-৮ শুরু হয়নি)
 
 Phase 1 Completed: 2026-08-18
 Phase 2 Completed: 2026-08-19
 Phase 3 Completed: 2026-08-19
+Phase 4 Completed: 2026-08-19
 
 ### Phase 1 — DB স্কিমা (2026-08-18)
 `server/sql/supabase_schema.sql`-এ তিনটা নতুন টেবিল:
@@ -3613,9 +3614,74 @@ Phase 3 Completed: 2026-08-19
   নোটিফিকেশন গেল কিনা — এই যাচাইগুলো আপনার প্যাকেজড CMD-তেই প্রথম হবে
   (আগের সব Phase-এর প্যাটার্নে)।
 
-পরের এজেন্ট Phase 4 থেকে শুরু করবে: লাইভ-ভিউ স্ট্রিম প্রক্সি (ব্যাকএন্ড)
-— `GET /api/cameras/:id/stream-url`। **⚠ এখান থেকে টেস্ট করতে আসল
-ক্যামেরা বা অন্তত একটা টেস্ট RTSP স্ট্রিম লাগবে** (প্ল্যান ডকের §৪
+### Phase 4 — লাইভ-ভিউ স্ট্রিম প্রক্সি, ব্যাকএন্ড (2026-08-19)
+**⚠ ম্যানুয়াল ভেরিফিকেশনে আসল ক্যামেরা বা অন্তত একটা টেস্ট RTSP স্ট্রিম
+লাগবে (প্ল্যান ডকের §৪-এ আগে থেকেই ফ্ল্যাগ করা ছিল) — sandbox-এ শুধু
+`node --check` + bracket-balance দিয়ে সিনট্যাক্স যাচাই সম্ভব হয়েছে।**
+
+- **স্কিমা গ্যাপ পাওয়া গেছে ও ঠিক করা হয়েছে:** প্ল্যান অনুযায়ী stream-url
+  রুটের bridge-এর "tunnel URL" DB থেকে পড়া দরকার, কিন্তু Phase 1-এ
+  `camera_bridges`-এ এমন কোনো কলামই যোগ হয়নি। `server/sql/
+  supabase_schema.sql`-এ (protected path — AGENTS.md রুল ৪, Phase 1-এর
+  ঠিক একই যুক্তিতে এই ফিচারেরই অংশ বলে আগে থেকে ফ্ল্যাগ করা, সরাসরি
+  এগোনো হয়েছে) `alter table camera_bridges add column if not exists
+  "tunnelUrl" text default ''` যোগ হয়েছে — nullable, বিদ্যমান bridge
+  রেকর্ড অপ্রভাবিত।
+  - `server/src/lib/cameraSchemas.js` — `cameraBridgeCreateSchema`/
+    `cameraBridgeUpdateSchema`-তে ঐচ্ছিক `tunnelUrl` (http(s):// দিয়ে
+    শুরু হতে হবে, খালিও গ্রহণযোগ্য — bridge আগে রেজিস্টার হতে পারে,
+    tunnel পরে সেট হতে পারে)।
+  - `server/src/routes/cameras.js` — `BRIDGE_COLS`-এ `"tunnelUrl"` যোগ
+    (secretKey-এর মতো লুকানো হয়নি — একই `"cameras"` পারমিশনের
+    আন্ডারেই সবাই দেখে), `POST /bridges` ও `PATCH /bridges/:id`-এ
+    সেভ/আপডেট যোগ।
+- **`GET /api/cameras/:id/stream-url`** (`server/src/routes/cameras.js`,
+  বিদ্যমান রাউটারের `requirePermission("cameras")` চেইনেই) — camera →
+  bridge lookup, tunnelUrl/streamPath না থাকলে স্পষ্ট বাংলা এরর, নাহলে
+  ১০ মিনিট মেয়াদী signed JWT (নতুন `server/src/lib/cameraStreamAuth.js`-এ
+  `STREAM_TOKEN_PURPOSE`/`STREAM_TOKEN_TTL`, `middleware/auth.js`-এর
+  এক্সপোর্ট করা `JWT_SECRET` রিইউজ করে, ওই ফাইলে হাত দেওয়া লাগেনি) দিয়ে
+  সাইন করা `{ streamUrl: "/api/camera-stream/:id/index.m3u8?token=...",
+  expiresIn }` রিটার্ন করে — bridge-এর আসল tunnel URL রেসপন্সে কখনো
+  যায় না।
+- **নতুন `server/src/routes/cameraEvents.js`-এর মতোই পাবলিক রুট**
+  (`server/src/routes/cameraStream.js`, `index.js`-এ `/api/camera-stream`
+  মাউন্ট, `/api/camera-bridge`-এর ঠিক পরে, staff cookie চেইনের বাইরে —
+  কারণ caller একটা `<video>`/hls.js এলিমেন্ট, hls.js ডিফল্টে কুকি পাঠায়
+  না): `GET /:cameraId/index.m3u8` ও `GET /:cameraId/:segment`
+  (`.ts`/`.m4s` ফাইলনেম-প্যাটার্ন এনফোর্স করা, ওপেন প্রক্সি না) — দুটোই
+  আলাদা named-param রুট, একটা wildcard/splat রুট না (Express 5-এ
+  wildcard সিনট্যাক্স বদলেছে এবং এই রিপোতে কপি করার মতো কোনো আগের উদাহরণ
+  নেই বলে ঝুঁকি না নিয়ে সরাসরি প্যাটার্নে থাকা হয়েছে)। প্রতি রিকোয়েস্টে
+  টোকেন যাচাই + camera/bridge active থাকা ফ্রেশ করে চেক করে (টোকেন still
+  valid থাকলেও bridge deactivate হলে সাথে সাথে প্লেব্যাক বন্ধ হয়ে যায়)।
+  আসল bridge থেকে ফেচ করে (বিল্ট-ইন Node `fetch`, Node 20 বেস ইমেজে
+  আছে — নতুন dependency লাগেনি): `.m3u8` হলে টেক্সট হিসেবে পড়ে প্রতিটা
+  সেগমেন্ট-লাইনে `?token=...`/`&token=...` জুড়ে রিরাইট করে (যাতে সেগমেন্ট
+  রিকোয়েস্টও এই একই প্রক্সি দিয়ে যায়, বাস্তব bridge URL কখনো এক্সপোজ না
+  হয়) পাঠায়; সেগমেন্ট ফাইল হলে raw bytes পাইপ করে। `Cache-Control:
+  no-store` (লাইভ কন্টেন্ট)।
+- **নতুন dependency যোগ হয়নি** (AGENTS.md রুল ৫) — `fetch` Node 20-এ
+  বিল্ট-ইন, `jsonwebtoken` আগে থেকেই ব্যবহৃত (middleware/auth.js,
+  lib/googleDrive.js)।
+- **কোনো নতুন RBAC/rate-limiter এন্ট্রি লাগেনি:** `stream-url` বিদ্যমান
+  `/api/cameras` রাউটারের `"cameras"` পারমিশনেই পড়ে (rbac.test.js-এ আগে
+  থেকেই এন্ট্রি আছে)। `/api/camera-stream` unauthenticated
+  (`/api/camera-bridge`-এর মতোই) — `rbac.test.js`/`ROUTE_PERMISSION`-এ
+  কোনো এন্ট্রি লাগেনি। নতুন rate-limiter যোগ করা হয়নি — টোকেন ছাড়া কিছুই
+  অ্যাক্সেস হয় না বলে (Phase 3-এর মতো সরাসরি পাবলিক-ইনজেশন এন্ডপয়েন্ট না),
+  আর একটা লাইভ প্লেব্যাক স্বাভাবিকভাবেই প্রতি কয়েক সেকেন্ডে বহু
+  রিকোয়েস্ট করে বলে একটা সাধারণ limiter উল্টো প্লেব্যাক ভেঙে দিতে পারত;
+  প্ল্যান ডকেও Phase 4-এ কোনো rate-limiter উল্লেখ নেই (শুধু Phase 3-এ)।
+- পরিবর্তিত/নতুন সব `.js` ফাইল `node --check` পাস করেছে, SQL ফাইল
+  bracket-balance স্ক্রিপ্টে ব্যালান্সড। **পুরো `npm run check` + আসল/টেস্ট
+  ক্যামেরা দিয়ে ম্যানুয়াল ভেরিফিকেশন — sandbox-এ সম্ভব হয়নি, আপনার
+  প্যাকেজড CMD-তেই প্রথম যাচাই হবে (আগের সব Phase-এর প্যাটার্নে)।**
+
+পরের এজেন্ট Phase 5 থেকে শুরু করবে: camera-bridge প্রোগ্রাম (মূল রিপোর
+বাইরে, নতুন `camera-bridge/` ফোল্ডার — Frigate-এর MQTT ইভেন্ট সাবস্ক্রাইব
+করে Phase 3-এর `/api/camera-bridge/event`-এ ফরওয়ার্ড করবে)। **⚠ এখান
+থেকে টেস্ট করতে আসল ক্যামেরা/Frigate ইনস্টল লাগবে** (প্ল্যান ডকের §৫
 অনুযায়ী)।
 
 ---
