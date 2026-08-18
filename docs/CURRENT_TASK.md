@@ -3528,29 +3528,48 @@ Phase 1 (payments cascade fix) finished 2026-08-05:
 
 ---
 
-## Task: CCTV ইন্টিগ্রেশন — Phase 1 (DB স্কিমা), পুরো পরিকল্পনা
-`docs/CCTV_INTEGRATION_PLAN.md`-এ
+## Task: CCTV ইন্টিগ্রেশন — Phase 1 (DB স্কিমা) + Phase 2 (Camera/Bridge
+ম্যানেজমেন্ট API), পুরো পরিকল্পনা `docs/CCTV_INTEGRATION_PLAN.md`-এ
 
-## Status: DONE (Phase 1 only — Phase 2-৮ শুরু হয়নি, উপরের IN_PROGRESS
-শিফট-সিডিউল টাস্ক থেকে আলাদা, একে-অপরকে প্রভাবিত করে না)
+## Status: DONE (Phase 1–2 সম্পন্ন — Phase 3-৮ শুরু হয়নি)
 
-Completed: 2026-08-18
+Phase 1 Completed: 2026-08-18
+Phase 2 Completed: 2026-08-19
 
-`server/sql/supabase_schema.sql`-এ তিনটা নতুন টেবিল যোগ হলো:
-- `camera_bridges` — প্রতিষ্ঠানের bridge মেশিন (deviceId+secretKey auth,
-  attendance_devices-এর প্যাটার্নে)
-- `cameras` — প্রতিটা ক্যামেরা, `bridgeDeviceId` দিয়ে camera_bridges-এর
-  সাথে real FK (camera_bridges."deviceId"-এর উপর, id-এর উপর না)
-- `camera_events` — raw motion/human/vehicle ডিটেকশন লগ, `cameraId` FK
-  cascade delete সহ
+### Phase 1 — DB স্কিমা (2026-08-18)
+`server/sql/supabase_schema.sql`-এ তিনটা নতুন টেবিল:
+- `camera_bridges` — bridge মেশিন (deviceId+secretKey auth)
+- `cameras` — প্রতিটা ক্যামেরা, `bridgeDeviceId` FK
+- `camera_events` — raw ডিটেকশন লগ
 
-কোনো রুট/API/UI কোড এখনো নেই — পরিকল্পনার Phase 2 থেকে শুরু হবে
-(`server/src/lib/cameraSchemas.js`, `server/src/routes/cameras.js`)।
-`docs/CCTV_INTEGRATION_PLAN.md`-এও এই আপডেট নোট করা হয়েছে।
+### Phase 2 — Camera/Bridge ম্যানেজমেন্ট API (2026-08-19)
+- নতুন `server/src/lib/cameraSchemas.js` — Zod স্কিমা:
+  `cameraBridgeCreateSchema`, `cameraBridgeUpdateSchema`,
+  `cameraCreateSchema`, `cameraUpdateSchema`। deviceId/streamPath-এ
+  URL-safe অক্ষর enforce (শিফটের HH:MM regex-এর প্যাটার্নে)।
+- নতুন `server/src/routes/cameras.js` — Bridge CRUD:
+  `GET /bridges`, `POST /bridges` (secretKey একবারই দেখায়, attendance_
+  devices.js-এর প্যাটার্নে), `PATCH /bridges/:id` (active টগল সহ),
+  `POST /bridges/:id/regen-key` (secretKey পুনরায় তৈরি, একবারই দেখায়);
+  Camera CRUD: `GET /` (`?bridgeDeviceId=` ফিল্টার সহ), `POST /`
+  (`assertBridgeExists` চেকসহ, staff.js-এর `assertUserExists`
+  প্যাটার্নে), `PATCH /:id`। হার্ড DELETE নেই — active টগল মাত্র।
+  সব write-এ `recordAudit()`, সব read-এ secretKey বাদ।
+- `server/src/config/roles.js` — নতুন `"cameras"` পারমিশন-কী Admin-এ
+  যোগ (Super Admin-এর `"*"` দিয়ে এমনিতেই ছিল); `ROUTE_PERMISSION`-এ
+  `"/api/cameras": "cameras"` যোগ।
+- `server/src/index.js` — `/api/cameras` মাউন্ট (shifts-এর ঠিক পরে,
+  একই authenticated chain-এ)।
+- `server/src/middleware/__tests__/rbac.test.js` — `EXPECTED_ALLOWED`-এ
+  `"/api/cameras": ["Admin", "Super Admin"]` যোগ।
+- sandbox-এ network/node_modules না থাকায় আসল `npm run check` চালানো
+  যায়নি — উভয় `.js` ফাইল `node --check` দিয়ে যাচাই করা হবে (নিচে দেখুন),
+  এবং bracket-balance স্ক্রিপ্ট দিয়েও। আসল `npm run check` আপনার
+  প্যাকেজড CMD-তেই প্রথম চলবে।
 
-`npm run check` এই ডেলিভারির প্যাকেজড CMD দিয়ে ইউজারের নিজের মেশিনে চলবে
-(sandbox-এ node_modules/নেটওয়ার্ক নেই) — SQL ফাইলের প্যারেন/কোট ব্যালেন্স
-ম্যানুয়ালি যাচাই করা হয়েছে।
+পরের এজেন্ট Phase 3 থেকে শুরু করবে: Event ingestion API
+(`server/src/routes/cameraEvents.js` — bridge → server, secretKey auth,
+curl দিয়ে টেস্ট সম্ভব, আসল ক্যামেরা লাগবে না)।
 
 ---
 

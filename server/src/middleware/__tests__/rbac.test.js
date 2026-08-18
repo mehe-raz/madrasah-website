@@ -53,6 +53,10 @@ const EXPECTED_ALLOWED = {
   // §6 open question 2) — see ROLE_PERMISSIONS comment in config/roles.js.
   "/api/shifts": ["Admin", "Super Admin"],
   "/api/class-shifts": ["Admin", "Super Admin"],
+  // docs/CCTV_INTEGRATION_PLAN.md, Phase 2 — camera bridge + camera
+  // management. Admin/Super Admin only (same tier as "shifts"/"staff" —
+  // see ROLE_PERMISSIONS comment in config/roles.js).
+  "/api/cameras": ["Admin", "Super Admin"],
 };
 
 describe("ROUTE_PERMISSION table sanity", () => {

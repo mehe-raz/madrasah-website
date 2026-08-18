@@ -22,7 +22,8 @@ export const ROLE_PERMISSIONS = {
     "assignments",
     "staff",
     "staffAttendance",
-    "shifts"
+    "shifts",
+    "cameras"
   ],
   "Accountant": [
     "dashboard",
@@ -80,5 +81,6 @@ export const ROUTE_PERMISSION = {
   "/api/guardian-approvals": "settings",
   "/api/guardian-reminders": "settings",
   "/api/own-sms-gateway": "settings",
-  "/api/sms-contacts": "settings"
+  "/api/sms-contacts": "settings",
+  "/api/cameras": "cameras"
 } as const;

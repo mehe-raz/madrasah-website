@@ -466,6 +466,11 @@ app.use("/api/staff-attendance", require("./routes/staffAttendance"));
 // docs/SHIFT_SCHEDULE_PLAN.md, Phase 2-3
 app.use("/api/shifts", require("./routes/shifts"));
 app.use("/api/class-shifts", require("./routes/classShifts"));
+// docs/CCTV_INTEGRATION_PLAN.md, Phase 2 — camera bridge + camera management
+// (Admin-facing CRUD). The camera bridge's own event-ingestion endpoint
+// (Phase 3, /api/camera-bridge/event) will be mounted in the public chain,
+// not here — it uses secretKey auth, not the JWT/rbac chain.
+app.use("/api/cameras", require("./routes/cameras"));
 app.use("/api/guardian-approvals", require("./routes/guardianApprovals"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/delete-requests", require("./routes/deleteRequests"));

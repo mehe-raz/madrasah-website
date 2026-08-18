@@ -29,7 +29,12 @@ const ROLE_PERMISSIONS = {
   // share this one key; staff.shiftId itself is edited through the
   // existing "staff" permission (routes/staff.js's PATCH), not this one.
   // Plan §6 open question 2 defaulted to Admin/Super Admin only.
-  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "websiteGallery", "websiteNotices", "results", "assignments", "staff", "staffAttendance", "shifts"],
+  // docs/CCTV_INTEGRATION_PLAN.md, Phase 2 — "cameras" gates the camera
+  // bridge + camera management API (routes/cameras.js). Admin/Super Admin
+  // only (same tier as "shifts"/"staff" — not a day-to-day role like Teacher
+  // or Accountant). Super Admin gets it via "*" already; only Admin needs an
+  // explicit entry here.
+  Admin: ["dashboard", "students", "attendance", "income", "expenses", "hifz", "reports", "settings", "website", "websiteGallery", "websiteNotices", "results", "assignments", "staff", "staffAttendance", "shifts", "cameras"],
   Accountant: ["dashboard", "income", "expenses", "reports"],
   Teacher: ["attendance", "hifz", "results", "assignments"],
   "Hostel Manager": ["dashboard", "students", "attendance"],
@@ -123,6 +128,14 @@ const ROUTE_PERMISSION = {
   // broadcast-send endpoint stays under /api/sms (already listed above),
   // not a separate entry.
   "/api/sms-contacts": "settings",
+  // docs/CCTV_INTEGRATION_PLAN.md, Phase 2 — camera bridge + camera
+  // management (routes/cameras.js). Admin/Super Admin only; the camera
+  // bridge's own event-ingestion endpoint (/api/camera-bridge/event, Phase 3)
+  // is public+secretKey-gated, not here. A single prefix covers both
+  // /bridges/* and the camera CRUD at /, same as /api/shifts covering both
+  // /api/shifts and /api/class-shifts uses separate entries — here bridges
+  // and cameras are in the same router file so one prefix is enough.
+  "/api/cameras": "cameras",
 };
 
 module.exports = { ROLE_PERMISSIONS, ROUTE_PERMISSION };
