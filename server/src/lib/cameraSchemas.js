@@ -85,9 +85,40 @@ const cameraUpdateSchema = z.object({
   active: z.boolean().optional(),
 });
 
+// ── Camera Events (Phase 3) ─────────────────────────────────────────────────
+//
+// Body sent by the camera-bridge machine (Phase 5, outside this repo) to
+// POST /api/camera-bridge/event whenever Frigate reports a detection.
+// deviceId/secretKey authenticate the bridge itself (same shape as
+// devicePunchSchema in opsSchemas.js — the bridge has no staff JWT).
+// cameraId is the numeric id of a `cameras` row (not the text streamPath —
+// see routes/cameraEvents.js for why), which is what the bridge's own
+// config maps its local camera names to when it's set up in Phase 5.
+//
+// CAMERA_EVENT_TYPES is exported for reuse (e.g. a future UI filter) — the
+// camera_events.type column itself stays plain text at the DB level (see
+// that table's schema comment), this enum is where the actual validation
+// lives, per this file's own header note.
+const CAMERA_EVENT_TYPES = ["motion", "human", "vehicle"];
+
+const cameraEventSchema = z.object({
+  deviceId: z.string().trim().min(1, "ডিভাইস আইডি আবশ্যক").max(100),
+  secretKey: z.string().trim().min(1, "সিক্রেট কী আবশ্যক").max(200),
+  cameraId: z.coerce.number().int().positive(),
+  type: z.enum(CAMERA_EVENT_TYPES),
+  // ISO datetime string — kept as a validated non-empty string rather than
+  // z.coerce.date(), matching this project's project-wide "timestamps are
+  // text" convention (see camera_events schema comment in
+  // supabase_schema.sql).
+  detectedAt: z.string().trim().min(1, "detectedAt আবশ্যক").max(40),
+  clipPath: z.string().trim().max(500).optional(),
+});
+
 module.exports = {
   cameraBridgeCreateSchema,
   cameraBridgeUpdateSchema,
   cameraCreateSchema,
   cameraUpdateSchema,
+  cameraEventSchema,
+  CAMERA_EVENT_TYPES,
 };

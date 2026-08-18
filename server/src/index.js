@@ -195,6 +195,16 @@ app.use("/api/guardian-auth", require("./routes/guardianAuth"));
 // resolved the normal Host-based way, same as /api/guardian-auth above).
 app.use("/api/device", require("./routes/deviceAttendance"));
 
+// Camera-bridge event ingestion (docs/CCTV_INTEGRATION_PLAN.md, Phase 3) —
+// same reasoning as /api/device just above: the bridge machine (Phase 5,
+// outside this repo) has no staff JWT, so this is mounted here (after
+// tenantResolve, before the staff requireAuth/rbac chain below) and
+// authenticates itself with deviceId+secretKey instead
+// (routes/cameraEvents.js's authenticateBridge()). No tenantResolve.js
+// isSkippedPath() entry needed — this route DOES belong to a tenant,
+// resolved the normal Host-based way, same as /api/device.
+app.use("/api/camera-bridge", require("./routes/cameraEvents"));
+
 // Bridge-free ADMS attendance-device ingestion
 // (docs/ATTENDANCE_DEVICE_CENTRALIZED_INGESTION_PLAN.md, Phase 2) — mounted
 // at the bare top-level /iclock path (not /api), matching the fixed path

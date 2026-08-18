@@ -1,10 +1,17 @@
 # পরিকল্পনা: CCTV ক্যামেরা ইন্টিগ্রেশন (Live View + রেকর্ডিং + AI ডিটেকশন)
 
-তৈরি: 2026-08-18 · প্রজেক্ট: madrasah-website · স্ট্যাটাস: **Phase 1 সম্পন্ন (2026-08-18) — বাকি Phase 2-৮**
+তৈরি: 2026-08-18 · প্রজেক্ট: madrasah-website · স্ট্যাটাস: **Phase 1–3 সম্পন্ন (2026-08-19) — বাকি Phase 4-৮**
 
 **Phase 1 আপডেট (2026-08-18):** `server/sql/supabase_schema.sql`-এ
 `camera_bridges`, `cameras`, `camera_events` টেবিল যোগ হয়েছে (স্কিমা-অনলি,
-কোনো রুট/API এখনো নেই)। বিস্তারিত `docs/CURRENT_TASK.md`-এ।
+কোনো রুট/API এখনো নেই)।
+
+**Phase 2 আপডেট (2026-08-19):** Camera/Bridge ম্যানেজমেন্ট API
+(`server/src/routes/cameras.js`, authenticated, `"cameras"` পারমিশন)।
+
+**Phase 3 আপডেট (2026-08-19):** ইভেন্ট ইনজেশন API
+(`POST /api/camera-bridge/event`, unauthenticated + secretKey, কুলডাউন +
+in-app/push নোটিফিকেশন)। বিস্তারিত `docs/CURRENT_TASK.md`-এ।
 
 ---
 

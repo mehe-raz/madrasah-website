@@ -3529,12 +3529,14 @@ Phase 1 (payments cascade fix) finished 2026-08-05:
 ---
 
 ## Task: CCTV ইন্টিগ্রেশন — Phase 1 (DB স্কিমা) + Phase 2 (Camera/Bridge
-ম্যানেজমেন্ট API), পুরো পরিকল্পনা `docs/CCTV_INTEGRATION_PLAN.md`-এ
+ম্যানেজমেন্ট API) + Phase 3 (ইভেন্ট ইনজেশন API), পুরো পরিকল্পনা
+`docs/CCTV_INTEGRATION_PLAN.md`-এ
 
-## Status: DONE (Phase 1–2 সম্পন্ন — Phase 3-৮ শুরু হয়নি)
+## Status: DONE (Phase 1–3 সম্পন্ন — Phase 4-৮ শুরু হয়নি)
 
 Phase 1 Completed: 2026-08-18
 Phase 2 Completed: 2026-08-19
+Phase 3 Completed: 2026-08-19
 
 ### Phase 1 — DB স্কিমা (2026-08-18)
 `server/sql/supabase_schema.sql`-এ তিনটা নতুন টেবিল:
@@ -3567,9 +3569,54 @@ Phase 2 Completed: 2026-08-19
   এবং bracket-balance স্ক্রিপ্ট দিয়েও। আসল `npm run check` আপনার
   প্যাকেজড CMD-তেই প্রথম চলবে।
 
-পরের এজেন্ট Phase 3 থেকে শুরু করবে: Event ingestion API
-(`server/src/routes/cameraEvents.js` — bridge → server, secretKey auth,
-curl দিয়ে টেস্ট সম্ভব, আসল ক্যামেরা লাগবে না)।
+### Phase 3 — ইভেন্ট ইনজেশন API (2026-08-19)
+- `server/src/lib/cameraSchemas.js` — নতুন `cameraEventSchema` (Zod):
+  `deviceId`/`secretKey` (bridge auth), `cameraId` (numeric, `cameras.id`),
+  `type` (`z.enum(["motion","human","vehicle"])` — `CAMERA_EVENT_TYPES`
+  নামে এক্সপোর্টও করা হয়েছে, ভবিষ্যতে UI ফিল্টারে রিইউজযোগ্য), `detectedAt`
+  (ISO স্ট্রিং, প্রজেক্টের টাইমস্ট্যাম্প-টেক্সট কনভেনশন অনুযায়ী),
+  ঐচ্ছিক `clipPath`।
+- নতুন `server/src/routes/cameraEvents.js` — `POST /api/camera-bridge/event`:
+  - `authenticateBridge()` (deviceId+secretKey, `camera_bridges` টেবিলে
+    plain equality — deviceAttendance.js-এর `authenticateDevice()`-এর
+    হুবহু প্যাটার্নে, কারণ secretKey সার্ভার-জেনারেটেড র‍্যান্ডম টোকেন,
+    ইউজার-পাসওয়ার্ড না)।
+  - `cameraId` আসলেই ওই bridge-এর অধীনে আছে কিনা যাচাই
+    (`cameras.bridgeDeviceId = deviceId` ম্যাচ) — নাহলে বৈধ ক্রেডেনশিয়াল
+    দিয়ে অন্য bridge-এর ক্যামেরার নামে ইভেন্ট পাঠানো যেত।
+  - কুলডাউন লজিক (প্ল্যানের §৩): insert-এর **আগে** সেই ক্যামেরার সর্বশেষ
+    event-এর `detectedAt`-এর সাথে তুলনা করে ৫ মিনিটের মধ্যে হলে
+    `shouldNotify = false` — কিন্তু event সবসময় `camera_events`-এ রেকর্ড
+    হয় (নোটিফিকেশন স্কিপ হলেও, Phase 8-এর টাইমলাইন কোনো ইভেন্ট হারাবে না)।
+  - নোটিফিকেশন দুই জায়গায় (backup.js-এর `alertBackupFailure()`-এর
+    প্যাটার্নে, দুটোই আলাদা try/catch): (১) in-app বেল —
+    `createNotification()` (`lib/notifications.js`, নিজেই কখনো থ্রো করে
+    না), `targetRoles: ["Admin","Super Admin"]`, `link: "/cameras"`
+    (Phase 6-এর UI রুট, এখনো বানানো হয়নি — guardianPush-এর `/guardian`-এর
+    মতোই আগে থেকে রেফারেন্স করে রাখা হয়েছে); (২) push — **নতুন
+    `notifyDirectors()` না বানিয়ে বিদ্যমান `lib/adminPush.js`-এর
+    `notifyByRole()` রিইউজ করা হয়েছে** (প্ল্যানের §৩-এ "বিদ্যমান ফাংশন
+    এক্সটেন্ড" অপশনটাই বেছে নেওয়া হয়েছে — এই ফাংশনটা backup.js ইতিমধ্যে
+    ব্যবহার করছে, ঠিক এই কাজের জন্যই বানানো, নতুন কিছু লেখা লাগেনি)।
+  - রেট-লিমিটার `cameraEventLimiter` (৬০/মিনিট, deviceAttendance.js-এর
+    `devicePunchLimiter`-এর হুবহু কনফিগ)।
+- `server/src/index.js` — `/api/camera-bridge` মাউন্ট, `/api/device`-এর
+  ঠিক পরে (একই কারণে — bridge-এর কোনো staff JWT নেই, তাই authenticated
+  chain-এর আগে, কিন্তু tenantResolve-এর পরে — `isSkippedPath()` এন্ট্রি
+  লাগেনি, `/api/device`-এর মতোই এটাও একটা tenant-এর অন্তর্গত)।
+- **`ROUTE_PERMISSION`/`rbac.test.js`-এ এই রুটের কোনো এন্ট্রি লাগেনি** —
+  এটা unauthenticated (staff RBAC চেইনের বাইরে), `/api/device`-এর মতোই।
+- `node --check` দিয়ে তিনটা পরিবর্তিত/নতুন `.js` ফাইল (`cameraEvents.js`,
+  `cameraSchemas.js`, `index.js`) সিনট্যাক্স-পাস করেছে। sandbox-এ
+  network/node_modules না থাকায় আসল `npm run check`, ও curl দিয়ে একটা
+  ফেক ইভেন্ট পাঠিয়ে DB-তে ঢুকল কিনা + cooldown ঠিকমতো কাজ করছে কিনা +
+  নোটিফিকেশন গেল কিনা — এই যাচাইগুলো আপনার প্যাকেজড CMD-তেই প্রথম হবে
+  (আগের সব Phase-এর প্যাটার্নে)।
+
+পরের এজেন্ট Phase 4 থেকে শুরু করবে: লাইভ-ভিউ স্ট্রিম প্রক্সি (ব্যাকএন্ড)
+— `GET /api/cameras/:id/stream-url`। **⚠ এখান থেকে টেস্ট করতে আসল
+ক্যামেরা বা অন্তত একটা টেস্ট RTSP স্ট্রিম লাগবে** (প্ল্যান ডকের §৪
+অনুযায়ী)।
 
 ---
 
