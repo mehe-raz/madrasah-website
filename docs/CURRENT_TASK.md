@@ -3532,12 +3532,13 @@ Phase 1 (payments cascade fix) finished 2026-08-05:
 ম্যানেজমেন্ট API) + Phase 3 (ইভেন্ট ইনজেশন API) + Phase 4 (লাইভ-ভিউ স্ট্রিম
 প্রক্সি), পুরো পরিকল্পনা `docs/CCTV_INTEGRATION_PLAN.md`-এ
 
-## Status: DONE (Phase 1–4 সম্পন্ন — Phase 5-৮ শুরু হয়নি)
+## Status: DONE (Phase 1–5 সম্পন্ন — Phase 6-৮ শুরু হয়নি)
 
 Phase 1 Completed: 2026-08-18
 Phase 2 Completed: 2026-08-19
 Phase 3 Completed: 2026-08-19
 Phase 4 Completed: 2026-08-19
+Phase 5 Completed: 2026-08-19
 
 ### Phase 1 — DB স্কিমা (2026-08-18)
 `server/sql/supabase_schema.sql`-এ তিনটা নতুন টেবিল:
@@ -3678,11 +3679,75 @@ Phase 4 Completed: 2026-08-19
   ক্যামেরা দিয়ে ম্যানুয়াল ভেরিফিকেশন — sandbox-এ সম্ভব হয়নি, আপনার
   প্যাকেজড CMD-তেই প্রথম যাচাই হবে (আগের সব Phase-এর প্যাটার্নে)।**
 
-পরের এজেন্ট Phase 5 থেকে শুরু করবে: camera-bridge প্রোগ্রাম (মূল রিপোর
-বাইরে, নতুন `camera-bridge/` ফোল্ডার — Frigate-এর MQTT ইভেন্ট সাবস্ক্রাইব
-করে Phase 3-এর `/api/camera-bridge/event`-এ ফরওয়ার্ড করবে)। **⚠ এখান
-থেকে টেস্ট করতে আসল ক্যামেরা/Frigate ইনস্টল লাগবে** (প্ল্যান ডকের §৫
-অনুযায়ী)।
+### Phase 5 — camera-bridge প্রোগ্রাম + docker-compose স্ট্যাক (2026-08-19)
+**⚠ এখান থেকে আসল ভেরিফিকেশনে ক্যামেরা/Frigate ইনস্টল লাগবে — এই সেশনে শুধু
+কোড/কনফিগ লেখা হয়েছে, কোনো লাইভ MQTT ব্রোকার/Frigate ইনস্ট্যান্স দিয়ে
+টেস্ট করা যায়নি (প্ল্যান ডকের §৫-এ আগে থেকেই ফ্ল্যাগ করা সীমাবদ্ধতা)।**
+
+- নতুন `camera-bridge/` ফোল্ডার (রিপো রুটে, `hardware-bridge/`-এর ঠিক
+  পাশে, নিজস্ব `package.json` — মূল `npm run check`-এর scope-এর বাইরে,
+  Phase 5-এর প্ল্যানে যেমন বলা ছিল):
+  - `index.js` — MQTT ব্রোকার (Mosquitto)-এ কানেক্ট করে `frigate/events`
+    টপিক সাবস্ক্রাইব করে (Frigate-এর ডকুমেন্টেড JSON শেপ,
+    docs.frigate.video/integrations/mqtt অনুযায়ী — **আসল যাচাই হয়নি**)।
+    শুধু `type === "new"` মেসেজ প্রসেস করে (একটা ডিটেকশনের শুরুর মুহূর্ত —
+    update/end মেসেজ ফরওয়ার্ড করা হয় না, ডুপ্লিকেট এড়াতে)। `after.camera`
+    (Frigate-এর ক্যামেরা-নাম) কে `CAMERA_MAP` env var দিয়ে ড্যাশবোর্ডের
+    numeric `cameraId`-তে ম্যাপ করে; `after.label` কে
+    `human`/`vehicle`/`motion`-এ ম্যাপ করে (person→human,
+    car/truck/bus/motorcycle/bicycle→vehicle, বাকি সব→motion, কখনো অনুমান
+    করে না — অজানা ক্যামেরা-নাম স্কিপ + লগ হয়)। Phase 3-এর
+    `POST /api/camera-bridge/event`-এ ফরওয়ার্ড করে (deviceId+secretKey,
+    hardware-bridge-এর `forwardPunch()`-এর ঠিক প্যাটার্নে, কখনো throw করে
+    না)। কুলডাউন-লজিক এখানে নেই ইচ্ছাকৃতভাবে — Phase 3-এর সার্ভার-সাইড
+    ৫-মিনিট কুলডাউন এটা ইতিমধ্যেই হ্যান্ডল করে।
+  - প্রতিটা রিসিভড MQTT মেসেজ `raw-events.log`-এ লগ হয়
+    (hardware-bridge-এর `raw-requests.log`-এর প্যাটার্নে) — আসল Frigate
+    কানেক্ট হওয়ার পর payload শেপ মেলানোর মূল টুল।
+  - Phase 3A-এর মতোই bilingual per-variable startup validation
+    (`MADRASAH_API_BASE`/`DEVICE_ID`/`DEVICE_SECRET`/`CAMERA_MAP` কোনোটা
+    খালি/placeholder থাকলে) + startup self-check (`GET /api/health`)।
+  - `.env.example` — `MADRASAH_API_BASE`, `DEVICE_ID`/`DEVICE_SECRET`
+    (Phase 2-এর bridge-create রেসপন্স থেকে), `MQTT_BROKER_URL`/
+    `MQTT_USERNAME`/`MQTT_PASSWORD`, `CAMERA_MAP` (Frigate-camera-name:
+    dashboard-camera-id জোড়া, কমা দিয়ে আলাদা — JSON না, Notepad-এ এডিট
+    করা সহজ রাখতে), ঐচ্ছিক `FRIGATE_URL` (সেট থাকলে ও Frigate
+    `has_clip: true` রিপোর্ট করলে ইভেন্টে `clipPath` যোগ হয়)।
+  - `package.json` — নতুন dependency শুধু `mqtt` (প্ল্যানের §৫-এ আগে থেকেই
+    ফ্ল্যাগ করা ছিল), `dotenv` hardware-bridge-এর মতোই; `pkg` দিয়ে
+    exe-বিল্ড স্ক্রিপ্টও রাখা হয়েছে (hardware-bridge Phase 3B-এর প্যাটার্নে,
+    যদিও এই সেশনে বিল্ড/টেস্ট করা হয়নি)।
+  - `README.md` — সম্পূর্ণ বাংলা, ধাপে ধাপে, অ-টেকনিক্যাল ভাষায়:
+    Docker Desktop + Node.js ইনস্টল → `docker compose up -d` (Frigate+
+    MediaMTX+Mosquitto চালু) → Frigate কনফিগে ক্যামেরার RTSP লিংক বসানো →
+    `camera-bridge/`-এ `npm install` → `.env` তৈরি/পূরণ → `npm start`।
+    "কাজ না করলে কী করবেন" সেকশনও আছে (`raw-events.log` চেক করা,
+    CAMERA_MAP নাম-মিসম্যাচ, ইত্যাদি)।
+- রিপো-রুটে নতুন `docker-compose.yml` (Frigate + MediaMTX + Mosquitto
+  একসাথে চালানোর জন্য, `docker compose up -d`) + তিনটা কনফিগ-টেমপ্লেট
+  ফোল্ডার: `frigate-config/config.yml` (ক্যামেরা RTSP + detection +
+  MQTT সেটিংসের নমুনা), `mediamtx-config/mediamtx.yml` (RTSP→HLS পাথ,
+  Phase 4-এর `streamPath`-এর সাথে নাম মেলাতে হবে এই নোটসহ),
+  `mosquitto-config/mosquitto.conf` (মিনিমাল, লোকাল-নেটওয়ার্ক-শুধু
+  anonymous access, ইন্টারনেটে এক্সপোজ না করার সতর্কতাসহ)। এই সব
+  কনফিগ **সম্পূর্ণ টেমপ্লেট/উদাহরণ** — আসল ক্যামেরার RTSP লিংক/নাম বসিয়ে
+  ব্যবহারকারীকে নিজে এডিট করতে হবে (README-তে ধাপ হিসেবে লেখা আছে)।
+  ports-এ একটা সম্ভাব্য কনফ্লিক্ট নোট করা আছে (Frigate ও MediaMTX দুটোই
+  ডিফল্ট 8554 ব্যবহার করতে চাইবে যদি একই হোস্টে চলে — docker-compose.yml-এর
+  কমেন্টে ফ্ল্যাগ করা)।
+- `.gitignore`-এ `camera-bridge/raw-events.log` যোগ (hardware-bridge-এর
+  `raw-requests.log` এন্ট্রির ঠিক পাশে, একই কারণে — ডিবাগ-লগ, কমিট না)।
+- `node --check` দিয়ে `camera-bridge/index.js` সিনট্যাক্স-পাস করেছে,
+  `package.json` valid JSON যাচাই করা হয়েছে, bracket-balance স্ক্রিপ্ট
+  দিয়েও `index.js` চেক করা হয়েছে (সব মিলেছে)। **এই ফোল্ডার মূল অ্যাপের
+  `npm run check`-এর scope-এর বাইরে** (hardware-bridge-এর মতোই,
+  `scripts/check-server.js` শুধু `server/src` স্ক্যান করে) — আলাদাভাবে
+  Docker + আসল/টেস্ট MQTT ব্রোকার/Frigate দিয়ে `cd camera-bridge && npm
+  install && npm start` চালিয়ে টেস্ট করতে হবে, যেটা এই sandbox-এ সম্ভব
+  হয়নি।
+
+পরের এজেন্ট Phase 6 থেকে শুরু করবে: ক্লায়েন্ট Cameras ম্যানেজমেন্ট পেজ
+(Admin) — ক্যামেরা লাগবে না, বিদ্যমান Phase 2 API দিয়েই UI বানানো যাবে।
 
 ---
 

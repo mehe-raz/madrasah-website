@@ -1,0 +1,81 @@
+# docker-compose.yml — CCTV local stack (docs/CCTV_INTEGRATION_PLAN.md, Phase 5)
+# ============================================================================
+# Runs the three open-source pieces this feature needs on the institution's
+# own bridge machine — NOT part of the main madrasah-website app, and never
+# touched by its npm install/build/check:
+#   - mosquitto  — MQTT broker Frigate publishes detection events to
+#   - frigate    — motion/human/vehicle detection (subscribes to camera RTSP
+#                  streams directly, no cloud account needed)
+#   - mediamtx   — takes each camera's RTSP stream and also serves it as
+#                  HLS, which is what Phase 4's stream proxy expects
+#                  (cameras.streamPath on the dashboard = MediaMTX's path
+#                  name for that camera, e.g. "gate" -> .../hls/gate/index.m3u8)
+#
+# UNVERIFIED against a real camera/Frigate install (no hardware was
+# available while this was written, see CCTV_INTEGRATION_PLAN.md's Phase 5
+# warning) — ports/volumes below follow each project's own published
+# docker-compose examples as of this writing; adjust if a real run
+# surfaces a mismatch (check `docker compose logs frigate` /
+# `docker compose logs mediamtx` first).
+#
+# Usage: from the repo root, `docker compose up -d` to start all three,
+# `docker compose down` to stop, `docker compose logs -f frigate` to watch
+# Frigate's own log. See camera-bridge/README.md for the full setup flow.
+# ============================================================================
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: madrasah-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto-config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+
+  frigate:
+    image: ghcr.io/blakeblackshear/frigate:stable
+    container_name: madrasah-frigate
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    # Frigate's detection engine needs shared memory sized to the camera
+    # count/resolution — 128mb is Frigate's own documented starting point
+    # for a couple of cameras; raise it (see Frigate's docs) if you add more.
+    shm_size: "128mb"
+    devices:
+      # Optional hardware video decode passthrough (Intel/AMD GPU on the
+      # bridge machine) — safe to leave even if the device doesn't exist
+      # on a given machine is NOT true for Docker, so comment this out on
+      # a bridge machine with no /dev/dri (e.g. a Raspberry Pi without one).
+      - /dev/dri:/dev/dri
+    volumes:
+      - ./frigate-config/config.yml:/config/config.yml:ro
+      - frigate-storage:/media/frigate
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "5000:5000"   # Frigate's own web UI (useful for debugging directly)
+      - "8554:8554"   # Frigate's built-in RTSP restream (go2rtc)
+    environment:
+      FRIGATE_MQTT_HOST: mosquitto
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: madrasah-mediamtx
+    restart: unless-stopped
+    volumes:
+      - ./mediamtx-config/mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "8554:8554"   # RTSP publish/read — NOTE: conflicts with Frigate's
+                       # port above if both run on the same host; change one
+                       # of the two (e.g. MediaMTX -> 8555) if you hit a
+                       # "port already in use" error on `docker compose up`.
+      - "8888:8888"   # HLS output — this is what cameras.streamPath (Phase
+                       # 1/4) points at, e.g. http://bridge-tunnel/8888/gate/
+
+volumes:
+  mosquitto-data:
+  mosquitto-log:
+  frigate-storage:

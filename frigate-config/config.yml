@@ -1,0 +1,49 @@
+# frigate-config/config.yml
+# ============================================================================
+# Frigate configuration template (docs/CCTV_INTEGRATION_PLAN.md, Phase 5).
+# Replace the placeholder camera below with your own — one block per
+# physical camera. Full reference: https://docs.frigate.video/configuration/
+#
+# UNVERIFIED against real hardware — this follows Frigate's own documented
+# minimal example as of this writing. After editing, restart Frigate:
+#   docker compose restart frigate
+# and check `docker compose logs frigate` if a camera doesn't come online.
+# ============================================================================
+
+mqtt:
+  host: mosquitto
+  port: 1883
+
+# go2rtc lets Frigate re-serve each camera's RTSP stream on its own
+# built-in restream port (8554, see docker-compose.yml) — this is the URL
+# MediaMTX pulls from (mediamtx-config/mediamtx.yml), so the camera itself
+# only ever has one RTSP client connected (Frigate), not two.
+go2rtc:
+  streams:
+    gate:
+      - rtsp://username:password@camera-ip:554/stream1
+
+cameras:
+  # Camera name here ("gate") must exactly match: (1) the go2rtc stream
+  # name above, (2) mediamtx-config/mediamtx.yml's path name, and (3) the
+  # left-hand side of a CAMERA_MAP pair in camera-bridge/.env — all four
+  # need to agree, or events/streams will silently go to the wrong place.
+  gate:
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/gate
+          roles:
+            - detect
+            - record
+    detect:
+      width: 1280
+      height: 720
+      fps: 5
+    record:
+      enabled: true
+      retain:
+        days: 7
+    objects:
+      track:
+        - person
+        - car

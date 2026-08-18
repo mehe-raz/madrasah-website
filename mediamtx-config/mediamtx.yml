@@ -1,0 +1,31 @@
+# mediamtx-config/mediamtx.yml
+# ============================================================================
+# Minimal MediaMTX config for the local CCTV stack
+# (docs/CCTV_INTEGRATION_PLAN.md, Phase 5) — takes each camera's RTSP
+# stream (proxied from Frigate's own restream, or directly from the
+# camera) and serves it as HLS for the website's live-view proxy
+# (Phase 4's GET /api/camera-stream/:cameraId/... reads from here).
+#
+# UNVERIFIED against a real camera/Frigate install — adjust source URLs
+# once real hardware is connected (check `docker compose logs mediamtx`
+# if a path doesn't come up).
+# ============================================================================
+
+hlsAddress: :8888
+
+# One entry per camera. "source" pulls from Frigate's own RTSP restream
+# (go2rtc, port 8554 in docker-compose.yml) rather than the camera
+# directly, so only one connection is made to each physical camera (many
+# budget IP cameras only support a small number of simultaneous RTSP
+# clients) — Frigate does the detection AND feeds MediaMTX from the same
+# single connection.
+#
+# Replace "gate"/"yard" below with your own camera names — these must
+# match: (1) the camera name used in frigate-config/config.yml, and
+# (2) the "streamPath" value set for that camera on the admin dashboard's
+# ক্যামেরা page (Phase 2), so the two stay in sync.
+paths:
+  gate:
+    source: rtsp://madrasah-frigate:8554/gate
+  yard:
+    source: rtsp://madrasah-frigate:8554/yard

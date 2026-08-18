@@ -1,0 +1,24 @@
+{
+  "name": "madrasah-camera-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Standalone Node.js service that subscribes to Frigate's MQTT event topic and forwards motion/human/vehicle detections to POST /api/camera-bridge/event on the main madrasah-website server. See README.md — this is NOT part of the main app's npm install/build/check (docs/CCTV_INTEGRATION_PLAN.md, Phase 5: bridge lives outside the main codebase on purpose, same pattern as hardware-bridge/).",
+  "main": "index.js",
+  "bin": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "pkg . --targets node18-win-x64 --output dist/madrasah-camera-bridge.exe"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "mqtt": "^5.10.1"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "assets": [
+      ".env.example"
+    ]
+  }
+}

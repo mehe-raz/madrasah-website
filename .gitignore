@@ -10,3 +10,7 @@ server/data/
 # hardware-bridge (Phase 5) — raw traffic dump, useful locally for
 # debugging a real device's dialect but not something to commit.
 hardware-bridge/raw-requests.log
+
+# camera-bridge (CCTV_INTEGRATION_PLAN.md Phase 5) — raw MQTT event dump,
+# useful locally for debugging Frigate's payload shape but not committed.
+camera-bridge/raw-events.log

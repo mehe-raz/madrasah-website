@@ -1,6 +1,6 @@
 # পরিকল্পনা: CCTV ক্যামেরা ইন্টিগ্রেশন (Live View + রেকর্ডিং + AI ডিটেকশন)
 
-তৈরি: 2026-08-18 · প্রজেক্ট: madrasah-website · স্ট্যাটাস: **Phase 1–4 সম্পন্ন (2026-08-19) — বাকি Phase 5-৮**
+তৈরি: 2026-08-18 · প্রজেক্ট: madrasah-website · স্ট্যাটাস: **Phase 1–5 সম্পন্ন (2026-08-19) — বাকি Phase 6-৮**
 
 **Phase 1 আপডেট (2026-08-18):** `server/sql/supabase_schema.sql`-এ
 `camera_bridges`, `cameras`, `camera_events` টেবিল যোগ হয়েছে (স্কিমা-অনলি,
@@ -18,6 +18,13 @@ in-app/push নোটিফিকেশন)। বিস্তারিত `docs
 `GET /api/camera-stream/:cameraId/...` (public proxy, নিজস্ব signed token
 দিয়ে)। `camera_bridges`-এ নতুন `"tunnelUrl"` কলাম যোগ হয়েছে (Phase 1-এ ছিল
 না)। বিস্তারিত `docs/CURRENT_TASK.md`-এ।
+
+**Phase 5 আপডেট (2026-08-19):** `camera-bridge/` (মূল রিপোর বাইরে,
+hardware-bridge/-এর পাশে) — Frigate-এর MQTT `frigate/events` টপিক
+সাবস্ক্রাইব করে Phase 3-এর `POST /api/camera-bridge/event`-এ ফরওয়ার্ড
+করে। সাথে রিপো-রুটে `docker-compose.yml` (Frigate+MediaMTX+Mosquitto)
++ `frigate-config/`/`mediamtx-config/`/`mosquitto-config/` টেমপ্লেট।
+বিস্তারিত `docs/CURRENT_TASK.md`-এ।
 
 ---
 
