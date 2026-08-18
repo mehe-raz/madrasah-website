@@ -29,6 +29,11 @@ export const en = {
     attendanceDevices: "Attendance Devices",
     staff: "Staff",
     staffAttendance: "Staff Attendance",
+    examDocsGroup: "Exam Documents",
+    communicationGroup: "Communication",
+    staffGroup: "Staff Management",
+    billingGroup: "Billing Settings",
+    systemGroup: "System",
     // docs/SHIFT_SCHEDULE_PLAN.md, Phase 6 — see bn.ts's nav.shifts comment.
     shifts: "Shifts",
     // ad-hoc, docs/CURRENT_TASK.md

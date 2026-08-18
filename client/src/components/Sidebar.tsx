@@ -6,23 +6,262 @@ import { usePlanFeatures } from "../context/PlanContext";
 import { useMadrasaBranding } from "../hooks/useMadrasaBranding";
 import { canAccess, canViewAuditLogs, type Permission } from "../lib/permissions";
 import { Icons, type IconKey } from "../lib/icons";
+import type { Dict } from "../i18n/bn";
 
-// `feature` is omitted for nav items that are never plan-gated (dashboard,
-// students, attendance, results, website, settings) — see the 6-route list
-// in server/src/config/planFeatures.js / App.tsx's PlanFeatureGate wiring.
-const NAV_IDS: { id: string; path: string; icon: IconKey; key: Permission; feature?: string }[] = [
-  { id: "dashboard", path: "/", icon: "dashboard", key: "dashboard" },
-  { id: "students", path: "/students", icon: "students", key: "students" },
-  { id: "attendance", path: "/attendance", icon: "attendance", key: "attendance" },
-  { id: "income", path: "/income", icon: "income", key: "income", feature: "feesCollection" },
-  { id: "expenses", path: "/expenses", icon: "expenses", key: "expenses", feature: "expenses" },
-  { id: "hifz", path: "/hifz", icon: "hifz", key: "hifz", feature: "hifzTracking" },
-  { id: "results", path: "/results", icon: "results", key: "results" },
-  { id: "assignments", path: "/assignments", icon: "assignments", key: "assignments", feature: "assignmentsBroadcast" },
-  { id: "reports", path: "/reports", icon: "reports", key: "reports", feature: "reportsExport" },
-  { id: "website", path: "/website", icon: "website", key: "website" },
-  { id: "settings", path: "/settings", icon: "settings", key: "settings" },
+// --- Nav structure ----------------------------------------------------
+// ad-hoc, docs/CURRENT_TASK.md "sidebar reorganization" — the sidebar had
+// grown to ~21 flat top-level items (one per feature added over time),
+// which no longer scanned well on desktop and was a very long scroll on
+// mobile (the mobile drawer always renders the full open/labeled sidebar —
+// there's no icon-only rail on phones, see Layout.tsx). Reorganized into:
+//   - TOP_ITEMS: daily-use screens, always flat/visible, in the order most
+//     people touch them in a normal day.
+//   - MID_ITEMS: checked regularly but not daily (reports, the public
+//     website admin) — flat, rendered between the daily items and the
+//     occasional-use groups below.
+//   - GROUPS: things used occasionally, seasonally, or as one-time setup
+//     (exam-time printing, outbound messaging, staff records, billing
+//     config, hardware/audit admin) — collapsed by default, each behind
+//     one parent row, so they don't compete for scan-priority with daily
+//     work but are still one tap away.
+//   - Settings: always last, separated by a divider — it's configuration,
+//     not a "do work" screen, so it doesn't belong mixed into the flow
+//     above.
+// On a collapsed desktop rail (open === false) there's no room for group
+// headers or indentation, so every item — top, mid, and every group's
+// children — falls back to one flat list of icon-only links, same as the
+// old SMS group already did; see the `!open` branch in NavGroup below.
+interface NavLeaf {
+  id: string;
+  path: string;
+  icon: IconKey;
+  permission: Permission;
+  labelKey: keyof Dict["nav"];
+  feature?: string;
+  auditLogsCheck?: boolean; // audit logs uses canViewAuditLogs(), not canAccess()
+}
+
+interface NavGroupDef {
+  id: string;
+  icon: IconKey;
+  labelKey: keyof Dict["nav"];
+  items: NavLeaf[];
+}
+
+const TOP_ITEMS: NavLeaf[] = [
+  { id: "dashboard", path: "/", icon: "dashboard", permission: "dashboard", labelKey: "dashboard" },
+  { id: "students", path: "/students", icon: "students", permission: "students", labelKey: "students" },
+  { id: "attendance", path: "/attendance", icon: "attendance", permission: "attendance", labelKey: "attendance" },
+  { id: "results", path: "/results", icon: "results", permission: "results", labelKey: "results" },
+  { id: "hifz", path: "/hifz", icon: "hifz", permission: "hifz", labelKey: "hifz", feature: "hifzTracking" },
+  { id: "income", path: "/income", icon: "income", permission: "income", labelKey: "income", feature: "feesCollection" },
+  { id: "expenses", path: "/expenses", icon: "expenses", permission: "expenses", labelKey: "expenses", feature: "expenses" },
 ];
+
+const MID_ITEMS: NavLeaf[] = [
+  { id: "reports", path: "/reports", icon: "reports", permission: "reports", labelKey: "reports", feature: "reportsExport" },
+  { id: "website", path: "/website", icon: "website", permission: "website", labelKey: "website" },
+];
+
+const GROUPS: NavGroupDef[] = [
+  // Exam-time printing — used in bursts around exams, not daily.
+  {
+    id: "examDocs",
+    icon: "admitCards",
+    labelKey: "examDocsGroup",
+    items: [
+      { id: "admitCards", path: "/admit-cards", icon: "admitCards", permission: "results", labelKey: "admitCards" },
+      { id: "examCoverSheets", path: "/exam-cover-sheets", icon: "examCoverSheets", permission: "results", labelKey: "examCoverSheets" },
+    ],
+  },
+  // Outbound messaging to guardians — sent when needed, not a daily check.
+  {
+    id: "communication",
+    icon: "assignments",
+    labelKey: "communicationGroup",
+    items: [
+      { id: "assignments", path: "/assignments", icon: "assignments", permission: "assignments", labelKey: "assignments", feature: "assignmentsBroadcast" },
+      { id: "guardianReminders", path: "/guardian-reminders", icon: "bell", permission: "settings", labelKey: "guardianReminders" },
+      { id: "sms", path: "/sms", icon: "sms", permission: "settings", labelKey: "sms", feature: "sms" },
+      { id: "bulkSms", path: "/bulk-sms", icon: "bulkSms", permission: "settings", labelKey: "bulkSms", feature: "sms" },
+    ],
+  },
+  // Staff records/attendance — a separate registry from student-facing
+  // daily work above.
+  {
+    id: "staffGroup",
+    icon: "staff",
+    labelKey: "staffGroup",
+    items: [
+      { id: "staff", path: "/staff", icon: "staff", permission: "staff", labelKey: "staff" },
+      { id: "staffAttendance", path: "/staff-attendance", icon: "staffAttendance", permission: "staffAttendance", labelKey: "staffAttendance" },
+    ],
+  },
+  // Payment/subscription configuration — set up once, revisited rarely.
+  {
+    id: "billingGroup",
+    icon: "paymentGateway",
+    labelKey: "billingGroup",
+    items: [
+      { id: "paymentGateway", path: "/payment-gateway", icon: "paymentGateway", permission: "settings", labelKey: "paymentGateway", feature: "bkash" },
+      { id: "institutionBilling", path: "/settings/billing", icon: "institutionBilling", permission: "settings", labelKey: "institutionBilling" },
+    ],
+  },
+  // Hardware setup + oversight — one-time or occasional, admin-only.
+  {
+    id: "systemGroup",
+    icon: "fingerprint",
+    labelKey: "systemGroup",
+    items: [
+      { id: "attendanceDevices", path: "/attendance-devices", icon: "fingerprint", permission: "attendance", labelKey: "attendanceDevices" },
+      { id: "auditLogs", path: "/audit-logs", icon: "auditLogs", permission: "settings", labelKey: "auditLogs", feature: "auditLogs", auditLogsCheck: true },
+    ],
+  },
+];
+
+const SETTINGS_ITEM: NavLeaf = { id: "settings", path: "/settings", icon: "settings", permission: "settings", labelKey: "settings" };
+
+function canSeeItem(role: string, item: NavLeaf): boolean {
+  if (item.auditLogsCheck) return canViewAuditLogs(role);
+  return canAccess(role, item.permission);
+}
+
+const itemStyle = (isActive: boolean, open: boolean, indent: boolean) => ({
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  padding: indent ? "9px 12px" : open ? "11px 12px" : "11px 10px",
+  textDecoration: "none",
+  color: isActive ? "#fff" : `rgba(255,255,255,${indent ? 0.72 : 0.84})`,
+  background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
+  border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
+  fontSize: indent ? 12.5 : 13,
+  fontWeight: indent ? 700 : 800,
+  justifyContent: open ? "flex-start" : "center",
+});
+
+function NavItem({
+  item,
+  open,
+  indent,
+  showIcon,
+  onNavigate,
+  isLocked,
+  t,
+}: {
+  item: NavLeaf;
+  open: boolean;
+  indent: boolean;
+  showIcon: boolean;
+  onNavigate?: () => void;
+  isLocked: (feature: string) => boolean;
+  t: Dict;
+}) {
+  const Icon = Icons[item.icon];
+  const locked = item.feature ? isLocked(item.feature) : false;
+  return (
+    <NavLink
+      to={item.path}
+      onClick={onNavigate}
+      className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${locked ? "nav-item--locked" : ""}`}
+      style={({ isActive }) => itemStyle(isActive, open, indent)}
+      title={!open ? t.nav[item.labelKey] : undefined}
+    >
+      {showIcon && <Icon size={indent ? 16 : 18} style={{ flexShrink: 0 }} aria-hidden="true" />}
+      {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav[item.labelKey]}</span>}
+      {open && locked && (
+        <span className="nav-item__lock-badge" aria-hidden="true">
+          <Icons.lock size={12} />
+        </span>
+      )}
+    </NavLink>
+  );
+}
+
+function NavGroup({
+  group,
+  role,
+  open,
+  isOpen,
+  onToggle,
+  currentPath,
+  onNavigate,
+  isLocked,
+  t,
+}: {
+  group: NavGroupDef;
+  role: string;
+  open: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  currentPath: string;
+  onNavigate?: () => void;
+  isLocked: (feature: string) => boolean;
+  t: Dict;
+}) {
+  const visibleItems = group.items.filter((item) => canSeeItem(role, item));
+  if (!visibleItems.length) return null;
+
+  // Collapsed desktop rail: no room for a header/flyout, so the group's
+  // own items just fall into the same flat icon-only list as everything
+  // else (same fallback the old SMS group used).
+  if (!open) {
+    return (
+      <>
+        {visibleItems.map((item) => (
+          <NavItem key={item.id} item={item} open={false} indent={false} showIcon onNavigate={onNavigate} isLocked={isLocked} t={t} />
+        ))}
+      </>
+    );
+  }
+
+  const active = visibleItems.some((item) => currentPath === item.path);
+  const GroupIcon = Icons[group.icon];
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        className={`pill nav-chip ${active ? "active" : ""}`}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "11px 12px",
+          width: "100%",
+          border: `1px solid ${active ? "rgba(125,211,252,0.25)" : "transparent"}`,
+          background: active ? "rgba(14,165,233,0.16)" : "transparent",
+          color: active ? "#fff" : "rgba(255,255,255,0.84)",
+          fontSize: 13,
+          fontWeight: 800,
+          cursor: "pointer",
+        }}
+      >
+        <GroupIcon size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+        <span style={{ whiteSpace: "nowrap" }}>{t.nav[group.labelKey]}</span>
+        <Icons.chevronDown
+          size={14}
+          style={{
+            flexShrink: 0,
+            marginLeft: "auto",
+            transform: isOpen ? "rotate(180deg)" : "none",
+            transition: "transform 0.15s",
+          }}
+          aria-hidden="true"
+        />
+      </button>
+      {isOpen && (
+        <div style={{ display: "grid", gap: 4, marginTop: 4, paddingLeft: 14 }}>
+          {visibleItems.map((item) => (
+            <NavItem key={item.id} item={item} open onNavigate={onNavigate} isLocked={isLocked} t={t} indent showIcon={false} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface SidebarProps {
   open: boolean;
@@ -39,19 +278,21 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
   const { isLocked } = usePlanFeatures();
   const location = useLocation();
 
-  // ad-hoc, docs/CURRENT_TASK.md — the two SMS-related nav items ("SMS
-  // সেবা" wallet settings + "বাল্ক SMS" own-phone gateway) used to be two
-  // separate top-level pills; now grouped under one expandable "SMS"
-  // parent so they read as sub-categories of one feature instead of two
-  // unrelated items. Starts expanded if the user is already on either
-  // sub-route (e.g. a page refresh on /bulk-sms shouldn't hide its own
-  // parent), collapsed otherwise.
-  const [smsGroupOpen, setSmsGroupOpen] = useState(
-    location.pathname === "/sms" || location.pathname === "/bulk-sms"
-  );
-  const smsGroupActive = location.pathname === "/sms" || location.pathname === "/bulk-sms";
+  // Each group starts open only if the current route already lives inside
+  // it — e.g. landing on /bulk-sms via a page refresh shouldn't hide its
+  // own parent — otherwise closed, so the sidebar opens on a short list by
+  // default instead of everything unfolded.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const group of GROUPS) {
+      initial[group.id] = group.items.some((item) => item.path === location.pathname);
+    }
+    return initial;
+  });
 
-  const navItems = NAV_IDS.filter((n) => canAccess(role, n.key));
+  const topItems = TOP_ITEMS.filter((item) => canSeeItem(role, item));
+  const midItems = MID_ITEMS.filter((item) => canSeeItem(role, item));
+  const settingsVisible = canSeeItem(role, SETTINGS_ITEM);
 
   return (
     <aside
@@ -89,441 +330,34 @@ export function Sidebar({ open, user, onNavigate }: SidebarProps) {
       </div>
 
       <div style={{ padding: open ? 12 : 8, display: "grid", gap: 6 }}>
-        {navItems.map((item) => {
-          const locked = item.feature ? isLocked(item.feature) : false;
-          const Icon = Icons[item.icon];
-          return (
-            <NavLink
-              key={item.id}
-              to={item.path}
-              onClick={onNavigate}
-              className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${locked ? "nav-item--locked" : ""}`}
-              style={({ isActive }) => ({
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: open ? "11px 12px" : "11px 10px",
-                textDecoration: "none",
-                color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-                background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-                border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-                fontSize: 13,
-                fontWeight: 800,
-                justifyContent: open ? "flex-start" : "center",
-              })}
-              title={!open ? t.nav[item.key] : undefined}
-            >
-              <Icon size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-              {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav[item.key]}</span>}
-              {open && locked && (
-                <span className="nav-item__lock-badge" aria-hidden="true">
-                  <Icons.lock size={12} />
-                </span>
-              )}
-            </NavLink>
-          );
-        })}
-        {/* Guardian Reminder Messenger admin module — rendered outside
-            NAV_IDS for the same reason as the SMS/bKash blocks below: it
-            reuses the "settings" permission but needs its own nav LABEL
-            (t.nav[item.key] would otherwise show "Settings" twice). No
-            plan-lock check yet — plan-gating for this feature is still an
-            open decision (docs/CURRENT_TASK.md), so isLocked() isn't
-            called here the way it is for "sms"/"bkash" below. */}
-        {/* Attendance device management
-            (docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 1B) — kept
-            outside NAV_IDS like the blocks below because it reuses the
-            "attendance" permission but needs its own nav LABEL
-            (t.nav.attendance already labels the /attendance route above,
-            reusing t.nav[item.key] here would show "হাজিরা" twice). No
-            plan-lock: this is core to the attendance feature, not gated
-            behind a separate plan feature. */}
-        {/* প্রবেশপত্র (Admit Cards) — reuses the "results" permission (same
-            Admin/Teacher audience as the Results screen above) but needs
-            its own nav LABEL, same reasoning as the two blocks below
-            (t.nav[item.key] would otherwise show "ফলাফল" twice). */}
-        {canAccess(role, "results") && (
-          <NavLink
-            to="/admit-cards"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.admitCards : undefined}
-          >
-            <Icons.admitCards size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.admitCards}</span>}
-          </NavLink>
-        )}
-        {/* পরীক্ষার খাতার প্রথম পেইজ (Exam Cover Sheets) — reuses the
-            "results" permission, same reasoning as প্রবেশপত্র above; needs
-            its own nav LABEL for the same reason. */}
-        {canAccess(role, "results") && (
-          <NavLink
-            to="/exam-cover-sheets"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.examCoverSheets : undefined}
-          >
-            <Icons.examCoverSheets size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.examCoverSheets}</span>}
-          </NavLink>
-        )}
-        {canAccess(role, "attendance") && (
-          <NavLink
-            to="/attendance-devices"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.attendanceDevices : undefined}
-          >
-            <Icons.fingerprint size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.attendanceDevices}</span>}
-          </NavLink>
-        )}
-        {/* docs/STAFF_ATTENDANCE_PLAN.md, Phase 5/6 — staff registry and
-            staff attendance. Two separate permission keys ("staff",
-            "staffAttendance"), each with its own nav item, same pattern as
-            the admit-cards/attendance-devices blocks above. */}
-        {canAccess(role, "staff") && (
-          <NavLink
-            to="/staff"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.staff : undefined}
-          >
-            <Icons.staff size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.staff}</span>}
-          </NavLink>
-        )}
-        {canAccess(role, "staffAttendance") && (
-          <NavLink
-            to="/staff-attendance"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.staffAttendance : undefined}
-          >
-            <Icons.staffAttendance size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.staffAttendance}</span>}
-          </NavLink>
-        )}
-        {canAccess(role, "settings") && (
-          <NavLink
-            to="/guardian-reminders"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.guardianReminders : undefined}
-          >
-            <Icons.bell size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.guardianReminders}</span>}
-          </NavLink>
-        )}
-        {/* "SMS" group (ad-hoc, docs/CURRENT_TASK.md) — replaces the two
-            previously-separate top-level pills ("SMS সেবা" wallet settings
-            at /sms, and "বাল্ক SMS (নিজের ফোন)" own-phone gateway at
-            /bulk-sms) with one parent + two sub-items, since both are
-            really the same feature (sending SMS to guardians) with two
-            delivery methods. Both routes still reuse the "settings"
-            permission and "sms" plan feature exactly as before — only the
-            nav presentation changed, not access control.
-            In icon-rail mode (open === false) there's no room for a
-            sub-menu flyout, so this falls back to the original two
-            separate icon-only links instead of trying to build a rail
-            flyout for two items. */}
-        {canAccess(role, "settings") && !open && (
+        {topItems.map((item) => (
+          <NavItem key={item.id} item={item} open={open} indent={false} showIcon onNavigate={onNavigate} isLocked={isLocked} t={t} />
+        ))}
+
+        {midItems.map((item) => (
+          <NavItem key={item.id} item={item} open={open} indent={false} showIcon onNavigate={onNavigate} isLocked={isLocked} t={t} />
+        ))}
+
+        {GROUPS.map((group) => (
+          <NavGroup
+            key={group.id}
+            group={group}
+            role={role}
+            open={open}
+            isOpen={!!openGroups[group.id]}
+            onToggle={() => setOpenGroups((g) => ({ ...g, [group.id]: !g[group.id] }))}
+            currentPath={location.pathname}
+            onNavigate={onNavigate}
+            isLocked={isLocked}
+            t={t}
+          />
+        ))}
+
+        {settingsVisible && (
           <>
-            <NavLink
-              to="/sms"
-              onClick={onNavigate}
-              className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
-              style={({ isActive }) => ({
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "11px 10px",
-                textDecoration: "none",
-                color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-                background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-                border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-                fontSize: 13,
-                fontWeight: 800,
-                justifyContent: "center",
-              })}
-              title={t.nav.sms}
-            >
-              <Icons.sms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            </NavLink>
-            <NavLink
-              to="/bulk-sms"
-              onClick={onNavigate}
-              className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
-              style={({ isActive }) => ({
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "11px 10px",
-                textDecoration: "none",
-                color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-                background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-                border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-                fontSize: 13,
-                fontWeight: 800,
-                justifyContent: "center",
-              })}
-              title={t.nav.bulkSms}
-            >
-              <Icons.bulkSms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            </NavLink>
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", margin: "6px 4px" }} />
+            <NavItem item={SETTINGS_ITEM} open={open} indent={false} showIcon onNavigate={onNavigate} isLocked={isLocked} t={t} />
           </>
-        )}
-        {canAccess(role, "settings") && open && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setSmsGroupOpen((v) => !v)}
-              aria-expanded={smsGroupOpen}
-              className={`pill nav-chip ${smsGroupActive ? "active" : ""} ${isLocked("sms") ? "nav-item--locked" : ""}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "11px 12px",
-                width: "100%",
-                border: `1px solid ${smsGroupActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-                background: smsGroupActive ? "rgba(14,165,233,0.16)" : "transparent",
-                color: smsGroupActive ? "#fff" : "rgba(255,255,255,0.84)",
-                fontSize: 13,
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              <Icons.sms size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-              <span style={{ whiteSpace: "nowrap" }}>{t.nav.smsGroup}</span>
-              {isLocked("sms") && (
-                <span className="nav-item__lock-badge" aria-hidden="true">
-                  <Icons.lock size={12} />
-                </span>
-              )}
-              <Icons.chevronDown
-                size={14}
-                style={{
-                  flexShrink: 0,
-                  marginLeft: "auto",
-                  transform: smsGroupOpen ? "rotate(180deg)" : "none",
-                  transition: "transform 0.15s",
-                }}
-                aria-hidden="true"
-              />
-            </button>
-            {smsGroupOpen && (
-              <div style={{ display: "grid", gap: 4, marginTop: 4, paddingLeft: 14 }}>
-                <NavLink
-                  to="/sms"
-                  onClick={onNavigate}
-                  className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-                  style={({ isActive }) => ({
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "9px 12px",
-                    textDecoration: "none",
-                    color: isActive ? "#fff" : "rgba(255,255,255,0.72)",
-                    background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-                    border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                  })}
-                >
-                  <span style={{ whiteSpace: "nowrap" }}>{t.nav.sms}</span>
-                </NavLink>
-                <NavLink
-                  to="/bulk-sms"
-                  onClick={onNavigate}
-                  className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-                  style={({ isActive }) => ({
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "9px 12px",
-                    textDecoration: "none",
-                    color: isActive ? "#fff" : "rgba(255,255,255,0.72)",
-                    background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-                    border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                  })}
-                >
-                  <span style={{ whiteSpace: "nowrap" }}>{t.nav.bulkSms}</span>
-                </NavLink>
-              </div>
-            )}
-          </div>
-        )}
-        {/* "বিকাশ পেমেন্ট গেটওয়ে" (Phase 8E) — same reasoning as the SMS
-            block above: reuses "settings" permission, own label/lock via
-            the "bkash" plan feature, kept outside NAV_IDS. */}
-        {canAccess(role, "settings") && (
-          <NavLink
-            to="/payment-gateway"
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              `pill nav-chip ${isActive ? "active" : ""} ${isLocked("bkash") ? "nav-item--locked" : ""}`
-            }
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.paymentGateway : undefined}
-          >
-            <Icons.paymentGateway size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.paymentGateway}</span>}
-            {open && isLocked("bkash") && (
-              <span className="nav-item__lock-badge" aria-hidden="true">
-                <Icons.lock size={12} />
-              </span>
-            )}
-          </NavLink>
-        )}
-        {/* Institution self-service platform-subscription billing (ad-hoc,
-            docs/CURRENT_TASK.md) — reuses "settings" permission like
-            payment-gateway above, but no plan-lock: paying your own bill
-            isn't itself a paid plan feature. */}
-        {canAccess(role, "settings") && (
-          <NavLink
-            to="/settings/billing"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.institutionBilling : undefined}
-          >
-            <Icons.institutionBilling size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.institutionBilling}</span>}
-          </NavLink>
-        )}
-        {canViewAuditLogs(role) && (
-          <NavLink
-            to="/audit-logs"
-            onClick={onNavigate}
-            className={({ isActive }) => `pill nav-chip ${isActive ? "active" : ""} ${isLocked("auditLogs") ? "nav-item--locked" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: open ? "11px 12px" : "11px 10px",
-              textDecoration: "none",
-              color: isActive ? "#fff" : "rgba(255,255,255,0.84)",
-              background: isActive ? "rgba(14,165,233,0.16)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(125,211,252,0.25)" : "transparent"}`,
-              fontSize: 13,
-              fontWeight: 800,
-              justifyContent: open ? "flex-start" : "center",
-            })}
-            title={!open ? t.nav.auditLogs : undefined}
-          >
-            <Icons.auditLogs size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
-            {open && <span style={{ whiteSpace: "nowrap" }}>{t.nav.auditLogs}</span>}
-            {open && isLocked("auditLogs") && (
-              <span className="nav-item__lock-badge" aria-hidden="true">
-                <Icons.lock size={12} />
-              </span>
-            )}
-          </NavLink>
         )}
       </div>
 

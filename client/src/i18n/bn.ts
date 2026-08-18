@@ -27,10 +27,19 @@ export const bn = {
     attendanceDevices: "হাজিরা ডিভাইস",
     staff: "স্টাফ",
     staffAttendance: "স্টাফ অ্যাটেন্ডেন্স",
+    // ad-hoc, docs/CURRENT_TASK.md — parent group labels for Sidebar.tsx's
+    // collapsible nav groups (replaces one long flat list — see
+    // docs/CURRENT_TASK.md "sidebar reorganization"). Each group's own
+    // items keep their existing individual nav labels above/below.
+    examDocsGroup: "পরীক্ষার কাগজপত্র",
+    communicationGroup: "যোগাযোগ",
+    staffGroup: "স্টাফ ব্যবস্থাপনা",
+    billingGroup: "বিলিং সেটিংস",
+    systemGroup: "সিস্টেম",
     // docs/SHIFT_SCHEDULE_PLAN.md, Phase 6 — no dedicated nav route (shift
-    // management lives inside Settings.tsx), but nav's type is indexed by
-    // the full Permission union (Sidebar.tsx's NAV_IDS `key: Permission`),
-    // so every Permission value needs a label here even if unused today.
+    // management lives inside Settings.tsx). Not read by Sidebar.tsx's
+    // TOP_ITEMS/MID_ITEMS/GROUPS (those list specific labelKeys, not every
+    // Permission value), kept here in case a future revision does add one.
     shifts: "শিফট",
     // ad-hoc, docs/CURRENT_TASK.md
     institutionBilling: "সাবস্ক্রিপশন বিল",
