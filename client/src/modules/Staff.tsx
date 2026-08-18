@@ -18,7 +18,7 @@ import { Button, Card, Field, Input, Select } from "../components/ui";
 import { useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { STAFF_DESIGNATIONS } from "../types";
-import type { Staff as StaffRecord, User } from "../types";
+import type { Shift, Staff as StaffRecord, User } from "../types";
 import { C } from "../theme/colors";
 
 // STAFF_DESIGNATIONS values are Bengali-native (like ATTENDANCE_STATUSES on
@@ -41,6 +41,9 @@ interface FormState {
   userId: number | null;
   fingerprintId: string;
   cardUid: string;
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 6 — optional shift assignment,
+  // null = no shift (Phase 4's late-detection skips this staff member).
+  shiftId: number | null;
 }
 
 const EMPTY_FORM: FormState = {
@@ -54,6 +57,7 @@ const EMPTY_FORM: FormState = {
   userId: null,
   fingerprintId: "",
   cardUid: "",
+  shiftId: null,
 };
 
 export function Staff() {
@@ -62,6 +66,10 @@ export function Staff() {
 
   const [staff, setStaff] = useState<StaffRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 6 — shift options for the form's
+  // shift-Select, same "loaded alongside the main list, failure doesn't
+  // block the page" reasoning as `users` above.
+  const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -83,10 +91,12 @@ export function Staff() {
       // — the same list Settings.tsx's user section already fetches, no
       // new endpoint. Failure here shouldn't block showing the staff list.
       api.getUsers().catch(() => []),
+      api.shifts.list().catch(() => []),
     ])
-      .then(([staffRows, userRows]) => {
+      .then(([staffRows, userRows, shiftRows]) => {
         setStaff(staffRows);
         setUsers(userRows);
+        setShifts(shiftRows);
       })
       .catch((err) => setError(err instanceof Error ? err.message : c.loadFailed))
       .finally(() => setLoading(false));
@@ -117,6 +127,7 @@ export function Staff() {
       userId: row.userId,
       fingerprintId: row.fingerprintId || "",
       cardUid: row.cardUid || "",
+      shiftId: row.shiftId,
     });
     setEditingId(row.id);
     setSaveError("");
@@ -145,6 +156,7 @@ export function Staff() {
       userId: form.userId,
       fingerprintId: form.fingerprintId.trim(),
       cardUid: form.cardUid.trim(),
+      shiftId: form.shiftId,
     };
     try {
       if (editingId != null) {
@@ -245,6 +257,19 @@ export function Staff() {
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name} ({u.role})
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={c.shiftLabel}>
+            <Select
+              value={form.shiftId == null ? "" : String(form.shiftId)}
+              onChange={(e) => setForm({ ...form, shiftId: e.target.value ? Number(e.target.value) : null })}
+            >
+              <option value="">{c.shiftNone}</option>
+              {shifts.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.startTime}-{s.endTime})
                 </option>
               ))}
             </Select>

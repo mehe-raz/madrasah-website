@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: শিফট/সিডিউল সিস্টেম + স্বয়ংক্রিয় দেরি-শনাক্তকরণ (৯ Phase-এ, পুরো
 পরিকল্পনা `docs/SHIFT_SCHEDULE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1–5 সম্পন্ন — Phase 6 থেকে চালিয়ে যেতে হবে)
+## Status: IN_PROGRESS (Phase 1–6 সম্পন্ন — Phase 7 থেকে চালিয়ে যেতে হবে)
 
 Started: 2026-08-18
 
@@ -118,12 +118,45 @@ Started: 2026-08-18
     status/entryTime/exitTime ঠিকভাবে বসছে কিনা — sandbox-এ network/node_modules
     না থাকায় চালানো যায়নি, আপনার প্যাকেজড CMD-তেই প্রথম যাচাই হবে (আগের সব
     Phase-এর প্যাটার্নে)।**
-- [ ] Phase 6–9 — বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`-এ (ফ্রন্টএন্ড শিফট
-  ম্যানেজমেন্ট + হাজিরা ভিউ, রিপোর্ট, টেস্ট/ডকুমেন্টেশন)। sandbox-এ
-  `npm run check` চালানো সম্ভব হয়নি (network/node_modules নেই) —
-  `node --check` দিয়ে সবগুলো নতুন/পরিবর্তিত `.js` ফাইলের syntax যাচাই করা
-  হয়েছে (সব পাস)। আসল `npm run check` (lint/typecheck/build/sync:roles)
-  প্রথম চলবে আপনার প্যাকেজড CMD-তে।
+- [x] **Phase 6 (ফ্রন্টএন্ড শিফট ম্যানেজমেন্ট UI) সম্পন্ন**:
+  - `client/src/types/index.ts` — নতুন `Shift` ইন্টারফেস, `ClassShiftAssignment`
+    ইন্টারফেস, `Staff`-এ ঐচ্ছিক `shiftId: number | null` যোগ।
+  - `client/src/lib/permissions.ts` — `Permission` টাইপে `"shifts"` যোগ,
+    নতুন `canManageShifts(role)` হেল্পার (Admin/Super Admin — `config/roles.js`-এর
+    সাথে সঙ্গতিপূর্ণ)।
+  - `client/src/lib/api.ts` — `api.shifts.{list,create,update}` ও
+    `api.classShifts.{get,save}` নতুন নেমস্পেস (আসল রুটের রেসপন্স শেপ
+    মিলিয়ে — `classShifts.save` `{ assignments: [...] }` পাঠায়, ফেরত
+    array পায়); `createStaff`/`updateStaff`-এ ঐচ্ছিক `shiftId` যোগ।
+  - `client/src/modules/Settings.tsx` — নতুন "শিফট ব্যবস্থাপনা"
+    settings-card (`allowShifts` গেটেড): শিফট add/edit ফর্ম (নাম,
+    নাম-ইংরেজি, শুরু/শেষ সময়, গ্রেস-মিনিট), শিফট লিস্ট (এডিট + active/
+    inactive টগল বাটন — হার্ড ডিলিট নেই, ব্যাকএন্ডের প্যাটার্নে), এবং
+    আলাদা "ক্লাস↔শিফট বরাদ্দ" সাব-সেকশন যেখানে প্রতিটা ক্লাসের পাশে একটা
+    শিফট-Select আছে, "বরাদ্দ সংরক্ষণ করুন" বাটনে পুরো লিস্ট এক PUT-এ
+    যায় (Phase 3-এর "পুরো ম্যাপ রিপ্লেস" কন্ট্রাক্ট অনুযায়ী)। এই ফাইলের
+    স্থানীয় `Field` কম্পোনেন্ট (components/ui-এর থেকে আলাদা, children
+    নেয় না — flat value/onChange/type প্রপ নেয়) অনুসরণ করা হয়েছে।
+  - `client/src/modules/Staff.tsx` — Add/Edit স্টাফ ফর্মে নতুন ঐচ্ছিক
+    "শিফট" Select (লিঙ্কড-ইউজার ফিল্ডের ঠিক পরে, একই "ঐচ্ছিক" কনভেনশনে);
+    লোডে `api.shifts.list()`-ও fetch হয় (users list-এর মতোই ব্যর্থ হলে
+    পুরো পেজ ব্লক করে না)।
+  - `client/src/i18n/bn.ts` ও `en.ts` — settings.shift*/classShiftMap*
+    এবং staff.shiftLabel/shiftNone কী দুই ফাইলেই যোগ, key-parity
+    যাচাই করা হয়েছে (settings: ১৮৯টা কী দুই ফাইলে সমান, staff: ৪১টা
+    কী দুই ফাইলে সমান)।
+  - কোনো নতুন CSS ক্লাস দরকার হয়নি — বিদ্যমান `.mt-18`/`.mb-10`/
+    `user-list`/`user-row`/`user-form-grid`/`class-post__actions`
+    ক্লাসগুলো পুনর্ব্যবহার করা হয়েছে (AGENTS.md-এর "প্রথমে বিদ্যমান
+    ইউটিলিটি খুঁজুন" নিয়ম অনুযায়ী); কোনো raw `style={{` যোগ হয়নি।
+  - sandbox-এ network/node_modules না থাকায় আসল `npm run
+    check`/`tsc`/`eslint` চালানো যায়নি — এর বদলে প্রতিটা পরিবর্তিত ফাইলে
+    bracket-balance (`{}`/`()`/`[]`) স্ক্রিপ্ট দিয়ে যাচাই এবং bn.ts/en.ts-এর
+    key-parity ম্যানুয়ালি গোনা হয়েছে (সব পাস)। আসল `npm run check`
+    আপনার প্যাকেজড CMD-তেই প্রথম চলবে — সেখানে TS টাইপ-এরর/lint-এরর
+    ধরা পড়লে থেমে যাবে, push হবে না (আগের সব Phase-এর প্যাটার্নে)।
+- [ ] Phase 7–9 — বিস্তারিত `docs/SHIFT_SCHEDULE_PLAN.md`-এ (হাজিরা ভিউতে
+  শিফট/entryTime/exitTime দেখানো, রিপোর্ট, টেস্ট/ডকুমেন্টেশন)।
 
 ### নোট
 এই মুহূর্তে অন্য একাধিক IN_PROGRESS/PLANNED টাস্ক (নিচে) আছে — সেগুলোর

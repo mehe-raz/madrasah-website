@@ -40,6 +40,8 @@ import type {
   ResultSubjectBatchResponse,
   ResultSubjectMark,
   Settings,
+  Shift,
+  ClassShiftAssignment,
   SiteContent,
   Staff,
   StaffAttendanceResponse,
@@ -873,12 +875,12 @@ export const api = {
     return request<Staff[]>(`/staff${q ? `?${q}` : ""}`);
   },
 
-  createStaff: (body: { name: string; phone?: string; designation: string; class?: string; joiningDate?: string; note?: string; userId?: number | null; fingerprintId?: string; cardUid?: string }) =>
+  createStaff: (body: { name: string; phone?: string; designation: string; class?: string; joiningDate?: string; note?: string; userId?: number | null; fingerprintId?: string; cardUid?: string; shiftId?: number | null }) =>
     request<Staff>("/staff", { method: "POST", body: JSON.stringify(body) }),
 
   updateStaff: (
     id: number,
-    body: Partial<{ name: string; phone: string; designation: string; class: string; joiningDate: string; note: string; userId: number | null; status: "Active" | "Inactive"; fingerprintId: string; cardUid: string }>
+    body: Partial<{ name: string; phone: string; designation: string; class: string; joiningDate: string; note: string; userId: number | null; status: "Active" | "Inactive"; fingerprintId: string; cardUid: string; shiftId: number | null }>
   ) => request<Staff>(`/staff/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 
   downloadBackup: async () => {
@@ -1150,6 +1152,26 @@ export const api = {
     // modal is open, same 2s cadence as the kiosk's public polling.
     getLatestScan: (id: number) =>
       request<AttendanceDeviceLatestScanResponse>(`/attendance-devices/${id}/latest-scan`),
+  },
+
+  // -------------------------------------------------------------------------
+  // Shift/schedule master data (docs/SHIFT_SCHEDULE_PLAN.md, Phase 2/3) —
+  // wires routes/shifts.js (CRUD, no hard delete — active toggle only, see
+  // that route's header comment) and routes/classShifts.js (whole-map
+  // get/replace, same "send the entire map" shape as classOptions).
+  // -------------------------------------------------------------------------
+  shifts: {
+    list: () => request<Shift[]>("/shifts"),
+    create: (body: { name: string; nameEn?: string; startTime: string; endTime: string; graceMinutes?: number }) =>
+      request<Shift>("/shifts", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: number, body: Partial<{ name: string; nameEn: string; startTime: string; endTime: string; graceMinutes: number; active: boolean }>) =>
+      request<Shift>(`/shifts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  },
+
+  classShifts: {
+    get: () => request<ClassShiftAssignment[]>("/class-shifts"),
+    save: (assignments: ClassShiftAssignment[]) =>
+      request<ClassShiftAssignment[]>("/class-shifts", { method: "PUT", body: JSON.stringify({ assignments }) }),
   },
 
   // -------------------------------------------------------------------------

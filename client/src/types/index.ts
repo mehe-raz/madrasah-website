@@ -375,6 +375,11 @@ export interface Staff {
   // same optional shape as students.fingerprintId/cardUid.
   fingerprintId: string;
   cardUid: string;
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 3 — optional shift assignment used
+  // by Phase 4's auto-late-detection (lib/attendanceSchedule.js's
+  // resolveShiftForStaff). null = no shift assigned, late-detection skips
+  // this staff member (server-side fallback, see plan §Phase 4).
+  shiftId: number | null;
   createdAt: string;
 }
 
@@ -386,6 +391,28 @@ export const STAFF_DESIGNATIONS = [
   "আয়া",
   "অন্যান্য",
 ] as const;
+
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 2 — shift master data
+// (routes/shifts.js). class_shifts (Phase 3) maps a class to one of
+// these by id; staff.shiftId (also Phase 3) does the same for staff.
+export interface Shift {
+  id: number;
+  name: string;
+  nameEn: string;
+  startTime: string; // 'HH:MM', 24-hour
+  endTime: string;
+  graceMinutes: number;
+  active: boolean;
+  createdAt: string;
+}
+
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 3 — one row of class_shifts, the
+// shape both GET and PUT /api/class-shifts use (routes/classShifts.js —
+// PUT wraps an array of these in { assignments: [...] }).
+export interface ClassShiftAssignment {
+  class: string;
+  shiftId: number;
+}
 
 // docs/STAFF_ATTENDANCE_PLAN.md, Phase 6 — daily staff attendance response
 // shape, mirrors AttendanceResponse (students) below with a "staff" row

@@ -6,9 +6,9 @@ import { useAuth } from "../context/AuthContext";
 import { useAppSettings, useLanguage } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
 import { addClassTreeNode, removeClassTreeNode, addSubject, editSubject, removeSubject, flattenClassTree } from "../lib/classTree";
-import { canBackup, canManageDomain, canManageUsers } from "../lib/permissions";
+import { canBackup, canManageDomain, canManageShifts, canManageUsers } from "../lib/permissions";
 import { Icons } from "../lib/icons";
-import { USER_ROLES, type BackupConfig, type ClassTreeNode, type ClassTreeSubject, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type User } from "../types";
+import { USER_ROLES, type BackupConfig, type ClassShiftAssignment, type ClassTreeNode, type ClassTreeSubject, type GoogleDriveFile, type GoogleDriveStatus, type Settings as SettingsType, type Shift, type User } from "../types";
 
 type GuardianApprovalData = Awaited<ReturnType<typeof api.getPendingGuardianApprovals>>;
 
@@ -404,6 +404,26 @@ export function Settings() {
   const manageUsers = authUser ? canManageUsers(authUser.role) : false;
   const allowBackup = authUser ? canBackup(authUser.role) : false;
   const allowDomain = authUser ? canManageDomain(authUser.role) : false;
+  const allowShifts = authUser ? canManageShifts(authUser.role) : false;
+
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 6 — শিফট ব্যবস্থাপনা section state.
+  // Fetched on-demand (section open, like backupConfig above) rather than
+  // through AppSettingsContext — shifts are per-item create/PATCH calls
+  // (routes/shifts.js), not a single "save the whole list" blob like
+  // classOptions/classTree.
+  const [editShifts, setEditShifts] = useState(false);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [shiftsLoading, setShiftsLoading] = useState(false);
+  const [shiftForm, setShiftForm] = useState({ name: "", nameEn: "", startTime: "", endTime: "", graceMinutes: "0" });
+  const [shiftEditId, setShiftEditId] = useState<number | null>(null);
+  const [shiftSaving, setShiftSaving] = useState(false);
+  const [shiftError, setShiftError] = useState("");
+  const [shiftBusyId, setShiftBusyId] = useState<number | null>(null);
+  // class -> shiftId draft, keyed by class.en — loaded from GET
+  // /api/class-shifts and sent back as a full array on save (Phase 3's
+  // "replace the whole map" contract).
+  const [classShiftDraft, setClassShiftDraft] = useState<Record<string, number | "">>({});
+  const [classShiftSaving, setClassShiftSaving] = useState(false);
 
   // null while not yet loaded / not multi-tenant (getPlan() 404s outside
   // multi-tenant mode — see requireTenantContext in routes/settings.js), so
@@ -436,6 +456,25 @@ export function Settings() {
       refreshDriveStatus();
     }
   }, [allowBackup, editBackup]);
+
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 6 — load shift list + class-shift
+  // map together whenever the শিফট section opens (same on-open-load
+  // pattern as editBackup above), so the class-mapping dropdowns always
+  // have the current shift list to choose from.
+  useEffect(() => {
+    if (!allowShifts || !editShifts) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentionally sets shiftsLoading=true immediately so the section shows a spinner right away; the rest of its state updates land after the request resolves
+    setShiftsLoading(true);
+    Promise.all([api.shifts.list(), api.classShifts.get()])
+      .then(([shiftRows, assignments]) => {
+        setShifts(shiftRows);
+        const draft: Record<string, number | ""> = {};
+        for (const a of assignments) draft[a.class] = a.shiftId;
+        setClassShiftDraft(draft);
+      })
+      .catch((e) => setShiftError(e instanceof Error ? e.message : "Failed"))
+      .finally(() => setShiftsLoading(false));
+  }, [allowShifts, editShifts]);
 
   // Once we know Drive is connected, pull the list of backup files sitting
   // in the app's Drive folder so they can be restored with one click.
@@ -882,6 +921,93 @@ export function Settings() {
       await saveClassOptions(reordered);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 6 — shift add/edit/toggle handlers.
+  // Unlike classOptions above, each shift is its own row (routes/shifts.js
+  // POST/PATCH per-item), so these call the API once per action rather
+  // than resending a whole list.
+  const resetShiftForm = () => {
+    setShiftForm({ name: "", nameEn: "", startTime: "", endTime: "", graceMinutes: "0" });
+    setShiftEditId(null);
+    setShiftError("");
+  };
+
+  const startEditShift = (row: Shift) => {
+    setShiftForm({
+      name: row.name,
+      nameEn: row.nameEn,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      graceMinutes: String(row.graceMinutes),
+    });
+    setShiftEditId(row.id);
+    setShiftError("");
+  };
+
+  const saveShift = async () => {
+    const name = shiftForm.name.trim();
+    if (!name || !shiftForm.startTime || !shiftForm.endTime) {
+      setShiftError(t.settings.shiftFieldsRequired);
+      return;
+    }
+    setShiftSaving(true);
+    setShiftError("");
+    const payload = {
+      name,
+      nameEn: shiftForm.nameEn.trim(),
+      startTime: shiftForm.startTime,
+      endTime: shiftForm.endTime,
+      graceMinutes: Number(shiftForm.graceMinutes) || 0,
+    };
+    try {
+      if (shiftEditId != null) {
+        const updated = await api.shifts.update(shiftEditId, payload);
+        setShifts((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      } else {
+        const created = await api.shifts.create(payload);
+        setShifts((prev) => [...prev, created]);
+      }
+      resetShiftForm();
+    } catch (e) {
+      setShiftError(e instanceof Error ? e.message : t.settings.shiftSaveFailed);
+    } finally {
+      setShiftSaving(false);
+    }
+  };
+
+  const toggleShiftActive = async (row: Shift) => {
+    setShiftBusyId(row.id);
+    try {
+      const updated = await api.shifts.update(row.id, { active: !row.active });
+      setShifts((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    } catch (e) {
+      setShiftError(e instanceof Error ? e.message : t.settings.shiftSaveFailed);
+    } finally {
+      setShiftBusyId(null);
+    }
+  };
+
+  // Sends the whole class->shift draft as one PUT (Phase 3's "replace the
+  // entire map" contract) — rows left unset ("") in classShiftDraft are
+  // simply omitted, same as a class never having been assigned one.
+  const saveClassShifts = async () => {
+    setClassShiftSaving(true);
+    setShiftError("");
+    try {
+      const assignments: ClassShiftAssignment[] = Object.entries(classShiftDraft)
+        .filter((entry): entry is [string, number] => entry[1] !== "")
+        .map(([cls, shiftId]) => ({ class: cls, shiftId }));
+      const saved = await api.classShifts.save(assignments);
+      const draft: Record<string, number | ""> = {};
+      for (const a of saved) draft[a.class] = a.shiftId;
+      setClassShiftDraft(draft);
+      setMsg(t.settings.classShiftMapSaved);
+    } catch (e) {
+      setShiftError(e instanceof Error ? e.message : t.settings.classShiftMapSaveFailed);
+    } finally {
+      setClassShiftSaving(false);
     }
   };
 
@@ -1792,6 +1918,97 @@ export function Settings() {
                     ))}
                     {!classTree.length && <p className="field-block__label">{t.settings.classEmptyList}</p>}
                   </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {allowShifts && (
+            <div className="settings-card">
+              <SectionHeader title={t.settings.shiftManagement} open={editShifts} onToggle={() => setEditShifts((v) => !v)} />
+              {editShifts && (
+                <>
+                  <p className="field-block__label mb-10">{t.settings.shiftManagementHint}</p>
+                  {shiftError && <div className="alert alert--rose">{shiftError}</div>}
+
+                  <h4 className="page-header__title">{shiftEditId != null ? t.settings.shiftEditTitle : t.settings.shiftAddTitle}</h4>
+                  <div className="user-form-grid">
+                    <Field label={t.settings.shiftNameLabel} value={shiftForm.name} onChange={(v) => setShiftForm({ ...shiftForm, name: v })} />
+                    <Field label={t.settings.shiftNameEnLabel} value={shiftForm.nameEn} onChange={(v) => setShiftForm({ ...shiftForm, nameEn: v })} />
+                    <Field label={t.settings.shiftStartLabel} value={shiftForm.startTime} onChange={(v) => setShiftForm({ ...shiftForm, startTime: v })} type="time" />
+                    <Field label={t.settings.shiftEndLabel} value={shiftForm.endTime} onChange={(v) => setShiftForm({ ...shiftForm, endTime: v })} type="time" />
+                    <Field label={t.settings.shiftGraceLabel} value={shiftForm.graceMinutes} onChange={(v) => setShiftForm({ ...shiftForm, graceMinutes: v })} type="number" />
+                  </div>
+                  <div className="class-post__actions">
+                    <Button variant="teal" solid onClick={saveShift} disabled={shiftSaving}>
+                      {shiftSaving ? t.settings.shiftSaving : t.settings.shiftSave}
+                    </Button>
+                    {shiftEditId != null && (
+                      <Button variant="outline" onClick={resetShiftForm}>
+                        {t.settings.shiftCancel}
+                      </Button>
+                    )}
+                  </div>
+
+                  {shiftsLoading && <p className="field-block__label mb-10">…</p>}
+                  <div className="user-list">
+                    {!shiftsLoading &&
+                      shifts.map((row) => (
+                        <div key={row.id} className="user-row">
+                          <div className="user-info">
+                            <div className="user-name">{row.name}</div>
+                            <div className="user-meta">
+                              {row.startTime}–{row.endTime} · {t.settings.shiftGraceLabel}: {row.graceMinutes}
+                            </div>
+                          </div>
+                          <button type="button" onClick={() => startEditShift(row)} className="btn-xs btn-xs--cancel">
+                            {t.settings.shiftEdit}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleShiftActive(row)}
+                            disabled={shiftBusyId === row.id}
+                            className={row.active ? "btn-xs btn-xs--delete" : "btn-xs btn-xs--cancel"}
+                          >
+                            {row.active ? t.settings.shiftDeactivate : t.settings.shiftActivate}
+                          </button>
+                        </div>
+                      ))}
+                    {!shiftsLoading && !shifts.length && <p className="field-block__label">{t.settings.shiftEmptyList}</p>}
+                  </div>
+
+                  <h4 className="page-header__title mt-18">{t.settings.classShiftMapTitle}</h4>
+                  <p className="field-block__label mb-10">{t.settings.classShiftMapHint}</p>
+                  <div className="user-list">
+                    {classOptions.map((option) => (
+                      <div key={option.en} className="user-row">
+                        <div className="user-info">
+                          <div className="user-name">{option.bn}</div>
+                          <div className="user-meta">{option.en}</div>
+                        </div>
+                        <Select
+                          value={classShiftDraft[option.en] === undefined || classShiftDraft[option.en] === "" ? "" : String(classShiftDraft[option.en])}
+                          onChange={(e) =>
+                            setClassShiftDraft({
+                              ...classShiftDraft,
+                              [option.en]: e.target.value ? Number(e.target.value) : "",
+                            })
+                          }
+                        >
+                          <option value="">{t.settings.classShiftMapNone}</option>
+                          {shifts.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name} ({s.startTime}-{s.endTime})
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    ))}
+                    {!classOptions.length && <p className="field-block__label">{t.settings.classEmptyList}</p>}
+                  </div>
+                  <Button variant="teal" solid onClick={saveClassShifts} disabled={classShiftSaving} className="mt-18">
+                    {classShiftSaving ? t.settings.shiftSaving : t.settings.classShiftMapSave}
+                  </Button>
                 </>
               )}
             </div>

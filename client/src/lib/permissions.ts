@@ -16,7 +16,10 @@ export type Permission =
   | "website"
   | "assignments"
   | "staff"
-  | "staffAttendance";
+  | "staffAttendance"
+  // docs/SHIFT_SCHEDULE_PLAN.md, Phase 5 — shift master data + class/staff
+  // shift assignment (routes/shifts.js, routes/classShifts.js).
+  | "shifts";
 
 const ROLE_PERMISSIONS_MAP: Record<string, readonly string[]> = ROLE_PERMISSIONS;
 
@@ -38,6 +41,12 @@ export function canBackup(role: string): boolean {
 // tier as backup/restore — restricted to Super Admin, same as canBackup.
 export function canManageDomain(role: string): boolean {
   return role === "Super Admin";
+}
+
+// docs/SHIFT_SCHEDULE_PLAN.md, Phase 5 — same Admin/Super Admin tier as
+// the "shifts" permission key in server/src/config/roles.js.
+export function canManageShifts(role: string): boolean {
+  return role === "Super Admin" || role === "Admin";
 }
 
 export function canViewAuditLogs(role: string): boolean {
