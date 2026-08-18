@@ -34,6 +34,24 @@ function madrasaSettings(): { name: string; logo?: string; address?: string; pho
   return { name: "Madrasah ERP" };
 }
 
+// Runs in the opener window (this module), not the print window itself —
+// the print window's CSP blocks inline <script>, so any per-institution
+// text measurement has to happen here first and get baked into the HTML
+// string as fixed values. Canvas measureText gives a real rendered width
+// for the actual font, which is what makes the admit card's institution
+// name/address centering and its underline (see printAdmitCards) work for
+// any institution's name length instead of just the one it was designed
+// around.
+function measureTextWidthMm(text: string, fontSizeMm: number, fontWeight: string, fontFamily: string): number {
+  if (!text) return 0;
+  const PX_PER_MM = 3.7795; // 96 CSS px/inch ÷ 25.4mm/inch
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return text.length * fontSizeMm * 0.55; // rough fallback if canvas is unavailable
+  ctx.font = `${fontWeight} ${(fontSizeMm * PX_PER_MM).toFixed(1)}px ${fontFamily}`;
+  return ctx.measureText(text).width / PX_PER_MM;
+}
+
 const PRINT_STYLES = `
   @page { margin: 12mm; }
   * { box-sizing: border-box; }
@@ -749,12 +767,29 @@ export function printStudentIdCard(student: IdCardOptions, targetWindow?: Window
 // artwork guarantees an exact match to their design; only the dynamic
 // text is coded.
 //
+// The artwork's own decorative underline (maroon, with a small centered
+// chevron notch) used to be baked into the JPG at a fixed width — sized
+// for whichever institution the reference card was made for. For a
+// shorter name it left a lot of visibly empty line on one side; for a
+// longer one it could run past the text. That underline has since been
+// painted out of the JPG and is now drawn fresh for every card (see
+// ADMIT_CARD_LINE below): centered on the card and sized to the actual
+// measured width of that institution's own name/address, so it always
+// brackets the text instead of a fixed reference name's.
+//
 // Card is sized to the reference artwork's own proportions
 // (158.33mm × 99.74mm, measured from the source PDF), two per A4 page,
 // matching the original template's own two-cards-per-page layout.
 // ----------------------------------------------------------------------
 
 const ADMIT_CARD_SIZE = { widthMm: 158.33, heightMm: 99.74 };
+const ADMIT_CARD_CENTER_X = ADMIT_CARD_SIZE.widthMm / 2;
+// Institution name/address are centered in a box symmetric about the
+// card's own center (not the leftover space beside the logo) so the text
+// is always dead-center on the physical card regardless of name length —
+// the box's left edge (37mm) just clears the logo (which ends at 36mm).
+const ADMIT_CARD_TEXT_BOX = { left: 37, width: ADMIT_CARD_SIZE.widthMm - 37 * 2 };
+const ADMIT_CARD_LINE_COLOR = "#830102"; // sampled from the original artwork's underline
 
 export interface AdmitCardStudentInput {
   name: string;
@@ -821,18 +856,17 @@ const ADMIT_CARD_STYLES = `
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     color: #111; font-weight: 700;
   }
-  .ac-instname { font-size: 6.8mm; color: #00563f; font-weight: 800; transform: translateY(-100%); }
-  .ac-addr { font-size: 3mm; color: #334155; font-weight: 600; transform: translateY(-100%); }
+  .ac-instname { color: #00563f; font-weight: 800; text-align: center; transform: translateY(-100%); }
+  .ac-addr { color: #334155; font-weight: 600; text-align: center; transform: translateY(-100%); }
   .ac-examline { font-size: 3.9mm; font-weight: 700; transform: translateY(-100%); text-align: center; }
   .ac-val { font-size: 4mm; transform: translateY(-100%); }
   .ac-examdate { font-size: 3.3mm; text-decoration: underline; transform: translateY(-100%); }
+  .ac-line { position: absolute !important; z-index: 2; top: 23.75mm; }
 `;
 
 /** Millimeter coordinates (from card top-left) for every dynamic field, measured from the reference artwork. */
 const AC_POS = {
   logo: { left: 6, top: 7, width: 30, height: 28 },
-  instName: { left: 37.59, top: 18.37, maxWidth: 101.25 },
-  address: { left: 43.24, top: 22.75, maxWidth: 89.6 },
   examLine: { left: 18.89, top: 40.6, width: 119.95 },
   dakhola: { left: 31.95, top: 48.39, maxWidth: 43.4 },
   roll: { left: 111.68, top: 48.39, maxWidth: 39.5 },
@@ -842,11 +876,53 @@ const AC_POS = {
   examDate: { left: 131.08, top: 71.89, maxWidth: 16.58 },
 };
 
+/** Shrinks font-size in fixed steps until `text` measures within `maxWidthMm`, floored at `minMm`. */
+function fitFontSizeMm(text: string, startMm: number, minMm: number, maxWidthMm: number, fontWeight: string): number {
+  const fontFamily = `"Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif`;
+  let size = startMm;
+  while (size > minMm && measureTextWidthMm(text, size, fontWeight, fontFamily) > maxWidthMm) {
+    size -= 0.3;
+  }
+  return Math.max(size, minMm);
+}
+
+/** Builds the dynamic maroon underline + centered chevron notch, sized to bracket `widthMm` of content, centered on the card. */
+function admitCardLineSvg(widthMm: number): string {
+  const w = Math.max(widthMm, 1);
+  const notchHalf = 2.6;
+  const notchDepth = 3.2;
+  const midX = w / 2;
+  const points = `0,0 ${midX - notchHalf},0 ${midX},${notchDepth} ${midX + notchHalf},0 ${w},0`;
+  return `
+    <svg class="ac-line" style="left:${ADMIT_CARD_CENTER_X - w / 2}mm;width:${w}mm;height:${notchDepth + 1}mm;" viewBox="0 0 ${w} ${notchDepth + 1}" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="${points}" fill="none" stroke="${ADMIT_CARD_LINE_COLOR}" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round" />
+    </svg>
+  `;
+}
+
 /** Print প্রবেশপত্র (admit cards) for a whole class's roster — two per A4 page. */
 export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | null) {
   const settings = madrasaSettings();
   const bgUrl = `${window.location.origin}/admit-card-bg.jpg`;
   const examSessionText = `${opts.examLabel}${opts.academicYear ? ` - ${opts.academicYear} শিক্ষাবর্ষ` : ""}`;
+
+  // Shrink-to-fit within the symmetric text box (see ADMIT_CARD_TEXT_BOX)
+  // so any institution's name/address centers on the card without
+  // overflowing into the logo — see the file-level comment above.
+  const NAME_FONT_START = 6.8, NAME_FONT_MIN = 3.6;
+  const ADDR_FONT_START = 3.0, ADDR_FONT_MIN = 2.2;
+  const nameFontMm = fitFontSizeMm(settings.name, NAME_FONT_START, NAME_FONT_MIN, ADMIT_CARD_TEXT_BOX.width, "800");
+  const addrFontMm = settings.address ? fitFontSizeMm(settings.address, ADDR_FONT_START, ADDR_FONT_MIN, ADMIT_CARD_TEXT_BOX.width, "600") : 0;
+  const fontFamily = `"Noto Sans Bengali", "Noto Sans", "Segoe UI", Arial, sans-serif`;
+  const nameWidthMm = measureTextWidthMm(settings.name, nameFontMm, "800", fontFamily);
+  const addrWidthMm = settings.address ? measureTextWidthMm(settings.address, addrFontMm, "600", fontFamily) : 0;
+  // Underline brackets whichever of name/address measured wider, plus
+  // padding, clamped so it never looks cramped on a very short name nor
+  // spill past the card's own margins on a long one.
+  const lineWidthMm = Math.min(Math.max(Math.max(nameWidthMm, addrWidthMm) + 16, 50), ADMIT_CARD_TEXT_BOX.width);
+
+  const textField = (cls: string, value: string, fontMm: number, topMm: number) =>
+    `<div class="ac-fld ${cls}" style="left:${ADMIT_CARD_TEXT_BOX.left}mm;top:${topMm}mm;width:${ADMIT_CARD_TEXT_BOX.width}mm;font-size:${fontMm}mm;">${escapeHtml(value)}</div>`;
 
   const fld = (key: keyof typeof AC_POS, cls: string, value: string, extraStyle = "") => {
     const p = AC_POS[key];
@@ -859,8 +935,9 @@ export function printAdmitCards(opts: AdmitCardOptions, targetWindow?: Window | 
       <img class="ac-bg" src="${bgUrl}" alt="">
       ${settings.logo ? `<img class="ac-wm" src="${escapeHtml(settings.logo)}" alt="">` : ""}
       ${settings.logo ? `<img class="ac-logo" src="${escapeHtml(settings.logo)}" alt="">` : ""}
-      ${fld("instName", "ac-instname", settings.name)}
-      ${settings.address ? fld("address", "ac-addr", settings.address) : ""}
+      ${textField("ac-instname", settings.name, nameFontMm, 18.37)}
+      ${settings.address ? textField("ac-addr", settings.address, addrFontMm, 22.75) : ""}
+      ${admitCardLineSvg(lineWidthMm)}
       ${fld("examLine", "ac-examline", examSessionText)}
       ${fld("dakhola", "ac-val", s.admissionNumber || "")}
       ${fld("roll", "ac-val", s.roll)}
