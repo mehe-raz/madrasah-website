@@ -790,7 +790,10 @@ const ADMIT_CARD_STYLES = `
   .ac-page {
     display: flex;
     flex-direction: column;
-    gap: 7mm;
+    align-items: center;
+    justify-content: center;
+    gap: 8mm;
+    min-height: calc(297mm - 16mm);
     page-break-after: always;
   }
   .ac-page:last-child { page-break-after: auto; }
@@ -818,11 +821,11 @@ const ADMIT_CARD_STYLES = `
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     color: #111; font-weight: 700;
   }
-  .ac-instname { font-size: 6.2mm; color: #00563f; font-weight: 800; transform: translateY(-100%); }
-  .ac-addr { font-size: 2.6mm; color: #334155; font-weight: 600; transform: translateY(-100%); }
-  .ac-examline { font-size: 3.4mm; font-weight: 700; transform: translateY(-100%); text-align: center; }
-  .ac-val { font-size: 3.4mm; transform: translateY(-100%); }
-  .ac-examdate { font-size: 2.9mm; text-decoration: underline; transform: translateY(-100%); }
+  .ac-instname { font-size: 6.8mm; color: #00563f; font-weight: 800; transform: translateY(-100%); }
+  .ac-addr { font-size: 3mm; color: #334155; font-weight: 600; transform: translateY(-100%); }
+  .ac-examline { font-size: 3.9mm; font-weight: 700; transform: translateY(-100%); text-align: center; }
+  .ac-val { font-size: 4mm; transform: translateY(-100%); }
+  .ac-examdate { font-size: 3.3mm; text-decoration: underline; transform: translateY(-100%); }
 `;
 
 /** Millimeter coordinates (from card top-left) for every dynamic field, measured from the reference artwork. */
