@@ -3526,6 +3526,34 @@ Phase 1 (payments cascade fix) finished 2026-08-05:
   dependency). **Run `npm run check` as part of this delivery's CMD before
   trusting it.**
 
+---
+
+## Task: CCTV ইন্টিগ্রেশন — Phase 1 (DB স্কিমা), পুরো পরিকল্পনা
+`docs/CCTV_INTEGRATION_PLAN.md`-এ
+
+## Status: DONE (Phase 1 only — Phase 2-৮ শুরু হয়নি, উপরের IN_PROGRESS
+শিফট-সিডিউল টাস্ক থেকে আলাদা, একে-অপরকে প্রভাবিত করে না)
+
+Completed: 2026-08-18
+
+`server/sql/supabase_schema.sql`-এ তিনটা নতুন টেবিল যোগ হলো:
+- `camera_bridges` — প্রতিষ্ঠানের bridge মেশিন (deviceId+secretKey auth,
+  attendance_devices-এর প্যাটার্নে)
+- `cameras` — প্রতিটা ক্যামেরা, `bridgeDeviceId` দিয়ে camera_bridges-এর
+  সাথে real FK (camera_bridges."deviceId"-এর উপর, id-এর উপর না)
+- `camera_events` — raw motion/human/vehicle ডিটেকশন লগ, `cameraId` FK
+  cascade delete সহ
+
+কোনো রুট/API/UI কোড এখনো নেই — পরিকল্পনার Phase 2 থেকে শুরু হবে
+(`server/src/lib/cameraSchemas.js`, `server/src/routes/cameras.js`)।
+`docs/CCTV_INTEGRATION_PLAN.md`-এও এই আপডেট নোট করা হয়েছে।
+
+`npm run check` এই ডেলিভারির প্যাকেজড CMD দিয়ে ইউজারের নিজের মেশিনে চলবে
+(sandbox-এ node_modules/নেটওয়ার্ক নেই) — SQL ফাইলের প্যারেন/কোট ব্যালেন্স
+ম্যানুয়ালি যাচাই করা হয়েছে।
+
+---
+
 ## How to use this file (for the AI agent)
 
 **If `Status: IN_PROGRESS` above:**
