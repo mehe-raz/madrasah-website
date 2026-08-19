@@ -375,4 +375,110 @@ router.get("/:id/stream-url", async (req, res) => {
   });
 });
 
+// ── Camera Events routes (Phase 8) ───────────────────────────────────────────
+//
+// GET  /events         — paginated list, newest first, optional ?cameraId filter
+//                        and ?unacknowledgedOnly=true for the notification badge.
+// PATCH /events/:id/acknowledge — flip acknowledged=true; idempotent (already-
+//                        acknowledged rows just return 200 without a second audit
+//                        write, same as staff.js's active-toggle pattern).
+
+// Columns returned on every events query. camera name is joined in so the
+// UI can show "Main Gate — human" without a separate request per event.
+const EVENT_COLS = `
+  e.id,
+  e."cameraId",
+  c.name AS "cameraName",
+  c.location AS "cameraLocation",
+  e.type,
+  e."detectedAt",
+  e."clipPath",
+  e.acknowledged,
+  e."createdAt"
+`.trim();
+
+// GET /events — list camera events, newest first.
+// Query params:
+//   cameraId          — filter to a single camera (integer)
+//   unacknowledgedOnly — "true" → only rows where acknowledged = false
+//   limit              — max rows returned (default 50, max 200)
+// No cursor/offset pagination: the UI shows the last N events in a timeline;
+// infinite scroll is out of scope for Phase 8.
+router.get("/events", async (req, res) => {
+  const { cameraId, unacknowledgedOnly, limit: limitParam } = req.query;
+
+  const limit = Math.min(Number.isFinite(Number(limitParam)) ? Number(limitParam) : 50, 200);
+
+  const conditions = [];
+  const params = [];
+
+  if (cameraId) {
+    params.push(Number(cameraId));
+    conditions.push(`e."cameraId" = $${params.length}`);
+  }
+
+  if (unacknowledgedOnly === "true") {
+    conditions.push("e.acknowledged = false");
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  params.push(limit);
+  const rows = await db.all(
+    `SELECT ${EVENT_COLS}
+     FROM camera_events e
+     LEFT JOIN cameras c ON c.id = e."cameraId"
+     ${where}
+     ORDER BY e."detectedAt" DESC
+     LIMIT $${params.length}`,
+    params
+  );
+
+  res.json(rows);
+});
+
+// PATCH /events/:id/acknowledge — mark one event as seen.
+// Idempotent: already-acknowledged rows return 200 with the existing row,
+// no audit write (nothing actually changed), matching the active-toggle
+// pattern in staff.js and shifts.js.
+router.patch("/events/:id/acknowledge", async (req, res) => {
+  const id = Number(req.params.id);
+
+  const existing = await db.get(
+    `SELECT ${EVENT_COLS}
+     FROM camera_events e
+     LEFT JOIN cameras c ON c.id = e."cameraId"
+     WHERE e.id = $1`,
+    [id]
+  );
+  if (!existing) {
+    return res.status(404).json({ error: "ইভেন্ট পাওয়া যায়নি" });
+  }
+
+  if (!existing.acknowledged) {
+    await db.run(
+      `UPDATE camera_events SET acknowledged = true WHERE id = $1`,
+      [id]
+    );
+    await recordAudit({
+      action: "camera_event.acknowledged",
+      actor: req.user,
+      entityType: "camera_event",
+      entityId: id,
+      label: `Camera event acknowledge: ${existing.cameraName ?? "unknown"} (${existing.type})`,
+      details: { cameraId: existing.cameraId, type: existing.type, detectedAt: existing.detectedAt },
+    });
+  }
+
+  const row = await db.get(
+    `SELECT ${EVENT_COLS}
+     FROM camera_events e
+     LEFT JOIN cameras c ON c.id = e."cameraId"
+     WHERE e.id = $1`,
+    [id]
+  );
+  res.json(row);
+});
+
+
 module.exports = router;

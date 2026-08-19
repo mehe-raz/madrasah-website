@@ -939,6 +939,21 @@ export interface CameraBridgeRegenResponse {
   secretKey: string;
 }
 
+
+// CameraEvent — one row from camera_events (Phase 8 timeline).
+// cameraName/cameraLocation come from the LEFT JOIN in the events route.
+export interface CameraEvent {
+  id: number;
+  cameraId: number;
+  cameraName: string | null;
+  cameraLocation: string | null;
+  type: "motion" | "human" | "vehicle";
+  detectedAt: string;
+  clipPath: string | null;
+  acknowledged: boolean;
+  createdAt: string;
+}
+
 // Camera — a single RTSP source attached to a bridge.
 export interface Camera {
   id: number;

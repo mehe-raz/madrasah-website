@@ -1287,6 +1287,23 @@ export const en = {
     dashboardWidgetTitle: "Camera Status",
     morecameras: "more",
 
+    // Phase 8 — event timeline
+    eventsSectionTitle: "Event Timeline",
+    eventsSubtitle: "Detection events from all cameras, newest first.",
+    eventsUnacknowledgedOnly: "Unacknowledged only",
+    eventsAll: "All events",
+    eventsEmpty: "No events recorded yet.",
+    eventsLoadFailed: "Failed to load events.",
+    eventsRefresh: "Refresh",
+    typeHuman: "Human",
+    typeVehicle: "Vehicle",
+    typeMotion: "Motion",
+    acknowledge: "Acknowledge",
+    acknowledged: "Acknowledged",
+    acknowledgeFailed: "Failed to acknowledge.",
+    filterAllCameras: "All cameras",
+    clipAvailable: "View clip",
+
     // Validation
     bridgeIdRequired: "Bridge ID is required.",
     nameRequired: "Name is required.",

@@ -60,6 +60,7 @@ import type {
   CameraBridgeCreateResponse,
   CameraBridgeRegenResponse,
   Camera,
+  CameraEvent,
 } from "../types";
 import { cacheGetResponse, getCachedGetResponse } from "./offlineCache";
 import { enqueueOutboxEntry } from "./offlineDb";
@@ -1331,5 +1332,17 @@ export const api = {
 
     // Phase 4 — get a short-lived signed URL for the HLS stream proxy.
     getStreamUrl: (id: number) => request<{ streamUrl: string; expiresIn: string }>(`/cameras/${id}/stream-url`),
+
+    // Phase 8 — event timeline + acknowledge.
+    listEvents: (params?: { cameraId?: number; unacknowledgedOnly?: boolean; limit?: number }) => {
+      const qs = new URLSearchParams();
+      if (params?.cameraId !== undefined) qs.set("cameraId", String(params.cameraId));
+      if (params?.unacknowledgedOnly) qs.set("unacknowledgedOnly", "true");
+      if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+      const q = qs.toString();
+      return request<CameraEvent[]>(`/cameras/events${q ? `?${q}` : ""}`);
+    },
+    acknowledgeEvent: (id: number) =>
+      request<CameraEvent>(`/cameras/events/${id}/acknowledge`, { method: "PATCH" }),
   },
 };

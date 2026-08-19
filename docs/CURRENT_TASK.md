@@ -3773,8 +3773,25 @@ Phase 7 Completed: 2026-08-19
     `.camera-status-row` CSS যোগ।
   - `client/src/i18n/bn.ts` + `en.ts` — Phase 7 keys যোগ।
 
-পরের এজেন্ট Phase 8 করবে: ইভেন্ট/নোটিফিকেশন টাইমলাইন (`camera_events`
-লিস্ট UI, acknowledge বোতাম)।
+- [x] **Phase 8 সম্পন্ন (2026-08-19)** — ইভেন্ট/নোটিফিকেশন টাইমলাইন:
+  - `server/src/routes/cameras.js` — নতুন দুটো রুট:
+    `GET /events` (paginated, ?cameraId + ?unacknowledgedOnly + ?limit ফিল্টার,
+    camera name JOIN-সহ) এবং `PATCH /events/:id/acknowledge` (idempotent,
+    audit log, `requirePermission("cameras")` দিয়ে সুরক্ষিত — বিদ্যমান
+    router.use() থেকে inherit)।
+  - `client/src/types/index.ts` — নতুন `CameraEvent` interface।
+  - `client/src/lib/api.ts` — `api.cameras.listEvents()` ও
+    `api.cameras.acknowledgeEvent()` যোগ।
+  - `client/src/modules/Cameras.tsx` — `EventsSection` কম্পোনেন্ট (filter bar:
+    camera dropdown + unacknowledged toggle + refresh; timeline list: type badge,
+    camera name/location, timestamp, acknowledge বাটন / "স্বীকৃত" label,
+    optional clip link)। Cameras পেজের নিচে "ইভেন্ট টাইমলাইন" সেকশন হিসেবে
+    যোগ হয়েছে।
+  - `client/src/index.css` — `.event-timeline`, `.event-type-tag`,
+    `.events-filter-bar` ও সংশ্লিষ্ট CSS।
+  - `client/src/i18n/bn.ts` + `en.ts` — Phase 8 keys যোগ।
+
+CCTV সেকশনের সব Phase (1–8) সম্পন্ন।
 
 ---
 

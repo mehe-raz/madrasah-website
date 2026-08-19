@@ -1300,6 +1300,23 @@ export const bn = {
     dashboardWidgetTitle: "ক্যামেরা স্ট্যাটাস",
     morecameras: "টি আরও",
 
+    // Phase 8 — event timeline
+    eventsSectionTitle: "ইভেন্ট টাইমলাইন",
+    eventsSubtitle: "সব ক্যামেরার সনাক্তকরণ ইভেন্ট, সর্বশেষ প্রথমে।",
+    eventsUnacknowledgedOnly: "শুধু অপ্রাপ্তিস্বীকৃত",
+    eventsAll: "সব ইভেন্ট",
+    eventsEmpty: "এখনো কোনো ইভেন্ট রেকর্ড হয়নি।",
+    eventsLoadFailed: "ইভেন্ট লোড করতে ব্যর্থ হয়েছে।",
+    eventsRefresh: "রিফ্রেশ",
+    typeHuman: "মানুষ",
+    typeVehicle: "গাড়ি",
+    typeMotion: "মোশন",
+    acknowledge: "প্রাপ্তিস্বীকার",
+    acknowledged: "স্বীকৃত",
+    acknowledgeFailed: "প্রাপ্তিস্বীকার ব্যর্থ হয়েছে।",
+    filterAllCameras: "সব ক্যামেরা",
+    clipAvailable: "ক্লিপ দেখুন",
+
     // Validation
     bridgeIdRequired: "ব্রিজ আইডি প্রয়োজন।",
     nameRequired: "নাম প্রয়োজন।",

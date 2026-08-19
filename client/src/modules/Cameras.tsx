@@ -15,6 +15,7 @@ import type {
   CameraBridge,
   CameraBridgeCreateResponse,
   CameraBridgeRegenResponse,
+  CameraEvent,
 } from "../types";
 
 // ── Secret modal ──────────────────────────────────────────────────────────────
@@ -492,6 +493,178 @@ function CamerasSection({
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
+
+// ── EventsSection ─────────────────────────────────────────────────────────────
+// Phase 8: detection event timeline with per-event acknowledge button.
+// Shows newest events first (server returns them that way).
+// Filtering: all cameras vs single camera dropdown + unacknowledged-only toggle.
+
+function EventTypeTag({ type, c }: { type: CameraEvent["type"]; c: ReturnType<typeof useLanguage>["t"]["cameras"] }) {
+  const label = type === "human" ? c.typeHuman : type === "vehicle" ? c.typeVehicle : c.typeMotion;
+  const color =
+    type === "human"
+      ? "#ef4444"   // red — person
+      : type === "vehicle"
+      ? "#f97316"   // orange — vehicle
+      : "#6b7280";  // grey — motion
+  return (
+    <span
+      className="event-type-tag"
+      // eslint-disable-next-line no-restricted-syntax -- color is runtime-computed from event type
+      style={{ background: color }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function EventsSection({
+  t,
+  cameras,
+}: {
+  t: ReturnType<typeof useLanguage>["t"];
+  cameras: Camera[];
+}) {
+  const c = t.cameras;
+  const [events, setEvents] = useState<CameraEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [unacknowledgedOnly, setUnacknowledgedOnly] = useState(false);
+  const [filterCameraId, setFilterCameraId] = useState<number | undefined>(undefined);
+  const [ackingId, setAckingId] = useState<number | null>(null);
+
+  const loadEvents = (unackOnly = unacknowledgedOnly, camId = filterCameraId) => {
+    setLoading(true);
+    setError("");
+    api.cameras
+      .listEvents({ unacknowledgedOnly: unackOnly, cameraId: camId, limit: 100 })
+      .then(setEvents)
+      .catch((err) => setError(err instanceof Error ? err.message : c.eventsLoadFailed))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setLoading(true) resets spinner at start of each fetch; initial state is already true so no cascading-render on mount
+    loadEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAcknowledge = async (id: number) => {
+    setAckingId(id);
+    try {
+      const updated = await api.cameras.acknowledgeEvent(id);
+      setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    } catch {
+      alert(c.acknowledgeFailed);
+    } finally {
+      setAckingId(null);
+    }
+  };
+
+  const handleFilterChange = (camId: number | undefined, unackOnly: boolean) => {
+    setFilterCameraId(camId);
+    setUnacknowledgedOnly(unackOnly);
+    loadEvents(unackOnly, camId);
+  };
+
+  const formatTime = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleString();
+    } catch {
+      return iso;
+    }
+  };
+
+  return (
+    <Card>
+      {/* Filter bar */}
+      <div className="events-filter-bar">
+        <select
+          className="events-filter-select"
+          value={filterCameraId ?? ""}
+          onChange={(e) =>
+            handleFilterChange(e.target.value ? Number(e.target.value) : undefined, unacknowledgedOnly)
+          }
+        >
+          <option value="">{c.filterAllCameras}</option>
+          {cameras.map((cam) => (
+            <option key={cam.id} value={cam.id}>
+              {cam.name}
+            </option>
+          ))}
+        </select>
+
+        <label className="events-filter-toggle">
+          <input
+            type="checkbox"
+            checked={unacknowledgedOnly}
+            onChange={(e) => handleFilterChange(filterCameraId, e.target.checked)}
+          />
+          <span>{c.eventsUnacknowledgedOnly}</span>
+        </label>
+
+        <Button
+          variant="outline"
+          onClick={() => loadEvents()}
+        >
+          {c.eventsRefresh}
+        </Button>
+      </div>
+
+      {/* Timeline */}
+      {loading && <SkeletonCardList count={4} />}
+      {!loading && error && <p className="error-text">{error}</p>}
+      {!loading && !error && events.length === 0 && (
+        <p className="muted-text">{c.eventsEmpty}</p>
+      )}
+      {!loading && !error && events.length > 0 && (
+        <ul className="event-timeline">
+          {events.map((ev) => (
+            <li
+              key={ev.id}
+              className={`event-timeline__item${ev.acknowledged ? " event-timeline__item--acked" : ""}`}
+            >
+              <div className="event-timeline__left">
+                <EventTypeTag type={ev.type} c={c} />
+                <div className="event-timeline__meta">
+                  <span className="event-timeline__camera">
+                    {ev.cameraName ?? "—"}
+                    {ev.cameraLocation ? ` · ${ev.cameraLocation}` : ""}
+                  </span>
+                  <span className="event-timeline__time">{formatTime(ev.detectedAt)}</span>
+                </div>
+              </div>
+              <div className="event-timeline__right">
+                {ev.clipPath && (
+                  <a
+                    href={ev.clipPath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="event-timeline__clip-link"
+                  >
+                    {c.clipAvailable}
+                  </a>
+                )}
+                {ev.acknowledged ? (
+                  <span className="event-timeline__acked-badge">{c.acknowledged}</span>
+                ) : (
+                  <Button
+                    variant="outline"
+                    disabled={ackingId === ev.id}
+                    onClick={() => handleAcknowledge(ev.id)}
+                  >
+                    {c.acknowledge}
+                  </Button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 export function Cameras() {
   const { t } = useLanguage();
   const c = t.cameras;
@@ -592,6 +765,11 @@ export function Cameras() {
         errorCameras={errorCameras}
         onReload={reload}
       />
+
+      {/* ── Phase 8: Event timeline ── */}
+      <h3 className="section-heading mt-18">{c.eventsSectionTitle}</h3>
+      <p className="page-subtitle">{c.eventsSubtitle}</p>
+      <EventsSection t={t} cameras={cameras} />
 
       {secret && (
         <SecretModal
