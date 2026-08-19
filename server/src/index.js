@@ -554,10 +554,12 @@ app.use((err, req, res, next) => {
     // "this already exists". err.detail names the exact column/value so we
     // can tell which case it is instead of guessing.
     console.error("23505 detail:", err.detail, "| constraint:", err.constraint, "| table:", err.table);
+    const isProd = process.env.NODE_ENV === "production";
     return res.status(409).json({
       error: "এই তথ্য সংরক্ষণে সমস্যা হয়েছে (ডুপ্লিকেট)।",
-      _debugDetail: err.detail || null,
-      _debugConstraint: err.constraint || null,
+      // Only exposed outside production — these fields leak DB internals
+      // (column/constraint names) and must never reach a real client.
+      ...(isProd ? {} : { _debugDetail: err.detail || null, _debugConstraint: err.constraint || null }),
     });
   }
   if (err?.code === "23503") {

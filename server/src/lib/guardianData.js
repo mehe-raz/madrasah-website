@@ -97,6 +97,21 @@ async function todayAttendanceForStudent(studentId) {
   return row ? row.status : null;
 }
 
+// Batched version of todayAttendanceForStudent for multi-child screens (the
+// guardian dashboard) — one query for all children instead of one query per
+// child (N+1). Returns a Map keyed by studentId; a child with no attendance
+// row taken yet today is simply absent from the map (caller treats that as
+// null, same as the single-student version).
+async function todayAttendanceForStudents(studentIds) {
+  if (!studentIds || studentIds.length === 0) return new Map();
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = await db.all(
+    `SELECT "studentId", status FROM attendance WHERE "studentId" = ANY($1) AND date = $2`,
+    [studentIds, today]
+  );
+  return new Map(rows.map((r) => [r.studentId, r.status]));
+}
+
 module.exports = {
   ATTENDANCE_STATUSES,
   assertGuardianOwnsStudent,
@@ -104,4 +119,5 @@ module.exports = {
   attendanceHistoryForStudent,
   publishedResultsForStudent,
   todayAttendanceForStudent,
+  todayAttendanceForStudents,
 };

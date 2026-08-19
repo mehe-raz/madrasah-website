@@ -19,6 +19,29 @@ const router = express.Router();
 // Defense-in-depth: don't rely solely on the global rbacMiddleware in index.js.
 router.use(requirePermission("students"));
 
+// Audit fix (2026-08-19): shared by GET /:id and GET /:id/pdf, which both
+// used to load every attendance row for a student into memory just to
+// count them (700+ rows for a 3-year student). Aggregates in SQL instead
+// via COUNT(*) FILTER, and having one function means the two routes can't
+// drift out of sync with each other.
+async function attendanceSummaryForStudent(studentId) {
+  const row = await db.get(
+    `SELECT
+       COUNT(*) FILTER (WHERE status = 'উপস্থিত') as present,
+       COUNT(*) FILTER (WHERE status = 'অনুপস্থিত') as absent,
+       COUNT(*) FILTER (WHERE status = 'দেরিতে') as late,
+       COUNT(*) as total
+     FROM attendance WHERE "studentId" = $1`,
+    [studentId]
+  );
+  return {
+    total: Number(row?.total || 0),
+    present: Number(row?.present || 0),
+    absent: Number(row?.absent || 0),
+    late: Number(row?.late || 0),
+  };
+}
+
 const INSERT_COLUMNS = [
   ["name", "name"],
   ['"nameEn"', "nameEn"],
@@ -318,18 +341,7 @@ router.get("/:id", async (req, res) => {
   const row = await db.get(`SELECT ${RETURNING_COLUMNS} FROM students WHERE id = $1`, [req.params.id]);
   if (!row) return res.status(404).json({ error: "শিক্ষার্থী পাওয়া যায়নি" });
 
-  const attendanceRows = await db.all('SELECT status FROM attendance WHERE "studentId" = $1', [req.params.id]);
-  const attendanceSummary = {
-    total: attendanceRows.length,
-    present: 0,
-    absent: 0,
-    late: 0,
-  };
-  attendanceRows.forEach((r) => {
-    if (r.status === "উপস্থিত") attendanceSummary.present++;
-    else if (r.status === "অনুপস্থিত") attendanceSummary.absent++;
-    else if (r.status === "দেরিতে") attendanceSummary.late++;
-  });
+  const attendanceSummary = await attendanceSummaryForStudent(req.params.id);
 
   res.json({ ...row, attendanceSummary });
 });
@@ -478,18 +490,7 @@ router.get("/:id/pdf", async (req, res) => {
   const student = await db.get("SELECT * FROM students WHERE id = $1", [req.params.id]);
   if (!student) return res.status(404).json({ error: "শিক্ষার্থী পাওয়া যায়নি" });
 
-  const attendanceRows = await db.all('SELECT status FROM attendance WHERE "studentId" = $1', [req.params.id]);
-  const attendanceSummary = {
-    total: attendanceRows.length,
-    present: 0,
-    absent: 0,
-    late: 0,
-  };
-  attendanceRows.forEach((r) => {
-    if (r.status === "উপস্থিত") attendanceSummary.present++;
-    else if (r.status === "অনুপস্থিত") attendanceSummary.absent++;
-    else if (r.status === "দেরিতে") attendanceSummary.late++;
-  });
+  const attendanceSummary = await attendanceSummaryForStudent(req.params.id);
 
   try {
     console.log("Starting PDF generation for student:", student.id);

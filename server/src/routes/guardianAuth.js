@@ -37,7 +37,7 @@ const {
   assertGuardianOwnsStudent,
   attendanceHistoryForStudent,
   publishedResultsForStudent,
-  todayAttendanceForStudent,
+  todayAttendanceForStudents,
 } = require("../lib/guardianData");
 const { requirePlanFeature } = require("../middleware/planGate");
 const bkashGateway = require("../lib/bkashGateway");
@@ -74,7 +74,10 @@ const signupLimiter = rateLimit({
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  // Audit fix (2026-08-19): guardians typically use short 4-8 digit
+  // passwords, so a limit as generous as staff's (max: 50) gave more room
+  // for a lucky brute-force guess. Tightened to 20.
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -501,9 +504,9 @@ router.get("/dashboard", async (req, res) => {
   try {
     const guardianId = await requireActiveGuardianId(req);
     const children = await activeChildrenForGuardian(guardianId);
-    const withAttendance = await Promise.all(
-      children.map(async (c) => ({ ...c, todayAttendance: await todayAttendanceForStudent(c.id) }))
-    );
+    // One batched query for all children instead of one query per child (N+1).
+    const attendanceByStudent = await todayAttendanceForStudents(children.map((c) => c.id));
+    const withAttendance = children.map((c) => ({ ...c, todayAttendance: attendanceByStudent.get(c.id) ?? null }));
     res.json({ children: withAttendance, unreadCount: await unreadCountForGuardian(guardianId) });
   } catch (err) {
     res.status(err.status || 401).json({ error: err.status ? err.message : "Session expired" });
