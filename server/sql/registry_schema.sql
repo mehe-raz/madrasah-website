@@ -270,3 +270,29 @@ create table if not exists registry.device_registry (
 
 create index if not exists device_registry_institution_idx
   on registry.device_registry (institution_id);
+
+-- ============================================================================
+-- Institution type (docs/GENERAL_MODE_PLAN.md, Phase 1)
+-- ============================================================================
+-- Distinguishes a madrasah tenant from a "general" tenant (school / college /
+-- coaching center — plan doc §5 open question 1 decided these all share the
+-- single 'general' value rather than separate enum values, so classTree's
+-- default seed and the hifzTracking feature gate can branch on this one
+-- column instead of a growing list of institution kinds).
+--
+-- Default 'madrasah' (plan doc §5 open question 2) keeps every existing
+-- tenant's behavior unchanged — nothing reads this column yet, so this
+-- migration alone has no visible effect. Later phases will start reading it:
+-- Phase 2 (signup flow + classTree default seed), Phase 3 (hifzTracking gate).
+--
+-- Single-tenant deployments (MULTI_TENANT_MODE=false, no registry.institutions
+-- row at all) have no row for this column to live on — Phase 2 will need its
+-- own fallback for that case (likely a settings-table key, same pattern as
+-- classOptionsTree) when it starts actually reading institution_type.
+alter table registry.institutions
+  add column if not exists institution_type text not null default 'madrasah';
+
+alter table registry.institutions drop constraint if exists institutions_institution_type_check;
+alter table registry.institutions
+  add constraint institutions_institution_type_check
+  check (institution_type in ('madrasah', 'general'));
