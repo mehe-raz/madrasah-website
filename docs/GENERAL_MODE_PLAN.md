@@ -1,6 +1,12 @@
 # পরিকল্পনা: "জেনারেল মোড" — স্কুল/কলেজ/কোচিং সেন্টারের জন্য দ্বিতীয় প্রোডাক্ট-ভ্যারিয়েন্ট
 
-তৈরি: 2026-08-20 · প্রজেক্ট: madrasah-website · স্ট্যাটাস: **Phase 1 ও Phase 2 সম্পন্ন (2026-08-20) — Phase 3–8 বাকি**
+তৈরি: 2026-08-20 · প্রজেক্ট: madrasah-website · স্ট্যাটাস: **Phase 1–4 সম্পন্ন (2026-08-20) — Phase 5–8 বাকি**
+
+**Phase 4 আপডেট (2026-08-20):** `dept` এনাম "অটো-ডিরাইভ" পদ্ধতিতে
+জেনারালাইজ করা হয়েছে — `TREE_TOP_LEVEL_TO_DEPT`/`DEPT_LABELS_BN`-এ school/
+college যোগ, এবং Students.tsx/Attendance.tsx-এর হার্ডকোড dept-লিস্ট নতুন
+`deptFilterOptions()` হেল্পার দিয়ে প্রতিস্থাপন। বিস্তারিত
+`docs/CURRENT_TASK.md`-এ।
 
 **Phase 1 আপডেট (2026-08-20):** `server/sql/registry_schema.sql`-এ
 `registry.institutions`-এ `institution_type` কলাম (ডিফল্ট `'madrasah'`) +

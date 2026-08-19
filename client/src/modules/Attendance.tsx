@@ -1,18 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "../components/Badge";
 import { Button, Card, Field, Input, Textarea } from "../components/ui";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { api } from "../lib/api";
-import { classTreeLabel } from "../lib/classTree";
+import { classTreeLabel, deptFilterOptions } from "../lib/classTree";
 import { deptLabel } from "../lib/labels";
 import { isoToTimeInput, timeInputToIso } from "../lib/attendanceTime";
 import { C } from "../theme/colors";
 import type { Student } from "../types";
 
-const DEPTS = ["Hifz", "Kitab", "Nazera", "Nurani", "General", "All"] as const;
-
 export function Attendance() {
   const { t, classTree } = useAppSettings();
+  // docs/GENERAL_MODE_PLAN.md, Phase 4 — dept filter tabs, derived from this
+  // tenant's own class/jamaat tree top-level departments (see
+  // deptFilterOptions) instead of a hardcoded madrasah-only list, so a
+  // "general" institution_type tenant's school/college departments show up
+  // here too.
+  const deptTabs = useMemo(
+    () => [{ value: "All", label: t.common.all }, ...deptFilterOptions(classTree)],
+    [classTree, t]
+  );
   const [dept, setDept] = useState<string>("All");
   const [att, setAtt] = useState<Student[]>([]);
   const [saved, setSaved] = useState(false);
@@ -168,23 +175,23 @@ export function Attendance() {
       )}
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-        {DEPTS.map((d) => (
+        {deptTabs.map((tab) => (
           <button
-            key={d}
+            key={tab.value}
             type="button"
-            onClick={() => setDept(d)}
+            onClick={() => setDept(tab.value)}
             style={{
               padding: "7px 14px",
               borderRadius: 8,
-              border: `1px solid ${dept === d ? C.teal : C.border}`,
-              background: dept === d ? C.tealL : C.card,
-              color: dept === d ? C.tealD : C.muted,
-              fontWeight: dept === d ? 700 : 400,
+              border: `1px solid ${dept === tab.value ? C.teal : C.border}`,
+              background: dept === tab.value ? C.tealL : C.card,
+              color: dept === tab.value ? C.tealD : C.muted,
+              fontWeight: dept === tab.value ? 700 : 400,
               cursor: "pointer",
               fontSize: 13,
             }}
           >
-            {d === "All" ? t.common.all : deptLabel(d)}
+            {tab.label}
           </button>
         ))}
       </div>

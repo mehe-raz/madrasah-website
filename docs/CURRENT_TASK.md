@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: "জেনারেল মোড" — স্কুল/কলেজ/কোচিং সেন্টারের জন্য দ্বিতীয়
 প্রোডাক্ট-ভ্যারিয়েন্ট (৮ Phase-এ, পুরো পরিকল্পনা `docs/GENERAL_MODE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1, Phase 2, Phase 3 সম্পন্ন — Phase 4 বাকি)
+## Status: IN_PROGRESS (Phase 1, Phase 2, Phase 3, Phase 4 সম্পন্ন — Phase 5 বাকি)
 
 ব্যবহারকারী চান একই কোডবেস দিয়ে একটা দ্বিতীয় মোড — যেখানে স্কুল/কলেজ/কোচিং
 সেন্টার সাইনআপ করলে কোনো মাদ্রাসা/আরবি-নির্দিষ্ট শব্দ বা ফিচার (হিফজ
@@ -161,8 +161,58 @@ the next sequential number.
     madrasah-টাইপ টেন্যান্টে (standard+ প্ল্যানে) হিফজ স্বাভাবিক কাজ করছে
     কিনা (রিগ্রেশন চেক)।**
 
+- [x] **Phase 4 (dept এনাম জেনারালাইজ) সম্পন্ন** — প্ল্যানের "অটো-ডিরাইভ"
+  অপশন বেছে নেওয়া হয়েছে (হাইড না), কারণ dept ইতিমধ্যে
+  `deptCodeFromTreeTopLevel()` (Students.tsx handleClassChange) দিয়ে
+  ক্লাস-নির্বাচন থেকে অটো-ডিরাইভ হচ্ছিল — শুধু general-টাইপের টপ-লেভেল
+  বিভাগ (school/college) ওই ম্যাপিংয়ে ছিল না বলে raw lowercase slug-এ
+  ফলব্যাক করছিল:
+  - `client/src/lib/labels.ts` — `TREE_TOP_LEVEL_TO_DEPT`-এ `school:
+    "School"`, `college: "College"` যোগ (বিদ্যমান
+    hifz/nurani-najera/kitab/general প্যাটার্নেই); `DEPT_LABELS_BN`-এ
+    `School: "স্কুল"`, `College: "কলেজ"` যোগ।
+  - `client/src/lib/classTree.ts` — নতুন এক্সপোর্ট
+    `deptFilterOptions(tree)`: তেন্যান্টের নিজের class tree-র টপ-লেভেল
+    নোড থেকে dept ফিল্টার-অপশন (value = `deptCodeFromTreeTopLevel`,
+    label = নোডের নিজের bn) ডেরাইভ করে, ডুপ্লিকেট value বাদ দিয়ে। এটা
+    madrasah ও general দুই টাইপ টেন্যান্টেই কাজ করে, এবং ভবিষ্যতে
+    Super Admin যেকোনো নতুন কাস্টম টপ-লেভেল বিভাগ যোগ করলে কোনো কোড
+    পরিবর্তন ছাড়াই সেটাও ফিল্টারে দেখাবে।
+  - `client/src/modules/Students.tsx` — হার্ডকোড করা
+    `departmentOptions = ["Hifz","Kitab","Nurani","General"]` সরিয়ে
+    `deptFilterOptions(classTree)` (useMemo-তে) দিয়ে প্রতিস্থাপন করা
+    হয়েছে; admission ফর্মের `emptyForm.dept` ডিফল্ট `"Hifz"` থেকে `""`
+    করা হয়েছে (আগে থেকেই handleClassChange ক্লাস বাছাইয়ের সময় এটা
+    ওভাররাইট করে, এবং `ReadonlyValue` blank dept-এ
+    `t.common.select` প্লেসহোল্ডার দেখায় — কোনো ফাংশনাল পরিবর্তন না,
+    শুধু general-টাইপ টেন্যান্টে ফর্ম খোলার সাথে সাথেই "হিফজ" শব্দটা
+    মুহূর্তের জন্যও না দেখানো)।
+  - `client/src/modules/Attendance.tsx` — হার্ডকোড করা
+    `DEPTS = ["Hifz","Kitab","Nazera","Nurani","General","All"]`
+    ট্যাব-লিস্ট একই প্যাটার্নে `deptFilterOptions(classTree)` +
+    `{ value: "All", ... }` দিয়ে প্রতিস্থাপন।
+  - `server/src/models/studentAdmission.js`-এ কোনো পরিবর্তন লাগেনি —
+    `dept` ভ্যালিডেশন (`DEPT_CODE_RE`) আগে থেকেই যেকোনো well-formed
+    slug/code গ্রহণ করে (আগের সেশনের নোট দেখুন সেই ফাইলে), শুধু ৫-ভ্যালু
+    ফিক্সড-লিস্ট বাদ দেওয়া হয়েছিল বলে "School"/"College" ইতিমধ্যেই
+    সার্ভার-সাইডে গ্রহণযোগ্য ছিল।
+  - **ইচ্ছাকৃতভাবে স্পর্শ করা হয়নি (স্কোপের বাইরে, ফ্ল্যাগ করা হলো):**
+    `server/src/models/studentAdmission.js`-এর `ALLOWED.gender`
+    (`["Male","Female"]`) ও `ALLOWED.religion` (`["Islam"]`)
+    হার্ডকোড — এগুলোও madrasah-নির্দিষ্ট অনুমান, কিন্তু
+    GENERAL_MODE_PLAN.md-এর §২ আবিষ্কারে এই দুটো উল্লেখ নেই (শুধু dept/
+    para/hifz/institution_type), তাই Phase 4-এর স্কোপ ধরা হয়নি
+    (AGENTS.md রুল ১, one task at a time)। `server/src/routes/students.js`-এর
+    PDF প্রোফাইল টাইটেল `"মাদ্রাসা শিক্ষার্থী প্রোফাইল"` (হার্ডকোড)-ও
+    স্পর্শ করা হয়নি — সেটা Phase 6 (i18n cleanup)-এর কাজ।
+  - bracket-balance স্ক্রিপ্ট দিয়ে ৪টা পরিবর্তিত `.ts`/`.tsx` ফাইলই
+    যাচাই করা হয়েছে (সব ব্যালান্সড), এবং মূল আপলোড করা zip-এর সাথে
+    ফাইল-বাই-ফাইল diff করে নিশ্চিত করা হয়েছে ঠিক এই ৪টা ফাইলই বদলেছে,
+    অন্য কিছু না। sandbox-এ network/node_modules না থাকায় আসল `npm run
+    check`/`tsc`/`eslint` চালানো যায়নি — আপনার প্যাকেজড CMD-তেই প্রথম
+    চলবে (আগের সব Phase-এর প্যাটার্নে)।
+
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] **Phase 4** — `dept` এনাম জেনারালাইজ (general-টাইপে হাইড/অটো-ডিরাইভ)
 - [ ] **Phase 5** — `para` কলাম কন্ডিশনাল (hifzTracking ফ্ল্যাগের সাথে
   বাঁধা)
 - [ ] **Phase 6** — i18n-এর ~৯টা মাদ্রাসা-নির্দিষ্ট স্ট্রিং জেনেরিক করা

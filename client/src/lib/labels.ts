@@ -17,6 +17,12 @@ export const DEPT_LABELS_BN: Record<string, string> = {
   Kitab: "কিতাব",
   Nurani: "নূরানী",
   General: "জেনারেল",
+  // docs/GENERAL_MODE_PLAN.md, Phase 4 — "general" institution_type tenants
+  // (school/college/coaching, see server/src/lib/classTree.js
+  // DEFAULT_CLASS_TREE_GENERAL) seed a tree with "school"/"college"
+  // top-level departments instead of the madrasah ones above.
+  School: "স্কুল",
+  College: "কলেজ",
 };
 
 export const STATUS_OPTIONS = ["Active", "Inactive"] as const;
@@ -53,11 +59,18 @@ export function deptLabel(code?: string | null): string {
 // code rather than introducing a new one — DEPT_LABELS_BN above still has a
 // "Nazera" entry so any pre-existing legacy record keeps displaying
 // correctly, it just won't be produced by new admissions anymore.
+// docs/GENERAL_MODE_PLAN.md, Phase 4 — "school"/"college" (a "general"
+// institution_type tenant's top-level departments, DEFAULT_CLASS_TREE_GENERAL)
+// are mapped here too, same pattern, so their admissions get a proper
+// capitalized dept code + Bengali label instead of falling through to the
+// raw lowercase slug.
 export const TREE_TOP_LEVEL_TO_DEPT: Record<string, string> = {
   hifz: "Hifz",
   "nurani-najera": "Nurani",
   kitab: "Kitab",
   general: "General",
+  school: "School",
+  college: "College",
 };
 
 /** Maps a class-tree top-level node's `en` slug to the dept code this app

@@ -1,4 +1,5 @@
 import type { ClassTreeNode, ClassTreeSubject } from "../types";
+import { deptCodeFromTreeTopLevel } from "./labels";
 
 // Client-side counterpart to server/src/lib/classTree.js's flattenClassTree
 // — same shape, same " / " path separator — so the cascading picker
@@ -26,6 +27,28 @@ export function flattenClassTree(tree: ClassTreeNode[]): ClassTreeLeaf[] {
   }
   walk(tree || [], []);
   return leaves;
+}
+
+// docs/GENERAL_MODE_PLAN.md, Phase 4 — department filter options (Students
+// list filter, Attendance dept tabs) derived from this tenant's own tree
+// top-level departments, instead of a hardcoded madrasah-only list. Works
+// the same way for a madrasah tenant (hifz/nurani-najera/kitab/general) and
+// a "general" institution_type tenant (school/college — see
+// server/src/lib/classTree.js DEFAULT_CLASS_TREE_GENERAL), and picks up any
+// custom top-level department a Super Admin adds later from Settings,
+// without needing a code change here. Value is the same dept code a student
+// record actually carries (deptCodeFromTreeTopLevel); label is the tree's
+// own বাংলা name for that department, deduplicated by value.
+export function deptFilterOptions(tree: ClassTreeNode[]): { value: string; label: string }[] {
+  const seen = new Set<string>();
+  const out: { value: string; label: string }[] = [];
+  for (const node of tree || []) {
+    const value = deptCodeFromTreeTopLevel(node.en);
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    out.push({ value, label: node.bn });
+  }
+  return out;
 }
 
 /** Full বিভাগ -> ... -> leaf path of nodes for a given leaf `en`, or null if not found. */

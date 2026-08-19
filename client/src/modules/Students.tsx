@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SkeletonTableRows } from "../components/Skeleton";
 import { RecordCard, RecordCardList } from "../components/RecordCard";
 import { Badge } from "../components/Badge";
@@ -6,7 +6,7 @@ import { ScanEnrollButton } from "../components/ScanEnrollModal";
 import { Button, Card, ClassCascadeSelect, Field, Input, ReadonlyValue, Select, Textarea } from "../components/ui";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { api } from "../lib/api";
-import { classTreeLabel, findClassTreePath } from "../lib/classTree";
+import { classTreeLabel, deptFilterOptions, findClassTreePath } from "../lib/classTree";
 import { fmt } from "../lib/fmt";
 import { deptCodeFromTreeTopLevel, deptLabel, typeLabel } from "../lib/labels";
 import { getOutboxEntriesFor, removeOutboxEntry, type OutboxEntry } from "../lib/offlineDb";
@@ -64,7 +64,13 @@ const emptyForm: AdmissionForm = {
   village: "",
   previousInstitution: "",
   previousClass: "",
-  dept: "Hifz",
+  // docs/GENERAL_MODE_PLAN.md, Phase 4 — was hardcoded "Hifz"; left blank
+  // now since this field is always auto-derived from the chosen class/jamaat
+  // (handleClassChange below) before the form can be submitted (step3Required
+  // still requires it), and a "general" institution_type tenant's tree never
+  // has a "Hifz" branch to derive from. ReadonlyValue below already shows
+  // t.common.select as a placeholder when this is blank.
+  dept: "",
   para: 0,
   admissionFee: 0,
   fee: 0,
@@ -105,14 +111,6 @@ const step3Required: AdmissionField[] = ["dept", "admissionFee", "fee"];
 const allRequired: AdmissionField[] = [...step1Required, ...step2Required, ...step3Required];
 const wizardSteps = ["ভর্তি তথ্য", "অভিভাবক ও ঠিকানা", "শিক্ষা / ফি / ডকুমেন্ট"];
 
-// Department filter tabs only — the admission form's own "dept" field is no
-// longer a manual pick (see handleClassChange below), it's auto-derived
-// from the class/jamaat tree's top-level department, which only has 4
-// branches (hifz/nurani-najera/kitab/general — see classTree.js). "Nazera"
-// is dropped from new selections but DEPT_LABELS_BN (lib/labels.ts) still
-// maps it for display, so any pre-existing student with that dept value
-// keeps showing correctly — it's just not offered as a fresh choice anymore.
-const departmentOptions = ["Hifz", "Kitab", "Nurani", "General"];
 const bloodOptions = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const genderOptions = ["Male", "Female"];
 const religionOptions = ["Islam"];
@@ -191,6 +189,12 @@ function readFile(file: File, t: Dict, imageOnly = false): Promise<string> {
 export function Students() {
   const { t, tr, classTree } = useAppSettings();
   const isMobile = useMediaQuery("(max-width: 768px)");
+  // docs/GENERAL_MODE_PLAN.md, Phase 4 — department filter tabs, derived
+  // from this tenant's own class/jamaat tree top-level departments (see
+  // deptFilterOptions) instead of a hardcoded madrasah-only list, so a
+  // "general" institution_type tenant's school/college departments show up
+  // here too.
+  const departmentFilterOptions = useMemo(() => deptFilterOptions(classTree), [classTree]);
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("All");
@@ -642,9 +646,10 @@ export function Students() {
           placeholder={t.students.admissionSearch}
         />
         <Select className="filter-bar__select" value={department} onChange={(event) => { setDepartment(event.target.value); setPage(1); }}>
-          {(["All", ...departmentOptions] as string[]).map((option) => (
-            <option key={option} value={option}>
-              {option === "All" ? t.common.all : deptLabel(option)}
+          <option value="All">{t.common.all}</option>
+          {departmentFilterOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </Select>
