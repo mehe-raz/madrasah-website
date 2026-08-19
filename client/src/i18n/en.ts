@@ -38,6 +38,8 @@ export const en = {
     shifts: "Shifts",
     // ad-hoc, docs/CURRENT_TASK.md
     institutionBilling: "Subscription Bill",
+    // docs/CCTV_INTEGRATION_PLAN.md, Phase 6
+    cameras: "Cameras (CCTV)",
   },
   offline: {
     online: "Online",
@@ -1220,5 +1222,67 @@ export const en = {
     admissionsTitle: "Admission Applications",
     admissionsSubtitle: "Applications from the public form",
     admissionsSummary: "View applications submitted through the admission form and update their status.",
+  },
+
+  // docs/CCTV_INTEGRATION_PLAN.md, Phase 6 — camera bridge + camera management UI
+  cameras: {
+    title: "Camera Management",
+    subtitle: "Manage CCTV bridges and cameras",
+    bridgeSectionTitle: "Bridges",
+    cameraSectionTitle: "Cameras",
+
+    // Bridge form
+    bridgeFormTitle: "Add New Bridge",
+    bridgeIdLabel: "Bridge ID (Device ID)",
+    bridgeIdPlaceholder: "e.g. bridge-001",
+    nameLabel: "Name",
+    namePlaceholder: "e.g. Main Building Bridge",
+    locationLabel: "Location",
+    locationPlaceholder: "e.g. Office Room",
+    tunnelUrlLabel: "Tunnel URL (Cloudflare Tunnel)",
+    tunnelUrlPlaceholder: "e.g. https://cctv.example.com",
+    createBridge: "Add Bridge",
+    creating: "Adding...",
+
+    // Bridge list
+    bridgeListTitle: "Bridge List",
+    noBridges: "No bridges yet. Add the first bridge using the form above.",
+    active: "Active",
+    inactive: "Inactive",
+    activate: "Activate",
+    deactivate: "Deactivate",
+    editTunnelUrl: "Edit Tunnel URL",
+    regenKey: "Regenerate Secret Key",
+    regenConfirm: "The old Secret Key will be invalidated. You will need to update the bridge software with the new key. Continue?",
+
+    // Secret key modal
+    secretModalTitle: "⚠️ Secret Key — shown only once",
+    secretModalWarning: "Copy or note this Secret Key now. It will not be shown again after you close this dialog.",
+    secretKeyLabel: "Secret Key",
+    secretModalNote: "This key is required in the Frigate/bridge software configuration on the bridge machine.",
+    copy: "Copy",
+    copied: "Copied ✓",
+
+    // Camera form
+    cameraFormTitle: "Add New Camera",
+    cameraNamePlaceholder: "e.g. Main Gate Camera",
+    bridgeLabel: "Select Bridge",
+    selectBridge: "— Select a Bridge —",
+    streamPathLabel: "Stream Path",
+    streamPathPlaceholder: "e.g. cam1",
+    createCamera: "Add Camera",
+    noBridgesForCamera: "An active bridge is required before adding cameras.",
+
+    // Camera list
+    cameraListTitle: "Camera List",
+    noCameras: "No cameras yet. Add the first camera using the form above.",
+
+    // Validation
+    bridgeIdRequired: "Bridge ID is required.",
+    nameRequired: "Name is required.",
+    bridgeRequired: "Please select a bridge.",
+    streamPathRequired: "Stream Path is required.",
+    createFailed: "Failed to add.",
+    loadFailed: "Failed to load data.",
   },
 } satisfies Dict;

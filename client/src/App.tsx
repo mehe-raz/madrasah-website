@@ -23,6 +23,7 @@ const Kiosk = lazy(() => import("./pages/kiosk/Kiosk").then((m) => ({ default: m
 const Attendance = lazy(() => import("./modules/Attendance").then((m) => ({ default: m.Attendance })));
 const AdmissionsReview = lazy(() => import("./modules/AdmissionsReview").then((m) => ({ default: m.AdmissionsReview })));
 const AttendanceDevices = lazy(() => import("./modules/AttendanceDevices").then((m) => ({ default: m.AttendanceDevices })));
+const Cameras = lazy(() => import("./modules/Cameras").then((m) => ({ default: m.Cameras })));
 // docs/STAFF_ATTENDANCE_PLAN.md, Phase 5/6
 const Staff = lazy(() => import("./modules/Staff").then((m) => ({ default: m.Staff })));
 const StaffAttendance = lazy(() => import("./modules/StaffAttendance").then((m) => ({ default: m.StaffAttendance })));
@@ -198,6 +199,7 @@ export default function App() {
                     above), no PlanFeatureGate: device management is part of
                     the attendance feature itself, not a separate paid tier. */}
                 <Route path="attendance-devices" element={<AttendanceDevices />} />
+                <Route path="cameras" element={<Cameras />} />
                 {/* docs/ATTENDANCE_DEVICE_SELFSERVICE_PLAN.md, Phase 4A —
                     in-app setup guide, same "attendance" permission as the
                     device-management page above (nested under it, not a

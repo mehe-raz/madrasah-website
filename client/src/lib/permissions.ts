@@ -19,7 +19,10 @@ export type Permission =
   | "staffAttendance"
   // docs/SHIFT_SCHEDULE_PLAN.md, Phase 5 — shift master data + class/staff
   // shift assignment (routes/shifts.js, routes/classShifts.js).
-  | "shifts";
+  | "shifts"
+  // docs/CCTV_INTEGRATION_PLAN.md, Phase 2 — camera bridge + camera CRUD
+  // (routes/cameras.js). Admin/Super Admin only.
+  | "cameras";
 
 const ROLE_PERMISSIONS_MAP: Record<string, readonly string[]> = ROLE_PERMISSIONS;
 

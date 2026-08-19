@@ -43,6 +43,8 @@ export const bn = {
     shifts: "শিফট",
     // ad-hoc, docs/CURRENT_TASK.md
     institutionBilling: "সাবস্ক্রিপশন বিল",
+    // docs/CCTV_INTEGRATION_PLAN.md, Phase 6
+    cameras: "ক্যামেরা (CCTV)",
   },
   offline: {
     online: "অনলাইন",
@@ -1233,6 +1235,68 @@ export const bn = {
     admissionsTitle: "ভর্তির আবেদনসমূহ",
     admissionsSubtitle: "পাবলিক ফর্ম থেকে আসা আবেদন",
     admissionsSummary: "ভর্তি ফর্ম থেকে জমা হওয়া আবেদন দেখুন ও স্ট্যাটাস আপডেট করুন।",
+  },
+
+  // docs/CCTV_INTEGRATION_PLAN.md, Phase 6 — camera bridge + camera management UI
+  cameras: {
+    title: "ক্যামেরা ম্যানেজমেন্ট",
+    subtitle: "CCTV ব্রিজ ও ক্যামেরা পরিচালনা করুন",
+    bridgeSectionTitle: "ব্রিজ (Bridge)",
+    cameraSectionTitle: "ক্যামেরা",
+
+    // Bridge form
+    bridgeFormTitle: "নতুন ব্রিজ যোগ করুন",
+    bridgeIdLabel: "ব্রিজ আইডি (Device ID)",
+    bridgeIdPlaceholder: "যেমন: bridge-001",
+    nameLabel: "নাম",
+    namePlaceholder: "যেমন: মেইন বিল্ডিং ব্রিজ",
+    locationLabel: "অবস্থান",
+    locationPlaceholder: "যেমন: অফিস রুম",
+    tunnelUrlLabel: "টানেল URL (Cloudflare Tunnel)",
+    tunnelUrlPlaceholder: "যেমন: https://cctv.example.com",
+    createBridge: "ব্রিজ যোগ করুন",
+    creating: "যোগ হচ্ছে...",
+
+    // Bridge list
+    bridgeListTitle: "ব্রিজ তালিকা",
+    noBridges: "কোনো ব্রিজ নেই। উপরের ফর্ম থেকে প্রথম ব্রিজ যোগ করুন।",
+    active: "সক্রিয়",
+    inactive: "নিষ্ক্রিয়",
+    activate: "সক্রিয় করুন",
+    deactivate: "নিষ্ক্রিয় করুন",
+    editTunnelUrl: "টানেল URL সম্পাদনা",
+    regenKey: "নতুন Secret Key",
+    regenConfirm: "পুরোনো Secret Key বাতিল হয়ে যাবে। ব্রিজ সফটওয়্যারে নতুন কী দিতে হবে। নিশ্চিত?",
+
+    // Secret key modal
+    secretModalTitle: "⚠️ Secret Key — শুধু একবারই দেখানো হবে",
+    secretModalWarning: "এই Secret Key এখনই নোট করুন বা কপি করুন। পেজ বন্ধ করলে আর দেখা যাবে না।",
+    secretKeyLabel: "Secret Key",
+    secretModalNote: "ব্রিজ মেশিনে Frigate/bridge সফটওয়্যার কনফিগারে এই কী লাগবে।",
+    copy: "কপি করুন",
+    copied: "কপি হয়েছে ✓",
+
+    // Camera form
+    cameraFormTitle: "নতুন ক্যামেরা যোগ করুন",
+    cameraNamePlaceholder: "যেমন: মূল গেট ক্যামেরা",
+    bridgeLabel: "ব্রিজ নির্বাচন করুন",
+    selectBridge: "— ব্রিজ নির্বাচন করুন —",
+    streamPathLabel: "Stream Path",
+    streamPathPlaceholder: "যেমন: cam1",
+    createCamera: "ক্যামেরা যোগ করুন",
+    noBridgesForCamera: "ক্যামেরা যোগ করতে আগে একটি সক্রিয় ব্রিজ থাকতে হবে।",
+
+    // Camera list
+    cameraListTitle: "ক্যামেরা তালিকা",
+    noCameras: "কোনো ক্যামেরা নেই। উপরের ফর্ম থেকে প্রথম ক্যামেরা যোগ করুন।",
+
+    // Validation
+    bridgeIdRequired: "ব্রিজ আইডি প্রয়োজন।",
+    nameRequired: "নাম প্রয়োজন।",
+    bridgeRequired: "একটি ব্রিজ নির্বাচন করুন।",
+    streamPathRequired: "Stream Path প্রয়োজন।",
+    createFailed: "যোগ করা সম্ভব হয়নি।",
+    loadFailed: "তথ্য লোড করা সম্ভব হয়নি।",
   },
 };
 

@@ -911,3 +911,41 @@ export interface AttendanceDeviceLatestScanResponse {
   punchAt: string | null;
   identifier: string | null;
 }
+
+// ── CCTV Integration (docs/CCTV_INTEGRATION_PLAN.md, Phase 6) ────────────────
+//
+// CameraBridge — the local machine (mini-PC / Raspberry Pi) running
+// Frigate + MediaMTX. One bridge per institution. secretKey excluded from
+// GET list; only returned at creation or explicit regen — same "shown once"
+// contract as AttendanceDeviceCreateResponse above.
+export interface CameraBridge {
+  id: number;
+  deviceId: string;
+  name: string;
+  location: string;
+  tunnelUrl: string;
+  active: boolean;
+  createdAt: string;
+}
+
+// POST /bridges and POST /bridges/:id/regen-key both return secretKey once.
+export interface CameraBridgeCreateResponse extends CameraBridge {
+  secretKey: string;
+}
+
+export interface CameraBridgeRegenResponse {
+  id: number;
+  deviceId: string;
+  secretKey: string;
+}
+
+// Camera — a single RTSP source attached to a bridge.
+export interface Camera {
+  id: number;
+  name: string;
+  location: string;
+  bridgeDeviceId: string;
+  streamPath: string;
+  active: boolean;
+  createdAt: string;
+}

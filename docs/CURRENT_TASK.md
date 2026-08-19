@@ -3532,13 +3532,14 @@ Phase 1 (payments cascade fix) finished 2026-08-05:
 ম্যানেজমেন্ট API) + Phase 3 (ইভেন্ট ইনজেশন API) + Phase 4 (লাইভ-ভিউ স্ট্রিম
 প্রক্সি), পুরো পরিকল্পনা `docs/CCTV_INTEGRATION_PLAN.md`-এ
 
-## Status: DONE (Phase 1–5 সম্পন্ন — Phase 6-৮ শুরু হয়নি)
+## Status: IN_PROGRESS (Phase 1–6 সম্পন্ন — Phase 7–৮ বাকি)
 
 Phase 1 Completed: 2026-08-18
 Phase 2 Completed: 2026-08-19
 Phase 3 Completed: 2026-08-19
 Phase 4 Completed: 2026-08-19
 Phase 5 Completed: 2026-08-19
+Phase 6 Completed: 2026-08-19
 
 ### Phase 1 — DB স্কিমা (2026-08-18)
 `server/sql/supabase_schema.sql`-এ তিনটা নতুন টেবিল:
@@ -3746,8 +3747,22 @@ Phase 5 Completed: 2026-08-19
   install && npm start` চালিয়ে টেস্ট করতে হবে, যেটা এই sandbox-এ সম্ভব
   হয়নি।
 
-পরের এজেন্ট Phase 6 থেকে শুরু করবে: ক্লায়েন্ট Cameras ম্যানেজমেন্ট পেজ
-(Admin) — ক্যামেরা লাগবে না, বিদ্যমান Phase 2 API দিয়েই UI বানানো যাবে।
+- [x] **Phase 6 সম্পন্ন (2026-08-19)** — ক্লায়েন্ট Cameras ম্যানেজমেন্ট পেজ:
+  - `client/src/types/index.ts` — `CameraBridge`, `CameraBridgeCreateResponse`,
+    `CameraBridgeRegenResponse`, `Camera` টাইপ যোগ।
+  - `client/src/lib/api.ts` — `api.cameras` নেমস্পেস যোগ (listBridges,
+    createBridge, updateBridge, regenBridgeKey, list, create, update, getStreamUrl)।
+  - `client/src/lib/permissions.ts` — `"cameras"` Permission টাইপে যোগ।
+  - `client/src/modules/Cameras.tsx` — নতুন ফাইল: Bridge সেকশন (add/list/
+    active toggle/tunnel URL edit/regen key + SecretModal) + Camera সেকশন
+    (add/list/active toggle, bridge selector dropdown)।
+  - `client/src/App.tsx` — `Cameras` lazy import + `/cameras` রুট যোগ।
+  - `client/src/components/Sidebar.tsx` — systemGroup-এ `cameras` nav item
+    (`"camera"` icon, `"cameras"` permission)।
+  - `client/src/i18n/bn.ts` + `en.ts` — `nav.cameras` + `cameras` i18n ব্লক।
+
+পরের এজেন্ট Phase 7 থেকে শুরু করবে: লাইভ-ভিউ গ্রিড পেজ (hls.js দিয়ে
+HLS স্ট্রিম দেখানো) — `docs/CCTV_INTEGRATION_PLAN.md` Phase 7 দেখুন।
 
 ---
 

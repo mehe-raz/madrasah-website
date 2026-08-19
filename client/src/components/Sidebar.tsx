@@ -114,6 +114,8 @@ const GROUPS: NavGroupDef[] = [
     labelKey: "systemGroup",
     items: [
       { id: "attendanceDevices", path: "/attendance-devices", icon: "fingerprint", permission: "attendance", labelKey: "attendanceDevices" },
+      // docs/CCTV_INTEGRATION_PLAN.md, Phase 6 — camera bridge + camera CRUD
+      { id: "cameras", path: "/cameras", icon: "camera", permission: "cameras", labelKey: "cameras" },
       { id: "auditLogs", path: "/audit-logs", icon: "auditLogs", permission: "settings", labelKey: "auditLogs", feature: "auditLogs", auditLogsCheck: true },
     ],
   },

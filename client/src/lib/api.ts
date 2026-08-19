@@ -56,6 +56,10 @@ import type {
   Student,
   StudentResult,
   User,
+  CameraBridge,
+  CameraBridgeCreateResponse,
+  CameraBridgeRegenResponse,
+  Camera,
 } from "../types";
 import { cacheGetResponse, getCachedGetResponse } from "./offlineCache";
 import { enqueueOutboxEntry } from "./offlineDb";
@@ -1291,5 +1295,41 @@ export const api = {
         method: "DELETE",
         body: JSON.stringify({ endpoint }),
       }),
+  },
+
+  // -------------------------------------------------------------------------
+  // CCTV Integration (docs/CCTV_INTEGRATION_PLAN.md, Phase 6) — wires the
+  // authenticated routes/cameras.js endpoints (Phase 2). Bridges and cameras
+  // share the same "/cameras" router prefix:
+  //   /cameras/bridges  — bridge CRUD
+  //   /cameras          — camera CRUD
+  //   /cameras/:id/stream-url — Phase 4 (stream proxy token)
+  // -------------------------------------------------------------------------
+  cameras: {
+    // ── Bridges ──────────────────────────────────────────────────────────────
+    listBridges: () => request<CameraBridge[]>("/cameras/bridges"),
+    createBridge: (body: { deviceId: string; name: string; location?: string; tunnelUrl?: string }) =>
+      request<CameraBridgeCreateResponse>("/cameras/bridges", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    updateBridge: (id: number, body: Partial<{ name: string; location: string; active: boolean; tunnelUrl: string }>) =>
+      request<CameraBridge>(`/cameras/bridges/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    regenBridgeKey: (id: number) =>
+      request<CameraBridgeRegenResponse>(`/cameras/bridges/${id}/regen-key`, { method: "POST" }),
+
+    // ── Cameras ──────────────────────────────────────────────────────────────
+    list: (bridgeDeviceId?: string) =>
+      request<Camera[]>(`/cameras${bridgeDeviceId ? `?bridgeDeviceId=${encodeURIComponent(bridgeDeviceId)}` : ""}`),
+    create: (body: { name: string; location?: string; bridgeDeviceId: string; streamPath: string }) =>
+      request<Camera>("/cameras", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: number, body: Partial<{ name: string; location: string; bridgeDeviceId: string; streamPath: string; active: boolean }>) =>
+      request<Camera>(`/cameras/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+    // Phase 4 — get a short-lived signed URL for the HLS stream proxy.
+    getStreamUrl: (id: number) => request<{ streamUrl: string; expiresIn: string }>(`/cameras/${id}/stream-url`),
   },
 };
