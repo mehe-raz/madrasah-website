@@ -238,6 +238,44 @@ const DEFAULT_CLASS_TREE = sanitizeClassTree([
   },
 ]);
 
+// docs/GENERAL_MODE_PLAN.md, Phase 2 — default seed for a "general"
+// institution_type tenant (school / college / coaching center — plan doc §5
+// open question 1 decided these share one enum value, so there's one shared
+// default tree rather than a separate seed per sub-kind). Same sanitized
+// tree shape as DEFAULT_CLASS_TREE above; a fresh general tenant's own Super
+// Admin can rename/add/remove nodes afterward exactly like a madrasah tenant
+// can with theirs — this is just the starting point.
+const DEFAULT_CLASS_TREE_GENERAL = sanitizeClassTree([
+  {
+    id: "school",
+    bn: "স্কুল বিভাগ",
+    en: "school",
+    children: [
+      { id: "school-play", bn: "প্লে", en: "school-play" },
+      { id: "school-nursery", bn: "নার্সারি", en: "school-nursery" },
+      { id: "school-class-1", bn: "ক্লাস ১", en: "school-class-1" },
+      { id: "school-class-2", bn: "ক্লাস ২", en: "school-class-2" },
+      { id: "school-class-3", bn: "ক্লাস ৩", en: "school-class-3" },
+      { id: "school-class-4", bn: "ক্লাস ৪", en: "school-class-4" },
+      { id: "school-class-5", bn: "ক্লাস ৫", en: "school-class-5" },
+      { id: "school-class-6", bn: "ক্লাস ৬", en: "school-class-6" },
+      { id: "school-class-7", bn: "ক্লাস ৭", en: "school-class-7" },
+      { id: "school-class-8", bn: "ক্লাস ৮", en: "school-class-8" },
+      { id: "school-class-9", bn: "ক্লাস ৯", en: "school-class-9" },
+      { id: "school-class-10", bn: "ক্লাস ১০", en: "school-class-10" },
+    ],
+  },
+  {
+    id: "college",
+    bn: "কলেজ বিভাগ",
+    en: "college",
+    children: [
+      { id: "college-hsc-1", bn: "একাদশ শ্রেণি", en: "college-hsc-1" },
+      { id: "college-hsc-2", bn: "দ্বাদশ শ্রেণি", en: "college-hsc-2" },
+    ],
+  },
+]);
+
 // Finds a node by its full `en`-slug path (root -> ... -> node), same path
 // shape the client already builds for add/delete (see client/lib/classTree.ts
 // findClassTreePath / removeClassTreeNode). Returns the live node reference
@@ -425,6 +463,7 @@ module.exports = {
   sanitizeClassTree,
   flattenClassTree,
   DEFAULT_CLASS_TREE,
+  DEFAULT_CLASS_TREE_GENERAL,
   getClassTree,
   saveClassTree,
   findClassTreeNodeByPath,

@@ -122,11 +122,24 @@ router.get("/institutions", async (req, res, next) => {
 
 router.post("/institutions", requirePlatformRole("super_admin", "admin"), async (req, res, next) => {
   try {
-    const { name, code, contactName, contactPhone, plan, trialDays, adminName, adminEmail, adminPassword } =
-      req.body || {};
+    const {
+      name,
+      code,
+      contactName,
+      contactPhone,
+      plan,
+      trialDays,
+      adminName,
+      adminEmail,
+      adminPassword,
+      institutionType,
+    } = req.body || {};
     if (!name || !code || !adminEmail || !adminPassword) {
       return res.status(400).json({ error: "name, code, adminEmail and adminPassword are required" });
     }
+    // docs/GENERAL_MODE_PLAN.md, Phase 2 — optional; provisionInstitution()
+    // defaults to 'madrasah' (and registryDb.createInstitution() validates
+    // the value) when this isn't sent, same as publicSignup.js.
     const institution = await tenantProvision.provisionInstitution({
       name,
       code,
@@ -137,9 +150,11 @@ router.post("/institutions", requirePlatformRole("super_admin", "admin"), async 
       adminName,
       adminEmail,
       adminPassword,
+      ...(institutionType ? { institutionType } : {}),
     });
     await registryDb.logAction(institution.id, req.platformAdmin.email, "institution_created_via_panel", {
       schema: institution.schema_name,
+      institutionType: institution.institution_type,
     });
     res.status(201).json(institution);
   } catch (err) {

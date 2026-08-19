@@ -21,7 +21,11 @@ const bcrypt = require("bcryptjs");
 const pg = require("./pg");
 const registryDb = require("./registryDb");
 const { DEFAULT_CATEGORIES } = require("./lib/incomeCategories");
-const { SETTINGS_KEY: CLASS_TREE_SETTINGS_KEY, DEFAULT_CLASS_TREE } = require("./lib/classTree");
+const {
+  SETTINGS_KEY: CLASS_TREE_SETTINGS_KEY,
+  DEFAULT_CLASS_TREE,
+  DEFAULT_CLASS_TREE_GENERAL,
+} = require("./lib/classTree");
 
 const tenantSchemaPath = path.join(__dirname, "..", "sql", "supabase_schema.sql");
 
@@ -55,7 +59,7 @@ function quoteIdent(name) {
 // Table DDL is transactional in Postgres, so if anything fails partway
 // (including the admin-user insert), the whole schema creation rolls back
 // cleanly instead of leaving a half-built schema behind.
-async function provisionTenantSchema(schemaName, { adminName, adminEmail, adminPassword }) {
+async function provisionTenantSchema(schemaName, { adminName, adminEmail, adminPassword, institutionType = "madrasah" }) {
   assertValidSchemaName(schemaName);
 
   if (!adminEmail || !adminEmail.trim()) {
@@ -100,13 +104,18 @@ async function provisionTenantSchema(schemaName, { adminName, adminEmail, adminP
       [JSON.stringify(DEFAULT_CATEGORIES)]
     );
 
-    // Default হিফজ/নূরানী-নাজেরা/কিতাব/জেনারেল class-jamaat hierarchy — see
-    // lib/classTree.js. Every fresh institution starts with this full tree
-    // instead of an empty list; its own Super Admin can edit it afterward.
+    // Default class-jamaat hierarchy — see lib/classTree.js. Every fresh
+    // institution starts with a full tree instead of an empty list; its own
+    // Super Admin can edit it afterward. Which tree depends on
+    // institutionType (docs/GENERAL_MODE_PLAN.md, Phase 2): madrasah tenants
+    // get the existing হিফজ/নূরানী-নাজেরা/কিতাব/জেনারেল tree unchanged;
+    // general tenants (school/college/coaching, per plan §5 open question 1)
+    // get DEFAULT_CLASS_TREE_GENERAL instead.
+    const classTreeSeed = institutionType === "general" ? DEFAULT_CLASS_TREE_GENERAL : DEFAULT_CLASS_TREE;
     await client.query(
       `INSERT INTO settings (key, value) VALUES ($1, $2)
        ON CONFLICT (key) DO NOTHING`,
-      [CLASS_TREE_SETTINGS_KEY, JSON.stringify(DEFAULT_CLASS_TREE)]
+      [CLASS_TREE_SETTINGS_KEY, JSON.stringify(classTreeSeed)]
     );
 
     // BUSINESS_READINESS_ROADMAP.md Phase 8A: exactly one sms_wallets row
@@ -155,6 +164,10 @@ async function provisionInstitution({
   adminName,
   adminEmail,
   adminPassword,
+  // docs/GENERAL_MODE_PLAN.md, Phase 2 — defaults to 'madrasah', same as
+  // registryDb.createInstitution()'s own default, so existing callers that
+  // don't pass this (routes/platform.js's manual creation) are unaffected.
+  institutionType = "madrasah",
 }) {
   const institution = await registryDb.createInstitution({
     name,
@@ -164,10 +177,11 @@ async function provisionInstitution({
     contactPhone,
     plan,
     trialDays,
+    institutionType,
   });
 
   try {
-    await provisionTenantSchema(institution.schema_name, { adminName, adminEmail, adminPassword });
+    await provisionTenantSchema(institution.schema_name, { adminName, adminEmail, adminPassword, institutionType });
   } catch (err) {
     await dropTenantSchema(institution.schema_name).catch(() => {});
     await registryDb.registryPool

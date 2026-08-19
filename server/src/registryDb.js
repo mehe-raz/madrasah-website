@@ -22,6 +22,12 @@ const schemaPath = path.join(__dirname, "..", "sql", "registry_schema.sql");
 
 const STATUSES = ["trial", "active", "suspended", "cancelled"];
 
+// docs/GENERAL_MODE_PLAN.md, Phase 2 — same two values as the
+// institutions_institution_type_check constraint in registry_schema.sql
+// (Phase 1). Kept here too so createInstitution() can validate before the
+// INSERT round-trip, same pattern as assertValidCode() below.
+const INSTITUTION_TYPES = ["madrasah", "general"];
+
 // Reuse the main pool unless a dedicated registry DB is configured. Keeping
 // this as its own pool reference (even when it points at the same place)
 // means we can move the registry to a different physical database later
@@ -119,6 +125,11 @@ async function createInstitution({
   contactPhone,
   plan = "basic",
   trialDays = 14,
+  // docs/GENERAL_MODE_PLAN.md, Phase 2 — defaults to 'madrasah' so every
+  // existing caller (routes/platform.js's manual institution creation, any
+  // script) that doesn't pass this keeps today's behavior unchanged, same
+  // as the column's own DB-level default from Phase 1.
+  institutionType = "madrasah",
 }) {
   if (!name || !name.trim()) {
     const err = new Error("Institution name is required");
@@ -126,6 +137,11 @@ async function createInstitution({
     throw err;
   }
   assertValidCode(code);
+  if (!INSTITUTION_TYPES.includes(institutionType)) {
+    const err = new Error(`Institution type must be one of: ${INSTITUTION_TYPES.join(", ")}`);
+    err.status = 400;
+    throw err;
+  }
 
   const existing = await getInstitutionByCode(code);
   if (existing) {
@@ -139,10 +155,20 @@ async function createInstitution({
 
   const result = await registryPool.query(
     `INSERT INTO registry.institutions
-       (name, code, schema_name, status, plan, contact_name, contact_email, contact_phone, trial_ends_at)
-     VALUES ($1, $2, $3, 'trial', $4, $5, $6, $7, $8)
+       (name, code, schema_name, status, plan, contact_name, contact_email, contact_phone, trial_ends_at, institution_type)
+     VALUES ($1, $2, $3, 'trial', $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [name.trim(), code, schemaName, plan, contactName || null, contactEmail || null, contactPhone || null, trialEndsAt]
+    [
+      name.trim(),
+      code,
+      schemaName,
+      plan,
+      contactName || null,
+      contactEmail || null,
+      contactPhone || null,
+      trialEndsAt,
+      institutionType,
+    ]
   );
   return result.rows[0];
 }
@@ -782,6 +808,7 @@ async function deleteDeviceRegistryEntry(deviceId) {
 module.exports = {
   registryPool,
   initRegistrySchema,
+  INSTITUTION_TYPES,
   registerDevice,
   getDeviceRegistryEntry,
   updateDeviceRegistrySecret,

@@ -29,7 +29,18 @@ let state = {
   submitting: false,
   error: "",
   result: null, // { institution, loginUrl } after a successful signup
+  institutionType: "madrasah", // 'madrasah' | 'general' — see INSTITUTION_TYPE_OPTIONS below
 };
+
+// Mirrors server/src/registryDb.js's INSTITUTION_TYPES — this is the
+// visitor-facing "প্রতিষ্ঠানের ধরন" choice from docs/GENERAL_MODE_PLAN.md's
+// Phase 2. Picking one determines which default classTree the new tenant
+// gets seeded with (see tenantProvision.js) — madrasah (হিফজ/নেসাব বিভাগ) or
+// general (স্কুল/কলেজ/কোচিং — প্লে–ক্লাস ১০ + একাদশ/দ্বাদশ).
+const INSTITUTION_TYPE_OPTIONS = [
+  { value: "madrasah", title: "মাদ্রাসা", desc: "হিফজ, নেসাব ও জামাতভিত্তিক কাঠামো" },
+  { value: "general", title: "স্কুল / কলেজ / কোচিং", desc: "প্লে থেকে দ্বাদশ শ্রেণি পর্যন্ত সাধারণ কাঠামো" },
+];
 
 async function api(path, opts = {}) {
   const res = await fetch(API + path, {
@@ -126,6 +137,19 @@ function signupFormHtml() {
       ${state.error ? `<div class="form-error">${escapeHtml(state.error)}</div>` : ""}
       <form id="signup-form">
         <div class="field">
+          <label>প্রতিষ্ঠানের ধরন</label>
+          <div class="type-select" role="radiogroup" aria-label="প্রতিষ্ঠানের ধরন">
+            ${INSTITUTION_TYPE_OPTIONS.map(
+              (opt) => `
+              <label class="type-select__option${state.institutionType === opt.value ? " is-selected" : ""}">
+                <input type="radio" name="institutionType" value="${opt.value}" ${state.institutionType === opt.value ? "checked" : ""} />
+                <span class="type-select__title">${escapeHtml(opt.title)}</span>
+                <span class="type-select__desc">${escapeHtml(opt.desc)}</span>
+              </label>`
+            ).join("")}
+          </div>
+        </div>
+        <div class="field">
           <label for="f-name">প্রতিষ্ঠানের নাম</label>
           <input id="f-name" name="name" type="text" required placeholder="যেমনঃ আল-ইহসান মাদরাসা" />
         </div>
@@ -177,6 +201,23 @@ function attachEvents() {
     });
   });
 
+  // Deliberately does NOT call render() — a full re-render rebuilds the
+  // whole form's innerHTML (see the submit handler below, which has the
+  // same characteristic), which would silently wipe out anything the
+  // visitor already typed into name/code/email/password just from
+  // picking a type. Toggling the `.is-selected` class directly keeps the
+  // rest of the form intact; `state.institutionType` still updates so the
+  // submit handler below picks up the right value regardless.
+  root.querySelectorAll('input[name="institutionType"]').forEach((radio) => {
+    radio.addEventListener("change", () => {
+      if (!radio.checked) return;
+      state.institutionType = radio.value;
+      root.querySelectorAll(".type-select__option").forEach((el) => {
+        el.classList.toggle("is-selected", el.querySelector('input[type="radio"]').checked);
+      });
+    });
+  });
+
   const codeInput = document.getElementById("f-code");
   const preview = document.getElementById("domain-preview");
   if (codeInput && preview) {
@@ -203,6 +244,7 @@ function attachEvents() {
         adminName: fd.get("adminName"),
         adminEmail: fd.get("adminEmail"),
         adminPassword: fd.get("adminPassword"),
+        institutionType: fd.get("institutionType") || state.institutionType,
       };
       state.submitting = true;
       state.error = "";

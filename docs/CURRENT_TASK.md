@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: "জেনারেল মোড" — স্কুল/কলেজ/কোচিং সেন্টারের জন্য দ্বিতীয়
 প্রোডাক্ট-ভ্যারিয়েন্ট (৮ Phase-এ, পুরো পরিকল্পনা `docs/GENERAL_MODE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1 সম্পন্ন — Phase 2 বাকি)
+## Status: IN_PROGRESS (Phase 1 ও Phase 2 সম্পন্ন — Phase 3 বাকি)
 
 ব্যবহারকারী চান একই কোডবেস দিয়ে একটা দ্বিতীয় মোড — যেখানে স্কুল/কলেজ/কোচিং
 সেন্টার সাইনআপ করলে কোনো মাদ্রাসা/আরবি-নির্দিষ্ট শব্দ বা ফিচার (হিফজ
@@ -57,9 +57,60 @@ the next sequential number.
     on all tenants" টুল দিয়ে ম্যানুয়ালি একবার চালাতে হবে (single-tenant
     মোডে পরের সার্ভার রিস্টার্টে এমনিতেই হয়ে যাবে)।
 
+- [x] **Phase 2 (ব্যাকএন্ড)** —
+  - `server/src/lib/classTree.js` — নতুন `DEFAULT_CLASS_TREE_GENERAL` সিড
+    (স্কুল বিভাগ: প্লে–ক্লাস ১০, কলেজ বিভাগ: একাদশ/দ্বাদশ), এক্সপোর্ট
+    করা হয়েছে।
+  - `server/src/tenantProvision.js` — `provisionTenantSchema()` ও
+    `provisionInstitution()` এখন `institutionType` প্যারামিটার নেয়
+    (ডিফল্ট `'madrasah'`), `institutionType === 'general'` হলে
+    `DEFAULT_CLASS_TREE_GENERAL` সিড করে, নাহলে আগের `DEFAULT_CLASS_TREE`।
+  - `server/src/registryDb.js` — নতুন `INSTITUTION_TYPES = ["madrasah",
+    "general"]` কনস্ট্যান্ট (এক্সপোর্টেড), `createInstitution()` এখন
+    `institutionType` নেয় + ভ্যালিডেট করে + `institution_type` কলামে
+    INSERT করে।
+  - `server/src/routes/publicSignup.js` — `POST /api/public/signup`
+    ঐচ্ছিক `institutionType` ফিল্ড গ্রহণ করে (`registryDb.INSTITUTION_TYPES`-এর
+    বিরুদ্ধে ভ্যালিডেট, না দিলে ডিফল্ট `'madrasah'`)।
+  - `server/src/routes/platform.js` — `POST /api/platform/institutions`
+    (Super-Admin ম্যানুয়াল ইনস্টিটিউশন-ক্রিয়েশন) একই প্যাটার্নে ঐচ্ছিক
+    `institutionType` গ্রহণ করে।
+- [x] **Phase 2 (ফ্রন্টএন্ড) — সংশোধনী:** আগের সেশনে ভুলভাবে ধরে নেওয়া
+  হয়েছিল যে কোডবেসে কোনো সেলফ-সাইনআপ ফ্রন্টএন্ড পেজই নেই (কারণ
+  `client/src`-এ কিছু নেই)। এই সেশনে আবিষ্কার হয়েছে যে আসল সাইনআপ পেজ
+  আসলে **`server/public-marketing/`** (plain HTML/JS, apex ডোমেইনে সার্ভ
+  হয়, `PUSH_NOTIFICATION_PLAN`-এর আগে Terms/Privacy চেকবক্স যোগ হওয়া
+  একই ফাইল) — `app.js`-এর `signupFormHtml()`/`POST /api/public/signup`
+  কলই আসল, একমাত্র সাইনআপ ফ্লো। ওখানে "প্রতিষ্ঠানের ধরন" সিলেক্টর যোগ
+  করা হয়েছে:
+  - `server/public-marketing/app.js` — নতুন `INSTITUTION_TYPE_OPTIONS`
+    (মাদ্রাসা / স্কুল-কলেজ-কোচিং), `state.institutionType` (ডিফল্ট
+    `'madrasah'`), ফর্মের প্রথম ফিল্ড হিসেবে দুইটা সিলেক্টেবল কার্ড
+    (radio input, visually hidden, `.type-select__option.is-selected`
+    দিয়ে হাইলাইট)। রেডিও পরিবর্তনে **`render()` কল করা হয়নি ইচ্ছাকৃতভাবে**
+    — পুরো ফর্ম innerHTML রিবিল্ড হলে ইতিমধ্যে টাইপ করা নাম/কোড/ইমেইল
+    মুছে যেত (existing submit-handler-এর `render()`-এরও এই একই
+    সীমাবদ্ধতা আছে, এই ফাইলে নতুন কিছু না) — তার বদলে `.is-selected`
+    ক্লাস সরাসরি টগল করা হয়। সাবমিটে `institutionType` বডিতে যোগ হয়েছে।
+  - `server/public-marketing/styles.css` — নতুন `.type-select`/
+    `.type-select__option` (গ্রিড, ২ কলাম, মোবাইলে ≤420px ১ কলাম),
+    সাইটের বিদ্যমান `--sky`/`--sky-l`/`--border`/`--muted` ভ্যারিয়েবল ও
+    `.field input`-এর মতোই রাউন্ডেড-বর্ডার/ফন্ট কনভেনশন অনুসরণ করে —
+    নতুন কোনো রঙ/ফন্ট প্রবর্তন করা হয়নি।
+  - `docs/GENERAL_MODE_PLAN.md`-এর স্ট্যাটাস লাইন ও Phase 2 সেকশন এই
+    আবিষ্কার প্রতিফলিত করতে আপডেট করা হয়েছে (নিচে দেখুন)।
+  - Super-Admin প্যানেলের ম্যানুয়াল ইনস্টিটিউশন-ক্রিয়েশন ফর্মে (যদি
+    কখনো UI যোগ হয়) `institutionType` পাঠানোর সুযোগ ব্যাকএন্ডে রেডি
+    আছে (`platform.js`), কিন্তু `server/public-platform/`-এ এখনো কোনো
+    "নতুন ইনস্টিটিউশন তৈরি করুন" ফর্ম UI নেই — সেটা এই টাস্কের স্কোপে
+    ছিল না (শুধু সেলফ-সাইনআপ ফ্লো, প্ল্যানের Phase 2 বিবরণ অনুযায়ী)।
+  - `node --check` (app.js) + bracket-balance script (app.js, styles.css)
+    দিয়ে যাচাই করা হয়েছে — sandbox-এ ব্রাউজার/network না থাকায় আসল
+    ব্রাউজারে ক্লিক করে টেস্ট করা যায়নি। **পুরো `npm run check` + ব্রাউজারে
+    apex ডোমেইনে গিয়ে টাইপ-কার্ড ক্লিক করে/সাইনআপ করে দেখা আপনার
+    মেশিনেই প্রথম হবে।**
+
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] **Phase 2** — সাইনআপ ফ্লোতে টাইপ সিলেক্টর + জেনারেল classTree ডিফল্ট
-  সিড
 - [ ] **Phase 3** — হিফজ ফিচার গেটিং-এ `institution_type` চেক (প্ল্যান
   চেকের পাশাপাশি)
 - [ ] **Phase 4** — `dept` এনাম জেনারালাইজ (general-টাইপে হাইড/অটো-ডিরাইভ)

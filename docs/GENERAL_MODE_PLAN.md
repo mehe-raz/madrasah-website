@@ -1,11 +1,20 @@
 # পরিকল্পনা: "জেনারেল মোড" — স্কুল/কলেজ/কোচিং সেন্টারের জন্য দ্বিতীয় প্রোডাক্ট-ভ্যারিয়েন্ট
 
-তৈরি: 2026-08-20 · প্রজেক্ট: madrasah-website · স্ট্যাটাস: **Phase 1 সম্পন্ন (2026-08-20) — Phase 2–8 বাকি**
+তৈরি: 2026-08-20 · প্রজেক্ট: madrasah-website · স্ট্যাটাস: **Phase 1 ও Phase 2 সম্পন্ন (2026-08-20) — Phase 3–8 বাকি**
 
 **Phase 1 আপডেট (2026-08-20):** `server/sql/registry_schema.sql`-এ
 `registry.institutions`-এ `institution_type` কলাম (ডিফল্ট `'madrasah'`) +
-চেক কনস্ট্রেইন্ট (`'madrasah'`/`'general'`) যোগ হয়েছে। এখনো কোথাও read
-হচ্ছে না। বিস্তারিত `docs/CURRENT_TASK.md`-এ।
+চেক কনস্ট্রেইন্ট (`'madrasah'`/`'general'`) যোগ হয়েছে।
+
+**Phase 2 আপডেট (2026-08-20):** ব্যাকএন্ড (`classTree.js`-এ
+`DEFAULT_CLASS_TREE_GENERAL`, `tenantProvision.js`/`registryDb.js`/
+`publicSignup.js`/`platform.js`-এ `institutionType` থ্রেডিং) ও ফ্রন্টএন্ড
+দুটোই সম্পন্ন। আসল সেলফ-সাইনআপ ফ্লো `client/src`-এ না, বরং
+`server/public-marketing/` (apex ডোমেইনের plain HTML/JS মার্কেটিং সাইট)-এ
+পাওয়া গেছে — সেখানে "প্রতিষ্ঠানের ধরন" সিলেক্টর (মাদ্রাসা / স্কুল-কলেজ-কোচিং)
+যোগ করা হয়েছে সাইনআপ ফর্মের প্রথম ফিল্ড হিসেবে, সাইটের বিদ্যমান
+sky/emerald রঙ ও Noto Sans Bengali ফন্ট কনভেনশন অনুসরণ করে। বিস্তারিত
+`docs/CURRENT_TASK.md`-এ।
 
 ---
 

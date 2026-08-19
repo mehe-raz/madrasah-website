@@ -57,10 +57,20 @@ router.get("/root-domain", (_req, res) => {
 
 router.post("/signup", signupLimiter, async (req, res, next) => {
   try {
-    const { name, code, adminName, adminEmail, adminPassword, contactPhone } = req.body || {};
+    const { name, code, adminName, adminEmail, adminPassword, contactPhone, institutionType } = req.body || {};
 
     if (!isNonEmptyString(name)) {
       return res.status(400).json({ error: "প্রতিষ্ঠানের নাম আবশ্যক" });
+    }
+    // docs/GENERAL_MODE_PLAN.md, Phase 2 — self-signup form's "প্রতিষ্ঠানের
+    // ধরন" selector. Defaults to 'madrasah' when omitted (an older/cached
+    // frontend build without the selector, or a direct API call) so this
+    // stays backward-compatible rather than a hard 400.
+    const resolvedInstitutionType = isNonEmptyString(institutionType) ? institutionType.trim() : "madrasah";
+    if (!registryDb.INSTITUTION_TYPES.includes(resolvedInstitutionType)) {
+      return res.status(400).json({
+        error: `প্রতিষ্ঠানের ধরন এই মানগুলোর একটি হতে হবে: ${registryDb.INSTITUTION_TYPES.join(", ")}`,
+      });
     }
     const trimmedCode = typeof code === "string" ? code.trim().toLowerCase() : "";
     if (!CODE_RE.test(trimmedCode)) {
@@ -89,11 +99,13 @@ router.post("/signup", signupLimiter, async (req, res, next) => {
       adminName,
       adminEmail: adminEmail.trim(),
       adminPassword,
+      institutionType: resolvedInstitutionType,
     });
 
     await registryDb.logAction(institution.id, adminEmail.trim(), "institution_self_signup", {
       schema: institution.schema_name,
       trialDays,
+      institutionType: resolvedInstitutionType,
     });
 
     const rootDomain = process.env.PLATFORM_ROOT_DOMAIN || "";
