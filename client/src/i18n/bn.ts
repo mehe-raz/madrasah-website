@@ -1177,6 +1177,7 @@ export const bn = {
     title: "এই ফিচারটি আপনার বর্তমান প্ল্যানে নেই",
     message: "\"{feature}\" ব্যবহার করতে আপগ্রেড করুন। বর্তমান প্ল্যান: {currentPlan}। প্রয়োজনীয় প্ল্যান: {requiredPlan}।",
     comingSoonMessage: "\"{feature}\" শীঘ্রই আসছে — এখনো তৈরি হয়নি।",
+    notAvailableMessage: "\"{feature}\" ফিচারটি আপনার প্রতিষ্ঠানের ধরনের জন্য প্রযোজ্য নয়।",
     contactCta: "আপগ্রেড করতে যোগাযোগ করুন",
     pricingCta: "প্ল্যান ও মূল্য দেখুন",
   },

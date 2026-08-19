@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: "জেনারেল মোড" — স্কুল/কলেজ/কোচিং সেন্টারের জন্য দ্বিতীয়
 প্রোডাক্ট-ভ্যারিয়েন্ট (৮ Phase-এ, পুরো পরিকল্পনা `docs/GENERAL_MODE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1 ও Phase 2 সম্পন্ন — Phase 3 বাকি)
+## Status: IN_PROGRESS (Phase 1, Phase 2, Phase 3 সম্পন্ন — Phase 4 বাকি)
 
 ব্যবহারকারী চান একই কোডবেস দিয়ে একটা দ্বিতীয় মোড — যেখানে স্কুল/কলেজ/কোচিং
 সেন্টার সাইনআপ করলে কোনো মাদ্রাসা/আরবি-নির্দিষ্ট শব্দ বা ফিচার (হিফজ
@@ -110,9 +110,58 @@ the next sequential number.
     apex ডোমেইনে গিয়ে টাইপ-কার্ড ক্লিক করে/সাইনআপ করে দেখা আপনার
     মেশিনেই প্রথম হবে।**
 
+- [x] **Phase 3 (হিফজ ফিচার গেটিং — প্ল্যান + টাইপ দুটোই)** —
+  - `server/src/config/planFeatures.js` — `getPlanFeatures()`/`planAllows()`
+    এখন ঐচ্ছিক তৃতীয়/দ্বিতীয় `institutionType` প্যারামিটার নেয় (না দিলে
+    আগের আচরণ অপরিবর্তিত — `lib/guardianSms.js`-এর `planAllows(plan,
+    "sms")` কলে কোনো পরিবর্তন লাগেনি)। নতুন
+    `INSTITUTION_TYPE_FEATURE_OVERRIDES` ম্যাপ (এখন শুধু
+    `hifzTracking: institutionType === 'madrasah'`) — `institutionType !==
+    'madrasah'` হলে প্ল্যান যাই থাকুক `hifzTracking` জোরপূর্বক `false`।
+    নতুন `minPlanForInstitution(feature, institutionType)` এক্সপোর্ট —
+    `minPlanFor()`-এর মতোই কিন্তু টাইপ-ওভাররাইড বিবেচনা করে (general-টাইপে
+    `hifzTracking`-এর জন্য `null` রিটার্ন করে, `minPlanFor()` যেখানে ভুলভাবে
+    `"standard"` দিত)।
+  - `server/src/middleware/planGate.js` (`requirePlanFeature()`) —
+    `planAllows()`/`minPlanForInstitution()` কল-এ `institution.institution_type`
+    পাস করা হয়েছে (defense-in-depth: সরাসরি `/api/hifz` কল করেও general-টাইপ
+    টেন্যান্ট আটকাবে, শুধু UI লুকানো না)। ৪০৩ এরর মেসেজ তিন ভাগে ভাগ করা
+    হয়েছে — আপগ্রেড করলে আনলক হয় (আগের মতোই), "শীঘ্রই আসছে" (সত্যিকারের
+    not-built ফিচার, `comingSoon: true`), বা নতুন তৃতীয় কেস "প্রতিষ্ঠানের
+    ধরনের জন্য প্রযোজ্য নয়" (hifzTracking + general — কোনো প্ল্যান আপগ্রেড
+    এটা আনলক করবে না, তাই ভুলভাবে "আপগ্রেড করুন" বলা হয় না)।
+  - `server/src/routes/plan.js` (`GET /api/plan`) ও
+    `server/src/routes/settings.js` (`GET /settings/plan`,
+    `PUT /settings/custom-domain`) — সব `getPlanFeatures()` কলে
+    `institution.institution_type` পাস করা হয়েছে। `plan.js`-এর
+    `featureMeta`-এর `minPlan` এখন module-load-এ static না, প্রতি
+    রিকোয়েস্টে `minPlanForInstitution()` দিয়ে গণনা হয় (ইনস্টিটিউশনের টাইপ
+    জানার পরই সম্ভব) — general-টাইপে `hifzTracking.minPlan: null` আসে।
+  - `client/src/components/PlanFeatureGate.tsx` — `meta.minPlan` ফলসি হলে
+    (এবং `comingSoon` না হলে) এখন নতুন `planLock.notAvailableMessage`
+    দেখায়, আগের মতো ভুলভাবে "Standard প্ল্যানে আপগ্রেড করুন" দেখায় না
+    (general-টাইপ ইনস্টিটিউশন আপগ্রেড করলেও হিফজ পাবে না বলে)। `bn.ts`/
+    `en.ts`-এর `planLock` ব্লকে `notAvailableMessage` কী যোগ (key-parity
+    যাচাই করা হয়েছে)।
+  - **Sidebar-এ কোনো কোড পরিবর্তন লাগেনি** — `Sidebar.tsx`-এর হিফজ nav
+    আইটেম আগে থেকেই `feature: "hifzTracking"` দিয়ে `PlanContext`-এর
+    `isLocked()` ব্যবহার করে (যেটা `/api/plan`-এর `features.hifzTracking`
+    থেকে আসে) — ব্যাকএন্ড এখন general-টাইপে `false` পাঠানো শুরু করায়
+    Sidebar স্বয়ংক্রিয়ভাবেই লক দেখাবে, আলাদা কিছু বসাতে হয়নি।
+  - `hifz.js` রুটে (`router.use(requirePlanFeature("hifzTracking"))`)
+    কোনো কোড পরিবর্তন লাগেনি — `planGate.js`-এর ভেতরের চেক-ই যথেষ্ট।
+  - `node --check` দিয়ে সব পরিবর্তিত `.js` ফাইল সিনট্যাক্স-পাস, bracket-
+    balance স্ক্রিপ্ট দিয়ে `.tsx`/`.ts`/`.js` সব ফাইল যাচাই, bn.ts/en.ts-এর
+    `planLock` ব্লক key-parity ম্যানুয়ালি মিলিয়ে দেখা হয়েছে। **পুরো `npm
+    run check` sandbox-এ (network/node_modules না থাকায়) চালানো যায়নি —
+    আপনার প্যাকেজড CMD-তেই প্রথম যাচাই হবে। বিশেষভাবে টেস্ট করার মতো:
+    একটা general-টাইপ টেন্যান্টে `/hifz` পেজ খুলে লক-কার্ড দেখাচ্ছে কিনা
+    (এবং "প্রতিষ্ঠানের ধরনের জন্য প্রযোজ্য নয়" মেসেজ, "Standard-এ
+    আপগ্রেড করুন" না), Sidebar-এ হিফজ লক আইকন দেখাচ্ছে কিনা, আর
+    madrasah-টাইপ টেন্যান্টে (standard+ প্ল্যানে) হিফজ স্বাভাবিক কাজ করছে
+    কিনা (রিগ্রেশন চেক)।**
+
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] **Phase 3** — হিফজ ফিচার গেটিং-এ `institution_type` চেক (প্ল্যান
-  চেকের পাশাপাশি)
 - [ ] **Phase 4** — `dept` এনাম জেনারালাইজ (general-টাইপে হাইড/অটো-ডিরাইভ)
 - [ ] **Phase 5** — `para` কলাম কন্ডিশনাল (hifzTracking ফ্ল্যাগের সাথে
   বাঁধা)

@@ -1164,6 +1164,7 @@ export const en = {
     title: "This feature isn't in your current plan",
     message: "Upgrade to use \"{feature}\". Current plan: {currentPlan}. Required plan: {requiredPlan}.",
     comingSoonMessage: "\"{feature}\" is coming soon — not built yet.",
+    notAvailableMessage: "\"{feature}\" isn't applicable to your institution type.",
     contactCta: "Contact us to upgrade",
     pricingCta: "See plans & pricing",
   },

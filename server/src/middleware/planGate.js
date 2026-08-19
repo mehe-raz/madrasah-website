@@ -17,7 +17,7 @@
 // ============================================================================
 
 const tenantContext = require("../tenantContext");
-const { planAllows, minPlanFor, FEATURE_META } = require("../config/planFeatures");
+const { planAllows, minPlanForInstitution, FEATURE_META } = require("../config/planFeatures");
 
 const PLAN_LABEL_BN = { basic: "Basic", standard: "Standard", pro: "Pro", premium: "Premium" };
 
@@ -28,16 +28,31 @@ function requirePlanFeature(feature) {
     if (!ctx?.institution) return next();
 
     const institution = ctx.institution;
-    if (planAllows(institution.plan, feature)) return next();
+    // docs/GENERAL_MODE_PLAN.md, Phase 3 — institution_type can force a
+    // feature off (currently just hifzTracking for non-madrasah types)
+    // regardless of plan tier, so a general-type tenant can't reach a
+    // madrasah-only route even by calling the API directly.
+    if (planAllows(institution.plan, feature, institution.institution_type)) return next();
 
-    const required = minPlanFor(feature);
+    // Lowest plan (if any) that unlocks `feature` for THIS institution's
+    // type — null here can mean either "not built yet" (Coming Soon) or
+    // "not applicable to this institution type" (e.g. hifzTracking for a
+    // general-type tenant); the label picked below distinguishes the two.
+    const required = minPlanForInstitution(feature, institution.institution_type);
     const label = FEATURE_META[feature]?.label || feature;
     const upgradeTo = required ? PLAN_LABEL_BN[required] || required : null;
 
+    let error;
+    if (upgradeTo) {
+      error = `"${label}" ফিচারটি আপনার বর্তমান প্ল্যানে অন্তর্ভুক্ত নয়। ${upgradeTo} প্ল্যানে আপগ্রেড করুন।`;
+    } else if (FEATURE_META[feature]?.comingSoon) {
+      error = `"${label}" ফিচারটি এখনো চালু হয়নি (শীঘ্রই আসছে)।`;
+    } else {
+      error = `"${label}" ফিচারটি আপনার প্রতিষ্ঠানের ধরনের জন্য প্রযোজ্য নয়।`;
+    }
+
     return res.status(403).json({
-      error: upgradeTo
-        ? `"${label}" ফিচারটি আপনার বর্তমান প্ল্যানে অন্তর্ভুক্ত নয়। ${upgradeTo} প্ল্যানে আপগ্রেড করুন।`
-        : `"${label}" ফিচারটি এখনো চালু হয়নি (শীঘ্রই আসছে)।`,
+      error,
       planFeatureLocked: feature,
       currentPlan: institution.plan,
       requiredPlan: required,

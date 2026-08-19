@@ -1,15 +1,6 @@
 const express = require("express");
 const tenantContext = require("../tenantContext");
-const { getPlanFeatures, FEATURE_META, PLAN_ORDER, minPlanFor } = require("../config/planFeatures");
-
-// Enriched once at module load (FEATURE_META/PLAN_FEATURES are static), not
-// per-request: adds `minPlan` (lowest tier that unlocks each feature, or
-// null for "Coming Soon" keys not on any tier yet) so the frontend's
-// upgrade message ("প্রো প্ল্যানে আপগ্রেড করুন") doesn't have to duplicate
-// planFeatures.js's tier logic — this is the one place that reads it.
-const FEATURE_META_WITH_MIN_PLAN = Object.fromEntries(
-  Object.entries(FEATURE_META).map(([key, meta]) => [key, { ...meta, minPlan: minPlanFor(key) }])
-);
+const { getPlanFeatures, FEATURE_META, PLAN_ORDER, minPlanForInstitution } = require("../config/planFeatures");
 
 const router = express.Router();
 
@@ -36,10 +27,22 @@ router.get("/", (req, res) => {
     return res.status(404).json({ error: "এই ফিচারটি এই ডিপ্লয়মেন্টে উপলব্ধ নয়" });
   }
   const institution = ctx.institution;
+  // docs/GENERAL_MODE_PLAN.md, Phase 3 — minPlan is computed per-request
+  // (not once at module load, unlike before) because it now depends on this
+  // institution's type too: for a general-type tenant, hifzTracking's
+  // minPlan comes back null (no plan unlocks it), not "standard" — so the
+  // frontend's upgrade card never wrongly suggests upgrading for a feature
+  // upgrading can't unlock.
+  const featureMeta = Object.fromEntries(
+    Object.entries(FEATURE_META).map(([key, meta]) => [
+      key,
+      { ...meta, minPlan: minPlanForInstitution(key, institution.institution_type) },
+    ])
+  );
   res.json({
     plan: institution.plan,
-    features: getPlanFeatures(institution.plan),
-    featureMeta: FEATURE_META_WITH_MIN_PLAN,
+    features: getPlanFeatures(institution.plan, institution.institution_type),
+    featureMeta,
     planOrder: PLAN_ORDER,
   });
 });

@@ -109,7 +109,7 @@ router.get("/plan", requireTenantContext, (req, res) => {
   const institution = req._institution;
   res.json({
     plan: institution.plan,
-    features: getPlanFeatures(institution.plan),
+    features: getPlanFeatures(institution.plan, institution.institution_type),
     customDomain: institution.custom_domain || null,
   });
 });
@@ -124,7 +124,7 @@ router.get("/plan", requireTenantContext, (req, res) => {
 router.put("/custom-domain", requireTenantContext, async (req, res, next) => {
   try {
     const institution = req._institution;
-    const features = getPlanFeatures(institution.plan);
+    const features = getPlanFeatures(institution.plan, institution.institution_type);
     if (!features.customDomain) {
       return res.status(403).json({ error: "কাস্টম ডোমেইন শুধুমাত্র প্রো প্ল্যানে উপলব্ধ। প্রো প্ল্যানে আপগ্রেড করুন।" });
     }

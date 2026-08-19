@@ -142,15 +142,32 @@ const PRICING_MODELS = {
   flat: { label: "ফ্ল্যাট রেট/মাস" },
 };
 
+// docs/GENERAL_MODE_PLAN.md, Phase 3 — Hifz tracking (Quran memorization
+// progress, dept='Hifz', the `para` column) is a madrasah-specific feature
+// module. General-type institutions (school/college/coaching) never get it,
+// regardless of plan tier — this is checked here, the single source of
+// truth every caller reads from (route gating via middleware/planGate.js,
+// and both /api/plan + /api/settings/plan endpoints the frontend reads),
+// so nothing can drift out of sync. `institutionType` is optional so every
+// pre-existing caller that doesn't pass it (e.g. lib/guardianSms.js, which
+// only checks the unrelated "sms" feature) keeps working unchanged.
+const INSTITUTION_TYPE_FEATURE_OVERRIDES = {
+  hifzTracking: (institutionType) => institutionType === undefined || institutionType === "madrasah",
+};
+
 // Falls back to "basic" (the most restrictive plan) for any unrecognized
 // plan value, so a typo'd or not-yet-listed plan name can never
 // accidentally unlock a paid feature.
-function getPlanFeatures(plan) {
-  return PLAN_FEATURES[plan] || PLAN_FEATURES.basic;
+function getPlanFeatures(plan, institutionType) {
+  const features = { ...(PLAN_FEATURES[plan] || PLAN_FEATURES.basic) };
+  for (const [feature, allowedForType] of Object.entries(INSTITUTION_TYPE_FEATURE_OVERRIDES)) {
+    if (!allowedForType(institutionType)) features[feature] = false;
+  }
+  return features;
 }
 
-function planAllows(plan, feature) {
-  return !!getPlanFeatures(plan)[feature];
+function planAllows(plan, feature, institutionType) {
+  return !!getPlanFeatures(plan, institutionType)[feature];
 }
 
 // Lowest tier (by PLAN_ORDER) that has `feature` turned on. Returns null if
@@ -163,6 +180,19 @@ function minPlanFor(feature) {
   return null;
 }
 
+// Same as minPlanFor, but also accounts for institution-type overrides
+// above — for a general-type institution and feature "hifzTracking", this
+// returns null even though minPlanFor("hifzTracking") is "standard",
+// because no plan unlocks it for that institution type. Callers (the /plan
+// endpoints, for "upgrade to X" messaging) should use this one instead of
+// minPlanFor whenever an institution (and therefore its type) is known.
+function minPlanForInstitution(feature, institutionType) {
+  for (const plan of PLAN_ORDER) {
+    if (getPlanFeatures(plan, institutionType)[feature]) return plan;
+  }
+  return null;
+}
+
 module.exports = {
   PLAN_FEATURES,
   PLAN_ORDER,
@@ -171,4 +201,5 @@ module.exports = {
   getPlanFeatures,
   planAllows,
   minPlanFor,
+  minPlanForInstitution,
 };

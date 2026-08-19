@@ -51,7 +51,9 @@ export function PlanFeatureGate({ feature, children }: PlanFeatureGateProps) {
       <p className="plan-lock__message">
         {meta?.comingSoon
           ? tr("planLock.comingSoonMessage", { feature: label })
-          : tr("planLock.message", { feature: label, currentPlan: currentPlanLabel, requiredPlan: requiredPlanLabel })}
+          : meta?.minPlan
+          ? tr("planLock.message", { feature: label, currentPlan: currentPlanLabel, requiredPlan: requiredPlanLabel })
+          : tr("planLock.notAvailableMessage", { feature: label })}
       </p>
       <div className="plan-lock__actions">
         <Link to="/pricing">
