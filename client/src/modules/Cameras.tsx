@@ -1,19 +1,9 @@
 // docs/CCTV_INTEGRATION_PLAN.md, Phase 6 — admin-facing camera bridge +
 // camera management UI. Wires routes/cameras.js (Phase 2) via api.cameras.
-// Two sections:
-//   1. "Bridge" — the local machine running Frigate/MediaMTX. One per
-//      institution (typically). Requires a secretKey that is shown once at
-//      creation or regen, then never re-exposed (same contract as
-//      AttendanceDevices.tsx).
-//   2. "Camera" — individual RTSP sources on a bridge. Each has a streamPath
-//      that matches a MediaMTX path (e.g. "cam1"), plus a bridgeDeviceId
-//      pointing at the parent bridge.
-//
-// Phase 7 (live-view grid with hls.js) will import this module's camera
-// list as a dependency — keep it self-contained and re-export Camera type
-// for that future use.
+// Phase 7 adds a live-view grid at the top using CameraFeed (hls.js).
 
 import { useEffect, useState } from "react";
+import { CameraFeed } from "../components/CameraFeed";
 import { SkeletonCardList } from "../components/Skeleton";
 import { Badge } from "../components/Badge";
 import { Button, Card, Field, Input } from "../components/ui";
@@ -542,9 +532,9 @@ export function Cameras() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadBridges/loadCameras intentionally set loading=true immediately so the page shows a spinner right away; remaining state updates land after the requests resolve
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadBridges/loadCameras each set loading=true synchronously then resolve async; spinners are already shown via initial state (useState(true)), so no cascading-render concern
     loadBridges();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- same as above
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- same rationale as above
     loadCameras();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -562,6 +552,24 @@ export function Cameras() {
           <p className="page-subtitle">{c.subtitle}</p>
         </div>
       </div>
+
+      {/* ── Phase 7: Live-view grid ── */}
+      {cameras.length > 0 && (
+        <>
+          <h3 className="section-heading mt-18">{c.liveViewTitle}</h3>
+          <div className="camera-grid">
+            {cameras.map((cam) => (
+              <CameraFeed
+                key={cam.id}
+                cameraId={cam.id}
+                name={cam.name}
+                location={cam.location}
+                active={cam.active}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* ── Bridge management ── */}
       <h3 className="section-heading mt-18">{c.bridgeSectionTitle}</h3>

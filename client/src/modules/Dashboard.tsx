@@ -23,7 +23,8 @@ import { fmt } from "../lib/fmt";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/AppSettingsContext";
-import type { DashboardData, DeleteRequest } from "../types";
+import { canAccess } from "../lib/permissions";
+import type { Camera, DashboardData, DeleteRequest } from "../types";
 
 const EMPTY_DASHBOARD: DashboardData = {
   stats: {
@@ -55,7 +56,9 @@ export function Dashboard() {
   const [data, setData] = useState<DashboardData>(EMPTY_DASHBOARD);
   const [loadError, setLoadError] = useState(false);
   const [deleteRequests, setDeleteRequests] = useState<DeleteRequest[]>([]);
+  const [cameras, setCameras] = useState<Camera[]>([]);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const canSeeCameras = !!user && canAccess(user.role, "cameras");
   const canApproveDeletes = user?.role === "Super Admin" || user?.role === "Admin";
   const requestTypeLabel = (type: DeleteRequest["entityType"]) =>
     type === "income"
@@ -69,16 +72,14 @@ export function Dashboard() {
       : t.dashboard.userDelete;
 
   useEffect(() => {
-    // Previously this was `.catch(() => {})` — a failed load silently kept
-    // whatever was already on screen (originally fake mock data) with no
-    // indication anything went wrong. Now a real failure surfaces as a
-    // visible error instead of pretending the numbers are current.
     api.getDashboard().then((d) => {
       setData(d);
       setLoadError(false);
     }).catch(() => setLoadError(true));
     if (canApproveDeletes) api.getDeleteRequests().then(setDeleteRequests).catch(() => setDeleteRequests([]));
-  }, [canApproveDeletes]);
+    // docs/CCTV_INTEGRATION_PLAN.md, Phase 7 — load camera list for status widget
+    if (canSeeCameras) api.cameras.list().then(setCameras).catch(() => setCameras([]));
+  }, [canApproveDeletes, canSeeCameras]);
 
   const resolveDelete = async (id: number, action: "approve" | "reject") => {
     if (action === "approve") await api.approveDeleteRequest(id);
@@ -214,6 +215,42 @@ export function Dashboard() {
           ))}
         </div>
       </div>
+
+      {/* ── Phase 7: Camera status widget (Admin/Super Admin only) ── */}
+      {canSeeCameras && cameras.length > 0 && (
+        <div
+          style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, marginTop: 20, cursor: "pointer" }}
+          onClick={() => navigate("/cameras")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && navigate("/cameras")}
+          title={t.cameras.title}
+        >
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 14 }}>
+            {t.cameras.dashboardWidgetTitle}
+            <span style={{ fontSize: 11, fontWeight: 400, color: C.muted, marginLeft: 8 }}>
+              {cameras.filter(c => c.active).length}/{cameras.length} {t.cameras.active}
+            </span>
+          </h3>
+          <div>
+            {cameras.slice(0, 6).map((cam) => (
+              <div key={cam.id} className="camera-status-row">
+                <span
+                  className="camera-status-row__dot"
+                  style={{ background: cam.active ? C.emerald : C.slate }}
+                />
+                <span className="camera-status-row__name">{cam.name}</span>
+                {cam.location && <span className="camera-status-row__loc">{cam.location}</span>}
+              </div>
+            ))}
+            {cameras.length > 6 && (
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
+                +{cameras.length - 6} {t.cameras.morecameras}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

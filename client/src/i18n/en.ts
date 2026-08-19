@@ -1277,6 +1277,16 @@ export const en = {
     cameraListTitle: "Camera List",
     noCameras: "No cameras yet. Add the first camera using the form above.",
 
+    // Phase 7 — live-view grid
+    liveViewTitle: "Live View",
+    streamLoading: "Loading stream...",
+    streamError: "Stream unavailable",
+    streamUrlFailed: "Could not load stream URL",
+    hlsUnsupported: "HLS not supported in this browser",
+    cameraInactive: "Inactive",
+    dashboardWidgetTitle: "Camera Status",
+    morecameras: "more",
+
     // Validation
     bridgeIdRequired: "Bridge ID is required.",
     nameRequired: "Name is required.",

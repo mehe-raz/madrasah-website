@@ -3532,7 +3532,7 @@ Phase 1 (payments cascade fix) finished 2026-08-05:
 ম্যানেজমেন্ট API) + Phase 3 (ইভেন্ট ইনজেশন API) + Phase 4 (লাইভ-ভিউ স্ট্রিম
 প্রক্সি), পুরো পরিকল্পনা `docs/CCTV_INTEGRATION_PLAN.md`-এ
 
-## Status: IN_PROGRESS (Phase 1–6 সম্পন্ন — Phase 7–৮ বাকি)
+## Status: IN_PROGRESS (Phase 1–7 সম্পন্ন — Phase 8 বাকি)
 
 Phase 1 Completed: 2026-08-18
 Phase 2 Completed: 2026-08-19
@@ -3540,6 +3540,7 @@ Phase 3 Completed: 2026-08-19
 Phase 4 Completed: 2026-08-19
 Phase 5 Completed: 2026-08-19
 Phase 6 Completed: 2026-08-19
+Phase 7 Completed: 2026-08-19
 
 ### Phase 1 — DB স্কিমা (2026-08-18)
 `server/sql/supabase_schema.sql`-এ তিনটা নতুন টেবিল:
@@ -3761,8 +3762,19 @@ Phase 6 Completed: 2026-08-19
     (`"camera"` icon, `"cameras"` permission)।
   - `client/src/i18n/bn.ts` + `en.ts` — `nav.cameras` + `cameras` i18n ব্লক।
 
-পরের এজেন্ট Phase 7 থেকে শুরু করবে: লাইভ-ভিউ গ্রিড পেজ (hls.js দিয়ে
-HLS স্ট্রিম দেখানো) — `docs/CCTV_INTEGRATION_PLAN.md` Phase 7 দেখুন।
+- [x] **Phase 7 সম্পন্ন (2026-08-19)** — লাইভ-ভিউ গ্রিড + ড্যাশবোর্ড উইজেট:
+  - `client/src/components/CameraFeed.tsx` — নতুন: hls.js দিয়ে single camera
+    HLS feed, Safari native fallback, error/loading/inactive state।
+  - `client/src/modules/Cameras.tsx` — লাইভ-ভিউ গ্রিড সেকশন (`camera-grid`)
+    CameraFeed কম্পোনেন্ট দিয়ে, cameras থাকলেই দেখায়।
+  - `client/src/modules/Dashboard.tsx` — camera status উইজেট (`canAccess
+    "cameras"` গেটেড), active/inactive dot, /cameras-এ navigate।
+  - `client/src/index.css` — `.camera-feed`, `.camera-grid`,
+    `.camera-status-row` CSS যোগ।
+  - `client/src/i18n/bn.ts` + `en.ts` — Phase 7 keys যোগ।
+
+পরের এজেন্ট Phase 8 করবে: ইভেন্ট/নোটিফিকেশন টাইমলাইন (`camera_events`
+লিস্ট UI, acknowledge বোতাম)।
 
 ---
 

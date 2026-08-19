@@ -1290,6 +1290,16 @@ export const bn = {
     cameraListTitle: "ক্যামেরা তালিকা",
     noCameras: "কোনো ক্যামেরা নেই। উপরের ফর্ম থেকে প্রথম ক্যামেরা যোগ করুন।",
 
+    // Phase 7 — লাইভ-ভিউ গ্রিড
+    liveViewTitle: "লাইভ ভিউ",
+    streamLoading: "স্ট্রিম লোড হচ্ছে...",
+    streamError: "স্ট্রিম পাওয়া যাচ্ছে না",
+    streamUrlFailed: "স্ট্রিম URL লোড করা সম্ভব হয়নি",
+    hlsUnsupported: "এই ব্রাউজারে HLS সাপোর্ট নেই",
+    cameraInactive: "নিষ্ক্রিয়",
+    dashboardWidgetTitle: "ক্যামেরা স্ট্যাটাস",
+    morecameras: "টি আরও",
+
     // Validation
     bridgeIdRequired: "ব্রিজ আইডি প্রয়োজন।",
     nameRequired: "নাম প্রয়োজন।",
