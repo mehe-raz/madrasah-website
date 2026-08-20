@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: "জেনারেল মোড" — স্কুল/কলেজ/কোচিং সেন্টারের জন্য দ্বিতীয়
 প্রোডাক্ট-ভ্যারিয়েন্ট (৮ Phase-এ, পুরো পরিকল্পনা `docs/GENERAL_MODE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1, Phase 2, Phase 3, Phase 4 সম্পন্ন — Phase 5 বাকি)
+## Status: IN_PROGRESS (Phase 1, Phase 2, Phase 3, Phase 4, Phase 5 সম্পন্ন — Phase 6 বাকি)
 
 ব্যবহারকারী চান একই কোডবেস দিয়ে একটা দ্বিতীয় মোড — যেখানে স্কুল/কলেজ/কোচিং
 সেন্টার সাইনআপ করলে কোনো মাদ্রাসা/আরবি-নির্দিষ্ট শব্দ বা ফিচার (হিফজ
@@ -212,9 +212,41 @@ the next sequential number.
     check`/`tsc`/`eslint` চালানো যায়নি — আপনার প্যাকেজড CMD-তেই প্রথম
     চলবে (আগের সব Phase-এর প্যাটার্নে)।
 
+- [x] **Phase 5 (para কলাম কন্ডিশনাল) সম্পন্ন** — নতুন কোনো কন্ডিশন/ফ্ল্যাগ
+  তৈরি না করে Phase 3-এর `hifzTracking` প্ল্যান-ফিচার ফ্ল্যাগের সাথেই
+  বাঁধা হয়েছে (planFeatures.js-এর `getPlanFeatures`/`planAllows`,
+  ফ্রন্টএন্ডে `usePlanFeatures().isLocked`) — যে ৩টা জায়গায় `para`
+  দেখানো হতো (অ্যাডমিশন ফর্ম, স্টুডেন্ট প্রোফাইল ভিউ, PDF প্রোফাইল
+  প্রিন্ট), তিনটাতেই একই flag চেক করে হাইড করা হয়েছে:
+  - `client/src/modules/Students.tsx` — নতুন `hifzEnabled =
+    !isLocked("hifzTracking")` (usePlanFeatures থেকে, PlanContext.tsx
+    এক্সপোর্ট); অ্যাডমিশন ফর্মের "পারা" ইনপুট
+    (`{hifzEnabled && renderInput(...)}`) এবং স্টুডেন্ট-ভিউ ডিটেইল
+    সেকশনের "পারা" row (কন্ডিশনাল spread) — দুটোই এখন hifzEnabled হলে
+    তবেই দেখা যায়।
+  - `server/src/routes/students.js`-এর `GET /:id/pdf` — `tenantContext`
+    + `planAllows("hifzTracking", ...)` দিয়ে সার্ভার-সাইডেই "পাড়া:"
+    লাইন কন্ডিশনাল করা হয়েছে (client শুধু UI, PDF আলাদা এন্ডপয়েন্ট বলে
+    client-side hifzEnabled এখানে reuse করা যায় না — একই লজিক, ভিন্ন
+    রানটাইম)। `ctx?.institution` না থাকলে (single-tenant deployment)
+    সবসময় দেখায় — planGate.js middleware-এর একই fail-open কনভেনশন।
+  - **ইচ্ছাকৃতভাবে স্পর্শ করা হয়নি:** `client/src/lib/exportReports.ts`-এর
+    `hifzRows()` — এটা শুধু `HifzTracking.tsx` পেজ থেকেই কল হয়, যেটা
+    ইতিমধ্যে Phase 3-এ App.tsx-এ `PlanFeatureGate feature="hifzTracking"`
+    দিয়ে ঘেরা, আর ভেতরের `api.getHifzStudents()` কলও সার্ভারে
+    `requirePlanFeature("hifzTracking")` মিডলওয়্যার দিয়ে ব্লকড —
+    তাই আলাদা কন্ডিশনের দরকার নেই (প্ল্যানেরই নির্দেশনা)। প্ল্যান-ডকে
+    উল্লেখ করা `client/src/lib/printReport.ts`-এ আসলে `para`/`dept`
+    কোনো রেফারেন্সই নেই (যাচাই করা হয়েছে) — ওটা অ্যাডমিট কার্ড/সামারি
+    টেমপ্লেট, প্রোফাইল ডাম্প না, তাই স্পর্শ করার কিছু নেই। `dept` ফিল্ড
+    নিজে (para-র পাশের একই ফর্ম-গ্রিডে) অপরিবর্তিত রাখা হয়েছে — সেটা
+    সব ইনস্টিটিউশন টাইপেই প্রযোজ্য (Phase 4 দেখুন)।
+  - bracket-balance স্ক্রিপ্ট দিয়ে ২টা পরিবর্তিত ফাইলই (`Students.tsx`,
+    `server/src/routes/students.js`) যাচাই করা হয়েছে (ব্যালান্সড), এবং
+    মূল zip-এর সাথে diff করে নিশ্চিত করা হয়েছে ঠিক এই ২টা কোড ফাইল +
+    ২টা ডক ফাইলই বদলেছে, অন্য কিছু না।
+
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] **Phase 5** — `para` কলাম কন্ডিশনাল (hifzTracking ফ্ল্যাগের সাথে
-  বাঁধা)
 - [ ] **Phase 6** — i18n-এর ~৯টা মাদ্রাসা-নির্দিষ্ট স্ট্রিং জেনেরিক করা
 - [ ] **Phase 7** — `Home.tsx`-এর ফলব্যাক নাম টাইপ-নির্ভর ডাইনামিক করা
 - [ ] **Phase 8** — টেস্টিং (rbac.test.js নতুন কেস) + `npm run check`

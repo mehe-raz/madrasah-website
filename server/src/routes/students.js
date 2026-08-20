@@ -6,6 +6,8 @@ const { recordAudit } = require("../lib/auditLog");
 const { idempotent } = require("../middleware/idempotency");
 const { isUniqueViolation } = require("../pg");
 const PDFDocument = require("pdfkit");
+const tenantContext = require("../tenantContext");
+const { planAllows } = require("../config/planFeatures");
 const {
   RETURNING_COLUMNS,
   LIST_COLUMNS,
@@ -494,6 +496,7 @@ router.get("/:id/pdf", async (req, res) => {
 
   try {
     console.log("Starting PDF generation for student:", student.id);
+    const ctx = tenantContext.get();
     const settings = await getSettings();
     const logo = await logoBuffer(settings.logo);
 
@@ -537,7 +540,17 @@ router.get("/:id/pdf", async (req, res) => {
       ["বকেয়া:", `৳${student.due}`],
       ["মোবাইল:", student.phone || "N/A"],
       ["রক্তের গ্রুপ:", student.blood],
-      ["পাড়া:", student.para || "N/A"],
+      // docs/GENERAL_MODE_PLAN.md, Phase 5 — "para" (Quran memorization
+      // progress) is bound to the exact same hifzTracking flag as Phase 3's
+      // route gating (middleware/planGate.js), not a separate condition:
+      // hidden here whenever hifzTracking is off, whether that's because
+      // this institution's type is non-madrasah or its plan tier doesn't
+      // include it — either way there's nothing meaningful to show. No
+      // institution in tenantContext (single-tenant deployment) always
+      // shows it, same fail-open behavior as requirePlanFeature.
+      ...(!ctx?.institution || planAllows(ctx.institution.plan, "hifzTracking", ctx.institution.institution_type)
+        ? [["পাড়া:", student.para || "N/A"]]
+        : []),
       ["অবস্থা:", student.status],
     ];
 

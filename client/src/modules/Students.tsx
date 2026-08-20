@@ -14,6 +14,7 @@ import { printAdmissionForm, printAdmissionSummary, printReportTable, printStude
 import { C } from "../theme/colors";
 import type { Student, StudentDocuments } from "../types";
 import { useAppSettings } from "../context/AppSettingsContext";
+import { usePlanFeatures } from "../context/PlanContext";
 import type { Dict } from "../i18n/bn";
 
 type AdmissionForm = Omit<Partial<Student>, "id" | "documents"> & {
@@ -195,6 +196,15 @@ export function Students() {
   // "general" institution_type tenant's school/college departments show up
   // here too.
   const departmentFilterOptions = useMemo(() => deptFilterOptions(classTree), [classTree]);
+  // docs/GENERAL_MODE_PLAN.md, Phase 5 — "para" (Quran memorization
+  // progress) shown/editable only when hifzTracking is on, bound to the
+  // exact same flag Phase 3 already gates the whole Hifz Tracking module
+  // and route with (usePlanFeatures/PlanFeatureGate) — no separate new
+  // condition. isLocked() fails open (returns false) while plan features
+  // are still loading or for a single-tenant deployment, same as
+  // PlanFeatureGate elsewhere, so this never flashes hidden->shown.
+  const { isLocked } = usePlanFeatures();
+  const hifzEnabled = !isLocked("hifzTracking");
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("All");
@@ -590,7 +600,7 @@ export function Students() {
             [t.students.previousInstitution, viewing.previousInstitution],
             [t.students.previousClass, viewing.previousClass],
             [t.students.department, deptLabel(viewing.dept)],
-            [t.students.memorizedQuran, viewing.para],
+            ...(hifzEnabled ? [[t.students.memorizedQuran, viewing.para] as [string, string | number | null | undefined]] : []),
             [t.students.admissionFee, fmt(viewing.admissionFee || 0)],
             [t.students.monthlyFee, fmt(viewing.fee || 0)],
             [t.students.discount, fmt(viewing.discount || 0)],
@@ -799,7 +809,7 @@ export function Students() {
                 <Field label={t.students.department}>
                   <ReadonlyValue>{form.dept ? deptLabel(form.dept) : t.common.select}</ReadonlyValue>
                 </Field>
-                {renderInput(t.students.memorizedQuran, "para", "number")}
+                {hifzEnabled && renderInput(t.students.memorizedQuran, "para", "number")}
               </div>
 
               {sectionTitle(t.students.feeInfo)}
