@@ -16,7 +16,7 @@ the next sequential number.
 ## Task: "জেনারেল মোড" — স্কুল/কলেজ/কোচিং সেন্টারের জন্য দ্বিতীয়
 প্রোডাক্ট-ভ্যারিয়েন্ট (৮ Phase-এ, পুরো পরিকল্পনা `docs/GENERAL_MODE_PLAN.md`-এ)
 
-## Status: IN_PROGRESS (Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6, Phase 7 সম্পন্ন — Phase 8 বাকি)
+## Status: DONE (Phase 1–8 সম্পন্ন, 2026-08-20 — সম্পূর্ণ "জেনারেল মোড" ফিচার শেষ)
 
 ব্যবহারকারী চান একই কোডবেস দিয়ে একটা দ্বিতীয় মোড — যেখানে স্কুল/কলেজ/কোচিং
 সেন্টার সাইনআপ করলে কোনো মাদ্রাসা/আরবি-নির্দিষ্ট শব্দ বা ফিচার (হিফজ
@@ -334,8 +334,112 @@ the next sequential number.
     মাথায় রেখে টাইপ-ইনফারেন্স কেসগুলোও আলাদাভাবে খুঁজে) নিশ্চিত হওয়া
     উচিত — শুধু pattern-match grep যথেষ্ট না।
 
+- [x] **Phase 8 (টেস্টিং) সম্পন্ন — সম্পূর্ণ ফিচার শেষ (Phase 1–8, DONE)**
+  প্ল্যানের বুলেট rbac.test.js-এর কথা বলেছিল, কিন্তু সেটা আসলে ROLE-based
+  access-এর টেস্ট ফাইল (rbac.js/canAccess পরীক্ষা করে) — institution_type/
+  plan-feature গেটিং একটা সম্পূর্ণ আলাদা middleware (planGate.js), তাই
+  rbac.test.js-এ কেস যোগ না করে সঠিক জায়গায় ২টা নতুন টেস্ট ফাইল যোগ করা
+  হয়েছে (rbac.test.js-এর existing ROUTE_PERMISSION-sanity প্যাটার্ন
+  অনুসরণ করে — নতুন টেবিল/কেস যোগ হলে loudly fail করে):
+  - `server/src/config/__tests__/planFeatures.test.js` (নতুন) — pure
+    ফাংশন টেস্ট, কোনো mocking লাগেনি: `getPlanFeatures`/`planAllows`
+    সব প্ল্যান-টায়ারে general-টাইপের জন্য hifzTracking সবসময় false
+    দেয় কিনা, madrasah-টাইপের জন্য স্বাভাবিক প্ল্যান-টায়ার নিয়ম মানে
+    কিনা, `institutionType` omit করলে ব্যাকওয়ার্ড-কম্প্যাটিবল থাকে
+    কিনা (pre-Phase-3 caller-দের জন্য), `minPlanForInstitution` general
+    -এর জন্য null আর madrasah-এর জন্য "standard" দেয় কিনা, আর
+    hifzTracking ছাড়া বাকি সব ফিচার (feesCollection, expenses,
+    ইত্যাদি) institution_type দ্বারা একদমই প্রভাবিত হয় না কিনা।
+  - `server/src/middleware/__tests__/planGate.test.js` (নতুন) — আসল
+    "হিফজ রুট ব্লক হচ্ছে কিনা" claim-টা এখানে সরাসরি টেস্ট হয়েছে:
+    `requirePlanFeature("hifzTracking")` মিডলওয়্যার general-টাইপ
+    ইনস্টিটিউশনের জন্য সর্বোচ্চ প্ল্যানেও `res.status(403)` কল করে
+    (আসল `tenantContext.run()` দিয়ে, mock না — planGate.js-এর কোনো
+    db ডিপেন্ডেন্সি নেই বলে দরকারও নেই), madrasah-টাইপের জন্য প্রভাবিত
+    হয় না (উপযুক্ত প্ল্যানে next() কল হয়, কম প্ল্যানে upgrade-মেসেজসহ
+    403 হয়), আর tenantContext না থাকলে (single-tenant) কখনো ব্লক করে
+    না — এই ৪টা কেসই কভার করা হয়েছে।
+  - **"para হাইড হচ্ছে কিনা" সম্পর্কে ইচ্ছাকৃত স্কোপ-সিদ্ধান্ত (ফ্ল্যাগ
+    করা হলো):** para তিন জায়গায় হাইড হয় (Students.tsx ফর্ম/ভিউ,
+    routes/students.js-এর PDF) — তিনটাই একই ইতিমধ্যে-টেস্ট-করা
+    `planAllows`/`isLocked("hifzTracking")` চেকের সরাসরি, যান্ত্রিক
+    ফলাফল, আলাদা কোনো লজিক না। এই তিনটার জন্য আলাদা route/component-level
+    টেস্ট লিখতে হলে নতুন টেস্ট-ইনফ্রাস্ট্রাকচার লাগত যেটা এই কোডবেসে
+    এখনো নেই: client-এ কোনো টেস্ট রানারই কনফিগার করা নেই
+    (`client/package.json`-এ কোনো `test` স্ক্রিপ্ট নেই — চেক করে
+    নিশ্চিত হওয়া হয়েছে), আর `routes/students.js`-এর PDF রুট টেস্ট
+    করতে DB + PDFKit মক করার মতো হেভিওয়েট হারনেস লাগত যেটার কোনো
+    established প্যাটার্ন এই রিপোতে নেই (`payments.test.js`-এর একমাত্র
+    route-test example একটা pure হেল্পার ফাংশন টেস্ট করে, পুরো
+    request/response সাইকেল না)। নতুন টেস্ট-ফ্রেমওয়ার্ক/হেভি DB-মক
+    যোগ করা "কয়েকটা টেস্ট কেস যোগ করা"-র স্কোপের অনেক বাইরে চলে যেত
+    (AGENTS.md রুল ১)। যেহেতু underlying বুলিয়ান লজিকটাই পুরোপুরি টেস্ট
+    করা হয়ে গেছে, আর তিন জায়গার কোডই সরাসরি সেই একই চেক কল করে
+    (নতুন কোনো ডুপ্লিকেট/ড্রিফটেড লজিক নেই), এটাকেই যথেষ্ট কভারেজ ধরা
+    হয়েছে — future এজেন্ট চাইলে client-side টেস্ট রানার সেটআপ করা একটা
+    আলাদা, বড় পরিসরের কাজ হিসেবে নিতে পারে।
+  - **সতর্কতা:** sandbox-এ network/node_modules না থাকায় নতুন এই ২টা
+    টেস্ট ফাইল আসলে `vitest run` দিয়ে চালিয়ে দেখা যায়নি — শুধু
+    bracket-balance যাচাই আর import/export নাম হাতে-হাতে
+    `module.exports`-এর সাথে মিলিয়ে দেখা হয়েছে (rbac.test.js/
+    payments.test.js-এর বিদ্যমান CJS-থেকে-ESM ইম্পোর্ট প্যাটার্ন
+    অনুসরণ করে)। আপনার প্যাকেজড CMD-তে `npm run check`-ই এই টেস্ট
+    দুটো প্রথমবার আসলে রান করবে (`test:unit` → `vitest run`,
+    `vitest.config.js`-এর `src/**/__tests__/**/*.test.js` গ্লোব এই নতুন
+    দুটো ফাইলকেই ধরবে)। কোনো এরর এলে জানাবেন, ঠিক করে দেব।
+  - **সংশোধন (২০২৬-০৮-২০, ব্যবহারকারীর `npm run check` রান থেকে ধরা
+    পড়েছে):** `scripts/check-server.js` (`test:server`) `node --check`
+    দিয়ে `server/src`-এর প্রতিটা `.js` ফাইল সিনট্যাক্স-চেক করে, আর
+    `server/package.json`-এর রুট-লেভেল `"type": "commonjs"` ইনহেরিট করে
+    — কিন্তু বিদ্যমান প্রতিটা `__tests__` ফোল্ডার (`middleware/__tests__/`,
+    `lib/__tests__/`, `routes/__tests__/`) তার নিজের একটা ছোট্ট
+    `{"type":"module"}` `package.json` দিয়ে সেটা ওভাররাইড করে রাখে,
+    যাতে ভেতরের vitest ফাইলগুলোর ESM `import` সিনট্যাক্স `node --check`-এ
+    বৈধ থাকে। নতুন তৈরি `server/src/config/__tests__/` ফোল্ডারে এই
+    ওভাররাইড-ফাইলটা যোগ করতে ভুলে গিয়েছিলাম (আগে থেকে থাকা
+    `middleware/__tests__/`-এ `planGate.test.js` রাখা হয়েছিল বলে সেটা
+    এমনিতেই ঠিক ছিল, তাই সমস্যাটা ধরা পড়েনি) — এখন
+    `server/src/config/__tests__/package.json` (`{"type":"module"}`,
+    বাকি তিনটার সাথে অক্ষরে-অক্ষরে অভিন্ন) যোগ করে ফিক্স করা হয়েছে,
+    আর `node scripts/check-server.js` (১২১টা ফাইল) লোকালি চালিয়ে পাস
+    করা নিশ্চিত করা হয়েছে। **শিক্ষা:** নতুন কোনো `__tests__` ফোল্ডার
+    তৈরি করলে সবসময় এই local `package.json` override সাথে সাথেই যোগ
+    করতে হবে — ভুলে গেলে vitest-এ পাস করলেও `test:server` (একটা
+    সম্পূর্ণ আলাদা, প্লেইন `node --check` স্ক্রিপ্ট) এ ফেল করবে।
+  - **সংশোধন #২ (২০২৬-০৮-২০, `npm run test:unit`/vitest রান থেকে ধরা
+    পড়েছে):** `test:server` পাস করার পর `test:unit`-এ
+    `planGate.test.js`-এর ৪টার মধ্যে ২টা কেস ফেল করেছিল — কিন্তু আসল
+    কারণটা `requirePlanFeature` মিডলওয়্যারের বাগ ছিল না, ছিল আমার
+    টেস্ট-সেটআপের একটা ভুল: টেস্ট ফাইলটা `tenantContext.js`-কে ESM
+    `import { run } from "../../tenantContext.js"` দিয়ে ইম্পোর্ট করছিল,
+    আর `planGate.js` (আসল প্রোডাকশন কোড) সেই একই ফাইলকে CJS
+    `require("../tenantContext")` দিয়ে — vitest-এর মডিউল গ্রাফে এই দুটো
+    আলাদা মডিউল-ইনস্ট্যান্স হিসেবে রিজলভ হয়ে গিয়েছিল, ফলে টেস্টে
+    `tenantContext.run()` দিয়ে বসানো context আসল middleware-এর
+    `tenantContext.get()`-এ কখনোই পৌঁছাচ্ছিল না (সবসময় `undefined`
+    রিটার্ন করছিল, তাই `ctx?.institution` সবসময় falsy, সবসময় `next()`
+    কল হচ্ছিল) — যে ৩টা কেস এমনিতেই `next()` এক্সপেক্ট করছিল সেগুলো
+    কাকতালীয়ভাবে পাস করে গেছে, যে ২টা 403 এক্সপেক্ট করছিল সেগুলো ফেল
+    করেছে। ফিক্স: রিয়েল `AsyncLocalStorage` চালানোর বদলে
+    `vi.hoisted()` + `vi.mock("../../tenantContext", ...)` দিয়ে পুরো
+    মডিউলটাই মক করা হয়েছে (`payments.test.js`-এর `vi.mock("../../db",
+    ...)`-এর একই কনভেনশন) — এতে require/import বাউন্ডারি সমস্যাটাই
+    এড়ানো যায়, যেহেতু vi.mock রেজোলিউশন-লেভেলে ইন্টারসেপ্ট করে, কে
+    require করল আর কে import করল তার ওপর নির্ভর করে না। ফিক্সড ফাইলটা
+    এখন লোকালি `node --check` দিয়ে যাচাই করা হয়েছে (সিনট্যাক্স ঠিক),
+    কিন্তু sandbox-এ vitest নিজেই চালিয়ে দেখা যায়নি (network/node_modules
+    নেই) — তাই লজিকটা হাতে-হাতে ট্রেস করে নিশ্চিত হওয়া হয়েছে যে ৪টা
+    কেসই এবার সঠিক ফলাফল দেবে। **শিক্ষা:** কোনো shared singleton-state
+    মডিউল (AsyncLocalStorage, in-memory cache, ইত্যাদি) জড়িত টেস্টে
+    require আর import মিশিয়ে ব্যবহার করা ঝুঁকিপূর্ণ এই কোডবেসের
+    CJS-সোর্স + ESM-টেস্ট সেটআপে — সরাসরি `vi.mock` দিয়ে ডিপেন্ডেন্সি
+    মক করাই নিরাপদ ডিফল্ট (এবং সবসময় আসলে `vitest run` চালিয়ে দেখা
+    উচিত ছিল দাবি করার আগে যে "লজিক ঠিক আছে")।
+
 ### বাকি (পরের এজেন্ট এখান থেকে চালিয়ে যাবে)
-- [ ] **Phase 8** — টেস্টিং (rbac.test.js নতুন কেস) + `npm run check`
+- [ ] কোনো Phase বাকি নেই। "জেনারেল মোড" ফিচার (docs/GENERAL_MODE_PLAN.md)
+  সম্পূর্ণ। `npm run check` পাস করার পর এই কাজটা বন্ধ ধরা যায় — নতুন কোনো
+  কাজ শুরু করলে এই সেকশনটা নতুন টাস্কের জন্য রিপ্লেস হবে।
 
 ### নোট
 `docs/GENERAL_MODE_PLAN.md`-এর §৫-এ ৪টা খোলা প্রশ্ন আছে (institution_type-এর
