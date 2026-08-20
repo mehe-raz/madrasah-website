@@ -1,4 +1,5 @@
 const db = require("./../db");
+const tenantContext = require("../tenantContext");
 
 // The full `settings` table (currency, backupConfig, receipt footer text,
 // etc.) is only ever readable through the auth-protected /api/settings
@@ -21,6 +22,18 @@ async function getPublicSettings() {
     [PUBLIC_KEYS]
   );
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  // docs/GENERAL_MODE_PLAN.md, Phase 7 (খোলা প্রশ্ন ৪) — the public
+  // homepage's fallback institution name depends on institution type
+  // (madrasah vs general), not just per-tenant `settings` (which is what
+  // PUBLIC_KEYS above reads). institution_type instead lives on the
+  // registry.institutions row for this request's tenant — middleware/
+  // tenantResolve.js already resolves that into tenantContext for every
+  // /api/public/* request (it's not in tenantResolve.js's isSkippedPath
+  // list), same as routes/students.js's PDF-print route (Phase 5) reads it.
+  // Falls back to "madrasah" — same default the Phase 1 DB migration and
+  // MULTI_TENANT_MODE-off single-tenant deployments use — when no tenant
+  // context exists (single-tenant deployment, MULTI_TENANT_MODE unset).
+  const ctx = tenantContext.get();
   return {
     name: map.name || "",
     logo: map.logo || "",
@@ -29,6 +42,7 @@ async function getPublicSettings() {
     email: map.email || "",
     footer: map.footer || "",
     brandColor: HEX_COLOR_RE.test(map.brandColor || "") ? map.brandColor : DEFAULT_BRAND_COLOR,
+    institutionType: ctx?.institution?.institution_type || "madrasah",
   };
 }
 

@@ -179,6 +179,12 @@ export interface PublicSettings {
   email: string;
   footer: string;
   brandColor: string;
+  // docs/GENERAL_MODE_PLAN.md, Phase 7 — server/src/lib/publicSettings.js
+  // resolves this from tenantContext (registry.institutions.institution_type),
+  // falling back to "madrasah" when no tenant context exists (single-tenant
+  // deployment). Used by Home.tsx to pick the right fallback institution
+  // name when a tenant hasn't set one yet.
+  institutionType: string;
 }
 
 // A single class/jamaat entry in the tenant's master list, managed by Super

@@ -47,6 +47,15 @@ export function WebsitePreview() {
           email: s.email,
           footer: s.footer,
           brandColor: s.brandColor || FALLBACK_SETTINGS.brandColor,
+          // docs/GENERAL_MODE_PLAN.md, Phase 7 — api.getSettings() (the
+          // authenticated /api/settings route) doesn't return
+          // institution_type today (unlike /api/public/settings, which this
+          // preview deliberately does NOT call — see the file-level comment
+          // above), so there's no real value to put here. Only affects
+          // Home.tsx's fallback *name* when site.name is still blank, which
+          // is a rare, cosmetic edge case for a page whose whole job is
+          // letting an admin preview content before publishing.
+          institutionType: FALLBACK_SETTINGS.institutionType,
         });
       }
       setLoading(false);

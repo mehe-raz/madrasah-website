@@ -10,13 +10,19 @@ import type { PublicSettings, SiteContent } from "../types";
 // generic "something's temporarily wrong" placeholder for an outage — two
 // different situations that don't need to match.
 export const FALLBACK_SETTINGS: PublicSettings = {
-  name: "মাদ্রাসা",
+  name: "প্রতিষ্ঠান",
   logo: "",
   address: "ঠিকানা এখনো যুক্ত করা হয়নি",
   phone: "",
   email: "",
   footer: "দ্বীনি ও আধুনিক শিক্ষার সমন্বয়ে একটি নির্ভরযোগ্য প্রতিষ্ঠান।",
   brandColor: "#0ea5e9",
+  // docs/GENERAL_MODE_PLAN.md, Phase 7 — this whole constant only fires on
+  // a total API outage (see comment above), before any real per-tenant data
+  // — including institution_type itself — has ever loaded, so there's no
+  // type to be dynamic about here; "madrasah" is just the same safe default
+  // Phase 1's DB migration and the server's tenantContext-less fallback use.
+  institutionType: "madrasah",
 };
 
 export const FALLBACK_CONTENT: SiteContent = {

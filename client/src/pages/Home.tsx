@@ -21,7 +21,12 @@ const defaultBadges = ["হিফজ", "নাজেরা", "কিতাব", 
 
 export function Home() {
   const { site, content, loading } = usePublicSite();
-  const fallbackName = site.name || "মাদ্রাসা";
+  // docs/GENERAL_MODE_PLAN.md, Phase 7 (খোলা প্রশ্ন ৪ — টাইপ-নির্ভর ডাইনামিক
+  // প্রস্তাব) — before a tenant has set a name in Settings, fall back to a
+  // name matching their institution type instead of always "মাদ্রাসা".
+  // site.institutionType comes from tenantContext (registry.institutions),
+  // resolved server-side in lib/publicSettings.js.
+  const fallbackName = site.name || (site.institutionType === "general" ? "প্রতিষ্ঠান" : "মাদ্রাসা");
 
   useSeoMeta({
     title: `${fallbackName} — স্বাগতম`,

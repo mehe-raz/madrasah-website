@@ -18,7 +18,16 @@
 // index.html using the values returned here.
 // ============================================================================
 
-const DEFAULT_NAME = "মাদ্রাসা";
+// docs/GENERAL_MODE_PLAN.md, Phase 7 (খোলা প্রশ্ন ৪) — same type-dependent
+// fallback as client/src/pages/Home.tsx (Phase 7), server-rendered version:
+// `site` is always getPublicSettings()'s result here (see buildSeoMeta below),
+// which now carries institutionType (Phase 7, lib/publicSettings.js) resolved
+// from tenantContext — falls back to "মাদ্রাসা" for an empty/unknown site
+// object too (e.g. INDEXABLE_PUBLIC_PATHS' build({}, {}) probe below, or an
+// unresolved-tenant request), same default as everywhere else in this project.
+function defaultName(site) {
+  return site && site.institutionType === "general" ? "প্রতিষ্ঠান" : "মাদ্রাসা";
+}
 
 function fallbackDescription(name) {
   return `${name}-এ স্বাগতম — শিক্ষার্থী ভর্তি, ক্লাস, নোটিস ও পরীক্ষার ফলাফল সম্পর্কে সব তথ্য এখানে।`;
@@ -30,47 +39,47 @@ function fallbackDescription(name) {
 // and any unknown path) defaults to noindex below.
 const PUBLIC_ROUTES = {
   "/": (site, content) => ({
-    title: `${site.name || DEFAULT_NAME} — স্বাগতম`,
-    description: content.heroSubtitle || fallbackDescription(site.name || DEFAULT_NAME),
+    title: `${site.name || defaultName(site)} — স্বাগতম`,
+    description: content.heroSubtitle || fallbackDescription(site.name || defaultName(site)),
   }),
   "/about": (site, content) => ({
-    title: `আমাদের সম্পর্কে — ${site.name || DEFAULT_NAME}`,
-    description: content.aboutIntro || `${site.name || DEFAULT_NAME}-এর ইতিহাস, লক্ষ্য ও শিক্ষাদান পদ্ধতি সম্পর্কে জানুন।`,
+    title: `আমাদের সম্পর্কে — ${site.name || defaultName(site)}`,
+    description: content.aboutIntro || `${site.name || defaultName(site)}-এর ইতিহাস, লক্ষ্য ও শিক্ষাদান পদ্ধতি সম্পর্কে জানুন।`,
   }),
   "/classes": (site, content) => ({
-    title: `ক্লাস ও কোর্সসমূহ — ${site.name || DEFAULT_NAME}`,
-    description: `${site.name || DEFAULT_NAME}-এর ক্লাস, কোর্স ও পাঠ্যক্রম সম্পর্কে বিস্তারিত জানুন।`,
+    title: `ক্লাস ও কোর্সসমূহ — ${site.name || defaultName(site)}`,
+    description: `${site.name || defaultName(site)}-এর ক্লাস, কোর্স ও পাঠ্যক্রম সম্পর্কে বিস্তারিত জানুন।`,
   }),
   "/admission": (site, content) => ({
-    title: `${content.admissionTitle || "ভর্তি"} — ${site.name || DEFAULT_NAME}`,
-    description: content.admissionSubtitle || `${site.name || DEFAULT_NAME}-এ ভর্তির নিয়মকানুন ও প্রক্রিয়া সম্পর্কে জানুন।`,
+    title: `${content.admissionTitle || "ভর্তি"} — ${site.name || defaultName(site)}`,
+    description: content.admissionSubtitle || `${site.name || defaultName(site)}-এ ভর্তির নিয়মকানুন ও প্রক্রিয়া সম্পর্কে জানুন।`,
   }),
   "/admission/apply": (site) => ({
-    title: `ভর্তি ফর্ম — ${site.name || DEFAULT_NAME}`,
-    description: `${site.name || DEFAULT_NAME}-এ অনলাইনে ভর্তি আবেদন করুন।`,
+    title: `ভর্তি ফর্ম — ${site.name || defaultName(site)}`,
+    description: `${site.name || defaultName(site)}-এ অনলাইনে ভর্তি আবেদন করুন।`,
     noindex: true, // a submission form, not indexable content
   }),
   "/gallery": (site, content) => ({
-    title: `${content.galleryHeroTitle || "গ্যালারি"} — ${site.name || DEFAULT_NAME}`,
-    description: content.galleryHeroSubtitle || `${site.name || DEFAULT_NAME}-এর ক্যাম্পাস ও কার্যক্রমের ছবি দেখুন।`,
+    title: `${content.galleryHeroTitle || "গ্যালারি"} — ${site.name || defaultName(site)}`,
+    description: content.galleryHeroSubtitle || `${site.name || defaultName(site)}-এর ক্যাম্পাস ও কার্যক্রমের ছবি দেখুন।`,
     image: content.gallery && content.gallery[0] && content.gallery[0].url,
   }),
   "/notices": (site) => ({
-    title: `নোটিসেস — ${site.name || DEFAULT_NAME}`,
-    description: `${site.name || DEFAULT_NAME}-এর সাম্প্রতিক নোটিস ও ঘোষণা দেখুন।`,
+    title: `নোটিসেস — ${site.name || defaultName(site)}`,
+    description: `${site.name || defaultName(site)}-এর সাম্প্রতিক নোটিস ও ঘোষণা দেখুন।`,
   }),
   "/result": (site) => ({
-    title: `ফলাফল দেখুন — ${site.name || DEFAULT_NAME}`,
-    description: `${site.name || DEFAULT_NAME}-এর পরীক্ষার ফলাফল অনলাইনে দেখুন — ক্লাস ও রোল নম্বর দিয়ে খুঁজুন।`,
+    title: `ফলাফল দেখুন — ${site.name || defaultName(site)}`,
+    description: `${site.name || defaultName(site)}-এর পরীক্ষার ফলাফল অনলাইনে দেখুন — ক্লাস ও রোল নম্বর দিয়ে খুঁজুন।`,
     noindex: true, // personal lookup form/results, not indexable content
   }),
   "/terms": (site) => ({
-    title: `শর্তাবলী — ${site.name || DEFAULT_NAME}`,
-    description: `${site.name || DEFAULT_NAME} ব্যবহারের শর্তাবলী ও নিয়মকানুন।`,
+    title: `শর্তাবলী — ${site.name || defaultName(site)}`,
+    description: `${site.name || defaultName(site)} ব্যবহারের শর্তাবলী ও নিয়মকানুন।`,
   }),
   "/privacy": (site) => ({
-    title: `গোপনীয়তা নীতি — ${site.name || DEFAULT_NAME}`,
-    description: `${site.name || DEFAULT_NAME}-এ শিক্ষার্থী ও অভিভাবকের তথ্য কীভাবে সংগ্রহ, সংরক্ষণ ও ব্যবহার করা হয়।`,
+    title: `গোপনীয়তা নীতি — ${site.name || defaultName(site)}`,
+    description: `${site.name || defaultName(site)}-এ শিক্ষার্থী ও অভিভাবকের তথ্য কীভাবে সংগ্রহ, সংরক্ষণ ও ব্যবহার করা হয়।`,
   }),
 };
 
@@ -100,7 +109,7 @@ function escapeHtml(value) {
 // `site` = getPublicSettings() result, `content` = getSiteContent() result,
 // `pathname` = req.path (already normalized by Express, no query string).
 function buildSeoMeta(pathname, site, content, origin) {
-  const name = (site && site.name) || DEFAULT_NAME;
+  const name = (site && site.name) || defaultName(site);
   const builder = PUBLIC_ROUTES[pathname];
 
   const base = builder
