@@ -63,6 +63,9 @@ import {
   Layers,
   BookMarked,
   UserCog,
+  Moon,
+  Sunrise,
+  Sunset,
   type LucideIcon,
 } from "lucide-react";
 
@@ -150,6 +153,11 @@ export const Icons = {
   classGroup: Layers,
   classLeaf: GraduationCap,
   subjectIcon: BookMarked,
+  // Dashboard prayer-times widget (docs/PRAYER_TIMES_WIDGET_PLAN.md) —
+  // current-waqt indicator and sunrise/sunset markers.
+  moon: Moon,
+  sunrise: Sunrise,
+  sunset: Sunset,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof Icons;

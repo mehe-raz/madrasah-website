@@ -15,6 +15,7 @@ import {
   YAxis,
 } from "recharts";
 import { StatCard } from "../components/StatCard";
+import { PrayerTimesWidget } from "../components/PrayerTimesWidget";
 import { Icons, type IconKey } from "../lib/icons";
 import { PIE_COLORS } from "../theme/colors";
 import { C } from "../theme/colors";
@@ -96,6 +97,8 @@ export function Dashboard() {
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 20 }}>{t.dashboard.title}</h2>
+
+      <PrayerTimesWidget />
 
       {loadError && (
         <div style={{ color: C.rose, background: C.roseL, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13 }}>

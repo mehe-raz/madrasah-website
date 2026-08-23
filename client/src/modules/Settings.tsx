@@ -1153,6 +1153,8 @@ export function Settings() {
                     <span className="info-row__value">{settings.brandColor || "#0ea5e9"}</span>
                   </div>
                 </div>
+                <InfoRow label={t.settings.prayerCity} value={settings.prayerCity || "Dhaka"} />
+                <InfoRow label={t.settings.prayerCountry} value={settings.prayerCountry || "Bangladesh"} />
                 {settings.logo && <img src={settings.logo} alt="Logo" loading="lazy" decoding="async" className="logo-preview mt-12" />}
               </div>
             )}
@@ -1183,6 +1185,11 @@ export function Settings() {
                   />
                 </div>
                 <p className="hint-text">{t.settings.brandColorHint}</p>
+              </div>
+              <div>
+                <Field label={t.settings.prayerCity} value={settings.prayerCity || ""} onChange={(v) => update("prayerCity", v)} />
+                <Field label={t.settings.prayerCountry} value={settings.prayerCountry || ""} onChange={(v) => update("prayerCountry", v)} />
+                <p className="hint-text">{t.settings.prayerHint}</p>
               </div>
             </div>
           </div>

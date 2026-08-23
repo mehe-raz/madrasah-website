@@ -318,6 +318,24 @@ app.get("/api/public/settings", async (_req, res) => {
   res.json(await getPublicSettings());
 });
 
+// Public, unauthenticated: today's namaz timings + Hijri/Bangla date for
+// the dashboard prayer-times widget (Dashboard.tsx and GuardianDashboard.tsx
+// both read this — guardians authenticate via a separate JWT audience than
+// staff, so a single unauthenticated endpoint is simpler than gating this
+// non-sensitive, read-only data behind two different auth checks). City is
+// per-institution (Settings > namaz), method is fixed to University of
+// Islamic Sciences, Karachi — see lib/prayerTimes.js.
+app.get("/api/public/prayer-times", async (_req, res) => {
+  const { getDashboardPrayerTimes } = require("./lib/prayerTimes");
+  try {
+    res.setHeader("Cache-Control", "no-cache");
+    res.json(await getDashboardPrayerTimes());
+  } catch (err) {
+    console.error("Failed to load prayer times:", err.message);
+    res.status(502).json({ error: "নামাজের সময় লোড করা যায়নি" });
+  }
+});
+
 // Public, unauthenticated: static tier/feature data for the public
 // /pricing marketing page (client/src/pages/Pricing.tsx). Deliberately a
 // tiny read-only mirror of config/planFeatures.js rather than hand-copied

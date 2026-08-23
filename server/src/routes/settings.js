@@ -21,7 +21,24 @@ async function getAllSettings() {
 // could silently overwrite backupConfig with an unvalidated value, bypassing
 // the number-clamping and destination-path checks in routes/backup.js
 // saveConfig(). backupConfig now has to go through that route instead.
-const ALLOWED_KEYS = new Set(["name", "address", "phone", "email", "footer", "logo", "lang", "theme", "currency", "brandColor"]);
+const ALLOWED_KEYS = new Set([
+  "name",
+  "address",
+  "phone",
+  "email",
+  "footer",
+  "logo",
+  "lang",
+  "theme",
+  "currency",
+  "brandColor",
+  // City/country used by the dashboard prayer-times widget (lib/prayerTimes.js)
+  // to look up namaz timings. Free text (city/country names as Aladhan's API
+  // expects them), not geo-coordinates — kept simple since almost every
+  // institution is in one fixed, named city.
+  "prayerCity",
+  "prayerCountry",
+]);
 
 // brandColor is rendered straight into inline CSS on the public site (see
 // client's usePublicSite), so it's validated as a strict 6-digit hex color

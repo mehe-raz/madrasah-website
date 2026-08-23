@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { api } from "../../lib/api";
 import { Button, Field, Input, Select, ClassCascadeSelect } from "../../components/ui";
+import { PrayerTimesWidget } from "../../components/PrayerTimesWidget";
 import type { GuardianShellContext } from "../../components/GuardianShell";
 import { classTreeLabel } from "../../lib/classTree";
 import type { ClassOption } from "../../types";
@@ -71,6 +72,7 @@ export function GuardianDashboard() {
 
   return (
     <div className="guardian-page">
+      <PrayerTimesWidget />
       <div className="soft-panel-strong guardian-panel">
         <div className="guardian-panel__row">
           <h1 className="guardian-title">ড্যাশবোর্ড</h1>

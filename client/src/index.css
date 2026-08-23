@@ -297,6 +297,104 @@ img {
 .camera-status-row__name { flex: 1; }
 .camera-status-row__loc { font-size: 11px; color: var(--color-muted); }
 
+/* Dashboard/GuardianDashboard namaz-time widget (PrayerTimesWidget.tsx) */
+.prayer-widget {
+  margin-bottom: 20px;
+}
+.prayer-widget__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.prayer-widget__hijri {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.prayer-widget__bangla {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.prayer-widget__location {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.prayer-widget__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.prayer-widget__tile {
+  text-align: center;
+  padding: 10px 6px;
+  border-radius: 8px;
+  background: var(--slate-l);
+}
+.prayer-widget__tile--active {
+  background: #dcfce7; /* C.emeraldL */
+}
+.prayer-widget__tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.prayer-widget__tile--active .prayer-widget__tile-label {
+  color: #047857; /* C.emeraldD */
+}
+.prayer-widget__tile-time {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 2px;
+}
+.prayer-widget__sun-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.prayer-widget__sun-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.prayer-widget__progress-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.prayer-widget__progress-label {
+  font-weight: 700;
+  color: var(--text);
+}
+.prayer-widget__progress-remaining {
+  color: #047857; /* C.emeraldD */
+  font-weight: 600;
+}
+.prayer-widget__progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--slate-l);
+  overflow: hidden;
+}
+.prayer-widget__progress-fill {
+  height: 100%;
+  background: #10b981; /* C.emerald */
+  border-radius: 999px;
+}
+
+
 
 
 .gradient-border {

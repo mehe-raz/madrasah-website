@@ -167,6 +167,33 @@ export interface Settings {
   logo?: string;
   brandColor?: string;
   backupConfig?: string;
+  // City/country the dashboard prayer-times widget looks up namaz timings
+  // for (server/src/lib/prayerTimes.js). Optional: falls back to Dhaka,
+  // Bangladesh server-side when unset.
+  prayerCity?: string;
+  prayerCountry?: string;
+}
+
+// GET /api/public/prayer-times (server/src/lib/prayerTimes.js) — today's
+// namaz timings plus Hijri/Bangla calendar date for the dashboard widget.
+// "HH:mm" 24-hour time strings; unauthenticated + shared by every login's
+// dashboard (Dashboard.tsx, GuardianDashboard.tsx).
+export interface PrayerTimesData {
+  city: string;
+  country: string;
+  date: {
+    weekdayBn: string;
+    bangla: { day: number; month: string; year: number };
+    hijri: { day: number; month: string; year: number };
+  };
+  timings: {
+    fajr: string | null;
+    sunrise: string | null;
+    dhuhr: string | null;
+    asr: string | null;
+    maghrib: string | null;
+    isha: string | null;
+  };
 }
 
 // The small, whitelisted subset of Settings that /api/public/settings

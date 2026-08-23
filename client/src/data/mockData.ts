@@ -42,6 +42,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "light",
   logo: "",
   brandColor: "#0ea5e9",
+  prayerCity: "Dhaka",
+  prayerCountry: "Bangladesh",
 };
 
 export const MOCK_DASHBOARD: DashboardData = {

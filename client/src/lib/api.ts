@@ -32,6 +32,7 @@ import type {
   Notification,
   PaginatedResult,
   Payment,
+  PrayerTimesData,
   PublicResult,
   PublicSettings,
   ResultStudentOption,
@@ -754,6 +755,12 @@ export const api = {
   // Public: no login required. Institution name/logo/address/phone/email/
   // footer for the logged-out visitor page — see PublicSettings type.
   getPublicSettings: () => request<PublicSettings>("/public/settings"),
+
+  // Public: no login required. Today's namaz timings + Hijri/Bangla date
+  // for the dashboard prayer-times widget — used by both the staff/admin
+  // Dashboard and GuardianDashboard, which authenticate differently, so a
+  // shared unauthenticated endpoint is simplest. See PrayerTimesData type.
+  getPrayerTimes: () => request<PrayerTimesData>("/public/prayer-times"),
 
   // Public: no login required. Same tenant class/jamaat master list as
   // getClassOptions() above, served from server/src/index.js's
