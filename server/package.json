@@ -7,6 +7,8 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "migrate:cloudinary": "node scripts/migrate-images-to-cloudinary.js",
+    "backup-db:copy": "node scripts/copy-to-backup-db.js",
+    "backup-db:sync-back": "node scripts/sync-and-switch-back.js",
     "test:unit": "vitest run"
   },
   "dependencies": {
