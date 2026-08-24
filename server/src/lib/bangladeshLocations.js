@@ -14,38 +14,34 @@
 // source of truth. See docs on why: a wrong/missing upazila here is a
 // data-accuracy bug, not just a UI nit.
 //
-// Defensive about the exact export names: the package's README and its
-// published npm version have shown slightly different function names
-// across versions (e.g. allDistrict vs allDistricts, districtOf vs
-// districtsOf). Rather than hard-coding one and risking a hard crash if a
-// lockfile resolves a version with the other naming, this adapter checks
-// for either at runtime and normalizes the return shape either way.
-const address = require("@bangladeshi/bangladesh-address");
+// v2.1.0's convenience *functions* (allDistricts/allDistrict,
+// upazilaNamesOf/upazilasOf, ...) have changed names across published
+// versions of this package, which is exactly what silently broke the
+// picker before: guessing at a function name that doesn't exist on the
+// installed version returns an empty list with no error anywhere. The
+// package's raw data export (`upazilaData`, documented under "Raw Data
+// Access" in its README) is the stable part of its surface — an array of
+// { upazila, district, division } objects — so this adapter builds the
+// district → upazila map directly from that array. The old function-based
+// lookup is kept only as a fallback for a much older installed version
+// that predates the raw-data export.
+const pkg = require("@bangladeshi/bangladesh-address");
 
-function firstFn(...names) {
-  for (const n of names) {
-    if (typeof address[n] === "function") return address[n];
+function getUpazilaRows() {
+  // CJS build (this package compiles with "module": "commonjs" — see its
+  // tsconfig — so this is normally a direct property, not a .default).
+  // The .default fallback only guards against an unexpected interop shape.
+  const raw = pkg.upazilaData || pkg.default?.upazilaData;
+  if (Array.isArray(raw) && raw.length) return raw;
+
+  // Fallback for a version without upazilaData: try the one documented
+  // no-argument function that returns everything at once.
+  const fn = pkg.allUpazila || pkg.default?.allUpazila;
+  if (typeof fn === "function") {
+    const result = fn();
+    if (Array.isArray(result)) return result;
   }
-  return null;
-}
-
-function toNameList(result) {
-  if (!Array.isArray(result)) return [];
-  if (result.length === 0) return [];
-  if (typeof result[0] === "string") return result;
-  // Object form, e.g. { upazila: "Savar", district: "Dhaka", ... }
-  return result.map((o) => o?.upazila || o?.name || String(o)).filter(Boolean);
-}
-
-function getAllDistricts() {
-  const fn = firstFn("allDistricts", "allDistrict");
-  return fn ? [...fn()].sort((a, b) => a.localeCompare(b)) : [];
-}
-
-function getUpazilasOf(district) {
-  const fn = firstFn("upazilaNamesOf", "upazilasOf");
-  if (!fn) return [];
-  return toNameList(fn(district)).sort((a, b) => a.localeCompare(b));
+  return [];
 }
 
 // Full { district: [upazila, upazila, ...] } map — small enough (~495
@@ -57,13 +53,34 @@ function getUpazilasOf(district) {
 let cachedMap = null;
 function getFullLocationMap() {
   if (cachedMap) return cachedMap;
-  const districts = getAllDistricts();
+
+  const rows = getUpazilaRows();
   const upazilasByDistrict = {};
-  for (const d of districts) {
-    upazilasByDistrict[d] = getUpazilasOf(d);
+  for (const row of rows) {
+    const district = typeof row === "string" ? null : row?.district;
+    const upazila = typeof row === "string" ? row : row?.upazila || row?.name;
+    if (!district || !upazila) continue;
+    if (!upazilasByDistrict[district]) upazilasByDistrict[district] = [];
+    upazilasByDistrict[district].push(upazila);
   }
+  for (const d of Object.keys(upazilasByDistrict)) {
+    upazilasByDistrict[d].sort((a, b) => a.localeCompare(b));
+  }
+  const districts = Object.keys(upazilasByDistrict).sort((a, b) => a.localeCompare(b));
+
+  if (!districts.length) {
+    // Fail loudly instead of caching/returning an empty map — an empty
+    // map silently renders no picker at all on the client with nothing
+    // in the browser console to explain why. Throwing here surfaces a
+    // clear server-log line and a 500 the client now shows to the admin
+    // (see Settings.tsx), instead of the section just quietly vanishing.
+    throw new Error(
+      "@bangladeshi/bangladesh-address returned no upazila data — check that the package is installed (npm install) and its version still exports upazilaData"
+    );
+  }
+
   cachedMap = { districts, upazilasByDistrict };
   return cachedMap;
 }
 
-module.exports = { getAllDistricts, getUpazilasOf, getFullLocationMap };
+module.exports = { getFullLocationMap };

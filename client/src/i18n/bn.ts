@@ -236,6 +236,8 @@ export const bn = {
     selectUpazila: "থানা/উপজেলা নির্বাচন করুন",
     selectUpazilaWholeDistrict: "সমগ্র জেলা (নির্দিষ্ট থানা নয়)",
     districtPickerHint: "জেলা ও থানা বেছে নিলে নিচের শহরের নাম স্বয়ংক্রিয়ভাবে বসে যাবে — সবচেয়ে নির্ভুল ফলাফলের জন্য থানা পর্যন্ত বেছে নিন",
+    locationLoadError: "জেলা/উপজেলার তালিকা লোড করা যায়নি।",
+    locationLoadRetry: "আবার চেষ্টা করুন",
     backup: "ডেটা ব্যাকআপ",
     domainSection: "কাস্টম ডোমেইন",
     domainHint: "নিজের ডোমেইন দিয়ে আপনার প্রতিষ্ঠানের সাইট চালু করুন (যেমনঃ school.example.com)।",

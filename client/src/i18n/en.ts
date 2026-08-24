@@ -231,6 +231,8 @@ export const en = {
     selectUpazila: "Select thana/upazila",
     selectUpazilaWholeDistrict: "Whole district (no specific thana)",
     districtPickerHint: "Picking a district and thana fills in the city name below automatically — pick down to the thana for the most accurate result",
+    locationLoadError: "Couldn't load the district/upazila list.",
+    locationLoadRetry: "Retry",
     backup: "Data Backup",
     domainSection: "Custom Domain",
     domainHint: "Serve your institution's site on your own domain (e.g. school.example.com).",

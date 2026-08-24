@@ -351,6 +351,7 @@ export function Settings() {
   const [locatingGps, setLocatingGps] = useState(false);
   const [gpsError, setGpsError] = useState("");
   const [bdLocations, setBdLocations] = useState<{ districts: string[]; upazilasByDistrict: Record<string, string[]> } | null>(null);
+  const [bdLocationsError, setBdLocationsError] = useState(false);
   const [userForm, setUserForm] = useState({ name: "", role: "Teacher", email: "", password: "" });
   const [editDraft, setEditDraft] = useState<User | null>(null);
   const [classAssignDraft, setClassAssignDraft] = useState<{ userId: number; classes: string[] } | null>(null);
@@ -526,10 +527,20 @@ export function Settings() {
   // location) — same on-open-load pattern as editBackup above, loaded only
   // once the প্রতিষ্ঠানের তথ্য section is opened for editing rather than on
   // every Settings page visit.
+  const loadBdLocations = () => {
+    api
+      .getBangladeshLocations()
+      .then((data) => {
+        setBdLocations(data);
+        setBdLocationsError(false);
+      })
+      .catch(() => setBdLocationsError(true));
+  };
+
   useEffect(() => {
-    if (!editInfo || bdLocations) return;
-    api.getBangladeshLocations().then(setBdLocations).catch(() => {});
-  }, [editInfo, bdLocations]);
+    if (!editInfo || bdLocations || bdLocationsError) return;
+    loadBdLocations();
+  }, [editInfo, bdLocations, bdLocationsError]);
 
   // Which district is "selected" is derived from settings.prayerCity
   // rather than tracked in its own state: handleSelectDistrict below
@@ -1275,6 +1286,14 @@ export function Settings() {
                 <p className="hint-text">{t.settings.brandColorHint}</p>
               </div>
               <div>
+                {bdLocationsError && (
+                  <p className="hint-text hint-text--error mt-8">
+                    {t.settings.locationLoadError}{" "}
+                    <button type="button" className="link-button" onClick={loadBdLocations}>
+                      {t.settings.locationLoadRetry}
+                    </button>
+                  </p>
+                )}
                 {bdLocations && (
                   <>
                     <label className="field-block__label">{t.settings.selectDistrict}</label>
