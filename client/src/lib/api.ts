@@ -11,6 +11,7 @@ import type {
   AuditLogMeta,
   AuthUser,
   BackupConfig,
+  BangladeshLocationsData,
   ClassOption,
   ClassPost,
   ClassTreeNode,
@@ -761,6 +762,11 @@ export const api = {
   // Dashboard and GuardianDashboard, which authenticate differently, so a
   // shared unauthenticated endpoint is simplest. See PrayerTimesData type.
   getPrayerTimes: () => request<PrayerTimesData>("/public/prayer-times"),
+
+  // Public: no login required. All 64 Bangladesh districts + their
+  // upazilas, for the district→upazila picker in Settings > namaz. Static
+  // reference data — see BangladeshLocationsData type.
+  getBangladeshLocations: () => request<BangladeshLocationsData>("/public/bd-locations"),
 
   // Public: no login required. Same tenant class/jamaat master list as
   // getClassOptions() above, served from server/src/index.js's

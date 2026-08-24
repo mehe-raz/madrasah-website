@@ -350,6 +350,7 @@ export function Settings() {
   const [saved, setSaved] = useState(false);
   const [locatingGps, setLocatingGps] = useState(false);
   const [gpsError, setGpsError] = useState("");
+  const [bdLocations, setBdLocations] = useState<{ districts: string[]; upazilasByDistrict: Record<string, string[]> } | null>(null);
   const [userForm, setUserForm] = useState({ name: "", role: "Teacher", email: "", password: "" });
   const [editDraft, setEditDraft] = useState<User | null>(null);
   const [classAssignDraft, setClassAssignDraft] = useState<{ userId: number; classes: string[] } | null>(null);
@@ -477,6 +478,32 @@ export function Settings() {
     setSaved(false);
   };
 
+  // District→upazila picker (Settings > namaz). A single setSettings call
+  // per selection — not two chained update() calls — since update() reads
+  // `settings` from this render's closure, so a second call right after
+  // the first would overwrite it with stale data instead of building on
+  // top of the first change.
+  const handleSelectDistrict = (district: string) => {
+    setSettings({ ...settings, prayerCity: district, prayerCountry: "Bangladesh" });
+    setSaved(false);
+  };
+
+  const handleSelectUpazila = (upazila: string) => {
+    setSettings({ ...settings, prayerCity: upazila, prayerCountry: "Bangladesh" });
+    setSaved(false);
+  };
+
+  // Client-side mirror of the server's range check (routes/settings.js) —
+  // catches an obviously wrong manual entry (typo, swapped lat/lng) before
+  // save, rather than the value silently failing to persist server-side.
+  const latLngError = (() => {
+    const lat = settings.prayerLat;
+    const lng = settings.prayerLng;
+    if (lat && (!Number.isFinite(Number(lat)) || Math.abs(Number(lat)) > 90)) return t.settings.invalidLatLng;
+    if (lng && (!Number.isFinite(Number(lng)) || Math.abs(Number(lng)) > 180)) return t.settings.invalidLatLng;
+    return "";
+  })();
+
   const refreshDriveStatus = () => api.getGoogleDriveStatus().then(setDriveStatus).catch(() => {});
 
   const refreshDriveFiles = () => {
@@ -494,6 +521,28 @@ export function Settings() {
       refreshDriveStatus();
     }
   }, [allowBackup, editBackup]);
+
+  // District→upazila picker for Settings > namaz (prayer-times widget
+  // location) — same on-open-load pattern as editBackup above, loaded only
+  // once the প্রতিষ্ঠানের তথ্য section is opened for editing rather than on
+  // every Settings page visit.
+  useEffect(() => {
+    if (!editInfo || bdLocations) return;
+    api.getBangladeshLocations().then(setBdLocations).catch(() => {});
+  }, [editInfo, bdLocations]);
+
+  // Which district is "selected" is derived from settings.prayerCity
+  // rather than tracked in its own state: handleSelectDistrict below
+  // writes the district name straight into prayerCity, and
+  // handleSelectUpazila writes the upazila name — so whichever district
+  // contains (or equals) the current prayerCity IS the selected one. This
+  // also means reopening Settings shows the picker already in sync with
+  // whatever's saved, with no separate load-time sync effect needed.
+  const selectedDistrict = bdLocations
+    ? bdLocations.districts.includes(settings.prayerCity || "")
+      ? settings.prayerCity || ""
+      : Object.entries(bdLocations.upazilasByDistrict).find(([, ups]) => ups.includes(settings.prayerCity || ""))?.[0] || ""
+    : "";
 
   // docs/SHIFT_SCHEDULE_PLAN.md, Phase 6 — load shift list + class-shift
   // map together whenever the শিফট section opens (same on-open-load
@@ -1226,6 +1275,33 @@ export function Settings() {
                 <p className="hint-text">{t.settings.brandColorHint}</p>
               </div>
               <div>
+                {bdLocations && (
+                  <>
+                    <label className="field-block__label">{t.settings.selectDistrict}</label>
+                    <Select value={selectedDistrict} onChange={(e) => handleSelectDistrict(e.target.value)}>
+                      <option value="">{t.settings.selectDistrictPlaceholder}</option>
+                      {bdLocations.districts.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </Select>
+                    {selectedDistrict && (
+                      <>
+                        <label className="field-block__label mt-8">{t.settings.selectUpazila}</label>
+                        <Select value={settings.prayerCity || ""} onChange={(e) => handleSelectUpazila(e.target.value)}>
+                          <option value={selectedDistrict}>{t.settings.selectUpazilaWholeDistrict}</option>
+                          {(bdLocations.upazilasByDistrict[selectedDistrict] || []).map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </Select>
+                      </>
+                    )}
+                    <p className="hint-text mt-8">{t.settings.districtPickerHint}</p>
+                  </>
+                )}
                 <Field label={t.settings.prayerCity} value={settings.prayerCity || ""} onChange={(v) => update("prayerCity", v)} />
                 <Field label={t.settings.prayerCountry} value={settings.prayerCountry || ""} onChange={(v) => update("prayerCountry", v)} />
                 <Button variant="outline" onClick={handleUseCurrentLocation} disabled={locatingGps} className="mt-8">
@@ -1240,6 +1316,10 @@ export function Settings() {
                   </p>
                 )}
                 {gpsError && <p className="drive-error">{gpsError}</p>}
+                <p className="hint-text mt-8">{t.settings.manualLocationHint}</p>
+                <Field label={t.settings.manualLat} value={settings.prayerLat || ""} onChange={(v) => update("prayerLat", v)} />
+                <Field label={t.settings.manualLng} value={settings.prayerLng || ""} onChange={(v) => update("prayerLng", v)} />
+                {latLngError && <p className="drive-error">{latLngError}</p>}
                 <p className="hint-text">{t.settings.prayerHint}</p>
               </div>
             </div>

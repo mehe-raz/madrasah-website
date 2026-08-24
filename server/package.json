@@ -12,6 +12,7 @@
     "test:unit": "vitest run"
   },
   "dependencies": {
+    "@bangladeshi/bangladesh-address": "^2.1.0",
     "@sentry/node": "^8.55.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.5.1",

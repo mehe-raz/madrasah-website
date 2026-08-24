@@ -205,6 +205,15 @@ export interface PrayerTimesData {
   };
 }
 
+// GET /api/public/bd-locations (server/src/lib/bangladeshLocations.js) —
+// all 64 Bangladesh districts and their upazilas, for the district→upazila
+// picker in Settings > namaz. Static reference data, same for every
+// institution.
+export interface BangladeshLocationsData {
+  districts: string[];
+  upazilasByDistrict: Record<string, string[]>;
+}
+
 // The small, whitelisted subset of Settings that /api/public/settings
 // exposes to logged-out visitors (see server/src/lib/publicSettings.js).
 export interface PublicSettings {

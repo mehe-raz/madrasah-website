@@ -336,6 +336,23 @@ app.get("/api/public/prayer-times", async (_req, res) => {
   }
 });
 
+// Public, unauthenticated, static reference data: all 64 Bangladesh
+// districts and their upazilas (thanas), for the district→upazila picker
+// in Settings > namaz (lib/bangladeshLocations.js). No auth needed — this
+// never varies by institution or user, it's the same fixed geography for
+// everyone. Cached long since the underlying package's data doesn't
+// change between deploys.
+app.get("/api/public/bd-locations", (_req, res) => {
+  const { getFullLocationMap } = require("./lib/bangladeshLocations");
+  try {
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.json(getFullLocationMap());
+  } catch (err) {
+    console.error("Failed to load Bangladesh location data:", err.message);
+    res.status(500).json({ error: "লোকেশন তালিকা লোড করা যায়নি" });
+  }
+});
+
 // Public, unauthenticated: static tier/feature data for the public
 // /pricing marketing page (client/src/pages/Pricing.tsx). Deliberately a
 // tiny read-only mirror of config/planFeatures.js rather than hand-copied
