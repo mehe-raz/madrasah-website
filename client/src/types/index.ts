@@ -172,6 +172,12 @@ export interface Settings {
   // Bangladesh server-side when unset.
   prayerCity?: string;
   prayerCountry?: string;
+  // Optional GPS coordinates (decimal degrees, as strings — same text-column
+  // convention as every other setting) captured via Settings > namaz >
+  // "বর্তমান লোকেশন ব্যবহার করুন". When set, lib/prayerTimes.js prefers
+  // these over prayerCity/prayerCountry for more precise timings.
+  prayerLat?: string;
+  prayerLng?: string;
 }
 
 // GET /api/public/prayer-times (server/src/lib/prayerTimes.js) — today's
@@ -181,6 +187,9 @@ export interface Settings {
 export interface PrayerTimesData {
   city: string;
   country: string;
+  // "coordinates" when the institution has captured a precise GPS location
+  // in Settings; "city" when timings are resolved from the city name only.
+  locationSource: "coordinates" | "city";
   date: {
     weekdayBn: string;
     bangla: { day: number; month: string; year: number };

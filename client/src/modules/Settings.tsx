@@ -348,6 +348,8 @@ export function Settings() {
   } = useAppSettings();
   const { t, tr } = useLanguage();
   const [saved, setSaved] = useState(false);
+  const [locatingGps, setLocatingGps] = useState(false);
+  const [gpsError, setGpsError] = useState("");
   const [userForm, setUserForm] = useState({ name: "", role: "Teacher", email: "", password: "" });
   const [editDraft, setEditDraft] = useState<User | null>(null);
   const [classAssignDraft, setClassAssignDraft] = useState<{ userId: number; classes: string[] } | null>(null);
@@ -436,6 +438,42 @@ export function Settings() {
 
   const update = (k: keyof SettingsType, v: string) => {
     setSettings({ ...settings, [k]: v });
+    setSaved(false);
+  };
+
+  // Settings > namaz > "বর্তমান লোকেশন ব্যবহার করুন" — captures the admin's
+  // current device GPS coordinates via the browser Geolocation API and
+  // stores them as prayerLat/prayerLng. lib/prayerTimes.js prefers these
+  // over the city/country text fields once set, for more precise timings
+  // than a city-name lookup can give (down to the exact device location
+  // rather than "somewhere in this thana").
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError(t.settings.gpsUnsupported);
+      return;
+    }
+    setGpsError("");
+    setLocatingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setSettings({
+          ...settings,
+          prayerLat: String(pos.coords.latitude),
+          prayerLng: String(pos.coords.longitude),
+        });
+        setSaved(false);
+        setLocatingGps(false);
+      },
+      () => {
+        setGpsError(t.settings.gpsDenied);
+        setLocatingGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
+
+  const handleClearGpsLocation = () => {
+    setSettings({ ...settings, prayerLat: "", prayerLng: "" });
     setSaved(false);
   };
 
@@ -1155,6 +1193,7 @@ export function Settings() {
                 </div>
                 <InfoRow label={t.settings.prayerCity} value={settings.prayerCity || "Dhaka"} />
                 <InfoRow label={t.settings.prayerCountry} value={settings.prayerCountry || "Bangladesh"} />
+                {settings.prayerLat && settings.prayerLng && <InfoRow label={t.settings.gpsLocationSet} value={t.settings.gpsLocationActive} />}
                 {settings.logo && <img src={settings.logo} alt="Logo" loading="lazy" decoding="async" className="logo-preview mt-12" />}
               </div>
             )}
@@ -1189,6 +1228,18 @@ export function Settings() {
               <div>
                 <Field label={t.settings.prayerCity} value={settings.prayerCity || ""} onChange={(v) => update("prayerCity", v)} />
                 <Field label={t.settings.prayerCountry} value={settings.prayerCountry || ""} onChange={(v) => update("prayerCountry", v)} />
+                <Button variant="outline" onClick={handleUseCurrentLocation} disabled={locatingGps} className="mt-8">
+                  {locatingGps ? t.settings.locatingGps : t.settings.useCurrentLocation}
+                </Button>
+                {settings.prayerLat && settings.prayerLng && (
+                  <p className="hint-text">
+                    {t.settings.gpsLocationActive}{" "}
+                    <button type="button" onClick={handleClearGpsLocation} className="link-btn">
+                      {t.settings.clearGpsLocation}
+                    </button>
+                  </p>
+                )}
+                {gpsError && <p className="drive-error">{gpsError}</p>}
                 <p className="hint-text">{t.settings.prayerHint}</p>
               </div>
             </div>

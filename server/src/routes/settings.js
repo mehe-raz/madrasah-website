@@ -38,6 +38,13 @@ const ALLOWED_KEYS = new Set([
   // institution is in one fixed, named city.
   "prayerCity",
   "prayerCountry",
+  // GPS coordinates captured via Settings > namaz > "বর্তমান লোকেশন
+  // ব্যবহার করুন" (browser Geolocation API). When present, lib/prayerTimes.js
+  // prefers these over prayerCity/prayerCountry for more precise timings.
+  // Stored as decimal-degree strings, same text-column convention as every
+  // other setting here.
+  "prayerLat",
+  "prayerLng",
 ]);
 
 // brandColor is rendered straight into inline CSS on the public site (see
@@ -57,6 +64,11 @@ router.put("/", async (req, res) => {
       if (!ALLOWED_KEYS.has(k)) continue;
       const value = String(v);
       if (k === "brandColor" && !HEX_COLOR_RE.test(value)) continue;
+      // Reject out-of-range GPS coordinates (e.g. stray text) rather than
+      // silently storing something lib/prayerTimes.js would send straight
+      // to the Aladhan API.
+      if (k === "prayerLat" && (!Number.isFinite(Number(value)) || Math.abs(Number(value)) > 90)) continue;
+      if (k === "prayerLng" && (!Number.isFinite(Number(value)) || Math.abs(Number(value)) > 180)) continue;
       applied[k] = value;
       await tx.run(
         "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",

@@ -326,6 +326,14 @@ img {
   align-items: center;
   gap: 4px;
 }
+.prayer-widget__gps-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #047857; /* C.emeraldD */
+  background: #dcfce7; /* C.emeraldL */
+  border-radius: 999px;
+  padding: 1px 6px;
+}
 .prayer-widget__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));

@@ -7,16 +7,27 @@
 // times shown line up with what the institution's own community already
 // prays by, rather than a foreign default.
 //
-// In-memory, per-process cache keyed by city+country+date: a given day's
+// Two lookup modes, in preference order:
+//   1. Coordinates (prayerLat/prayerLng in settings) — calls Aladhan's
+//      /v1/timings endpoint directly with latitude+longitude. This is the
+//      most precise option: no city-name resolution step at all, so it's
+//      accurate down to wherever the institution's device stood when it
+//      captured its GPS location (Settings > namaz > "বর্তমান লোকেশন
+//      ব্যবহার করুন"), not just "somewhere in this thana."
+//   2. City + country (prayerCity/prayerCountry) — /v1/timingsByCity,
+//      Aladhan resolves the city name to coordinates server-side. Used
+//      whenever coordinates haven't been captured yet.
+//
+// In-memory, per-process cache keyed by mode+location+date: a given day's
 // timings never change once published, so there's no reason to hit the
-// upstream API more than once per (city, date) combination across every
-// dashboard load that day. Deliberately not DB-backed — worst case after a
-// server restart is one extra upstream call.
+// upstream API more than once per (location, date) combination across
+// every dashboard load that day. Deliberately not DB-backed — worst case
+// after a server restart is one extra upstream call.
 
 const db = require("./../db");
 const { toBanglaDate } = require("./banglaCalendar");
 
-const CACHE = new Map(); // "city|country|dd-mm-yyyy" -> { fetchedAt, data }
+const CACHE = new Map(); // cache key -> { fetchedAt, data }
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // safety net so a stuck process still refreshes twice a day
 
 const ALADHAN_METHOD_KARACHI = 1;
@@ -80,27 +91,12 @@ function cleanTime(raw) {
   return match ? match[1] : null;
 }
 
-async function fetchPrayerTimes(city, country, date = todayInCalendarTimezone()) {
-  const dateStr = ddmmyyyy(date);
-  const key = `${city}|${country}|${dateStr}`;
-  const cached = CACHE.get(key);
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-    return cached.data;
-  }
-
-  const url = `https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=${encodeURIComponent(
-    city
-  )}&country=${encodeURIComponent(country)}&method=${ALADHAN_METHOD_KARACHI}`;
-
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Aladhan API HTTP ${res.status}`);
-  const body = await res.json();
+function parseAladhanResponse(body) {
   if (body?.code !== 200 || !body?.data?.timings) {
     throw new Error("Aladhan API: unexpected response shape");
   }
-
   const t = body.data.timings;
-  const data = {
+  return {
     fajr: cleanTime(t.Fajr),
     sunrise: cleanTime(t.Sunrise),
     dhuhr: cleanTime(t.Dhuhr),
@@ -114,32 +110,66 @@ async function fetchPrayerTimes(city, country, date = todayInCalendarTimezone())
       year: Number(body.data.date.hijri.year),
     },
   };
+}
 
-  CACHE.set(key, { fetchedAt: Date.now(), data });
+async function callAladhan(url, cacheKey) {
+  const cached = CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    return cached.data;
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Aladhan API HTTP ${res.status}`);
+  const data = parseAladhanResponse(await res.json());
+  CACHE.set(cacheKey, { fetchedAt: Date.now(), data });
   return data;
 }
 
-// Ties together this institution's configured city/country (settings
-// table — same generic key/value store as name/address/etc., see
+// Most precise mode: exact GPS coordinates, no city-name resolution step.
+async function fetchPrayerTimesByCoordinates(lat, lng, date = todayInCalendarTimezone()) {
+  const dateStr = ddmmyyyy(date);
+  const key = `coords|${lat}|${lng}|${dateStr}`;
+  const url = `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lng}&method=${ALADHAN_METHOD_KARACHI}`;
+  return callAladhan(url, key);
+}
+
+async function fetchPrayerTimesByCity(city, country, date = todayInCalendarTimezone()) {
+  const dateStr = ddmmyyyy(date);
+  const key = `city|${city}|${country}|${dateStr}`;
+  const url = `https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=${encodeURIComponent(
+    city
+  )}&country=${encodeURIComponent(country)}&method=${ALADHAN_METHOD_KARACHI}`;
+  return callAladhan(url, key);
+}
+
+// Ties together this institution's configured location (settings table —
+// same generic key/value store as name/address/etc., see
 // routes/settings.js), the Aladhan timings above, and the Bangla calendar
 // conversion, into exactly the shape the dashboard widget needs. A single
-// composed function rather than three separate client-side calls, so the
-// widget stays a plain fetch-and-render component.
+// composed function rather than several client-side calls, so the widget
+// stays a plain fetch-and-render component.
 async function getDashboardPrayerTimes() {
   const rows = await db.all("SELECT key, value FROM settings WHERE key = ANY($1::text[])", [
-    ["prayerCity", "prayerCountry"],
+    ["prayerCity", "prayerCountry", "prayerLat", "prayerLng"],
   ]);
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const lat = map.prayerLat ? Number(map.prayerLat) : null;
+  const lng = map.prayerLng ? Number(map.prayerLng) : null;
+  const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
   const city = map.prayerCity || DEFAULT_CITY;
   const country = map.prayerCountry || DEFAULT_COUNTRY;
 
   const today = todayInCalendarTimezone();
-  const timings = await fetchPrayerTimes(city, country, today);
+  const timings = hasCoordinates
+    ? await fetchPrayerTimesByCoordinates(lat, lng, today)
+    : await fetchPrayerTimesByCity(city, country, today);
   const bangla = toBanglaDate(today);
 
   return {
     city,
     country,
+    // Lets the widget show a "GPS-precise" indicator instead of just the
+    // city name when coordinates are the active source.
+    locationSource: hasCoordinates ? "coordinates" : "city",
     date: {
       weekdayBn: BN_WEEKDAYS[today.getDay()],
       bangla,
@@ -160,4 +190,10 @@ async function getDashboardPrayerTimes() {
   };
 }
 
-module.exports = { fetchPrayerTimes, getDashboardPrayerTimes, DEFAULT_CITY, DEFAULT_COUNTRY };
+module.exports = {
+  fetchPrayerTimesByCoordinates,
+  fetchPrayerTimesByCity,
+  getDashboardPrayerTimes,
+  DEFAULT_CITY,
+  DEFAULT_COUNTRY,
+};

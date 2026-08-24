@@ -189,6 +189,9 @@ export function PrayerTimesWidget() {
         <div className="prayer-widget__location">
           <MoonIcon size={14} aria-hidden="true" />
           {data.city}
+          {data.locationSource === "coordinates" && (
+            <span className="prayer-widget__gps-badge">{lang === "en" ? "GPS" : "GPS নির্ভুল"}</span>
+          )}
         </div>
       </div>
 
