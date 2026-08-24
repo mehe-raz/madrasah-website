@@ -26,33 +26,44 @@ const DEFAULT_COUNTRY = "Bangladesh";
 
 const BN_WEEKDAYS = ["রবিবার", "সোমবার", "মঙ্গলবার", "বুধবার", "বৃহস্পতিবার", "শুক্রবার", "শনিবার"];
 
-// Aladhan's Hijri month.en spelling varies a bit by transliteration
-// (apostrophe style, capitalization), so lookups are normalized rather than
-// matched exactly. If a spelling variant isn't in the map, the English name
-// is shown as a safe fallback instead of breaking the widget.
-const HIJRI_MONTHS_BN = {
-  muharram: "মহররম",
-  safar: "সফর",
-  "rabi al-awwal": "রবিউল আউয়াল",
-  "rabi al-thani": "রবিউস সানি",
-  "rabi al-akhir": "রবিউস সানি",
-  "jumada al-awwal": "জমাদিউল আউয়াল",
-  "jumada al-ula": "জমাদিউল আউয়াল",
-  "jumada al-thani": "জমাদিউস সানি",
-  "jumada al-akhirah": "জমাদিউস সানি",
-  rajab: "রজব",
-  shaban: "শাবান",
-  ramadan: "রমজান",
-  shawwal: "শাওয়াল",
-  "dhu al-qidah": "জিলক্বদ",
-  "dhu al-hijjah": "জিলহজ",
+// Indexed 1-12 by Aladhan's own hijri.month.number — far more reliable than
+// matching their English transliteration string (which varies in spelling/
+// diacritics between responses and was silently falling through to the
+// English name being shown instead of Bangla).
+const HIJRI_MONTHS_BN_BY_NUMBER = {
+  1: "মহররম",
+  2: "সফর",
+  3: "রবিউল আউয়াল",
+  4: "রবিউস সানি",
+  5: "জমাদিউল আউয়াল",
+  6: "জমাদিউস সানি",
+  7: "রজব",
+  8: "শাবান",
+  9: "রমজান",
+  10: "শাওয়াল",
+  11: "জিলক্বদ",
+  12: "জিলহজ",
 };
 
-function normalizeHijriMonth(name) {
-  return String(name || "")
-    .toLowerCase()
-    .replace(/['’ʻ]/g, "")
-    .trim();
+// This deployment is Bangladesh-specific (docs/GENERAL_MODE_PLAN.md
+// default institution type), so "today" for the calendar/weekday is always
+// resolved in Asia/Dhaka regardless of the server's own OS timezone —
+// fixing a bug where a UTC-clocked server read the wrong calendar day
+// during the ~6 hours/day (00:00-06:00 Dhaka time) where the UTC date has
+// not yet rolled over to match Dhaka's. If institutions outside Bangladesh
+// are ever supported, this needs to resolve per-institution timezone
+// instead of the hardcoded zone below.
+const CALENDAR_TIMEZONE = "Asia/Dhaka";
+
+function todayInCalendarTimezone() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: CALENDAR_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return new Date(Number(map.year), Number(map.month) - 1, Number(map.day));
 }
 
 function ddmmyyyy(date) {
@@ -69,7 +80,7 @@ function cleanTime(raw) {
   return match ? match[1] : null;
 }
 
-async function fetchPrayerTimes(city, country, date = new Date()) {
+async function fetchPrayerTimes(city, country, date = todayInCalendarTimezone()) {
   const dateStr = ddmmyyyy(date);
   const key = `${city}|${country}|${dateStr}`;
   const cached = CACHE.get(key);
@@ -98,7 +109,8 @@ async function fetchPrayerTimes(city, country, date = new Date()) {
     isha: cleanTime(t.Isha),
     hijri: {
       day: Number(body.data.date.hijri.day),
-      month: body.data.date.hijri.month?.en || "",
+      monthNumber: Number(body.data.date.hijri.month?.number) || null,
+      monthEn: body.data.date.hijri.month?.en || "",
       year: Number(body.data.date.hijri.year),
     },
   };
@@ -121,20 +133,19 @@ async function getDashboardPrayerTimes() {
   const city = map.prayerCity || DEFAULT_CITY;
   const country = map.prayerCountry || DEFAULT_COUNTRY;
 
-  const now = new Date();
-  const timings = await fetchPrayerTimes(city, country, now);
-  const bangla = toBanglaDate(now);
-  const hijriMonthKey = normalizeHijriMonth(timings.hijri.month);
+  const today = todayInCalendarTimezone();
+  const timings = await fetchPrayerTimes(city, country, today);
+  const bangla = toBanglaDate(today);
 
   return {
     city,
     country,
     date: {
-      weekdayBn: BN_WEEKDAYS[now.getDay()],
+      weekdayBn: BN_WEEKDAYS[today.getDay()],
       bangla,
       hijri: {
         day: timings.hijri.day,
-        month: HIJRI_MONTHS_BN[hijriMonthKey] || timings.hijri.month,
+        month: HIJRI_MONTHS_BN_BY_NUMBER[timings.hijri.monthNumber] || timings.hijri.monthEn,
         year: timings.hijri.year,
       },
     },
